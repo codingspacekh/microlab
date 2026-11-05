@@ -1,4 +1,5 @@
 import { RealClock, type Clock } from './clock';
+import type { Control } from './control';
 import { PinBank, RP2040_RESET, type AnalogEntry, type InputChange, type Level, type PinMode, type PinState, type Pull, type PwmEntry, type TraceEntry } from './pins';
 import { Motion, type MotionChange } from './motion';
 import { TimerBank } from './timers';
@@ -71,6 +72,8 @@ export interface RunOptions {
   lightLevel?: number;
   /** The line being run each time the program starts to sleep (screen 03: where a program spends its time). */
   onSleep?: (at: Where | undefined) => void;
+  /** Stop and live inputs from the window (src/sim/control.ts); the RealClock should wait on it too. */
+  control?: Control;
 }
 
 /** The sim's own Python (src/python/common) and the boards' (src/python/<folder>), written to a folder the
@@ -85,16 +88,18 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const clock = options.clock ?? new RealClock();
   const now = () => clock.nowUs();
   const spec = options.board ? BOARDS[options.board] : undefined;
-  const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []));
+  const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []), options.control);
+  const stop = stopper(mp, options.control);
   const timers = new TimerBank(now);
   const events = new Events(mp, pins, timers);
   const display: [number, string][] = [];
   const sound: [number, number][] = [];
   const bus: [number, string][] = [];
   const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
-  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, { display, sound, motion, bus }, options));
+  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, { display, sound, motion, bus, stop }, options));
   mp._module.microlabHook = () => {
     clock.poll();
+    stop();
     events.update();
     events.deliver();
   };
@@ -134,10 +139,27 @@ interface MicrobitParts {
   sound: [number, number][];
   motion: Motion;
   bus: [number, string][];
+  /** True once Stop is asked for (and KeyboardInterrupt is on its way). */
+  stop: () => boolean;
+}
+
+/** Stop (N-03): KeyboardInterrupt is scheduled when the window asks, and again every 50 ms while it still asks, in
+ *  case the program catches it (the sim-client ends the worker after 300 ms if even that fails, architecture §2.3). */
+function stopper(mp: MicroPython, control: Control | undefined): () => boolean {
+  let last = -Infinity;
+  return () => {
+    if (!control?.stopRequested()) return false;
+    const t = performance.now();
+    if (t - last >= 50) {
+      last = t;
+      mp._module._mp_sched_keyboard_interrupt();
+    }
+    return true;
+  };
 }
 
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
-  const { display, sound, motion, bus } = mb;
+  const { display, sound, motion, bus, stop } = mb;
   const log = (entry: string) => bus.push([clock.nowUs(), entry]);
   return {
     ticks_us: () => clock.ticksUs(),
@@ -150,7 +172,8 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
         const left = end - clock.nowUs();
         if (left <= 0) return 0;
         const next = Math.min(pins.nextChangeUs(), timers.nextDueUs()) - clock.nowUs();
-        clock.sleepUs(Math.min(left, Math.max(0, next)), () => events.update());
+        clock.sleepUs(Math.min(left, Math.max(0, next)), () => events.update() || stop());
+        if (stop()) return Math.max(1, end - clock.nowUs());   // KeyboardInterrupt is raised as Python goes on
         events.update();
         if (events.deliver()) return Math.max(0, end - clock.nowUs());
       }
@@ -237,7 +260,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
           if (--left === 0) return t - start;
           start = t;
         } else {
-          if (t - start >= timeoutUs) return -left;
+          if (t - start >= timeoutUs || stop()) return -left;
           const until = Math.min(pins.nextChangeUs(), start + timeoutUs);
           const wait = until - clock.nowUs();
           if (wait > 0) clock.sleepUs(wait);

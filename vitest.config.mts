@@ -35,8 +35,9 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/lib/**', 'src/sim/**', 'src/main/**'],
-      // index.ts is Electron glue (windows, menus), proven by the e2e tests.
-      exclude: ['src/main/index.ts'],
+      // index.ts is Electron glue (windows, menus), proven by the e2e tests; sim/worker.ts only wires the Web Worker
+      // to handleStart (worker-core.ts, tested), and the .d.ts has no code.
+      exclude: ['src/main/index.ts', 'src/sim/worker.ts', 'src/sim/vendor.d.ts'],
       thresholds: {
         'src/lib/circuit/**': { lines: 95, branches: 95, functions: 95, statements: 95 },
         'src/lib/**': { lines: 90, branches: 90, functions: 90, statements: 90 },

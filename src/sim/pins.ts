@@ -48,6 +48,8 @@ export interface PendingIrq {
   owner: unknown;
 }
 
+import type { Control } from './control';
+
 /** A pin after reset: RP2040 pads come out of reset with their pull-down on (datasheet §2.19.6.3, PADS_BANK0
  *  PDE = 1); the ESP32's GPIO matrix starts as inputs with no pull (each board passes its own). */
 export const RP2040_RESET: PinState = { mode: 'reset', pull: 'down', out: 0 };
@@ -75,6 +77,8 @@ export class PinBank {
     private readonly reset: PinState = RP2040_RESET,
     /** Pins with a pull-up resistor on the board itself (the micro:bit's buttons and I²C lines). */
     private readonly pulledUp: ReadonlySet<string> = new Set(),
+    /** Inputs the window sets while the program runs (src/sim/control.ts), read on every update. */
+    private readonly live?: Control,
   ) {
     this.script = inputs.filter((c) => c.pin !== 'ACCEL').sort((a, b) => a.atUs - b.atUs);
   }
@@ -168,6 +172,7 @@ export class PinBank {
 
   /** Applies the scripted input changes due by now; edges on pins with an IRQ queue its handler. */
   update(): void {
+    if (this.live) this.readLive(this.live);
     const t = this.now();
     while (this.next < this.script.length && this.script[this.next]!.atUs <= t) {
       const c = this.script[this.next++]!;
@@ -185,6 +190,35 @@ export class PinBank {
       }
       this.changed(c.pin);
     }
+  }
+
+  private readonly liveSeen: number[] = [];
+
+  /** Slots 'level:14', 'volts:26', 'touch:4'; NaN lets go of the pin. */
+  private readLive(live: Control): void {
+    live.names.forEach((name, i) => {
+      const v = live.input(i);
+      const before = this.liveSeen[i];
+      if (before === v || (Number.isNaN(before) && Number.isNaN(v))) return;
+      this.liveSeen[i] = v;
+      const [kind, pin] = name.split(':') as [string, string];
+      if (kind === 'touch') {
+        if (v > 0.5) this.touchedPins.add(pin);
+        else this.touchedPins.delete(pin);
+        return;
+      }
+      if (Number.isNaN(v)) {
+        this.outside.delete(pin);
+        this.outsideVolts.delete(pin);
+      } else if (kind === 'volts') {
+        this.outsideVolts.set(pin, v);
+        this.outside.set(pin, v >= VDD / 2 ? 1 : 0);
+      } else {
+        this.outsideVolts.delete(pin);
+        this.outside.set(pin, v ? 1 : 0);
+      }
+      this.changed(pin);
+    });
   }
 
   /** How many times the pin went from high to low since the last call (button presses, counted by the board). */
