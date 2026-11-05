@@ -48,7 +48,17 @@ export interface PendingIrq {
   owner: unknown;
 }
 
+import type { PinState as EnginePinState } from '@lib/circuit';
 import type { Control } from './control';
+
+/** The circuit behind the pins (src/sim/circuit.ts, M3): solved voltages for the header pins. */
+export interface CircuitLink {
+  has(pin: string): boolean;
+  volts(pin: string): number;
+  invalidate(): void;
+  update(): void;
+  nextChangeUs(): number;
+}
 
 /** A pin after reset: RP2040 pads come out of reset with their pull-down on (datasheet §2.19.6.3, PADS_BANK0
  *  PDE = 1); the ESP32's GPIO matrix starts as inputs with no pull (each board passes its own). */
@@ -87,6 +97,27 @@ export class PinBank {
     return this.state.get(pin) ?? { ...this.reset };
   }
 
+  private circuit?: CircuitLink;
+
+  /** From now on the header pins read the solved circuit (M3). */
+  attach(circuit: CircuitLink): void {
+    this.circuit = circuit;
+  }
+
+  /** What the pin does, as the circuit engine takes it. */
+  engineState(pin: string): EnginePinState {
+    const p = this.pwm.get(pin);
+    if (p) return { mode: 'pwm', duty: p.duty };
+    const s = this.get(pin);
+    if (s.mode === 'out' || (s.mode === 'od' && s.out === 0)) return { mode: 'out', value: s.mode === 'od' ? 0 : s.out };
+    return { mode: 'in', pull: s.pull === 'both' ? 'up' : s.pull };
+  }
+
+  /** The circuit was solved again: see whether the pin's level changed (an edge, an IRQ). */
+  recheck(pin: string): void {
+    this.changed(pin);
+  }
+
   /** Brings the level a pin reads at reset (a board pull-up) into the record, so its first press is an edge. */
   private initialLevel(pin: string): Level {
     return this.pulledUp.has(pin) ? 1 : 0;
@@ -96,11 +127,13 @@ export class PinBank {
   configure(pin: string, mode: PinMode, pull: Pull, out?: Level): void {
     const s = this.get(pin);
     this.state.set(pin, { mode, pull, out: out ?? s.out });
+    this.circuit?.invalidate();
     this.changed(pin);
   }
 
   write(pin: string, value: Level): void {
     this.state.set(pin, { ...this.get(pin), out: value });
+    this.circuit?.invalidate();
     this.changed(pin);
   }
 
@@ -122,6 +155,7 @@ export class PinBank {
     if (v !== undefined) return v;
     const a = this.analogOut.get(pin);
     if (a !== undefined) return a;
+    if (this.circuit?.has(pin)) return this.circuit.volts(pin);
     const p = this.pwm.get(pin);
     if (p) return p.duty * VDD;
     return this.levelNow(pin) * VDD;
@@ -147,6 +181,7 @@ export class PinBank {
 
   /** A PWM output on the pin (duty 0–1), or none (`duty` < 0): its average is what M3's circuit sees. */
   setPwm(pin: string, freq: number, duty: number): void {
+    this.circuit?.invalidate();
     const before = this.pwm.get(pin);
     if (duty < 0) {
       if (!before) return;
@@ -161,7 +196,7 @@ export class PinBank {
 
   /** When the next scripted input change is due (µs), or Infinity: a sleep wakes for it. */
   nextChangeUs(): number {
-    return this.script[this.next]?.atUs ?? Infinity;
+    return Math.min(this.script[this.next]?.atUs ?? Infinity, this.circuit?.nextChangeUs() ?? Infinity);
   }
 
   irq(pin: string, rising: boolean, falling: boolean, handler: unknown, owner: unknown): void {
@@ -172,6 +207,7 @@ export class PinBank {
 
   /** Applies the scripted input changes due by now; edges on pins with an IRQ queue its handler. */
   update(): void {
+    this.circuit?.update();
     if (this.live) this.readLive(this.live);
     const t = this.now();
     while (this.next < this.script.length && this.script[this.next]!.atUs <= t) {
@@ -244,6 +280,7 @@ export class PinBank {
     if (s.mode === 'od' && s.out === 0) return 0;
     const o = this.outside.get(pin);
     if (o !== undefined) return o;
+    if (this.circuit?.has(pin)) return this.circuit.volts(pin) >= VDD / 2 ? 1 : 0;
     if (this.pulledUp.has(pin)) return 1;
     return s.pull === 'up' ? 1 : 0;   // floating reads 0 here; the circuit decides from M3 on
   }

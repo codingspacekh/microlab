@@ -1,3 +1,5 @@
+import type { CircuitSpec } from '@lib/circuit';
+import { CircuitHost, type PartChange } from './circuit';
 import { RealClock, type Clock } from './clock';
 import type { Control } from './control';
 import { PinBank, RP2040_RESET, type AnalogEntry, type InputChange, type Level, type PinMode, type PinState, type Pull, type PwmEntry, type TraceEntry } from './pins';
@@ -74,6 +76,10 @@ export interface RunOptions {
   onSleep?: (at: Where | undefined) => void;
   /** Stop and live inputs from the window (src/sim/control.ts); the RealClock should wait on it too. */
   control?: Control;
+  /** The circuit the board is in (M3): pins read the solved circuit; part inputs drive it. */
+  circuit?: CircuitSpec;
+  /** Part inputs over time (buttons, knobs, light), in tests; the app sets them through `control`. */
+  partInputs?: PartChange[];
 }
 
 /** The sim's own Python (src/python/common) and the boards' (src/python/<folder>), written to a folder the
@@ -90,6 +96,8 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const spec = options.board ? BOARDS[options.board] : undefined;
   const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []), options.control);
   const stop = stopper(mp, options.control);
+  const circuit = options.circuit ? new CircuitHost(options.circuit, pins, now, options.partInputs, options.control) : undefined;
+  if (circuit) pins.attach(circuit);
   const timers = new TimerBank(now);
   const events = new Events(mp, pins, timers);
   const display: [number, string][] = [];
