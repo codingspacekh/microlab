@@ -11,3 +11,5 @@ export type { Device, Netlist, PinState, PartState, SimState } from './devices';
 export { toNetlist } from './netlist';
 export { solve } from './solve';
 export type { Solution } from './solve';
+export { analyse, findFaults } from './faults';
+export type { Analysis, Fault, FaultKind } from './faults';
