@@ -104,10 +104,12 @@ export class PinBank {
     this.circuit = circuit;
   }
 
-  /** What the pin does, as the circuit engine takes it. */
-  engineState(pin: string): EnginePinState {
+  /** What the pin does, as the circuit engine takes it; undefined for a pin the program never touched (the engine
+   *  takes it as an input with no pull, and doesn't call it floating). */
+  engineState(pin: string): EnginePinState | undefined {
     const p = this.pwm.get(pin);
     if (p) return { mode: 'pwm', duty: p.duty };
+    if (!this.state.has(pin)) return undefined;
     const s = this.get(pin);
     if (s.mode === 'out' || (s.mode === 'od' && s.out === 0)) return { mode: 'out', value: s.mode === 'od' ? 0 : s.out };
     return { mode: 'in', pull: s.pull === 'both' ? 'up' : s.pull };

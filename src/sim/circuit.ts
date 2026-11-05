@@ -47,6 +47,11 @@ export class CircuitHost {
   readonly partTrace: PartTraceEntry[] = [];
   /** Told of every change of a part's state (the worker batches them for the window). */
   onChange?: (entry: PartTraceEntry) => void;
+  /** Every fault seen in the run, each once (its worst numbers). */
+  readonly seen = new Map<string, Fault>();
+  /** The first damage fault (a burnt LED, a short, over-voltage): the run stops (M3.5). */
+  damage?: Fault;
+  onDamage?: (fault: Fault) => void;
   private readonly connectivity: Connectivity;
   private readonly pinOfNet = new Map<string, string>();
   private readonly views = new Map<string, PartView>();
@@ -149,8 +154,21 @@ export class CircuitHost {
     } else {
       this.averagePwm(state, pwm);
     }
+    this.noteFaults();
     for (const pin of this.netOfPin.keys()) this.pins.recheck(pin);
     this.traceViews();
+  }
+
+  private noteFaults(): void {
+    for (const f of this.faults) {
+      const key = `${f.kind}:${f.on}`;
+      const before = this.seen.get(key);
+      if (!before || (f.amps ?? 0) > (before.amps ?? 0) || Math.abs(f.volts ?? 0) > Math.abs(before.volts ?? 0)) this.seen.set(key, f);
+      if (f.severity === 'damage' && !this.damage) {
+        this.damage = f;
+        this.onDamage?.(f);
+      }
+    }
   }
 
   /** Every LED (the board's own too) and servo, as the window draws them. */
@@ -245,7 +263,10 @@ export class CircuitHost {
   /** What the program's pins and the parts' inputs are now, for the solver. */
   private state(): SimState {
     const pins: Record<string, PinState> = {};
-    for (const [key, label] of this.labelOfPin) pins[label] = this.pins.engineState(key);
+    for (const [key, label] of this.labelOfPin) {
+      const st = this.pins.engineState(key);
+      if (st) pins[label] = st;
+    }
     return { pins, parts: { ...this.parts } };
   }
 }

@@ -103,3 +103,36 @@ describe('M3.2 inputs drive IRQs and wake the program', () => {
   });
 });
 
+describe('M3.5 faults stop the run with their message', () => {
+  const noResistor = () => circuit('pico-w', [{ id: 'led1', type: 'led', props: { color: 'red' }, legs: { a: 'bb1.a5', k: 'bb1.a7' } }],
+    [w('w1', 'board.GP15', 'bb1.e5'), w('w2', 'board.GND', 'bb1.e7')]);
+
+  it('Blink with the resistor taken out: the LED burns and the run stops — no traceback, the fault and its message', async () => {
+    const r = await run('pico-w', noResistor(), 'from machine import Pin\nimport time\nprint("start")\nled = Pin(15, Pin.OUT)\nwhile True:\n    led.toggle()\n    time.sleep(0.5)\n');
+    expect(r.ended).toBe('fault');
+    expect(r.output).toBe('start\n');
+    expect(r.fault).toMatchObject({ kind: 'led-burnt', on: 'led1', severity: 'damage' });
+    expect(r.fault!.message).toMatch(/^led1: the LED burnt out — \d+ mA through it, it takes 30 mA at most$/);
+    expect(r.error).toBeUndefined();
+  });
+
+  it('a fault in a busy loop (no sleep, no reads) is found at the VM hook', async () => {
+    const r = await run('pico-w', noResistor(), 'from machine import Pin\nled = Pin(15, Pin.OUT)\nwhile True:\n    led.on()\n');
+    expect(r.ended).toBe('fault');
+  });
+
+  it('a program that ends before the next solve still reports the damage', async () => {
+    const r = await run('pico-w', noResistor(), 'from machine import Pin\nPin(15, Pin.OUT).on()\n');
+    expect(r.ended).toBe('fault');
+  });
+
+  it('a warning (a servo on 3V3) is reported, and the program goes on', async () => {
+    const spec = circuit('pico-w', [{ id: 's1', type: 'servo', legs: { gnd: 'bb1.a5', vcc: 'bb1.a6', signal: 'bb1.a7' } }],
+      [w('w1', 'board.GND', 'bb1.e5'), w('w2', 'board.3V3', 'bb1.e6'), w('w3', 'board.GP16', 'bb1.e7')]);
+    const r = await run('pico-w', spec, 'from machine import Pin, PWM\nimport time\nPWM(Pin(16), freq=50, duty_u16=4915)\ntime.sleep(0.1)\nprint("still running")\n');
+    expect(r.ended).toBe('done');
+    expect(r.output).toBe('still running\n');
+    expect(r.faults.map((f) => `${f.kind} ${f.on}`)).toContain('servo-underpowered s1');
+  });
+});
+

@@ -1,4 +1,4 @@
-import type { CircuitSpec } from '@lib/circuit';
+import { describeFault, type CircuitSpec, type Fault } from '@lib/circuit';
 import { CircuitHost, type PartChange, type PartTraceEntry } from './circuit';
 import { RealClock, type Clock } from './clock';
 import type { Control } from './control';
@@ -42,9 +42,14 @@ export interface RunResult {
   bus: [number, string][];
   /** Every change of a part in the circuit (M3.4); [] without a circuit. The Pico W's LED is in `trace` ('LED'). */
   parts: PartTraceEntry[];
-  /** done: the program ended (or there was no main.py); error: an exception; stopped: KeyboardInterrupt (Stop). */
-  ended: 'done' | 'error' | 'stopped';
+  /** done: the program ended (or there was no main.py); error: an exception; stopped: KeyboardInterrupt (Stop);
+   *  fault: the circuit was damaged (M3.5) and the run stopped. */
+  ended: 'done' | 'error' | 'stopped' | 'fault';
   error?: SimError;
+  /** The damage that stopped the run. */
+  fault?: Fault & { message: string };
+  /** Every fault seen, warnings too, each once with its worst numbers. */
+  faults: (Fault & { message: string })[];
 }
 
 /** The boards with simulated MicroPython modules: the folder of src/python each one uses, and its pins after
@@ -99,11 +104,12 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const now = () => clock.nowUs();
   const spec = options.board ? BOARDS[options.board] : undefined;
   const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []), options.control);
-  const stop = stopper(mp, options.control);
   const circuit = options.circuit ? new CircuitHost(options.circuit, pins, now, options.partInputs, options.control) : undefined;
+  const stop = stopper(mp, options.control, () => circuit?.damage !== undefined);
   if (circuit) {
     pins.attach(circuit);
     circuit.onChange = options.onParts;
+    circuit.onDamage = () => mp._module._mp_sched_keyboard_interrupt();   // stop at once, as Stop does
   }
   const timers = new TimerBank(now);
   const events = new Events(mp, pins, timers);
@@ -111,7 +117,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const sound: [number, number][] = [];
   const bus: [number, string][] = [];
   const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
-  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, { display, sound, motion, bus, stop }, options));
+  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, { display, sound, motion, bus, stop, circuit }, options));
   mp._module.microlabHook = () => {
     clock.poll();
     stop();
@@ -144,9 +150,12 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   console.flush();
 
   const nl = last.indexOf('\n');
-  const ended = last.slice(0, nl) as RunResult['ended'];
+  const damage = circuit?.damage;
+  const ended = damage ? 'fault' : (last.slice(0, nl) as RunResult['ended']);
   const traceback = last.slice(nl + 1);
-  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, bus, parts: circuit?.partTrace ?? [], ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
+  const withText = (f: Fault) => ({ ...f, message: describeFault(f) });
+  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, bus, parts: circuit?.partTrace ?? [],
+    faults: [...(circuit?.seen.values() ?? [])].map(withText), ...(damage ? { fault: withText(damage) } : {}), ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
 }
 
 /** The `_ream` bridge (architecture §2.4): the board-neutral calls the board modules make into the sim. */
@@ -157,14 +166,15 @@ interface MicrobitParts {
   bus: [number, string][];
   /** True once Stop is asked for (and KeyboardInterrupt is on its way). */
   stop: () => boolean;
+  circuit: CircuitHost | undefined;
 }
 
 /** Stop (N-03): KeyboardInterrupt is scheduled when the window asks, and again every 50 ms while it still asks, in
  *  case the program catches it (the sim-client ends the worker after 300 ms if even that fails, architecture §2.3). */
-function stopper(mp: MicroPython, control: Control | undefined): () => boolean {
+function stopper(mp: MicroPython, control: Control | undefined, faulted: () => boolean): () => boolean {
   let last = -Infinity;
   return () => {
-    if (!control?.stopRequested()) return false;
+    if (!control?.stopRequested() && !faulted()) return false;
     const t = performance.now();
     if (t - last >= 50) {
       last = t;
@@ -175,7 +185,7 @@ function stopper(mp: MicroPython, control: Control | undefined): () => boolean {
 }
 
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
-  const { display, sound, motion, bus, stop } = mb;
+  const { display, sound, motion, bus, stop, circuit } = mb;
   const log = (entry: string) => bus.push([clock.nowUs(), entry]);
   return {
     ticks_us: () => clock.ticksUs(),
@@ -218,6 +228,8 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     now_us: (): number => clock.nowUs(),
     timer_stop: (id: number) => timers.stop(id),
     temperature: (): number => options.temperatureC ?? 25,
+    /** True when the run is being stopped by a fault: the runner prints no KeyboardInterrupt traceback then. */
+    quiet_stop: (): boolean => circuit?.damage !== undefined,
     dac_out: (pin: string, volts: number) => pins.setAnalog(pin, volts),
     touched: (pin: string): boolean => { clock.ticksUs(); return pins.touched(pin); },
     pin_falls: (pin: string): number => pins.takeFalls(pin),
