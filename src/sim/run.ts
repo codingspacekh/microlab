@@ -30,6 +30,8 @@ export interface RunResult {
   pwm: PwmEntry[];
   /** Every change of an analog output (ESP32 DAC, M2.5). */
   analog: AnalogEntry[];
+  /** Every change of the micro:bit's 5×5 display: [µs, 25 brightnesses 0–9, row by row] (M2.6). */
+  display: [number, string][];
   /** done: the program ended (or there was no main.py); error: an exception; stopped: KeyboardInterrupt (Stop). */
   ended: 'done' | 'error' | 'stopped';
   error?: SimError;
@@ -60,6 +62,8 @@ export interface RunOptions {
   clock?: Clock;
   /** What the board's own temperature sensor reads (°C); 25 if not set (M6 adds the slider, F-35). */
   temperatureC?: number;
+  /** The micro:bit's light level, 0–255; 128 if not set (F-35). */
+  lightLevel?: number;
   /** The line being run each time the program starts to sleep (screen 03: where a program spends its time). */
   onSleep?: (at: Where | undefined) => void;
 }
@@ -79,7 +83,8 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []));
   const timers = new TimerBank(now);
   const events = new Events(mp, pins, timers);
-  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, options));
+  const display: [number, string][] = [];
+  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, display, options));
   mp._module.microlabHook = () => {
     clock.poll();
     events.update();
@@ -112,11 +117,11 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const nl = last.indexOf('\n');
   const ended = last.slice(0, nl) as RunResult['ended'];
   const traceback = last.slice(nl + 1);
-  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
+  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
 }
 
 /** The `_ream` bridge (architecture §2.4): the board-neutral calls the board modules make into the sim. */
-function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, options: RunOptions) {
+function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, display: [number, string][], options: RunOptions) {
   return {
     ticks_us: () => clock.ticksUs(),
     /** Sleeps; returns early, with the µs left, when an IRQ or timer callback is due (it is scheduled first, and
@@ -158,6 +163,10 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     dac_out: (pin: string, volts: number) => pins.setAnalog(pin, volts),
     touched: (pin: string): boolean => { clock.ticksUs(); return pins.touched(pin); },
     pin_falls: (pin: string): number => pins.takeFalls(pin),
+    display_frame: (pixels: string) => {
+      if (display.at(-1)?.[1] !== pixels && !(display.length === 0 && pixels === '0'.repeat(25))) display.push([clock.nowUs(), pixels]);
+    },
+    light: (): number => options.lightLevel ?? 128,
   };
 }
 

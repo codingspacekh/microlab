@@ -54,7 +54,7 @@ describe('M2.1 runProject when Python fails outside the student\'s code', () => 
   }) as unknown as MicroPython;
 
   it('Stop landing in the runner still ends as stopped', async () => {
-    expect(await runProject(fake('PythonError: KeyboardInterrupt'), { files: { 'main.py': '' } })).toEqual({ output: '', trace: [], pwm: [], analog: [], ended: 'stopped' });
+    expect(await runProject(fake('PythonError: KeyboardInterrupt'), { files: { 'main.py': '' } })).toEqual({ output: '', trace: [], pwm: [], analog: [], display: [], ended: 'stopped' });
   });
   it('anything else is an error, with the text kept', async () => {
     const r = await runProject(fake('PythonError: MemoryError'), { files: {} });
