@@ -17,12 +17,14 @@
     "e2e": "npm run build && playwright test",
     "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build",
     "spike:node": "node spikes/micropython-worker/node-spike.mjs",
-    "spike:electron": "electron spikes/micropython-worker/electron-main.mjs"
+    "spike:electron": "electron spikes/micropython-worker/electron-main.mjs",
+    "pins": "node scripts/print-pins.mjs"
   },
   "dependencies": {
     "@micropython/micropython-webassembly-pyscript": "1.29.0-6",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

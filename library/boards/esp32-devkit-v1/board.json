@@ -1,0 +1,399 @@
+{
+  "format": 1,
+  "id": "esp32-devkit-v1",
+  "name": "ESP32 DevKit V1 (30 pins)",
+  "chip": "ESP32-WROOM-32",
+  "logicVolts": 3.3,
+  "gpio": {
+    "safeMa": 20,
+    "shortCircuitMa": 60,
+    "outputOhms": 1,
+    "pullOhms": 45000,
+    "overVolts": 0.3
+  },
+  "anyPinBuses": [
+    "I2C",
+    "SPI",
+    "UART"
+  ],
+  "supplies": [
+    {
+      "pin": "3V3",
+      "volts": 3.3,
+      "maxMa": 500,
+      "ohms": 0.05,
+      "limitMa": 800
+    },
+    {
+      "pin": "VIN",
+      "volts": 4.7,
+      "maxMa": 400,
+      "ohms": 0.1,
+      "limitMa": 1000,
+      "usbOnly": true
+    }
+  ],
+  "builtIn": [
+    {
+      "kind": "led",
+      "id": "LED",
+      "pin": "D2",
+      "color": "blue",
+      "ohms": 1000
+    }
+  ],
+  "estimates": [
+    "gpio.shortCircuitMa",
+    "supplies.3V3.maxMa",
+    "supplies.3V3.limitMa",
+    "supplies.VIN.maxMa",
+    "supplies.VIN.limitMa",
+    "builtIn.LED.ohms"
+  ],
+  "sources": [
+    "ESP32 DevKit V1 (DOIT) 30-pin pinout",
+    "ESP32 datasheet (ADC, touch, DAC, strapping pins; 20 mA default drive, 45 kΩ pulls)",
+    "MicroPython ESP32 quick reference (default I2C, SPI and UART pins)"
+  ],
+  "pins": [
+    {
+      "id": "EN",
+      "label": "EN",
+      "number": 1,
+      "role": "control",
+      "functions": [],
+      "note": "pull to GND to reset the board"
+    },
+    {
+      "id": "VP",
+      "label": "VP",
+      "number": 2,
+      "role": "gpio",
+      "gpio": 36,
+      "functions": [
+        "ADC1_CH0"
+      ],
+      "inputOnly": true,
+      "noPulls": true
+    },
+    {
+      "id": "VN",
+      "label": "VN",
+      "number": 3,
+      "role": "gpio",
+      "gpio": 39,
+      "functions": [
+        "ADC1_CH3"
+      ],
+      "inputOnly": true,
+      "noPulls": true
+    },
+    {
+      "id": "D34",
+      "label": "D34",
+      "number": 4,
+      "role": "gpio",
+      "gpio": 34,
+      "functions": [
+        "ADC1_CH6"
+      ],
+      "inputOnly": true,
+      "noPulls": true
+    },
+    {
+      "id": "D35",
+      "label": "D35",
+      "number": 5,
+      "role": "gpio",
+      "gpio": 35,
+      "functions": [
+        "ADC1_CH7"
+      ],
+      "inputOnly": true,
+      "noPulls": true
+    },
+    {
+      "id": "D32",
+      "label": "D32",
+      "number": 6,
+      "role": "gpio",
+      "gpio": 32,
+      "functions": [
+        "ADC1_CH4",
+        "TOUCH9",
+        "PWM"
+      ]
+    },
+    {
+      "id": "D33",
+      "label": "D33",
+      "number": 7,
+      "role": "gpio",
+      "gpio": 33,
+      "functions": [
+        "ADC1_CH5",
+        "TOUCH8",
+        "PWM"
+      ]
+    },
+    {
+      "id": "D25",
+      "label": "D25",
+      "number": 8,
+      "role": "gpio",
+      "gpio": 25,
+      "functions": [
+        "ADC2_CH8",
+        "DAC1",
+        "PWM",
+        "I2C1 SCL"
+      ]
+    },
+    {
+      "id": "D26",
+      "label": "D26",
+      "number": 9,
+      "role": "gpio",
+      "gpio": 26,
+      "functions": [
+        "ADC2_CH9",
+        "DAC2",
+        "PWM",
+        "I2C1 SDA"
+      ]
+    },
+    {
+      "id": "D27",
+      "label": "D27",
+      "number": 10,
+      "role": "gpio",
+      "gpio": 27,
+      "functions": [
+        "ADC2_CH7",
+        "TOUCH7",
+        "PWM"
+      ]
+    },
+    {
+      "id": "D14",
+      "label": "D14",
+      "number": 11,
+      "role": "gpio",
+      "gpio": 14,
+      "functions": [
+        "ADC2_CH6",
+        "TOUCH6",
+        "PWM",
+        "SPI1 SCK"
+      ]
+    },
+    {
+      "id": "D12",
+      "label": "D12",
+      "number": 12,
+      "role": "gpio",
+      "gpio": 12,
+      "functions": [
+        "ADC2_CH5",
+        "TOUCH5",
+        "PWM",
+        "SPI1 MISO"
+      ],
+      "strapping": true,
+      "note": "must be LOW when the board starts (flash voltage)"
+    },
+    {
+      "id": "D13",
+      "label": "D13",
+      "number": 13,
+      "role": "gpio",
+      "gpio": 13,
+      "functions": [
+        "ADC2_CH4",
+        "TOUCH4",
+        "PWM",
+        "SPI1 MOSI"
+      ]
+    },
+    {
+      "id": "GND@14",
+      "label": "GND",
+      "number": 14,
+      "role": "ground",
+      "functions": []
+    },
+    {
+      "id": "VIN",
+      "label": "VIN",
+      "number": 15,
+      "role": "power",
+      "functions": [],
+      "note": "5 V from USB (through a diode, about 4.7 V)"
+    },
+    {
+      "id": "D23",
+      "label": "D23",
+      "number": 16,
+      "role": "gpio",
+      "gpio": 23,
+      "functions": [
+        "PWM",
+        "SPI2 MOSI"
+      ]
+    },
+    {
+      "id": "D22",
+      "label": "D22",
+      "number": 17,
+      "role": "gpio",
+      "gpio": 22,
+      "functions": [
+        "PWM"
+      ]
+    },
+    {
+      "id": "TX0",
+      "label": "TX0",
+      "number": 18,
+      "role": "gpio",
+      "gpio": 1,
+      "functions": [
+        "PWM",
+        "UART0 TX"
+      ],
+      "note": "the USB serial port (REPL): using it stops the console"
+    },
+    {
+      "id": "RX0",
+      "label": "RX0",
+      "number": 19,
+      "role": "gpio",
+      "gpio": 3,
+      "functions": [
+        "PWM",
+        "UART0 RX"
+      ],
+      "note": "the USB serial port (REPL): using it stops the console"
+    },
+    {
+      "id": "D21",
+      "label": "D21",
+      "number": 20,
+      "role": "gpio",
+      "gpio": 21,
+      "functions": [
+        "PWM"
+      ]
+    },
+    {
+      "id": "D19",
+      "label": "D19",
+      "number": 21,
+      "role": "gpio",
+      "gpio": 19,
+      "functions": [
+        "PWM",
+        "I2C0 SDA",
+        "SPI2 MISO"
+      ]
+    },
+    {
+      "id": "D18",
+      "label": "D18",
+      "number": 22,
+      "role": "gpio",
+      "gpio": 18,
+      "functions": [
+        "PWM",
+        "I2C0 SCL",
+        "SPI2 SCK"
+      ]
+    },
+    {
+      "id": "D5",
+      "label": "D5",
+      "number": 23,
+      "role": "gpio",
+      "gpio": 5,
+      "functions": [
+        "PWM"
+      ],
+      "strapping": true
+    },
+    {
+      "id": "TX2",
+      "label": "TX2",
+      "number": 24,
+      "role": "gpio",
+      "gpio": 17,
+      "functions": [
+        "PWM",
+        "UART2 TX"
+      ]
+    },
+    {
+      "id": "RX2",
+      "label": "RX2",
+      "number": 25,
+      "role": "gpio",
+      "gpio": 16,
+      "functions": [
+        "PWM",
+        "UART2 RX"
+      ]
+    },
+    {
+      "id": "D4",
+      "label": "D4",
+      "number": 26,
+      "role": "gpio",
+      "gpio": 4,
+      "functions": [
+        "ADC2_CH0",
+        "TOUCH0",
+        "PWM"
+      ]
+    },
+    {
+      "id": "D2",
+      "label": "D2",
+      "number": 27,
+      "role": "gpio",
+      "gpio": 2,
+      "functions": [
+        "ADC2_CH2",
+        "TOUCH2",
+        "PWM"
+      ],
+      "strapping": true,
+      "note": "the blue LED on the board; must be LOW or floating to load new code"
+    },
+    {
+      "id": "D15",
+      "label": "D15",
+      "number": 28,
+      "role": "gpio",
+      "gpio": 15,
+      "functions": [
+        "ADC2_CH3",
+        "TOUCH3",
+        "PWM"
+      ],
+      "strapping": true
+    },
+    {
+      "id": "GND@29",
+      "label": "GND",
+      "number": 29,
+      "role": "ground",
+      "functions": []
+    },
+    {
+      "id": "3V3",
+      "label": "3V3",
+      "number": 30,
+      "role": "power",
+      "functions": []
+    }
+  ]
+}
