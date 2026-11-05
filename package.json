@@ -20,7 +20,7 @@
     "spike:electron": "electron spikes/micropython-worker/electron-main.mjs",
     "pins": "node scripts/print-pins.mjs",
     "art": "python3 scripts/export-art.py",
-    "perf": "vitest run --project perf"
+    "perf": "vitest run --project perf --reporter=verbose --silent=false"
   },
   "dependencies": {
     "@micropython/micropython-webassembly-pyscript": "1.29.0-6",
