@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Divider } from '../ui/Divider';
 import { Icon, Logo } from '../ui/Icon';
 import type { MicrolabApi } from './api';
+import { ControlsPage } from './ControlsPage';
 
 /**
  * The window (M4.1, screens 01–03): the top bar with the three modes, the page, the status bar. In the Workspace the
@@ -26,13 +27,25 @@ export interface AppProps {
 
 export function App({ api, width }: AppProps) {
   const [mode, setMode] = useState<Mode>('workspace');
+  const controls = useHash() === '#controls';
   return (
     <div className="app">
       <TopBar mode={mode} onMode={setMode} />
-      {mode === 'workspace' ? <Workspace api={api} width={width} /> : <Later mode={mode} />}
+      {controls ? <ControlsPage /> : mode === 'workspace' ? <Workspace api={api} width={width} /> : <Later mode={mode} />}
       <StatusBar />
     </div>
   );
+}
+
+/** The page's #hash: #controls opens the design system's controls page (screen 12b). */
+function useHash() {
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const update = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', update);
+    return () => window.removeEventListener('hashchange', update);
+  }, []);
+  return hash;
 }
 
 const MODES: { id: Mode; label: string; icon: string }[] = [

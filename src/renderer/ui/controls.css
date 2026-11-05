@@ -1,0 +1,121 @@
+/* The form-control kit (M4.1b, screen 12b, N-14): every control is drawn by us, in every state. Ported from the
+   prototype (design/src/styles.css, "form controls"); its .hover / .focus classes are the real :hover and
+   :focus-visible here. The base .field, .seg, .check and .slider rules are in app.css with the tokens. */
+
+.fld { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.fld > label, .lbl { font-size: 12px; font-weight: 600; color: var(--tx-2); }
+.help { font-size: 11.5px; color: var(--tx-3); line-height: 1.4; display: flex; align-items: flex-start; gap: 5px; }
+.help .ico { margin-top: 2px; }
+.help.err { color: var(--danger); }
+
+/* ---------- text field ---------- */
+.field { min-width: 0; transition: border-color .12s, box-shadow .12s; cursor: text; }
+.field:hover { border-color: #aeb7c2; }
+.field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.field.err, .field.err:focus-within { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+.field.dis, .field.dis:hover { background: var(--bg-2); color: var(--tx-3); border-color: var(--line); box-shadow: none; cursor: default; }
+.field > .ico { color: var(--tx-3); }
+.field .val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.field input { border: 0; outline: 0; background: transparent; font: inherit; color: inherit; height: 100%; padding: 0; }
+.field input::placeholder, .area::placeholder { color: var(--tx-3); }
+.field input:focus-visible { outline: none; }
+.field .unit { color: var(--tx-3); font-size: 12px; flex: none; }
+.field .clr { color: var(--tx-3); display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; flex: none; }
+.field .clr:hover { background: var(--bg-2); color: var(--tx-2); }
+.area { min-height: 72px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--panel); padding: 8px 10px; line-height: 1.5;
+  color: var(--tx-1); width: 100%; font: inherit; font-size: 12px; resize: vertical; transition: border-color .12s, box-shadow .12s; }
+.area:hover { border-color: #aeb7c2; }
+.area:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.area.err { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+.area:disabled { background: var(--bg-2); color: var(--tx-3); border-color: var(--line); }
+
+/* ---------- dropdown: a field with a chevron, and its list ---------- */
+.selwrap { position: relative; min-width: 0; }
+.select { justify-content: space-between; cursor: pointer; user-select: none; }
+.select .val { display: flex; align-items: center; gap: 8px; }
+.select > .ico:last-child { color: var(--tx-3); flex: none; transition: transform .12s; }
+.select:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.select.open { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.select.open > .ico:last-child { transform: rotate(180deg); color: var(--accent); }
+.select.dis { cursor: default; }
+.menu { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 50; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 9px; box-shadow: var(--shadow-l); padding: 4px; list-style: none; overflow-y: auto; }
+.menu .mi { height: 30px; padding: 0 8px; border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--tx-1); cursor: pointer; white-space: nowrap; }
+.menu .mi .ck { width: 14px; color: var(--accent); flex: none; display: grid; place-items: center; }
+.menu .mi small { margin-left: auto; padding-left: 12px; color: var(--tx-3); font-size: 11.5px; }
+.menu .mi.hl { background: var(--bg-2); }
+.menu .mi.on { font-weight: 600; color: var(--accent-ink); }
+.menu .mi.dis { color: var(--tx-3); opacity: .6; cursor: default; }
+
+/* ---------- checkbox, radio, switch: a 16 px box on a whole clickable row ---------- */
+.crow { display: flex; align-items: flex-start; gap: 9px; padding: 7px 8px; border-radius: 8px; font-size: 12.5px; cursor: pointer; user-select: none; }
+.crow > .check, .crow > .radio, .crow > .switch { margin-top: 1px; }
+.crow .tx b { font-weight: 600; display: block; } .crow .tx span { color: var(--tx-3); font-size: 11.5px; }
+.crow:hover { background: var(--bg-2); }
+.crow:hover > .check:not(.on):not(.mixed), .crow:hover > .radio:not(.on) { border-color: var(--accent); }
+.crow.dis { color: var(--tx-3); cursor: default; }
+.crow.dis:hover { background: none; }
+.crow.dis:hover > .check, .crow.dis:hover > .radio { border-color: var(--line); }
+.radios { display: flex; flex-direction: column; gap: 6px; }
+.radios > .col { gap: 2px; }
+.check { transition: background .12s, border-color .12s; }
+.check:focus-visible, .radio:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent); }
+.check.mixed { background: var(--accent); border-color: var(--accent); }
+.check.mixed::after { content: ""; width: 8px; height: 2px; border-radius: 1px; background: #fff; }
+.check.dis, .radio.dis { background: var(--bg-2); border-color: var(--line); }
+.check.on.dis { background: #a9bde6; border-color: #a9bde6; }
+.radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--line-strong); flex: none; display: inline-block; transition: border-width .12s; }
+.radio.on { border: 5px solid var(--accent); }
+.switch { width: 32px; height: 18px; border-radius: 9px; background: var(--bg-3); position: relative; flex: none; transition: background .15s; display: inline-block; }
+.switch::after { content: ""; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(16,24,40,.25); transition: left .15s; }
+.switch.on { background: var(--accent); } .switch.on::after { left: 16px; }
+.switch:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.switch.dis { opacity: .5; }
+
+/* ---------- slider ---------- */
+.slider { display: grid; grid-template-columns: 82px 1fr 54px; align-items: center; gap: 8px; font-size: 12px; margin-top: 6px; }
+.slider.compact { grid-template-columns: 18px 1fr 34px; margin: 0; }
+.slider > span:first-child { color: var(--tx-2); display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; }
+.slider .track { height: 4px; border-radius: 2px; background: var(--bg-3); position: relative; cursor: pointer; }
+.slider .track::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px; }   /* a bigger target */
+.slider .track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--accent); }
+.slider .track b { position: absolute; top: -6px; width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); margin-left: -8px; box-shadow: var(--shadow); }
+.slider .track b:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--accent-soft); }
+.slider .v { font-family: var(--mono); text-align: right; font-weight: 600; white-space: nowrap; }
+.slider.dis .track { cursor: default; }
+.slider.dis .track i { background: var(--line-strong); } .slider.dis .track b { border-color: var(--line-strong); }
+.slider .ticks { grid-column: 2; display: flex; justify-content: space-between; font-size: 10.5px; color: var(--tx-3); margin-top: -2px; }
+body.dragging { cursor: pointer; user-select: none; }
+
+/* ---------- stepper: a number with − and + and its unit ---------- */
+.stepper { display: flex; align-items: stretch; height: 32px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--panel); min-width: 0; overflow: hidden; transition: border-color .12s, box-shadow .12s; }
+.stepper:hover { border-color: #aeb7c2; }
+.stepper button { width: 30px; flex: none; display: grid; place-items: center; color: var(--tx-2); }
+.stepper button:hover:not(:disabled) { background: var(--bg-2); }
+.stepper button + .v, .stepper .v + button { border-left: 1px solid var(--line); }
+.stepper .v { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 4px; font-family: var(--mono); font-weight: 600; font-size: 12.5px; }
+.stepper .v input { border: 0; outline: 0; background: transparent; font: inherit; color: inherit; text-align: center; min-width: 0; padding: 0; }
+.stepper .v small { font-family: var(--font); color: var(--tx-3); font-weight: 500; }
+.stepper:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.stepper.err, .stepper.err:focus-within { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+.stepper.dis, .stepper.dis:hover { background: var(--bg-2); color: var(--tx-3); border-color: var(--line); }
+.stepper.sm { height: 28px; } .stepper.sm button { width: 26px; }
+
+/* ---------- chips: quick values ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { height: 24px; padding: 0 9px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); font-size: 11.5px; font-weight: 550; color: var(--tx-2); display: inline-flex; align-items: center; font-family: var(--mono); }
+.chip:hover:not(:disabled) { border-color: var(--line-strong); color: var(--tx-1); }
+.chip.on, .chip.on:hover { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-ink); }
+
+/* ---------- colour picker: swatches, the chosen one ringed ---------- */
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatch { width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(0,0,0,.12); flex: none; }
+.swatch:hover:not(:disabled) { transform: scale(1.08); }
+.swatch.on { box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px var(--accent); }
+.swatch:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px var(--accent), 0 0 0 6px var(--accent-soft); }
+
+/* ---------- segmented ---------- */
+.seg.full { display: flex; } .seg.full > * { flex: 1; justify-content: center; }
+.seg button:hover:not(.on):not(:disabled) { color: var(--tx-1); }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.seg.dis { opacity: .55; }

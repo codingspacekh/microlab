@@ -171,3 +171,13 @@ h3 { font-size: 13px; font-weight: 650; }
 .statusbar { height: 28px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--panel); border-top: 1px solid var(--line); font-size: 11.5px; color: var(--tx-2); }
 .statusbar .st { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .statusbar .r { margin-left: auto; display: flex; gap: 16px; align-items: center; }
+
+/* ---------- the controls page (#controls, screen 12b): cards share the width at any size (N-13) ---------- */
+.fc { flex: 1; min-height: 0; padding: 22px 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 20px; align-items: start; overflow: auto; background: var(--bg); }
+.fcol { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.fc .card { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 11px; min-width: 0; }
+.fc .card > h2 { display: flex; align-items: center; gap: 8px; }
+.fc .card > h2 small { margin-left: auto; font-size: 11px; font-weight: 500; color: var(--tx-3); }
+.fc .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fc .states { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.fc .st { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--tx-3); min-width: 0; }
