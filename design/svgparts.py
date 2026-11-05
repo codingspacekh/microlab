@@ -315,23 +315,97 @@ def esp32(x0: int, yb: int, led_on: bool = False):
     return "".join(o) + "</g>", pins
 
 
+# ESP32 30-pin extension board (resources/esp32_extension_board.jpg): the DevKit sits in two female headers; every
+# signal comes out as a G-V-S triple (G outermost), V being the rail the JUMP jumper sets to 3.3 V or 5 V.
+EXT_ROWS = ["EN", "VP", "VN", "D34", "D35", "D32", "D33", "D25", "D26", "D27", "D14", "D12", "D13",
+            "D23", "D22", "TX0", "RX0", "D21", "D19", "D18", "D5", "TX2", "RX2", "D4", "D2", "D15"]
+
+
+def esp32_ext(x0: int, yb: int, led_on: bool = False, v_volts: float = 5):
+    """ESP32 DevKit V1 in its extension board, USB to the left; (x0, yb) as for esp32(). Returns
+    (svg, {pin number: (x, y)}) numbered as board.json: triple t (EXT_ROWS order) is S 3t+1, V 3t+2, G 3t+3."""
+    yt = yb - 9 * P
+    esp_svg, esp_pins = esp32(x0, yb, led_on)
+    PCB, EDGE, SILK = "#141518", "#000", "#e6e8eb"
+    xl, xr = x0 - 160, x0 + 14 * P + 76
+    top, bot = yt - 4 * P - 34, yb + 4 * P + 34
+    o = ['<g class="board esp32-ext">',
+         f'<rect x="{xl}" y="{top}" width="{xr - xl}" height="{bot - top}" rx="8" fill="{PCB}" stroke="{EDGE}" filter="url(#lift)"/>']
+    for hx, hy in ((xl + 12, top + 12), (xr - 12, top + 12), (xl + 12, bot - 12), (xr - 12, bot - 12)):
+        o.append(f'<circle cx="{hx}" cy="{hy}" r="5.5" fill="#f6f4ef" stroke="#3a3d42"/>')
+    # female headers the DevKit sits in (their ends show past the module)
+    for hy in (yt, yb):
+        o.append(f'<rect x="{x0 - 9}" y="{hy - 8}" width="{14 * P + 18}" height="16" rx="1.5" fill="#050506" stroke="#2a2c30"/>')
+    o.append(esp_svg)
+    # power: DC jack, USB-C, micro-USB, regulator, PWR LED, and the JUMP jumper for V
+    cy = (yt + yb) / 2
+    o.append(f'<rect x="{xl - 12}" y="{f(cy - 76)}" width="44" height="38" rx="3" fill="#0b0b0c" stroke="#2a2c30"/>'
+             f'<circle cx="{xl + 4}" cy="{f(cy - 57)}" r="8" fill="#2a2c30"/><circle cx="{xl + 4}" cy="{f(cy - 57)}" r="3" fill="#b9bfc7"/>'
+             f'<text x="{xl + 40}" y="{f(cy - 80)}" font-size="5.5" fill="{SILK}" font-family="JetBrains Mono">DC 6.5–16V</text>')
+    o.append(f'<rect x="{xl - 6}" y="{f(cy - 18)}" width="22" height="30" rx="5" fill="#c7ccd2" stroke="#8f969f"/>'
+             f'<rect x="{xl - 2}" y="{f(cy - 12)}" width="8" height="18" rx="3" fill="#6d747c"/>'
+             f'<text x="{xl + 22}" y="{f(cy - 1)}" font-size="5.5" fill="{SILK}" font-family="JetBrains Mono">USB-C</text>')
+    o.append(f'<rect x="{xl - 8}" y="{f(cy + 30)}" width="22" height="18" rx="2" fill="#c7ccd2" stroke="#8f969f"/>'
+             f'<rect x="{xl - 5}" y="{f(cy + 35)}" width="12" height="7" rx="1.5" fill="#6d747c"/>'
+             f'<text x="{xl + 20}" y="{f(cy + 42)}" font-size="5.5" fill="{SILK}" font-family="JetBrains Mono">USB</text>')
+    o.append(f'<rect x="{xl + 52}" y="{f(cy - 30)}" width="24" height="18" rx="1" fill="#26292d"/>'
+             f'<rect x="{xl + 55}" y="{f(cy - 36)}" width="18" height="6" fill="#aab0b7"/>'
+             f'<circle cx="{xl + 64}" cy="{f(cy + 2)}" r="9" fill="#b9bfc7" stroke="#7d848c"/><circle cx="{xl + 64}" cy="{f(cy + 2)}" r="5" fill="#d6dade"/>'
+             f'<rect x="{xl + 52}" y="{f(cy + 22)}" width="6" height="5" rx="1" fill="#ff5a3c"/>'
+             f'<text x="{xl + 61}" y="{f(cy + 27)}" font-size="5.5" fill="{SILK}" font-family="JetBrains Mono">PWR</text>')
+    jx, jy = x0 - 66, cy - 22
+    o.append(f'<text x="{jx}" y="{f(jy - 9)}" font-size="6" font-weight="700" fill="{SILK}" text-anchor="middle" font-family="JetBrains Mono">JUMP</text>')
+    for k, lab in enumerate(("3V3", "V", "5V")):
+        o.append(f'<circle cx="{jx}" cy="{f(jy + k * 12)}" r="2.6" fill="#d6b24c"/>'
+                 f'<text x="{jx + 8}" y="{f(jy + k * 12 + 2)}" font-size="5.5" fill="{SILK}" font-family="JetBrains Mono">{lab}</text>')
+    cap = 12 if v_volts == 5 else 0
+    o.append(f'<rect x="{jx - 5}" y="{f(jy + cap - 5)}" width="10" height="22" rx="2" fill="#1f6fd1" stroke="#0d3f7d"/>')
+    o.append(f'<text x="{xl + 22}" y="{f(top + 34)}" font-size="8" font-weight="700" fill="{SILK}" font-family="Inter">ESP32 30P</text>'
+             f'<text x="{xl + 22}" y="{f(top + 45)}" font-size="8" font-weight="700" fill="{SILK}" font-family="Inter">Expansion board</text>')
+    # G-V-S triples: the EN header's above the module, the other header's below; G outermost
+    pins = {}
+    xs = {**{k[2:]: v[0] for k, v in esp_pins.items() if k.startswith("T:")}, **{"B:" + k[2:]: v[0] for k, v in esp_pins.items() if k.startswith("B:")}}
+    for t, name in enumerate(EXT_ROWS):
+        upper = t < 13
+        x = xs[name] if upper else xs["B:" + name]
+        base, step = (yt, -P) if upper else (yb, P)
+        for k, lab in enumerate(("S", "V", "G")):
+            y = base + step * (2 + k)
+            pins[t * 3 + k + 1] = (x, y)
+            ring = "#d6b24c" if lab == "S" else ("#e07a6c" if lab == "V" else "#8d939b")
+            o.append(f'<rect x="{x - 5}" y="{y - 5}" width="10" height="10" rx="1" fill="#050506"/>'
+                     f'<circle cx="{x}" cy="{y}" r="2.8" fill="{ring}"/>')
+        ly = base + step * 4 + (-9 if upper else 9)
+        o.append(vlabel(x, ly, name, upper, SILK))
+    # S / V / G legend in the empty VIN and GND columns, next to each row of the triples
+    for base, step in ((yt, -P), (yb, P)):
+        for k, lab in enumerate(("S", "V", "G")):
+            o.append(f'<text x="{x0 + 0.5 * P}" y="{f(base + step * (2 + k) + 2.2)}" font-size="6.5" font-weight="700" fill="#9aa0a8" text-anchor="middle" font-family="JetBrains Mono">{lab}</text>')
+    return "".join(o) + "</g>", pins
+
+
 HEART = ["01010", "11111", "11111", "01110", "00100"]
-BREAKOUT = ["GND", "3V", "P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P11", "P12",
-            "P13", "P14", "P15", "P16", "P19", "P20"]
+# The micro:bit GPIO board (resources/microbit_gpio_board.webp): two header rows 0.3 in apart, so it straddles
+# the breadboard's channel (rows e and f), and a right-angle I²C header to their right. Labels as printed.
+MBIT_TOP = ["3.3V", "GND", "GND", "P20", "P19", "P16", "P15", "P14", "P13", "P12", "P11", "P10", "3.3V"]
+MBIT_BOT = ["5V", "GND", "P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "5V"]
+MBIT_I2C = ["SDA", "SCL", "GND", "3.3V"]
 
 
-def microbit(hx0: int, hy: int, image=None, a_pressed: bool = False, sound: bool = False):
-    """micro:bit V2 in an edge-connector breakout; the breakout's header pins (BREAKOUT) start at
-    (hx0, hy), one pitch apart. Returns (svg, {name: (x, y)})."""
+def mbit_pins():
+    """[(number, id, label)] in board.json order: top row 1–13, bottom row 14–26, I²C header 27–30.
+    A repeated label gets its number (GND@3), like board.json."""
+    out, seen = [], set()
+    for n, lab in enumerate(MBIT_TOP + MBIT_BOT + MBIT_I2C, start=1):
+        out.append((n, lab if lab not in seen else f"{lab}@{n}", lab))
+        seen.add(lab)
+    return out
+
+
+def _microbit_face(x: float, y: float, image, a_pressed: bool, sound: bool):
+    """The micro:bit V2 itself, 320 × 258, top-left at (x, y), edge connector along the bottom."""
     W, H = 320, 258
-    cxh = hx0 + (len(BREAKOUT) - 1) * P / 2
-    x, y = cxh - W / 2, hy - 72 - H + 40
-    o = ['<g class="board microbit">']
-    # breakout
-    o.append(f'<rect x="{f(x - 16)}" y="{f(y + H - 48)}" width="{W + 32}" height="{f(hy - (y + H - 48) + 12)}" rx="6" fill="#203a5c" stroke="#13243a" filter="url(#lift)"/>')
-    o.append(f'<rect x="{f(x - 4)}" y="{f(y + H - 34)}" width="{W + 8}" height="22" rx="3" fill="#121a24"/>')
-    # micro:bit board
-    o.append(f'<rect x="{f(x)}" y="{f(y)}" width="{W}" height="{H}" rx="16" fill="#1d1e21" stroke="#0b0b0c" filter="url(#lift)"/>')
+    o = [f'<rect x="{f(x)}" y="{f(y)}" width="{W}" height="{H}" rx="16" fill="#1d1e21" stroke="#0b0b0c" filter="url(#lift)"/>']
     o.append(f'<ellipse cx="{f(x + W / 2)}" cy="{f(y + 26)}" rx="16" ry="9" fill="none" stroke="#d6b24c" stroke-width="3"/>'
              f'<circle cx="{f(x + W / 2 - 6)}" cy="{f(y + 26)}" r="2.4" fill="#d6b24c"/><circle cx="{f(x + W / 2 + 6)}" cy="{f(y + 26)}" r="2.4" fill="#d6b24c"/>')
     o.append(f'<rect x="{f(x + W / 2 + 34)}" y="{f(y + 22)}" width="6" height="8" rx="1.5" fill="{"#ff3a22" if sound else "#3a2c2c"}"/>')
@@ -347,7 +421,6 @@ def microbit(hx0: int, hy: int, image=None, a_pressed: bool = False, sound: bool
             if on:
                 o.append(f'<circle cx="{f(lx)}" cy="{f(ly)}" r="17" fill="url(#glow-mbit)"/>')
             o.append(f'<rect x="{f(lx - 3.5)}" y="{f(ly - 6)}" width="7" height="12" rx="1.5" fill="{"#ff3a22" if on else "#3b2d2d"}"/>')
-    # edge connector
     ey = y + H - 58
     big = [("0", x + 34), ("1", x + 102), ("2", x + 160), ("3V", x + 218), ("GND", x + 286)]
     o.append(f'<rect x="{f(x + 10)}" y="{f(ey)}" width="{W - 20}" height="44" fill="#1d1e21"/>')
@@ -359,13 +432,60 @@ def microbit(hx0: int, hy: int, image=None, a_pressed: bool = False, sound: bool
         o.append(f'<rect x="{f(bxp - 20)}" y="{f(ey)}" width="40" height="44" rx="4" fill="#d6b24c"/>'
                  f'<circle cx="{f(bxp)}" cy="{f(ey + 15)}" r="9" fill="#1d1e21"/>'
                  f'<text x="{f(bxp)}" y="{f(ey + 37)}" font-size="9" font-weight="700" fill="#3b2f0e" text-anchor="middle" font-family="Inter">{lab}</text>')
-    # header pins
+    return "".join(o)
+
+
+def microbit(hx0: int, hy: int, image=None, a_pressed: bool = False, sound: bool = False):
+    """micro:bit V2 standing upright in the micro:bit GPIO board (drawn face-on so the display reads normally).
+    (hx0, hy) is pin 1, the top row's left end; the bottom row is 3 pitches below, the I²C header 3 pitches to
+    the right of the rows' end. Returns (svg, {pin id: (x, y)}) with the ids of mbit_pins()."""
+    W, H = 320, 258
+    PCB, EDGE, SILK = "#1d4f9e", "#123468", "#e9f0fa"
+    by = hy + 3 * P                        # bottom row
+    ix = hx0 + 15 * P                      # I²C header pins
+    cx = hx0 + 7.5 * P                     # centre line of the whole board
+    bar_l, bar_r, bar_t, bar_b = hx0 - 22, ix + 22, hy - 34, by + 34
+    stem_w, stem_t = W + 24, hy - 84
+    stem_l = cx - stem_w / 2
+    slot_y = stem_t + 8
+    x, y = cx - W / 2, slot_y + 10 - H     # the micro:bit's edge sits 10 deep in the slot
+    o = ['<g class="board microbit">']
+    # GPIO board: the wide part holding the slot, and the header part below it
+    o.append(f'<rect x="{f(stem_l)}" y="{f(stem_t)}" width="{stem_w}" height="{f(bar_t + 6 - stem_t)}" rx="8" fill="{PCB}" stroke="{EDGE}" filter="url(#lift)"/>'
+             f'<rect x="{f(bar_l)}" y="{f(bar_t)}" width="{f(bar_r - bar_l)}" height="{f(bar_b - bar_t)}" rx="8" fill="{PCB}" stroke="{EDGE}" filter="url(#lift)"/>'
+             f'<rect x="{f(bar_l + 1)}" y="{f(bar_t - 4)}" width="{f(bar_r - bar_l - 2)}" height="12" fill="{PCB}"/>')   # one board: hide the seam
+    for hx, hyy in ((bar_r - 11, bar_t + 13), (bar_r - 11, bar_b - 11)):
+        o.append(f'<circle cx="{f(hx)}" cy="{f(hyy)}" r="5" fill="#f6f4ef" stroke="{EDGE}"/>')
+    # micro-USB (5V in), regulator and power LED on the wide part, under the slot
+    uy = slot_y + 24
+    o.append(f'<rect x="{f(stem_l - 10)}" y="{f(uy)}" width="24" height="16" rx="2" fill="#c7ccd2" stroke="#8f969f"/>'
+             f'<rect x="{f(stem_l - 7)}" y="{f(uy + 5)}" width="14" height="6" rx="1.5" fill="#6d747c"/>')
+    o.append(f'<rect x="{f(stem_l + 26)}" y="{f(uy)}" width="20" height="14" rx="1" fill="#24272b"/>'
+             f'<rect x="{f(stem_l + 29)}" y="{f(uy - 4)}" width="14" height="4" fill="#aab0b7"/>'
+             f'<rect x="{f(stem_l + 54)}" y="{f(uy + 4)}" width="6" height="5" rx="1" fill="#ff5a3c"/>'
+             f'<text x="{f(stem_l + 66)}" y="{f(uy + 9)}" font-size="6" fill="{SILK}" font-family="JetBrains Mono">PWR</text>')
+    o.append(f'<text x="{f(stem_l + stem_w - 22)}" y="{f(uy + 10)}" font-size="9" font-weight="700" fill="{SILK}" text-anchor="end" font-family="Inter">micro:bit GPIO Board</text>')
+    # the micro:bit, then the slot's front lip over its edge
+    o.append(_microbit_face(x, y, image, a_pressed, sound))
+    o.append(f'<rect x="{f(x - 6)}" y="{f(slot_y)}" width="{W + 12}" height="14" rx="3" fill="#121a24" stroke="#05080c"/>')
+    # header rows with their silkscreen boxes and labels (top row labels above, bottom row below)
     pins = {}
-    for i, name in enumerate(BREAKOUT):
-        px = hx0 + i * P
-        pins[name] = (px, hy)
-        o.append(f'<rect x="{px - 4}" y="{hy - 4}" width="8" height="8" rx="1" fill="#15181c"/><rect x="{f(px - 1.6)}" y="{f(hy - 1.6)}" width="3.2" height="3.2" fill="#d6b24c"/>')
-        o.append(vlabel(px, hy - 9, name, True, "#c7d5e6"))
+    num = {n: pid for n, pid, _ in mbit_pins()}
+    for row_y, names, up, first in ((hy, MBIT_TOP, True, 1), (by, MBIT_BOT, False, 14)):
+        o.append(f'<rect x="{hx0 - 8}" y="{row_y - 8}" width="{12 * P + 16}" height="16" rx="1" fill="none" stroke="{SILK}" stroke-width=".8"/>')
+        for i, name in enumerate(names):
+            px = hx0 + i * P
+            pins[num[first + i]] = (px, row_y)
+            o.append(f'<circle cx="{px}" cy="{row_y}" r="4.4" fill="#d3d7dc" stroke="#8f969f" stroke-width=".8"/><circle cx="{px}" cy="{row_y}" r="1.9" fill="#1b2433"/>')
+            o.append(vlabel(px, row_y - 9 if up else row_y + 9, name, up, "#9fb3cf" if name == "GND" else SILK))
+    # right-angle I²C header: black housing, pins pointing right, labels to the left
+    o.append(f'<rect x="{ix - 7}" y="{hy - 8}" width="14" height="{3 * P + 16}" rx="1.5" fill="#1c1e21"/>')
+    for i, name in enumerate(MBIT_I2C):
+        py = hy + i * P
+        pins[num[27 + i]] = (ix, py)
+        o.append(f'<rect x="{ix}" y="{f(py - 1.4)}" width="12" height="2.8" fill="#d6b24c"/>'
+                 f'<circle cx="{ix}" cy="{py}" r="3.2" fill="#d6b24c" stroke="#a8862a" stroke-width=".8"/>'
+                 f'<text x="{ix - 10}" y="{f(py + 2.2)}" font-size="6" font-family="JetBrains Mono" font-weight="600" fill="{"#9fb3cf" if name == "GND" else SILK}" text-anchor="end">{name}</text>')
     return "".join(o) + "</g>", pins
 
 

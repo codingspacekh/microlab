@@ -399,7 +399,7 @@ Proven without any UI.
 boards and the library-pack file it needs.
 
 **Build order** (one part per slice: behaviour → example + `expect.json` per board → control → art)
-1. Slide switch, LDR (light slider), RGB LED, battery packs, the micro:bit edge-connector breakout.
+1. Slide switch, LDR (light slider), RGB LED, battery packs, the micro:bit GPIO board (its pins and art are in since M1; here: its 5V switch and USB).
 2. Active and passive buzzer with sound (Web Audio) (F-36).
 3. PIR (a *motion* button), IR line sensor, soil moisture, TMP36 / LM35 (temperature slider).
 4. DHT11 / DHT22 (the `dht` module), HC-SR04 (`time_pulse_us`, distance slider, screen 07), MPU6050 (S).
@@ -579,7 +579,7 @@ connection problem says how to fix it.
 | Prototype Rev 6: MicroLab, fluid layout, screen 12b form controls | 📝 For the teacher's comments | | |
 | Architecture Rev 1 + this plan | 📝 For the teacher's comments | | |
 | M0 Foundations + MicroPython spike | ✅ Done — own MicroPython build (no ASYNCIFY); manual check not recorded ([acceptance](acceptance/M0.md)) | 2026-11-05 | `v0.0.0` |
-| M1 Circuit engine | ⏳ | | |
+| M1 Circuit engine | 🔨 Built and green; waiting for the teacher's pin-table check and `npm run perf` on the slowest laptop ([acceptance](acceptance/M1.md)) | | |
 | M2 Simulated boards (headless) | ⏳ | | |
 | M3 Code drives the circuit | ⏳ | | |
 | M4 Walking skeleton | ⏳ | | |

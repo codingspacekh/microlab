@@ -44,6 +44,8 @@ export default tseslint.config(
     files: ['**/*.{ts,tsx,mts}'],
     languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } },
   },
+  // Build and maintenance scripts run in Node.
+  { files: ['scripts/**/*.mjs'], languageOptions: { globals: { console: 'readonly', process: 'readonly' } } },
   { files: ['src/lib/**/*.{ts,tsx}'], rules: boundary },
   { files: ['src/renderer/**/*.tsx'], ignores: ['src/renderer/ui/**'], rules: controls },
 );
