@@ -3,6 +3,7 @@ import { parseBoard } from '@lib/boards';
 import picoJson from '../../../library/boards/pico-w/board.json';
 import espJson from '../../../library/boards/esp32-devkit-v1/board.json';
 import mbitJson from '../../../library/boards/microbit-v2/board.json';
+import extJson from '../../../library/boards/esp32-devkit-v1-ext/board.json';
 
 const clone = <T>(v: T): T => structuredClone(v);
 
@@ -11,6 +12,7 @@ describe('board.json schema', () => {
     ['pico-w', picoJson],
     ['esp32-devkit-v1', espJson],
     ['microbit-v2', mbitJson],
+    ['esp32-devkit-v1-ext', extJson],
   ])('%s passes', (id, json) => {
     expect(parseBoard(json).id).toBe(id);
   });
@@ -58,5 +60,23 @@ describe('board.json schema', () => {
     const bad = clone(picoJson) as { pins: Record<string, unknown>[] };
     delete bad.pins[0]!.gpio;
     expect(() => parseBoard(bad)).toThrow(/GP0.*gpio number/);
+  });
+
+  it('refuses a "same connection" pin that names a pin that is not there, or one of another kind', () => {
+    const bad = clone(mbitJson);
+    bad.pins.find((p) => p.id === 'SDA')!.same = 'P99';
+    expect(() => parseBoard(bad)).toThrow(/SDA is the same as unknown pin "P99"/);
+    const bad2 = clone(mbitJson);
+    bad2.pins.find((p) => p.id === 'SDA')!.same = '3.3V';
+    expect(() => parseBoard(bad2)).toThrow(/SDA is the same as 3.3V but not the same kind of pin/);
+    const bad3 = clone(mbitJson);
+    bad3.pins.find((p) => p.id === 'SDA')!.same = 'SCL';
+    expect(() => parseBoard(bad3)).toThrow(/SDA is the same as SCL, which is itself the same as another pin/);
+  });
+
+  it('refuses a jumper-chosen supply whose volts are not one of its choices', () => {
+    const bad = clone(extJson);
+    bad.supplies[0]!.volts = 9;
+    expect(() => parseBoard(bad)).toThrow(/supply V is 9 V, not one of its choices 3.3, 5/);
   });
 });

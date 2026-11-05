@@ -13,11 +13,19 @@
   },
   "supplies": [
     {
-      "pin": "3V",
+      "pin": "3.3V",
       "volts": 3.3,
       "maxMa": 190,
       "ohms": 0.1,
       "limitMa": 300
+    },
+    {
+      "pin": "5V",
+      "volts": 5.0,
+      "maxMa": 500,
+      "ohms": 0.1,
+      "limitMa": 1000,
+      "usbOnly": true
     }
   ],
   "builtIn": [
@@ -37,60 +45,192 @@
       "kind": "resistor",
       "id": "R_A",
       "a": "P5",
-      "b": "3V",
+      "b": "3.3V",
       "ohms": 10000
     },
     {
       "kind": "resistor",
       "id": "R_B",
       "a": "P11",
-      "b": "3V",
+      "b": "3.3V",
       "ohms": 10000
     },
     {
       "kind": "resistor",
       "id": "R_SCL",
       "a": "P19",
-      "b": "3V",
+      "b": "3.3V",
       "ohms": 10000
     },
     {
       "kind": "resistor",
       "id": "R_SDA",
       "a": "P20",
-      "b": "3V",
+      "b": "3.3V",
       "ohms": 10000
     }
   ],
   "estimates": [
     "gpio.safeMa",
     "gpio.shortCircuitMa",
-    "supplies.3V.limitMa"
+    "supplies.3.3V.limitMa",
+    "supplies.5V.maxMa",
+    "supplies.5V.limitMa"
   ],
   "sources": [
     "micro:bit V2 edge connector and pinout, tech.microbit.org/hardware/edgeconnector",
     "micro:bit power supply, tech.microbit.org/hardware/powersupply (190 mA for circuits, 270 mA at most)",
-    "nRF52833 product specification (13 kΩ pulls)"
+    "nRF52833 product specification (13 kΩ pulls)",
+    "micro:bit GPIO board (resources/microbit_gpio_board.webp): header order and labels as printed on the board; 5V from its own micro-USB"
   ],
   "pins": [
     {
+      "id": "3.3V",
+      "label": "3.3V",
+      "number": 1,
+      "role": "power",
+      "functions": []
+    },
+    {
       "id": "GND",
       "label": "GND",
-      "number": 1,
+      "number": 2,
       "role": "ground",
       "functions": []
     },
     {
-      "id": "3V",
-      "label": "3V",
-      "number": 2,
+      "id": "GND@3",
+      "label": "GND",
+      "number": 3,
+      "role": "ground",
+      "functions": []
+    },
+    {
+      "id": "P20",
+      "label": "P20",
+      "number": 4,
+      "role": "gpio",
+      "gpio": 20,
+      "functions": [
+        "PWM",
+        "I2C SDA"
+      ]
+    },
+    {
+      "id": "P19",
+      "label": "P19",
+      "number": 5,
+      "role": "gpio",
+      "gpio": 19,
+      "functions": [
+        "PWM",
+        "I2C SCL"
+      ]
+    },
+    {
+      "id": "P16",
+      "label": "P16",
+      "number": 6,
+      "role": "gpio",
+      "gpio": 16,
+      "functions": [
+        "PWM"
+      ]
+    },
+    {
+      "id": "P15",
+      "label": "P15",
+      "number": 7,
+      "role": "gpio",
+      "gpio": 15,
+      "functions": [
+        "PWM",
+        "SPI MOSI"
+      ]
+    },
+    {
+      "id": "P14",
+      "label": "P14",
+      "number": 8,
+      "role": "gpio",
+      "gpio": 14,
+      "functions": [
+        "PWM",
+        "SPI MISO"
+      ]
+    },
+    {
+      "id": "P13",
+      "label": "P13",
+      "number": 9,
+      "role": "gpio",
+      "gpio": 13,
+      "functions": [
+        "PWM",
+        "SPI SCK"
+      ]
+    },
+    {
+      "id": "P12",
+      "label": "P12",
+      "number": 10,
+      "role": "gpio",
+      "gpio": 12,
+      "functions": [
+        "PWM"
+      ],
+      "note": "reserved for accessibility; free to use"
+    },
+    {
+      "id": "P11",
+      "label": "P11",
+      "number": 11,
+      "role": "gpio",
+      "gpio": 11,
+      "functions": [
+        "PWM"
+      ],
+      "shared": "button B"
+    },
+    {
+      "id": "P10",
+      "label": "P10",
+      "number": 12,
+      "role": "gpio",
+      "gpio": 10,
+      "functions": [
+        "ADC",
+        "PWM"
+      ],
+      "shared": "display COL5"
+    },
+    {
+      "id": "3.3V@13",
+      "label": "3.3V",
+      "number": 13,
       "role": "power",
+      "functions": [],
+      "same": "3.3V"
+    },
+    {
+      "id": "5V",
+      "label": "5V",
+      "number": 14,
+      "role": "power",
+      "functions": [],
+      "note": "only when the GPIO board's own micro-USB is plugged in"
+    },
+    {
+      "id": "GND@15",
+      "label": "GND",
+      "number": 15,
+      "role": "ground",
       "functions": []
     },
     {
       "id": "P0",
       "label": "P0",
-      "number": 3,
+      "number": 16,
       "role": "gpio",
       "gpio": 0,
       "functions": [
@@ -102,7 +242,7 @@
     {
       "id": "P1",
       "label": "P1",
-      "number": 4,
+      "number": 17,
       "role": "gpio",
       "gpio": 1,
       "functions": [
@@ -114,7 +254,7 @@
     {
       "id": "P2",
       "label": "P2",
-      "number": 5,
+      "number": 18,
       "role": "gpio",
       "gpio": 2,
       "functions": [
@@ -126,7 +266,7 @@
     {
       "id": "P3",
       "label": "P3",
-      "number": 6,
+      "number": 19,
       "role": "gpio",
       "gpio": 3,
       "functions": [
@@ -138,7 +278,7 @@
     {
       "id": "P4",
       "label": "P4",
-      "number": 7,
+      "number": 20,
       "role": "gpio",
       "gpio": 4,
       "functions": [
@@ -150,7 +290,7 @@
     {
       "id": "P5",
       "label": "P5",
-      "number": 8,
+      "number": 21,
       "role": "gpio",
       "gpio": 5,
       "functions": [
@@ -161,7 +301,7 @@
     {
       "id": "P6",
       "label": "P6",
-      "number": 9,
+      "number": 22,
       "role": "gpio",
       "gpio": 6,
       "functions": [
@@ -172,7 +312,7 @@
     {
       "id": "P7",
       "label": "P7",
-      "number": 10,
+      "number": 23,
       "role": "gpio",
       "gpio": 7,
       "functions": [
@@ -183,7 +323,7 @@
     {
       "id": "P8",
       "label": "P8",
-      "number": 11,
+      "number": 24,
       "role": "gpio",
       "gpio": 8,
       "functions": [
@@ -194,7 +334,7 @@
     {
       "id": "P9",
       "label": "P9",
-      "number": 12,
+      "number": 25,
       "role": "gpio",
       "gpio": 9,
       "functions": [
@@ -203,103 +343,53 @@
       "note": "can be set up for NFC (off by default)"
     },
     {
-      "id": "P10",
-      "label": "P10",
-      "number": 13,
-      "role": "gpio",
-      "gpio": 10,
-      "functions": [
-        "ADC",
-        "PWM"
-      ],
-      "shared": "display COL5"
+      "id": "5V@26",
+      "label": "5V",
+      "number": 26,
+      "role": "power",
+      "functions": [],
+      "same": "5V"
     },
     {
-      "id": "P11",
-      "label": "P11",
-      "number": 14,
-      "role": "gpio",
-      "gpio": 11,
-      "functions": [
-        "PWM"
-      ],
-      "shared": "button B"
-    },
-    {
-      "id": "P12",
-      "label": "P12",
-      "number": 15,
-      "role": "gpio",
-      "gpio": 12,
-      "functions": [
-        "PWM"
-      ],
-      "note": "reserved for accessibility; free to use"
-    },
-    {
-      "id": "P13",
-      "label": "P13",
-      "number": 16,
-      "role": "gpio",
-      "gpio": 13,
-      "functions": [
-        "PWM",
-        "SPI SCK"
-      ]
-    },
-    {
-      "id": "P14",
-      "label": "P14",
-      "number": 17,
-      "role": "gpio",
-      "gpio": 14,
-      "functions": [
-        "PWM",
-        "SPI MISO"
-      ]
-    },
-    {
-      "id": "P15",
-      "label": "P15",
-      "number": 18,
-      "role": "gpio",
-      "gpio": 15,
-      "functions": [
-        "PWM",
-        "SPI MOSI"
-      ]
-    },
-    {
-      "id": "P16",
-      "label": "P16",
-      "number": 19,
-      "role": "gpio",
-      "gpio": 16,
-      "functions": [
-        "PWM"
-      ]
-    },
-    {
-      "id": "P19",
-      "label": "P19",
-      "number": 20,
-      "role": "gpio",
-      "gpio": 19,
-      "functions": [
-        "PWM",
-        "I2C SCL"
-      ]
-    },
-    {
-      "id": "P20",
-      "label": "P20",
-      "number": 21,
+      "id": "SDA",
+      "label": "SDA",
+      "number": 27,
       "role": "gpio",
       "gpio": 20,
       "functions": [
-        "PWM",
         "I2C SDA"
-      ]
+      ],
+      "same": "P20",
+      "wireOnly": true
+    },
+    {
+      "id": "SCL",
+      "label": "SCL",
+      "number": 28,
+      "role": "gpio",
+      "gpio": 19,
+      "functions": [
+        "I2C SCL"
+      ],
+      "same": "P19",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@29",
+      "label": "GND",
+      "number": 29,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "3.3V@30",
+      "label": "3.3V",
+      "number": 30,
+      "role": "power",
+      "functions": [],
+      "same": "3.3V",
+      "wireOnly": true
     }
   ]
 }

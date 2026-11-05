@@ -106,20 +106,23 @@ def distance() -> str:
 
 # ------------------------------------------------------------------ micro:bit · Heart & knob
 def heart() -> str:
-    bb = Breadboard(120, 380)
-    o = [bb.svg(rail_labels={"T-": ("GND", "#3a3d42"), "T+": ("3V", "#de3b3b")})]
+    bb = Breadboard(120, 470)
+    o = [bb.svg(rail_labels={"T-": ("GND", "#3a3d42"), "T+": ("3.3V", "#de3b3b")})]
     o.append(buzzer(bb.xy(14, "c"), bb.xy(17, "c"), playing=True))
     o.append(pot(bb.xy(21, "e"), bb.xy(23, "e"), bb.xy(25, "e"), angle=10, label="P2 · 562"))
-    msvg, mp = microbit(136, 322, image=HEART, a_pressed=True, sound=True)
+    msvg, mp = microbit(184, 356, image=HEART, a_pressed=True, sound=True)   # pins on the breadboard's columns
     o.append(msvg)
-    o.append(wire([mp["GND"], bb.xy(2, "T-")], "black"))
-    o.append(wire([mp["3V"], bb.xy(3, "T+")], "red"))
-    o.append(wire([mp["P0"], (168, 352), (328, 352), bb.xy(14, "a")], "yellow"))
-    o.append(wire([mp["P2"], (200, 340), (472, 340), bb.xy(23, "a")], "green"))
+    gx, gy = mp["GND@15"]
+    o.append(wire([mp["GND@15"], (gx, 452), (136, 452), bb.xy(2, "T-")], "black"))
+    o.append(wire([mp["3.3V@30"], (536, 404), bb.xy(27, "T+")], "red"))          # the I²C header's 3.3V
+    px, _ = mp["P0"]
+    o.append(wire([mp["P0"], (px, 464), (328, 464), bb.xy(14, "a")], "yellow"))
+    px, _ = mp["P2"]
+    o.append(wire([mp["P2"], (px, 458), (472, 458), bb.xy(23, "a")], "green"))
     o.append(wire([bb.xy(17, "a"), bb.xy(17, "T-")], "black"))
     o.append(wire([bb.xy(21, "a"), bb.xy(21, "T-")], "black"))
     o.append(wire([bb.xy(25, "a"), bb.xy(25, "T+")], "red"))
-    o.append(cursor(176, 138, "hand"))
+    o.append(cursor(184, 138, "hand"))
     return _svg("".join(o))
 
 
@@ -131,8 +134,8 @@ def board_art(kind: str) -> str:
     if kind == "esp32":
         s, _ = esp32(60, 180)
         return _svg(s, 270, 135, "0 8 380 190")
-    s, _ = microbit(40, 330, image=HEART)
-    return _svg(s, 270, 135, "-60 20 480 330")
+    s, _ = microbit(80, 330, image=HEART)
+    return _svg(s, 270, 135, "8 0 376 420")
 
 
 def servo_hero() -> str:

@@ -1,0 +1,833 @@
+{
+  "format": 1,
+  "id": "esp32-devkit-v1-ext",
+  "name": "ESP32 DevKit V1 with extension board",
+  "chip": "ESP32-WROOM-32",
+  "logicVolts": 3.3,
+  "gpio": {
+    "safeMa": 20,
+    "shortCircuitMa": 60,
+    "outputOhms": 1,
+    "pullOhms": 45000,
+    "overVolts": 0.3
+  },
+  "anyPinBuses": [
+    "I2C",
+    "SPI",
+    "UART"
+  ],
+  "supplies": [
+    {
+      "pin": "V",
+      "volts": 5.0,
+      "maxMa": 500,
+      "ohms": 0.1,
+      "limitMa": 1000,
+      "choices": [
+        3.3,
+        5.0
+      ]
+    }
+  ],
+  "builtIn": [
+    {
+      "kind": "led",
+      "id": "LED",
+      "pin": "D2",
+      "color": "blue",
+      "ohms": 1000
+    }
+  ],
+  "estimates": [
+    "gpio.shortCircuitMa",
+    "supplies.V.maxMa",
+    "supplies.V.limitMa",
+    "builtIn.LED.ohms"
+  ],
+  "sources": [
+    "ESP32 DevKit V1 (DOIT) 30-pin pinout",
+    "ESP32 datasheet (ADC, touch, DAC, strapping pins; 20 mA default drive, 45 kΩ pulls)",
+    "MicroPython ESP32 quick reference (default I2C, SPI and UART pins)",
+    "ESP32 30P extension board (resources/esp32_extension_board.jpg): G-V-S triple per signal, V = 3.3 V or 5 V by the JUMP jumper; power from DC 6.5–16 V, USB-C or micro-USB (power only; program through the ESP32's own USB)"
+  ],
+  "pins": [
+    {
+      "id": "EN",
+      "label": "EN",
+      "number": 1,
+      "role": "control",
+      "functions": [],
+      "wireOnly": true,
+      "note": "pull to GND to reset the board"
+    },
+    {
+      "id": "V",
+      "label": "V",
+      "number": 2,
+      "role": "power",
+      "functions": [],
+      "wireOnly": true,
+      "note": "the V rail: 5 V or 3.3 V, set with the JUMP jumper"
+    },
+    {
+      "id": "GND",
+      "label": "GND",
+      "number": 3,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "VP",
+      "label": "VP",
+      "number": 4,
+      "role": "gpio",
+      "gpio": 36,
+      "functions": [
+        "ADC1_CH0"
+      ],
+      "inputOnly": true,
+      "noPulls": true,
+      "wireOnly": true
+    },
+    {
+      "id": "V@5",
+      "label": "V",
+      "number": 5,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@6",
+      "label": "GND",
+      "number": 6,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "VN",
+      "label": "VN",
+      "number": 7,
+      "role": "gpio",
+      "gpio": 39,
+      "functions": [
+        "ADC1_CH3"
+      ],
+      "inputOnly": true,
+      "noPulls": true,
+      "wireOnly": true
+    },
+    {
+      "id": "V@8",
+      "label": "V",
+      "number": 8,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@9",
+      "label": "GND",
+      "number": 9,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D34",
+      "label": "D34",
+      "number": 10,
+      "role": "gpio",
+      "gpio": 34,
+      "functions": [
+        "ADC1_CH6"
+      ],
+      "inputOnly": true,
+      "noPulls": true,
+      "wireOnly": true
+    },
+    {
+      "id": "V@11",
+      "label": "V",
+      "number": 11,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@12",
+      "label": "GND",
+      "number": 12,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D35",
+      "label": "D35",
+      "number": 13,
+      "role": "gpio",
+      "gpio": 35,
+      "functions": [
+        "ADC1_CH7"
+      ],
+      "inputOnly": true,
+      "noPulls": true,
+      "wireOnly": true
+    },
+    {
+      "id": "V@14",
+      "label": "V",
+      "number": 14,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@15",
+      "label": "GND",
+      "number": 15,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D32",
+      "label": "D32",
+      "number": 16,
+      "role": "gpio",
+      "gpio": 32,
+      "functions": [
+        "ADC1_CH4",
+        "TOUCH9",
+        "PWM"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@17",
+      "label": "V",
+      "number": 17,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@18",
+      "label": "GND",
+      "number": 18,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D33",
+      "label": "D33",
+      "number": 19,
+      "role": "gpio",
+      "gpio": 33,
+      "functions": [
+        "ADC1_CH5",
+        "TOUCH8",
+        "PWM"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@20",
+      "label": "V",
+      "number": 20,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@21",
+      "label": "GND",
+      "number": 21,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D25",
+      "label": "D25",
+      "number": 22,
+      "role": "gpio",
+      "gpio": 25,
+      "functions": [
+        "ADC2_CH8",
+        "DAC1",
+        "PWM",
+        "I2C1 SCL"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@23",
+      "label": "V",
+      "number": 23,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@24",
+      "label": "GND",
+      "number": 24,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D26",
+      "label": "D26",
+      "number": 25,
+      "role": "gpio",
+      "gpio": 26,
+      "functions": [
+        "ADC2_CH9",
+        "DAC2",
+        "PWM",
+        "I2C1 SDA"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@26",
+      "label": "V",
+      "number": 26,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@27",
+      "label": "GND",
+      "number": 27,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D27",
+      "label": "D27",
+      "number": 28,
+      "role": "gpio",
+      "gpio": 27,
+      "functions": [
+        "ADC2_CH7",
+        "TOUCH7",
+        "PWM"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@29",
+      "label": "V",
+      "number": 29,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@30",
+      "label": "GND",
+      "number": 30,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D14",
+      "label": "D14",
+      "number": 31,
+      "role": "gpio",
+      "gpio": 14,
+      "functions": [
+        "ADC2_CH6",
+        "TOUCH6",
+        "PWM",
+        "SPI1 SCK"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@32",
+      "label": "V",
+      "number": 32,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@33",
+      "label": "GND",
+      "number": 33,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D12",
+      "label": "D12",
+      "number": 34,
+      "role": "gpio",
+      "gpio": 12,
+      "functions": [
+        "ADC2_CH5",
+        "TOUCH5",
+        "PWM",
+        "SPI1 MISO"
+      ],
+      "strapping": true,
+      "wireOnly": true,
+      "note": "must be LOW when the board starts (flash voltage)"
+    },
+    {
+      "id": "V@35",
+      "label": "V",
+      "number": 35,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@36",
+      "label": "GND",
+      "number": 36,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D13",
+      "label": "D13",
+      "number": 37,
+      "role": "gpio",
+      "gpio": 13,
+      "functions": [
+        "ADC2_CH4",
+        "TOUCH4",
+        "PWM",
+        "SPI1 MOSI"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@38",
+      "label": "V",
+      "number": 38,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@39",
+      "label": "GND",
+      "number": 39,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D23",
+      "label": "D23",
+      "number": 40,
+      "role": "gpio",
+      "gpio": 23,
+      "functions": [
+        "PWM",
+        "SPI2 MOSI"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@41",
+      "label": "V",
+      "number": 41,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@42",
+      "label": "GND",
+      "number": 42,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D22",
+      "label": "D22",
+      "number": 43,
+      "role": "gpio",
+      "gpio": 22,
+      "functions": [
+        "PWM"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@44",
+      "label": "V",
+      "number": 44,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@45",
+      "label": "GND",
+      "number": 45,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "TX0",
+      "label": "TX0",
+      "number": 46,
+      "role": "gpio",
+      "gpio": 1,
+      "functions": [
+        "PWM",
+        "UART0 TX"
+      ],
+      "wireOnly": true,
+      "note": "the USB serial port (REPL): using it stops the console"
+    },
+    {
+      "id": "V@47",
+      "label": "V",
+      "number": 47,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@48",
+      "label": "GND",
+      "number": 48,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "RX0",
+      "label": "RX0",
+      "number": 49,
+      "role": "gpio",
+      "gpio": 3,
+      "functions": [
+        "PWM",
+        "UART0 RX"
+      ],
+      "wireOnly": true,
+      "note": "the USB serial port (REPL): using it stops the console"
+    },
+    {
+      "id": "V@50",
+      "label": "V",
+      "number": 50,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@51",
+      "label": "GND",
+      "number": 51,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D21",
+      "label": "D21",
+      "number": 52,
+      "role": "gpio",
+      "gpio": 21,
+      "functions": [
+        "PWM"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@53",
+      "label": "V",
+      "number": 53,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@54",
+      "label": "GND",
+      "number": 54,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D19",
+      "label": "D19",
+      "number": 55,
+      "role": "gpio",
+      "gpio": 19,
+      "functions": [
+        "PWM",
+        "I2C0 SDA",
+        "SPI2 MISO"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@56",
+      "label": "V",
+      "number": 56,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@57",
+      "label": "GND",
+      "number": 57,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D18",
+      "label": "D18",
+      "number": 58,
+      "role": "gpio",
+      "gpio": 18,
+      "functions": [
+        "PWM",
+        "I2C0 SCL",
+        "SPI2 SCK"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@59",
+      "label": "V",
+      "number": 59,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@60",
+      "label": "GND",
+      "number": 60,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D5",
+      "label": "D5",
+      "number": 61,
+      "role": "gpio",
+      "gpio": 5,
+      "functions": [
+        "PWM"
+      ],
+      "strapping": true,
+      "wireOnly": true
+    },
+    {
+      "id": "V@62",
+      "label": "V",
+      "number": 62,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@63",
+      "label": "GND",
+      "number": 63,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "TX2",
+      "label": "TX2",
+      "number": 64,
+      "role": "gpio",
+      "gpio": 17,
+      "functions": [
+        "PWM",
+        "UART2 TX"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@65",
+      "label": "V",
+      "number": 65,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@66",
+      "label": "GND",
+      "number": 66,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "RX2",
+      "label": "RX2",
+      "number": 67,
+      "role": "gpio",
+      "gpio": 16,
+      "functions": [
+        "PWM",
+        "UART2 RX"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@68",
+      "label": "V",
+      "number": 68,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@69",
+      "label": "GND",
+      "number": 69,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D4",
+      "label": "D4",
+      "number": 70,
+      "role": "gpio",
+      "gpio": 4,
+      "functions": [
+        "ADC2_CH0",
+        "TOUCH0",
+        "PWM"
+      ],
+      "wireOnly": true
+    },
+    {
+      "id": "V@71",
+      "label": "V",
+      "number": 71,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@72",
+      "label": "GND",
+      "number": 72,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D2",
+      "label": "D2",
+      "number": 73,
+      "role": "gpio",
+      "gpio": 2,
+      "functions": [
+        "ADC2_CH2",
+        "TOUCH2",
+        "PWM"
+      ],
+      "strapping": true,
+      "wireOnly": true,
+      "note": "the blue LED on the board; must be LOW or floating to load new code"
+    },
+    {
+      "id": "V@74",
+      "label": "V",
+      "number": 74,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@75",
+      "label": "GND",
+      "number": 75,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    },
+    {
+      "id": "D15",
+      "label": "D15",
+      "number": 76,
+      "role": "gpio",
+      "gpio": 15,
+      "functions": [
+        "ADC2_CH3",
+        "TOUCH3",
+        "PWM"
+      ],
+      "strapping": true,
+      "wireOnly": true
+    },
+    {
+      "id": "V@77",
+      "label": "V",
+      "number": 77,
+      "role": "power",
+      "functions": [],
+      "same": "V",
+      "wireOnly": true
+    },
+    {
+      "id": "GND@78",
+      "label": "GND",
+      "number": 78,
+      "role": "ground",
+      "functions": [],
+      "wireOnly": true
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import { connect, holes, type CircuitSpec } from '@lib/circuit';
 import { parseBoard } from '@lib/boards';
 import picoJson from '../../../library/boards/pico-w/board.json';
 import espJson from '../../../library/boards/esp32-devkit-v1/board.json';
+import mbitJson from '../../../library/boards/microbit-v2/board.json';
 
 const pico = parseBoard(picoJson);
 const spec = (s: Partial<CircuitSpec>): CircuitSpec => ({ breadboards: [{ id: 'bb1', size: 'half' }], parts: [], wires: [], ...s });
@@ -158,3 +159,26 @@ describe('F-18 problems instead of crashes', () => {
     expect(c.netOf('bb2.a1')).toBe('bb1.f30');
   });
 });
+
+describe('F-12 the micro:bit GPIO board joins its repeated pins', () => {
+  const mbit = parseBoard(mbitJson);
+  const c = connect(spec({ board: { data: mbit } }));
+  it('both 3.3V pins and the I²C header\'s 3.3V are one net; so are both 5V pins', () => {
+    expect(same(c, 'board.3.3V', 'board.3.3V@13')).toBe(true);
+    expect(same(c, 'board.3.3V', 'board.3.3V@30')).toBe(true);
+    expect(same(c, 'board.5V', 'board.5V@26')).toBe(true);
+    expect(same(c, 'board.3.3V', 'board.5V')).toBe(false);
+    expect(c.netOf('board.3.3V@13')).toBe('3.3V');
+  });
+  it('the I²C header\'s SDA and SCL are P20 and P19; its GND is ground', () => {
+    expect(c.netOf('board.SDA')).toBe('P20');
+    expect(c.netOf('board.SCL')).toBe('P19');
+    expect(same(c, 'board.GND@29', 'board.GND')).toBe(true);
+  });
+  it('a right-angle I²C pin can\'t be plugged into the breadboard', () => {
+    const plugged = connect(spec({ board: { data: mbit, plugs: { SDA: 'bb1.a5', P0: 'bb1.a6' } } }));
+    expect(plugged.problems).toEqual([{ kind: 'pin-wire-only', pin: 'SDA' }]);
+    expect(same(plugged, 'board.P0', 'bb1.e6')).toBe(true);
+  });
+});
+

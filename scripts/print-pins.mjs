@@ -5,18 +5,19 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const boards = ['pico-w', 'esp32-devkit-v1', 'microbit-v2'].map((id) =>
+const boards = ['pico-w', 'esp32-devkit-v1', 'esp32-devkit-v1-ext', 'microbit-v2'].map((id) =>
   JSON.parse(readFileSync(join(root, 'library/boards', id, 'board.json'), 'utf8')));
 const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
 
 const section = (b) => {
   const rows = b.pins.map((p) => {
-    const flags = [p.inputOnly && 'input only', p.noPulls && 'no pulls', p.strapping && 'strapping', p.shared && `shared: ${p.shared}`]
+    const flags = [p.inputOnly && 'input only', p.noPulls && 'no pulls', p.strapping && 'strapping', p.shared && `shared: ${p.shared}`,
+      p.same && `same as ${p.same}`, p.wireOnly && 'wire only (right-angle)']
       .filter(Boolean).join(', ');
     return `<tr><td>${p.number}</td><td><b>${esc(p.label)}</b></td><td>${p.gpio ?? ''}</td><td>${p.role}</td>
       <td>${esc(p.functions.join(', '))}</td><td>${esc(flags)}</td><td>${esc(p.note)}</td><td class="tick"></td></tr>`;
   }).join('\n');
-  const supplies = b.supplies.map((s) => `${s.pin} ${s.volts} V, up to ${s.maxMa} mA${s.usbOnly ? ' (on USB)' : ''}`).join(' · ');
+  const supplies = b.supplies.map((s) => `${s.pin} ${s.volts} V${s.choices ? ` (jumper: ${s.choices.join(' or ')} V)` : ''}, up to ${s.maxMa} mA${s.usbOnly ? ' (on USB)' : ''}`).join(' · ');
   return `<section><h2>${esc(b.name)} <small>${esc(b.chip)}</small></h2>
     <p>GPIO: ${b.logicVolts} V logic · a pin should give ≤ ${b.gpio.safeMa} mA · pulls ≈ ${b.gpio.pullOhms / 1000} kΩ
     ${b.gpio.totalMa ? `· all pins together ≤ ${b.gpio.totalMa} mA` : ''} · supplies: ${supplies}</p>

@@ -59,8 +59,11 @@ def boards() -> None:
         numbered[30 - i] = pins["B:" + name]
     write("boards", "esp32-devkit-v1", svg, numbered, "pins")
 
-    svg, pins = s.microbit(200, 600)                   # keys: header label, in header order
-    write("boards", "microbit-v2", svg, {i + 1: pins[name] for i, name in enumerate(s.BREAKOUT)}, "pins")
+    svg, pins = s.esp32_ext(200, 400)                  # keys: pin number (G-V-S triples, see board.json)
+    write("boards", "esp32-devkit-v1-ext", svg, pins, "pins")
+
+    svg, pins = s.microbit(200, 600)                   # keys: pin id (GND@3); 1–13 top row, 14–26 bottom, 27–30 I²C
+    write("boards", "microbit-v2", svg, {n: pins[pid] for n, pid, _ in s.mbit_pins()}, "pins")
 
 
 def parts() -> None:

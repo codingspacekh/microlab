@@ -26,8 +26,9 @@ export interface WireSpec {
 }
 
 export interface CircuitSpec {
-  /** The board is always the point owner `board`. `plugs`: pin id or label → the hole it is pushed into. */
-  board?: { data: BoardData; usb?: boolean; plugs?: Record<string, PointRef> };
+  /** The board is always the point owner `board`. `plugs`: pin id or label → the hole it is pushed into.
+   *  `jumpers`: supply pin → the volts its jumper is set to, one of the supply's choices (ESP32 extension board's V). */
+  board?: { data: BoardData; usb?: boolean; plugs?: Record<string, PointRef>; jumpers?: Record<string, number> };
   breadboards: { id: string; size: BreadboardSize }[];
   parts: PartSpec[];
   wires: WireSpec[];
@@ -38,4 +39,6 @@ export type Problem =
   | { kind: 'unknown-point'; point: PointRef; by: string }
   | { kind: 'unknown-part-type'; part: string; type: string }
   | { kind: 'unknown-leg'; part: string; leg: string }
-  | { kind: 'leg-not-placed'; part: string; leg: string };
+  | { kind: 'leg-not-placed'; part: string; leg: string }
+  /** A right-angle board pin (wireOnly) put into a breadboard hole: it takes a jumper wire only. */
+  | { kind: 'pin-wire-only'; pin: string };

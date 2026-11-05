@@ -40,6 +40,7 @@ export function connect(spec: CircuitSpec): Connectivity {
     });
     const grounds = board.pins.filter((p) => p.role === 'ground');
     for (const g of grounds.slice(1)) uf.union(`board.${grounds[0]!.id}`, `board.${g.id}`);
+    for (const p of board.pins) if (p.same) uf.union(`board.${p.id}`, `board.${findPin(board, p.same)!.id}`);   // checked by the schema
   }
 
   /** The canonical name of a point, or undefined if there is no such point. */
@@ -58,7 +59,11 @@ export function connect(spec: CircuitSpec): Connectivity {
     if (ra && rb) uf.union(ra, rb);
   };
 
-  for (const [pin, hole] of Object.entries(spec.board?.plugs ?? {})) join(`board.${pin}`, hole, 'board');
+  for (const [pin, hole] of Object.entries(spec.board?.plugs ?? {})) {
+    const p = board && findPin(board, pin);
+    if (p?.wireOnly) problems.push({ kind: 'pin-wire-only', pin: p.id });
+    else join(`board.${pin}`, hole, 'board');
+  }
 
   // Every leg exists before any is plugged in, so a leg can go into another part's leg in any order.
   for (const part of spec.parts) for (const leg of MODELS[part.type]?.legs ?? []) uf.add(`${part.id}.${leg}`);

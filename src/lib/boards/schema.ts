@@ -27,6 +27,11 @@ const pin = z.object({
   /** Also used on the board itself, e.g. "display COL3", "button A". */
   shared: z.string().optional(),
   note: z.string().optional(),
+  /** The same connection as another pin, by a track on the board (the GPIO board's second 3.3V; its I²C
+   *  header's SDA is P20). Same role and GPIO number as that pin; the circuit joins them. */
+  same: z.string().optional(),
+  /** A right-angle pin: it takes a jumper wire but doesn't go into the breadboard (the GPIO board's I²C header). */
+  wireOnly: z.boolean().optional(),
 });
 
 const supply = z.object({
@@ -40,6 +45,9 @@ const supply = z.object({
   limitMa: z.number().positive(),
   /** Only when the board is powered from USB (VBUS, VIN). */
   usbOnly: z.boolean().optional(),
+  /** The volts a jumper on the board can pick (the ESP32 extension board's V rail: 3.3 or 5); `volts` is where
+   *  the jumper starts. The circuit's board.jumpers picks another one. */
+  choices: z.array(z.number().positive()).min(2).optional(),
 });
 
 const builtIn = z.discriminatedUnion('kind', [
@@ -87,10 +95,25 @@ export const boardSchema = z.object({
       ctx.addIssue({ code: 'custom', path: ['pins', i, 'gpio'], message: `${p.id} is a GPIO pin with no gpio number` });
     }
   });
+  const byRef = (ref: string) => b.pins.find((p) => p.id === ref) ?? b.pins.find((p) => p.label === ref);
+  b.pins.forEach((p, i) => {
+    if (p.same === undefined) return;
+    const to = byRef(p.same);
+    const at = ['pins', i, 'same'];
+    if (!to || to === p) ctx.addIssue({ code: 'custom', path: at, message: `${p.id} is the same as unknown pin "${p.same}"` });
+    else if (to.same !== undefined) {
+      ctx.addIssue({ code: 'custom', path: at, message: `${p.id} is the same as ${to.id}, which is itself the same as another pin` });
+    } else if (to.role !== p.role || to.gpio !== p.gpio) {
+      ctx.addIssue({ code: 'custom', path: at, message: `${p.id} is the same as ${to.id} but not the same kind of pin` });
+    }
+  });
   if (!b.pins.some((p) => p.role === 'ground')) ctx.addIssue({ code: 'custom', path: ['pins'], message: 'the board has no ground pin' });
   const known = (ref: string) => b.pins.some((p) => p.id === ref || p.label === ref);
   b.supplies.forEach((s, i) => {
     if (!known(s.pin)) ctx.addIssue({ code: 'custom', path: ['supplies', i, 'pin'], message: `supply on unknown pin "${s.pin}"` });
+    if (s.choices && !s.choices.includes(s.volts)) {
+      ctx.addIssue({ code: 'custom', path: ['supplies', i, 'volts'], message: `supply ${s.pin} is ${s.volts} V, not one of its choices ${s.choices.join(', ')}` });
+    }
   });
   b.builtIn.forEach((part, i) => {
     const refs = part.kind === 'led' ? [part.pin] : [part.a, part.b];

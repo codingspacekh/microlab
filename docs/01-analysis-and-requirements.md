@@ -67,7 +67,7 @@ The teacher teaches electronics and robotics with **Python**, on three boards: *
 |---|---|---|---|
 | Chip | nRF52833 | RP2040 + CYW43439 (Wi-Fi) | ESP32-WROOM-32 |
 | Logic level | 3.3 V | 3.3 V | 3.3 V |
-| Pins students use | Edge connector P0–P20 (P0, P1, P2, 3V, GND are the big rings); needs an **edge-connector breakout** on a breadboard | GP0–GP28, 3V3, VBUS, VSYS, GND | GPIO 0–39 (not all exposed), 3V3, VIN/5V, GND |
+| Pins students use | Edge connector P0–P20 (P0, P1, P2, 3V, GND are the big rings); needs an **edge-connector breakout** on a breadboard — the school uses the T-shaped *micro:bit GPIO Board* (2 × 13 header across the channel, 3.3V and 5V, I²C header; resources/microbit_gpio_board.webp) | GP0–GP28, 3V3, VBUS, VSYS, GND | GPIO 0–39 (not all exposed), 3V3, VIN/5V, GND; also as a second board, *ESP32 with extension board*: a G-V-S triple per signal, V = 3.3 V or 5 V by jumper (resources/esp32_extension_board.jpg) |
 | Analog in | `pin0.read_analog()` → 0–1023 | ADC on GP26–GP28, `read_u16()` → 0–65535 | ADC1 (GPIO 32–39) and ADC2 (not usable while Wi-Fi is on) |
 | Built in | 5×5 LED display, buttons A/B, touch logo, accelerometer + compass, microphone, speaker, temperature, radio | LED on `Pin("LED")`, BOOTSEL button, temperature sensor (ADC 4), Wi-Fi | LED on GPIO 2 (most DevKits), BOOT button, touch pins, DAC on GPIO 25/26, Wi-Fi, Bluetooth |
 | MicroPython modules | `microbit`, `music`, `radio`, `speech`, `neopixel`, `machine` (part) | `machine`, `time`, `network`, `neopixel`, `rp2` | `machine`, `time`, `network`, `neopixel`, `esp32` |

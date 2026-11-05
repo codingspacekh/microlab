@@ -3,13 +3,14 @@ import { parseBoard, type BoardData } from '@lib/boards';
 import picoJson from '../../../library/boards/pico-w/board.json';
 import espJson from '../../../library/boards/esp32-devkit-v1/board.json';
 import mbitJson from '../../../library/boards/microbit-v2/board.json';
+import extJson from '../../../library/boards/esp32-devkit-v1-ext/board.json';
 
 /**
  * Hand-typed from the official pinouts (M1 test list, N-01):
  *  - Raspberry Pi Pico W datasheet, pinout + RP2040 datasheet §1.4.3 GPIO functions (UART CTS/RTS left out);
  *  - ESP32 DevKit V1 (DOIT, 30 pins) pinout + ESP32 datasheet: ADC, touch, DAC, strapping; the bus pins are
  *    MicroPython's defaults (I2C(0) 18/19, I2C(1) 25/26, SPI(1) 14/13/12, SPI(2) 18/23/19, UART(2) 17/16);
- *  - micro:bit V2 edge connector (tech.microbit.org), as on the breakout's header.
+ *  - micro:bit V2 edge connector (tech.microbit.org), as it comes out on the micro:bit GPIO board's headers.
  * Never generated from board.json: the two are typed separately so a slip in either shows up here.
  * Row: physical number, label, functions (comma-separated, '' for none).
  */
@@ -94,29 +95,41 @@ const ESP32_GPIO: Record<string, number> = {
   D23: 23, D22: 22, TX0: 1, RX0: 3, D21: 21, D19: 19, D18: 18, D5: 5, TX2: 17, RX2: 16, D4: 4, D2: 2, D15: 15,
 };
 
-/** The breakout's header, left to right. */
+/**
+ * The micro:bit GPIO board (resources/microbit_gpio_board.webp), read off the board's own printing:
+ * 1–13 the top header row and 14–26 the bottom row, both left to right; 27–30 the right-angle I²C header, top down.
+ */
 const MICROBIT: [number, string, string][] = [
-  [1, 'GND', ''],
-  [2, '3V', ''],
-  [3, 'P0', 'ADC, TOUCH, PWM'],
-  [4, 'P1', 'ADC, TOUCH, PWM'],
-  [5, 'P2', 'ADC, TOUCH, PWM'],
-  [6, 'P3', 'ADC, PWM'],
-  [7, 'P4', 'ADC, PWM'],
-  [8, 'P5', 'PWM'],
-  [9, 'P6', 'PWM'],
-  [10, 'P7', 'PWM'],
-  [11, 'P8', 'PWM'],
-  [12, 'P9', 'PWM'],
-  [13, 'P10', 'ADC, PWM'],
-  [14, 'P11', 'PWM'],
-  [15, 'P12', 'PWM'],
-  [16, 'P13', 'PWM, SPI SCK'],
-  [17, 'P14', 'PWM, SPI MISO'],
-  [18, 'P15', 'PWM, SPI MOSI'],
-  [19, 'P16', 'PWM'],
-  [20, 'P19', 'PWM, I2C SCL'],
-  [21, 'P20', 'PWM, I2C SDA'],
+  [1, '3.3V', ''],
+  [2, 'GND', ''],
+  [3, 'GND', ''],
+  [4, 'P20', 'PWM, I2C SDA'],
+  [5, 'P19', 'PWM, I2C SCL'],
+  [6, 'P16', 'PWM'],
+  [7, 'P15', 'PWM, SPI MOSI'],
+  [8, 'P14', 'PWM, SPI MISO'],
+  [9, 'P13', 'PWM, SPI SCK'],
+  [10, 'P12', 'PWM'],
+  [11, 'P11', 'PWM'],
+  [12, 'P10', 'ADC, PWM'],
+  [13, '3.3V', ''],
+  [14, '5V', ''],
+  [15, 'GND', ''],
+  [16, 'P0', 'ADC, TOUCH, PWM'],
+  [17, 'P1', 'ADC, TOUCH, PWM'],
+  [18, 'P2', 'ADC, TOUCH, PWM'],
+  [19, 'P3', 'ADC, PWM'],
+  [20, 'P4', 'ADC, PWM'],
+  [21, 'P5', 'PWM'],
+  [22, 'P6', 'PWM'],
+  [23, 'P7', 'PWM'],
+  [24, 'P8', 'PWM'],
+  [25, 'P9', 'PWM'],
+  [26, '5V', ''],
+  [27, 'SDA', 'I2C SDA'],
+  [28, 'SCL', 'I2C SCL'],
+  [29, 'GND', ''],
+  [30, '3.3V', ''],
 ];
 
 function table(board: BoardData) {
@@ -157,7 +170,7 @@ describe('N-01 ESP32 DevKit V1 (30 pins) equals the official pinout', () => {
   });
 });
 
-describe('N-01 micro:bit V2 breakout equals the edge connector', () => {
+describe('N-01 micro:bit V2 on its GPIO board equals the edge connector', () => {
   const mbit = parseBoard(mbitJson);
   it('has the header pins in order, with their functions', () => {
     expect(table(mbit).map(([n, l, f]) => [n, l, sorted(f as string)])).toEqual(MICROBIT.map(([n, l, f]) => [n, l, sorted(f)]));
@@ -169,4 +182,56 @@ describe('N-01 micro:bit V2 breakout equals the edge connector', () => {
       P5: 'button A', P11: 'button B',
     });
   });
+  it('every edge-connector pin the board brings out is there once, as a GPIO pin with its number', () => {
+    const gpio = mbit.pins.filter((p) => p.role === 'gpio' && !p.same).map((p) => p.label);
+    expect([...gpio].sort()).toEqual(['P0', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10', 'P11', 'P12',
+      'P13', 'P14', 'P15', 'P16', 'P19', 'P20'].sort());
+    for (const p of mbit.pins.filter((q) => q.role === 'gpio' && !q.same)) expect(p.gpio).toBe(Number(p.label.slice(1)));
+  });
+  it('the repeated 3.3V and 5V pins and the I²C header are the same connection as the first one', () => {
+    const same = Object.fromEntries(mbit.pins.filter((p) => p.same).map((p) => [p.id, p.same]));
+    expect(same).toEqual({ '3.3V@13': '3.3V', '5V@26': '5V', SDA: 'P20', SCL: 'P19', '3.3V@30': '3.3V' });
+  });
+  it('the I²C header is right-angled: it takes jumper wires, not the breadboard', () => {
+    expect(mbit.pins.filter((p) => p.wireOnly).map((p) => p.number)).toEqual([27, 28, 29, 30]);
+  });
+  it('5V comes only from the GPIO board\'s own micro-USB; 3.3V is the micro:bit\'s', () => {
+    expect(mbit.supplies.map((s) => [s.pin, s.volts, !!s.usbOnly])).toEqual([['3.3V', 3.3, false], ['5V', 5, true]]);
+  });
 });
+
+/**
+ * ESP32 DevKit V1 on its 30-pin extension board (resources/esp32_extension_board.jpg): each signal of the
+ * ESP32 comes out as a G-V-S triple (ground, the jumper-chosen V rail, the signal). 1–39: the EN header's
+ * signals from EN to D13; 40–78: the other header's from D23 to D15; in each triple S, V, G.
+ */
+const EXT_ROWS = ['EN', 'VP', 'VN', 'D34', 'D35', 'D32', 'D33', 'D25', 'D26', 'D27', 'D14', 'D12', 'D13',
+  'D23', 'D22', 'TX0', 'RX0', 'D21', 'D19', 'D18', 'D5', 'TX2', 'RX2', 'D4', 'D2', 'D15'];
+
+describe('N-01 ESP32 DevKit V1 with extension board', () => {
+  const ext = parseBoard(extJson);
+  const esp = parseBoard(espJson);
+  it('has a G-V-S triple for every signal of both headers, in order', () => {
+    expect(ext.pins.map((p) => [p.number, p.label])).toEqual(
+      EXT_ROWS.flatMap((s, i) => [[i * 3 + 1, s], [i * 3 + 2, 'V'], [i * 3 + 3, 'GND']]));
+  });
+  it('every S pin is the ESP32 pin itself: same GPIO, functions and flags as the plain ESP32 board', () => {
+    const facts = (p: (typeof esp.pins)[number]) =>
+      ({ role: p.role, gpio: p.gpio, functions: p.functions, inputOnly: p.inputOnly, noPulls: p.noPulls, strapping: p.strapping, note: p.note });
+    for (const label of EXT_ROWS) {
+      expect(facts(ext.pins.find((p) => p.label === label)!), label).toEqual(facts(esp.pins.find((p) => p.label === label)!));
+    }
+    expect({ ...ext.gpio }).toEqual({ ...esp.gpio });
+    expect(ext.builtIn).toEqual(esp.builtIn);
+    expect(ext.anyPinBuses).toEqual(esp.anyPinBuses);
+  });
+  it('every V pin is the one V rail; every G pin is ground; all are header pins for jumper wires', () => {
+    expect(ext.pins.filter((p) => p.label === 'V').every((p) => p.role === 'power' && (p.id === 'V' || p.same === 'V'))).toBe(true);
+    expect(ext.pins.filter((p) => p.label === 'GND').every((p) => p.role === 'ground')).toBe(true);
+    expect(ext.pins.every((p) => p.wireOnly)).toBe(true);
+  });
+  it('the V rail is 5 V or 3.3 V, picked with the JUMP jumper', () => {
+    expect(ext.supplies.map((s) => [s.pin, s.volts, s.choices])).toEqual([['V', 5, [3.3, 5]]]);
+  });
+});
+

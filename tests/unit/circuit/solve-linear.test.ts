@@ -5,6 +5,7 @@ import { netlist } from '../../fixtures/circuits/dsl';
 import picoJson from '../../../library/boards/pico-w/board.json';
 import mbitJson from '../../../library/boards/microbit-v2/board.json';
 import espJson from '../../../library/boards/esp32-devkit-v1/board.json';
+import extJson from '../../../library/boards/esp32-devkit-v1-ext/board.json';
 
 const pico = parseBoard(picoJson);
 /** Within 1 % of the hand-worked answer (N-02). */
@@ -161,4 +162,23 @@ describe("board's own parts", () => {
     const r = run({ board: { data: parseBoard(mbitJson) }, breadboards: [], parts: [], wires: [] });
     within1(r.volts.P19!, 3.3);
   });
+
+  it("the micro:bit GPIO board: SDA/SCL are not extra pins; 5V is there only with the GPIO board's USB", () => {
+    const data = parseBoard(mbitJson);
+    const devices = (usb?: boolean) => toNetlist({ board: { data, usb }, breadboards: [], parts: [], wires: [] }).netlist.devices;
+    expect(devices().filter((d) => d.kind === 'pin')).toHaveLength(19);
+    expect(devices().filter((d) => d.kind === 'source').map((d) => d.id)).toEqual(['supply:3.3V', 'supply:5V']);
+    expect(devices(false).filter((d) => d.kind === 'source').map((d) => d.id)).toEqual(['supply:3.3V']);
+  });
+
+  it('the ESP32 extension board: V is 5 V, or 3.3 V with the jumper moved; an S pin is the ESP32 pin', () => {
+    const data = parseBoard(extJson);
+    const at = (jumper?: Record<string, number>) => run({ board: { data, jumpers: jumper }, breadboards: [], parts: [], wires: [] });
+    within1(at().volts.V!, 5);
+    within1(at({ V: 3.3 }).volts.V!, 3.3);
+    const r = run({ board: { data }, breadboards: [], parts: [], wires: [] }, { pins: { D32: { mode: 'out', value: 1 } } });
+    within1(r.volts.D32!, 3.3);
+    expect(toNetlist({ board: { data }, breadboards: [], parts: [], wires: [] }).netlist.devices.filter((d) => d.kind === 'pin')).toHaveLength(25);
+  });
 });
+

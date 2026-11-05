@@ -12,7 +12,7 @@ const labels = (pins: { label: string }[]) => pins.map((p) => p.label);
 describe('pin queries (§1.3, screen 10)', () => {
   it('pins with ADC: Pico GP26–28; micro:bit P0–P4 and P10', () => {
     expect(labels(pinsWith(pico, 'adc'))).toEqual(['GP26', 'GP27', 'GP28']);
-    expect(labels(pinsWith(mbit, 'adc'))).toEqual(['P0', 'P1', 'P2', 'P3', 'P4', 'P10']);
+    expect(labels(pinsWith(mbit, 'adc'))).toEqual(['P10', 'P0', 'P1', 'P2', 'P3', 'P4']);   // header order: P10 is on the top row
   });
 
   it('ESP32 ADC pins: ADC1 (32–39) and ADC2 (not usable while Wi-Fi is on)', () => {

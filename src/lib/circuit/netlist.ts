@@ -19,10 +19,12 @@ export function toNetlist(spec: CircuitSpec): { netlist: Netlist; connectivity: 
 
     for (const s of board.supplies) {
       if (s.usbOnly && spec.board!.usb === false) continue;
-      devices.push({ kind: 'source', id: `supply:${s.pin}`, plus: net(`board.${s.pin}`), minus: gnd, volts: s.volts, ohms: s.ohms, limitA: s.limitMa / 1000 });
+      const jumper = spec.board!.jumpers?.[s.pin];
+      const volts = jumper !== undefined && s.choices?.includes(jumper) ? jumper : s.volts;
+      devices.push({ kind: 'source', id: `supply:${s.pin}`, plus: net(`board.${s.pin}`), minus: gnd, volts, ohms: s.ohms, limitA: s.limitMa / 1000 });
     }
     for (const p of board.pins) {
-      if (p.role !== 'gpio') continue;
+      if (p.role !== 'gpio' || p.same) continue;   // SDA on the I²C header is P20's pin, not a second one
       devices.push({
         kind: 'pin', id: `pin:${p.label}`, net: net(`board.${p.id}`), gnd, label: p.label,
         volts: board.logicVolts, ohms: board.gpio.outputOhms, limitA: board.gpio.shortCircuitMa / 1000,

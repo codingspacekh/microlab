@@ -17,7 +17,7 @@ function onGrid(points: [number, number][]) {
     && Math.abs((y - y0) / PITCH - Math.round((y - y0) / PITCH)) < 1e-6);
 }
 
-describe.each(['pico-w', 'esp32-devkit-v1', 'microbit-v2'])('F-12 %s art', (id) => {
+describe.each(['pico-w', 'esp32-devkit-v1', 'microbit-v2', 'esp32-devkit-v1-ext'])('F-12 %s art', (id) => {
   const board = parseBoard(read(`boards/${id}/board.json`));
   const art: Art = read(`boards/${id}/art.json`);
 
@@ -40,6 +40,7 @@ describe.each(['pico-w', 'esp32-devkit-v1', 'microbit-v2'])('F-12 %s art', (id) 
     const pts = Object.values(art.pins!);
     expect(onGrid(pts)).toBe(true);
     const n = (k: number) => art.pins![String(k)]!;
+    if (id === 'esp32-devkit-v1-ext') return;   // its own test below: G-V-S triples
     expect(n(2)[0] - n(1)[0]).toBe(id === 'esp32-devkit-v1' ? -PITCH : PITCH);   // the ESP32's EN header runs right to left
   });
 });
@@ -48,6 +49,31 @@ it('F-12 Pico W rows are 0.7 in apart (it straddles the channel)', () => {
   const art: Art = read('boards/pico-w/art.json');
   expect(art.pins!['1']![1] - art.pins!['40']![1]).toBe(7 * PITCH);
   expect(art.pins!['1']![0]).toBe(art.pins!['40']![0]);
+});
+
+it('F-12 micro:bit GPIO board rows are 0.3 in apart, one above the other (it straddles the channel)', () => {
+  const art: Art = read('boards/microbit-v2/art.json');
+  const pin = (n: number) => art.pins![String(n)]!;
+  for (let i = 0; i < 13; i++) {
+    expect(pin(14 + i)[1] - pin(1 + i)[1]).toBe(3 * PITCH);   // rows e and f of a breadboard
+    expect(pin(14 + i)[0]).toBe(pin(1 + i)[0]);
+  }
+  for (let i = 27; i <= 30; i++) expect(pin(i)[0]).toBeGreaterThan(pin(13)[0]);   // the I²C header, to the right
+});
+
+it('F-12 ESP32 extension board: each G-V-S triple is one column, a pitch apart, G outermost', () => {
+  const art: Art = read('boards/esp32-devkit-v1-ext/art.json');
+  const pin = (n: number) => art.pins![String(n)]!;
+  for (let t = 0; t < 26; t++) {
+    const [s, v, g] = [pin(t * 3 + 1), pin(t * 3 + 2), pin(t * 3 + 3)];
+    expect(v[0]).toBe(s[0]);
+    expect(g[0]).toBe(s[0]);
+    const out = t < 13 ? -PITCH : PITCH;   // EN header's triples above the ESP32, the other header's below
+    expect(v[1] - s[1]).toBe(out);
+    expect(g[1] - v[1]).toBe(out);
+  }
+  expect(pin(4)[0] - pin(1)[0]).toBe(-PITCH);   // EN, VP, VN … run right to left, like the ESP32's header
+  expect(pin(43)[0] - pin(40)[0]).toBe(-PITCH);   // D23, D22 … too
 });
 
 describe.each([
