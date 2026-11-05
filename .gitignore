@@ -8,3 +8,4 @@ playwright-report/
 design/__pycache__/
 *.tsbuildinfo
 .DS_Store
+.cache/

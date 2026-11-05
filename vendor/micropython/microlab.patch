@@ -1,0 +1,31 @@
+diff --git a/ports/webassembly/library.js b/ports/webassembly/library.js
+index 6fcd9f2..1d64268 100644
+--- a/ports/webassembly/library.js
++++ b/ports/webassembly/library.js
+@@ -31,6 +31,11 @@ mergeInto(LibraryManager.library, {
+     mp_js_ticks_ms: () => Date.now() - MP_JS_EPOCH,
+ 
+     mp_js_hook: () => {
++        // MicroLab: the simulation worker's own hook (Stop, pin IRQs), when it has set one.
++        if (Module.microlabHook) {
++            Module.microlabHook();
++            return;
++        }
+         if (ENVIRONMENT_IS_NODE) {
+             const mp_interrupt_char = Module.ccall(
+                 "mp_hal_get_interrupt_char",
+diff --git a/ports/webassembly/main.c b/ports/webassembly/main.c
+index 670d404..a4ed284 100644
+--- a/ports/webassembly/main.c
++++ b/ports/webassembly/main.c
+@@ -216,7 +216,10 @@ static void gc_scan_func(void *begin, void *end) {
+ void gc_collect(void) {
+     gc_collect_start();
+     emscripten_scan_stack(gc_scan_func);
++    #if !MICROLAB_SPILL_POINTERS
++    // MicroLab: with --spill-pointers (variant microlab) pointers are already on the stack.
+     emscripten_scan_registers(gc_scan_func);
++    #endif
+     gc_collect_end();
+ }
+ 

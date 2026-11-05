@@ -1,0 +1,34 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
+
+let app: ElectronApplication;
+let home: string;
+
+test.beforeAll(async () => {
+  home = mkdtempSync(join(tmpdir(), 'microlab-e2e-'));
+  app = await electron.launch({ args: ['out/main/index.js'], env: { ...process.env, MICROLAB_USER_DATA: home } });
+});
+
+test.afterAll(async () => {
+  await app?.close();
+  rmSync(home, { recursive: true, force: true });
+});
+
+test('the built app opens a window titled MicroLab', async () => {
+  const win = await app.firstWindow();
+  await expect(win).toHaveTitle('MicroLab');
+  await expect(win.getByRole('heading', { name: 'MicroLab' })).toBeVisible();
+});
+
+test('the window is cross-origin isolated, so the simulation worker can share memory (architecture §2.2)', async () => {
+  const win = await app.firstWindow();
+  expect(await win.evaluate(() => self.crossOriginIsolated)).toBe(true);
+  expect(await win.evaluate(() => typeof SharedArrayBuffer)).toBe('function');
+});
+
+test('the window is served from app://microlab, not from a file path', async () => {
+  const win = await app.firstWindow();
+  expect(win.url()).toMatch(/^app:\/\/microlab\//);
+});

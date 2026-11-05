@@ -578,7 +578,7 @@ connection problem says how to fix it.
 | HTML prototype (13 screens) | ✅ Approved 2026-11-05 ("all are already good") | 2026-11-05 | |
 | Prototype Rev 6: MicroLab, fluid layout, screen 12b form controls | 📝 For the teacher's comments | | |
 | Architecture Rev 1 + this plan | 📝 For the teacher's comments | | |
-| M0 Foundations + MicroPython spike | ⏳ Not started | | |
+| M0 Foundations + MicroPython spike | ✅ Done — own MicroPython build (no ASYNCIFY); manual check not recorded ([acceptance](acceptance/M0.md)) | 2026-11-05 | `v0.0.0` |
 | M1 Circuit engine | ⏳ | | |
 | M2 Simulated boards (headless) | ⏳ | | |
 | M3 Code drives the circuit | ⏳ | | |

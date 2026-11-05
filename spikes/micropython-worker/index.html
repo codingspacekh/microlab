@@ -1,0 +1,96 @@
+<!doctype html><meta charset="utf-8"><title>spike</title>
+<script>addEventListener("error", (e) => console.log("page error " + e.message)); addEventListener("unhandledrejection", (e) => console.log("rejection " + (e.reason?.stack ?? e.reason)));</script>
+<script type="module">
+console.log("module start, isolated=" + self.crossOriginIsolated);
+// Shared memory: [0] stop flag · [1] wake counter · [2] current line · [4..] pin inputs
+const sab = new SharedArrayBuffer(256);
+const mem = new Int32Array(sab);
+const r = { windowIsolated: self.crossOriginIsolated };
+const t0 = performance.now();
+let worker = new Worker('worker.mjs', { type: 'module' });
+const waitFor = (type) => new Promise((res) => {
+  const w = worker;
+  const h = (e) => { if (e.data.type === type) { w.removeEventListener('message', h); res(e.data); } };
+  w.addEventListener('message', h);
+});
+worker.addEventListener('message', (e) => { if (e.data.type === 'error') console.log('worker error ' + e.data.text); });
+worker.addEventListener('message', (e) => { if (e.data.type === 'log') console.log('worker: ' + e.data.text); });
+worker.onerror = (e) => console.log('worker onerror ' + e.message + ' ' + e.filename + ':' + e.lineno);
+worker.postMessage({ type: 'init', sab });
+const ready = await waitFor('ready');
+r.workerStartMs = Math.round(performance.now() - t0);
+Object.assign(r, ready.info);
+console.log('ready ' + JSON.stringify(ready.info));
+
+// 1. print + sleep(1) + a pin read changed by the window WHILE Python sleeps
+worker.postMessage({ type: 'run', code: `
+import time, _ream
+print('before', _ream.pin_read(4))
+t = time.ticks_ms()
+time.sleep(1)
+print('slept', time.ticks_diff(time.ticks_ms(), t), 'ms; after', _ream.pin_read(4))
+` });
+setTimeout(() => { Atomics.store(mem, 4, 1); }, 400);
+let ticks = 0; const iv = setInterval(() => ticks++, 10);
+const run1 = await waitFor('done');
+clearInterval(iv);
+r.sleepRun = run1;
+console.log('step ' + 'r.sleepRun = run1;' + ' ' + JSON.stringify(r).slice(-300));
+r.windowTimerTicksDuringSleep = ticks;
+
+// 2. Stop a plain while True (no calls, no sleep): try in-VM for 400 ms, then end the worker
+worker.postMessage({ type: 'run', code: 'x = 0\nwhile True:\n    x += 1\n' });
+await new Promise((res) => setTimeout(res, 500));
+const s0 = performance.now();
+Atomics.store(mem, 0, 1); Atomics.add(mem, 1, 1); Atomics.notify(mem, 1);
+const inVm = await Promise.race([waitFor('done').then(() => true), new Promise((res) => setTimeout(() => res(false), 400))]);
+if (inVm) {
+  r.stopBusyLoop = { how: 'KeyboardInterrupt', ms: Math.round(performance.now() - s0) };
+} else {
+  worker.terminate();
+  worker = new Worker('worker.mjs', { type: 'module' });
+  worker.addEventListener('message', (e) => { if (e.data.type === 'log') console.log('worker: ' + e.data.text); });
+  Atomics.store(mem, 0, 0);
+  worker.postMessage({ type: 'init', sab });
+  await waitFor('ready');
+  r.stopBusyLoop = { how: 'worker ended and a fresh one started', msUntilReadyAgain: Math.round(performance.now() - s0) };
+}
+Atomics.store(mem, 0, 0);
+console.log('step stop ' + JSON.stringify(r.stopBusyLoop));
+
+// 2b. two-line loop body: line events fire, so KeyboardInterrupt should work
+worker.postMessage({ type: 'run', code: 'x = 0\nwhile True:\n    x += 1\n    x -= 0\n' });
+await new Promise((res) => setTimeout(res, 300));
+const s0b = performance.now();
+Atomics.store(mem, 0, 1); Atomics.add(mem, 1, 1); Atomics.notify(mem, 1);
+const run2b = await waitFor('done');
+r.stopTwoLineLoop = { ms: Math.round(performance.now() - s0b), out: run2b.out };
+Atomics.store(mem, 0, 0);
+
+// 3. Stop during time.sleep(10)
+worker.postMessage({ type: 'run', code: 'import time\nprint("sleeping 10 s")\ntime.sleep(10)\nprint("woke normally")\n' });
+await new Promise((res) => setTimeout(res, 300));
+const s1 = performance.now();
+Atomics.store(mem, 0, 1); Atomics.add(mem, 1, 1); Atomics.notify(mem, 1);
+const run3 = await waitFor('done');
+r.stopDuringSleep = { ms: Math.round(performance.now() - s1), ...run3 };
+console.log('step ' + 'r.stopDuringSleep = {' + ' ' + JSON.stringify(r).slice(-300));
+Atomics.store(mem, 0, 0);
+
+// 4. the line being run, read by the window while the program sleeps on line 3
+worker.postMessage({ type: 'run', code: 'import time\nprint("a")\ntime.sleep(0.6)\nprint("b")\n' });
+await new Promise((res) => setTimeout(res, 300));
+r.lineWhileSleeping = Atomics.load(mem, 2);
+console.log('step ' + 'r.lineWhileSleeping =' + ' ' + JSON.stringify(r).slice(-300));
+await waitFor('done');
+
+// 5. fallback: end the worker and start a fresh one
+const k0 = performance.now();
+worker.terminate();
+const w2 = new Worker('worker.mjs', { type: 'module' });
+await new Promise((res) => { w2.onmessage = (e) => { if (e.data.type === 'ready') res(); }; w2.postMessage({ type: 'init', sab }); });
+r.terminateAndRestartMs = Math.round(performance.now() - k0);
+console.log('step ' + 'r.terminateAndRestartMs =' + ' ' + JSON.stringify(r).slice(-300));
+w2.terminate();
+console.log('RESULT ' + JSON.stringify(r));
+</script>
