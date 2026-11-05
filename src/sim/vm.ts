@@ -67,7 +67,9 @@ export type RawLoadMicroPython = (options: LoadOptions & { url: string }) => Pro
 /** `loadMicroPython` bound to where the .wasm is (a Node path in tests, an asset URL in the worker). */
 export type LoadMicroPython = (options: LoadOptions) => Promise<MicroPython>;
 
-/** The board's console: bytes from MicroPython, decoded as UTF-8 as they come, partial lines included. */
+/** The board's console: bytes from MicroPython, decoded as UTF-8 as they come, partial lines included. Line ends
+ *  are '\n': MicroPython prints some text "cooked" for a serial terminal ('\r\n'; tracebacks from soft IRQ
+ *  handlers), which a console like Thonny's shows as plain lines. */
 export class Console {
   private readonly decoder = new TextDecoder();
   private text = '';
@@ -76,7 +78,7 @@ export class Console {
   constructor(private readonly onOutput?: (text: string) => void) {}
 
   write = (bytes: Uint8Array): void => {
-    const t = this.decoder.decode(bytes, { stream: true });
+    const t = this.decoder.decode(bytes, { stream: true }).replace(/\r/g, '');
     if (!t) return;
     this.text += t;
     this.pending += t;

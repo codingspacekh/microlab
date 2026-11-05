@@ -35,18 +35,20 @@ def _int(n):
     return n
 
 
+def _sleep(us):
+    # _ream.sleep_us returns early, with the time left, when a pin IRQ is due: its handler runs here (at the
+    # loop's backward jump, as micropython.schedule does on a board), then the sleep carries on.
+    while us > 0:
+        us = int(_ream.sleep_us(us))
+
+
 def sleep_us(us):
-    us = _int(us)
-    if us > 0:
-        _ream.sleep_us(us)
+    _sleep(_int(us))
 
 
 def sleep_ms(ms):
-    ms = _int(ms)
-    if ms > 0:
-        _ream.sleep_us(ms * 1000)
+    _sleep(_int(ms) * 1000)
 
 
 def sleep(seconds):
-    if seconds > 0:
-        _ream.sleep_us(int(seconds * 1000000))
+    _sleep(int(seconds * 1000000))

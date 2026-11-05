@@ -30,6 +30,12 @@ describe('M2.1 Console', () => {
     expect(got).toEqual(['°C\nnext']);
     expect(c.output).toBe('°C\nnext');
   });
+  it('line ends are \\n: a cooked \\r\\n from MicroPython reads as one', () => {
+    const c = new Console();
+    c.write(bytes('Traceback\r\n  File "main.py"\r'));
+    c.write(bytes('\n'));
+    expect(c.output).toBe('Traceback\n  File "main.py"\n');
+  });
   it('works with no listener', () => {
     const c = new Console();
     c.write(bytes('a\n'));
@@ -48,7 +54,7 @@ describe('M2.1 runProject when Python fails outside the student\'s code', () => 
   }) as unknown as MicroPython;
 
   it('Stop landing in the runner still ends as stopped', async () => {
-    expect(await runProject(fake('PythonError: KeyboardInterrupt'), { files: { 'main.py': '' } })).toEqual({ output: '', ended: 'stopped' });
+    expect(await runProject(fake('PythonError: KeyboardInterrupt'), { files: { 'main.py': '' } })).toEqual({ output: '', trace: [], ended: 'stopped' });
   });
   it('anything else is an error, with the text kept', async () => {
     const r = await runProject(fake('PythonError: MemoryError'), { files: {} });

@@ -9,7 +9,7 @@ import _os   # now, while the sim's folder is on the path
 import _time
 
 
-def setup(project, hidden):
+def setup(project, hidden, board):
     # the board's modules under the board's names ("import time" finds sys.modules before the firmware's)
     _time.__name__ = 'time'
     del _time.__file__   # print(time) reads <module 'time'>, as on the boards
@@ -17,10 +17,19 @@ def setup(project, hidden):
         sys.modules[name] = module
     import builtins
     builtins.open = _os.open
+    # the board's modules (machine, ...): imported now, while the sim's folder is reachable; they read as
+    # built in (no __file__), as the firmware's do
+    for name in board:
+        module = __import__(name)
+        try:
+            del module.__file__
+        except AttributeError:
+            pass
+    sys.path.remove('/_sim')
     vfs.umount('/')
     vfs.mount(vfs.VfsPosix(project), '/')
     uos.chdir('/')
-    for name in hidden:
+    for name in hidden + ['_ream']:   # the bridge too: only the board's modules hold it
         sys.modules.pop(name, None)
 
 
