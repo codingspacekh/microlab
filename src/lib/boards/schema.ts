@@ -87,6 +87,7 @@ export const boardSchema = z.object({
       ctx.addIssue({ code: 'custom', path: ['pins', i, 'gpio'], message: `${p.id} is a GPIO pin with no gpio number` });
     }
   });
+  if (!b.pins.some((p) => p.role === 'ground')) ctx.addIssue({ code: 'custom', path: ['pins'], message: 'the board has no ground pin' });
   const known = (ref: string) => b.pins.some((p) => p.id === ref || p.label === ref);
   b.supplies.forEach((s, i) => {
     if (!known(s.pin)) ctx.addIssue({ code: 'custom', path: ['supplies', i, 'pin'], message: `supply on unknown pin "${s.pin}"` });

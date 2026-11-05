@@ -48,6 +48,12 @@ describe('board.json schema', () => {
     expect(() => parseBoard(bad2)).toThrow(/built-in A on unknown pin "NOPE"/);
   });
 
+  it('refuses a board with no ground pin', () => {
+    const bad = clone(picoJson);
+    bad.pins = bad.pins.filter((p) => p.role !== 'ground');
+    expect(() => parseBoard(bad)).toThrow(/no ground pin/);
+  });
+
   it('refuses a GPIO pin without its GPIO number', () => {
     const bad = clone(picoJson) as { pins: Record<string, unknown>[] };
     delete bad.pins[0]!.gpio;
