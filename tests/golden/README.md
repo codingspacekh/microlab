@@ -6,7 +6,7 @@ from the recording. Snippets with no `.txt` yet are skipped.
 
 ## Recording (the teacher, once per board, and again after a firmware update)
 
-1. Install mpremote: `pip install mpremote` (or `pipx install mpremote`).
+1. Install mpremote: `pip3 install mpremote` on a Mac (`pip install mpremote` on Windows).
 2. Flash the firmware the simulator copies: **MicroPython v1.29.0** on the Pico W and the ESP32 DevKit V1;
    **micropython-microbit-v2 v2.1.2** on the micro:bit V2.
 3. Plug in **one board, with nothing wired to it**. The micro:bit lies **flat on the table, face up**, untouched.
