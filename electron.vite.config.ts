@@ -19,7 +19,9 @@ export default defineConfig({
   renderer: {
     resolve: { alias: { '@lib': resolve('src/lib') } },
     plugins: [react()],
-    server: { headers: isolation },
+    // A fixed port of its own (the other edutools apps use 3000–3239); strictPort: if it's busy, `npm run dev`
+    // stops with an error instead of moving to a port another app may use. Electron gets the URL from electron-vite.
+    server: { port: 5391, strictPort: true, headers: isolation },
     preview: { headers: isolation },
     worker: { format: 'es' },
   },
