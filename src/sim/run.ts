@@ -38,11 +38,15 @@ export interface RunResult {
 /** The boards with simulated MicroPython modules: the folder of src/python each one uses, and its pins after
  *  reset. The ESP32 with the extension board runs the same firmware as the plain one. */
 const ESP32_RESET: PinState = { mode: 'in', pull: 'none', out: 0 };
+/** CODAL's pins pull down by default; buttons A / B (P5, P11) and I²C (P19, P20) have 10 kΩ pull-ups on the
+ *  board (library/boards/microbit-v2/board.json). */
+const MICROBIT_RESET: PinState = { mode: 'reset', pull: 'down', out: 0 };
 export const BOARDS = {
-  'pico-w': { python: 'rp2', reset: RP2040_RESET },
-  'esp32-devkit-v1': { python: 'esp32', reset: ESP32_RESET },
-  'esp32-devkit-v1-ext': { python: 'esp32', reset: ESP32_RESET },
-} as const satisfies Record<string, { python: string; reset: PinState }>;
+  'pico-w': { python: 'rp2', reset: RP2040_RESET, pulledUp: [] },
+  'esp32-devkit-v1': { python: 'esp32', reset: ESP32_RESET, pulledUp: [] },
+  'esp32-devkit-v1-ext': { python: 'esp32', reset: ESP32_RESET, pulledUp: [] },
+  'microbit-v2': { python: 'microbit', reset: MICROBIT_RESET, pulledUp: ['5', '11', '19', '20'] },
+} as const satisfies Record<string, { python: string; reset: PinState; pulledUp: readonly string[] }>;
 export type SimBoard = keyof typeof BOARDS;
 
 export interface RunOptions {
@@ -71,7 +75,8 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const mp = await startMicroPython(load, console);
   const clock = options.clock ?? new RealClock();
   const now = () => clock.nowUs();
-  const pins = new PinBank(options.inputs, now, options.board ? BOARDS[options.board].reset : undefined);
+  const spec = options.board ? BOARDS[options.board] : undefined;
+  const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []));
   const timers = new TimerBank(now);
   const events = new Events(mp, pins, timers);
   mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, options));
@@ -152,6 +157,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     temperature: (): number => options.temperatureC ?? 25,
     dac_out: (pin: string, volts: number) => pins.setAnalog(pin, volts),
     touched: (pin: string): boolean => { clock.ticksUs(); return pins.touched(pin); },
+    pin_falls: (pin: string): number => pins.takeFalls(pin),
   };
 }
 

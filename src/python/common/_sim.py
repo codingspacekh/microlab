@@ -23,14 +23,17 @@ def setup(project, hidden, board):
         module = __import__(name)
         try:
             del module.__file__
-        except AttributeError:
+        except (AttributeError, KeyError):
             pass
+    if '_board' in sys.modules:   # the board's own changes (the micro:bit's flat os, its utime)
+        sys.modules['_board'].setup()
     sys.path.remove('/_sim')
     vfs.umount('/')
     vfs.mount(vfs.VfsPosix(project), '/')
     uos.chdir('/')
-    for name in hidden + ['_ream']:   # the bridge too: only the board's modules hold it
-        sys.modules.pop(name, None)
+    for name in hidden + board + ['_ream']:   # the bridge too: only the board's modules hold it
+        if name.startswith('_'):
+            sys.modules.pop(name, None)
 
 
 last = ''

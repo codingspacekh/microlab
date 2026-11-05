@@ -55,6 +55,7 @@ export class PinBank {
   readonly analogTrace: AnalogEntry[] = [];
   private readonly analogOut = new Map<string, number>();
   private readonly touchedPins = new Set<string>();
+  private readonly falls = new Map<string, number>();
   private readonly pwm = new Map<string, { freq: number; duty: number }>();
   private readonly outsideVolts = new Map<string, number>();
   private readonly state = new Map<string, PinState>();
@@ -69,12 +70,19 @@ export class PinBank {
     inputs: InputChange[] = [],
     private readonly now: () => number = () => 0,
     private readonly reset: PinState = RP2040_RESET,
+    /** Pins with a pull-up resistor on the board itself (the micro:bit's buttons and I²C lines). */
+    private readonly pulledUp: ReadonlySet<string> = new Set(),
   ) {
     this.script = [...inputs].sort((a, b) => a.atUs - b.atUs);
   }
 
   get(pin: string): PinState {
     return this.state.get(pin) ?? { ...this.reset };
+  }
+
+  /** Brings the level a pin reads at reset (a board pull-up) into the record, so its first press is an edge. */
+  private initialLevel(pin: string): Level {
+    return this.pulledUp.has(pin) ? 1 : 0;
   }
 
   /** mode, pull and (if given) the output register, which is set first so an output starts at its value. */
@@ -176,6 +184,14 @@ export class PinBank {
     }
   }
 
+  /** How many times the pin went from high to low since the last call (button presses, counted by the board). */
+  takeFalls(pin: string): number {
+    this.update();
+    const n = this.falls.get(pin) ?? 0;
+    this.falls.delete(pin);
+    return n;
+  }
+
   /** Handlers to schedule, oldest first; taking them empties the queue. */
   takePending(): PendingIrq[] {
     return this.pending.splice(0);
@@ -191,14 +207,16 @@ export class PinBank {
     if (s.mode === 'od' && s.out === 0) return 0;
     const o = this.outside.get(pin);
     if (o !== undefined) return o;
+    if (this.pulledUp.has(pin)) return 1;
     return s.pull === 'up' ? 1 : 0;   // floating reads 0 here; the circuit decides from M3 on
   }
 
   private changed(pin: string): void {
     const now = this.levelNow(pin);
-    const before = this.seen.get(pin) ?? 0;   // every pin starts low (the reset pull-down)
+    const before = this.seen.get(pin) ?? this.initialLevel(pin);   // low, or high with a board pull-up
     if (before === now) return;
     this.seen.set(pin, now);
+    if (now === 0) this.falls.set(pin, (this.falls.get(pin) ?? 0) + 1);
     const s = this.get(pin);
     if (s.mode === 'out' || s.mode === 'od') this.trace.push([this.now(), pin, now]);
     const irq = this.irqs.get(pin);

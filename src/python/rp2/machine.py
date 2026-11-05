@@ -16,7 +16,7 @@ _ALT_NULL = 31     # GPIO_FUNC_NULL: the function of every pin after reset
 
 def _int(x):
     # mp_obj_get_int's errors
-    if isinstance(x, int):
+    if isinstance(x, (int, bool)):   # MicroPython's bool isn't an int subclass for isinstance
         return int(x)
     raise TypeError("can't convert %s to int" % type(x).__name__)
 
