@@ -37,7 +37,7 @@ export const controls = {
 };
 
 export default tseslint.config(
-  { ignores: ['out/**', 'dist/**', 'coverage/**', 'design/**', 'node_modules/**', 'test-results/**', 'spikes/**'] },
+  { ignores: ['out/**', 'dist/**', 'coverage/**', 'design/**', 'node_modules/**', 'test-results/**', 'spikes/**', 'vendor/**', '.cache/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

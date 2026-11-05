@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
+const build = process.env.BUILD ?? join(root, 'vendor/micropython');   // BUILD=<folder> to try another build
 const results = {};
 const show = (k, v) => { results[k] = v; console.log(k, JSON.stringify(v)); };
 
@@ -14,8 +15,8 @@ async function load(which) {
   const out = [];
   let loadMicroPython; let url;
   if (which === 'microlab') {
-    ({ loadMicroPython } = await import(join(root, 'vendor/micropython/micropython.mjs')));
-    url = join(root, 'vendor/micropython/micropython.wasm');
+    ({ loadMicroPython } = await import(join(build, 'micropython.mjs')));
+    url = join(build, 'micropython.wasm');
   } else {
     const pkg = createRequire(import.meta.url).resolve('@micropython/micropython-webassembly-pyscript');
     ({ loadMicroPython } = await import(pkg));

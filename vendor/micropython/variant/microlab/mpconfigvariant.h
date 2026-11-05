@@ -1,6 +1,7 @@
 // MicroLab's MicroPython: the webassembly port as a simulated board (docs/acceptance/M0.md, Decision).
-//  - time.sleep blocks the simulation worker with Atomics.wait (nothing yields to JavaScript); ASYNCIFY is
-//    on only so the garbage collector can scan registers (see mpconfigvariant.mk).
+//  - Runs synchronously in the simulation worker: no ASYNCIFY. time.sleep blocks with Atomics.wait, and the
+//    garbage collector scans only the C stack — binaryen's --spill-pointers pass keeps every pointer there
+//    (mpconfigvariant.mk; MICROLAB_SPILL_POINTERS in main.c, vendor/micropython/microlab.patch).
 //  - A VM hook into JavaScript every 64 backward jumps / returns: Stop (KeyboardInterrupt) and pin IRQs
 //    work even in `while True: pass`.
 //  - sys.settrace, for the line being run (screen 03).
@@ -8,6 +9,8 @@
 //    libraries, so code that runs here also runs on the boards (N-01).
 
 #define MICROPY_PY_SYS_SETTRACE (1)
+
+#define MICROLAB_SPILL_POINTERS (1)
 
 #define MICROPY_VM_HOOK_COUNT (64)
 #define MICROPY_VM_HOOK_INIT static uint vm_hook_divisor = MICROPY_VM_HOOK_COUNT;
