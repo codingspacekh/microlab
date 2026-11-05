@@ -23,8 +23,10 @@ export class TimerBank {
 
   constructor(private readonly now: () => number) {}
 
-  start(id: number, periodUs: number, periodic: boolean, handler: unknown, owner: unknown): void {
-    this.timers.set(id, { dueUs: this.now() + periodUs, periodUs: periodic ? periodUs : 0, handler, owner, order: this.order++ });
+  /** First due after one period, or at `firstDueUs` (the micro:bit's 6 ms system tick is aligned to its start). */
+  start(id: number, periodUs: number, periodic: boolean, handler: unknown, owner: unknown, firstDueUs?: number): void {
+    const dueUs = firstDueUs ?? this.now() + periodUs;
+    this.timers.set(id, { dueUs, periodUs: periodic ? periodUs : 0, handler, owner, order: this.order++ });
   }
 
   stop(id: number): void {

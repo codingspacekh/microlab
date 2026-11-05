@@ -21,6 +21,9 @@ export type InputChange = { atUs: number; pin: string } & (
   | { volts: number; level?: undefined; touched?: undefined }
   /** A finger on a touch pin (ESP32 TouchPad, micro:bit). */
   | { touched: boolean; level?: undefined; volts?: undefined }
+  /** The micro:bit's accelerometer (pin 'ACCEL'): readings in mg, or a shake (src/sim/motion.ts). */
+  | { vector: [number, number, number]; level?: undefined; volts?: undefined; touched?: undefined }
+  | { gesture: 'shake'; level?: undefined; volts?: undefined; touched?: undefined }
 );
 
 /** [µs since the run started, pin, volts] — one entry per change of an analog output (ESP32 DAC). */
@@ -73,7 +76,7 @@ export class PinBank {
     /** Pins with a pull-up resistor on the board itself (the micro:bit's buttons and I²C lines). */
     private readonly pulledUp: ReadonlySet<string> = new Set(),
   ) {
-    this.script = [...inputs].sort((a, b) => a.atUs - b.atUs);
+    this.script = inputs.filter((c) => c.pin !== 'ACCEL').sort((a, b) => a.atUs - b.atUs);
   }
 
   get(pin: string): PinState {
@@ -176,7 +179,7 @@ export class PinBank {
       if (c.volts !== undefined) {
         this.outsideVolts.set(c.pin, c.volts);
         this.outside.set(c.pin, c.volts >= VDD / 2 ? 1 : 0);
-      } else {
+      } else if (c.level !== undefined) {
         this.outsideVolts.delete(c.pin);
         this.outside.set(c.pin, c.level);
       }

@@ -12,6 +12,7 @@ Image = _image.MicroBitImage
 # button and I²C modes can't be released that way: "Pin 3 in display mode".
 _HELD = ('display', 'button', 'i2c', 'spi')
 _modes = {}
+_audio = {'playing': lambda: False}   # set by the music module (audio_music_release)
 
 
 def _pin_error(pin):
@@ -23,7 +24,7 @@ def _acquire(pin, new):
     if current == 'button' and new == 'read_digital':
         return False
     if current != new:
-        if current in _HELD:
+        if current in _HELD or (current == 'music' and _audio['playing']()):
             _pin_error(pin)
         _modes[pin._number] = new
         return True
@@ -463,3 +464,81 @@ def _scrolling(text, monospace, loop):
 
 
 display = MicroBitDisplay()
+
+
+# --- the accelerometer (microbit_accelerometer.c); gestures as CODAL reports them (src/sim/motion.ts) ---------
+_GESTURE_NAMES = ('', 'up', 'down', 'left', 'right', 'face up', 'face down', 'freefall', '3g', '6g', '8g', 'shake', '2g')
+
+
+class MicroBitAccelerometer:
+    def __init__(self):
+        self._state = 0      # one bit per gesture seen since was_gesture last asked
+        self._list = []      # gestures since get_gestures last asked (at most 16)
+        self._range = 2
+
+    def __repr__(self):
+        return '<MicroBitAccelerometer>'
+
+    def _sync(self):
+        # microbit_hal_gesture_callback, for each gesture CODAL reported since the last call
+        for name in str(_ream.accel_events()).split(','):
+            if not name:
+                continue
+            value = _GESTURE_NAMES.index(name)
+            if 0 < value <= 12:
+                self._state |= 1 << value
+                if len(self._list) < 16:
+                    self._list.append(value)
+
+    def _gesture(self, name):
+        if not isinstance(name, str) or name not in _GESTURE_NAMES:
+            raise ValueError('invalid gesture')
+        return _GESTURE_NAMES.index(name)
+
+    def _values(self):
+        return tuple(int(v) for v in str(_ream.accel_values()).split())
+
+    def get_x(self):
+        return self._values()[0]
+
+    def get_y(self):
+        return self._values()[1]
+
+    def get_z(self):
+        return self._values()[2]
+
+    def get_values(self):
+        return self._values()
+
+    def get_strength(self):
+        x, y, z = self._values()
+        return int((x * x + y * y + z * z) ** 0.5)
+
+    def current_gesture(self):
+        self._sync()
+        return str(_ream.accel_gesture())
+
+    def is_gesture(self, name):
+        g = self._gesture(name)
+        self._sync()
+        return str(_ream.accel_gesture()) == _GESTURE_NAMES[g]
+
+    def was_gesture(self, name):
+        g = self._gesture(name)
+        self._sync()
+        seen = bool(self._state & (1 << g))
+        self._state &= ~(1 << g)
+        self._list = []   # as the firmware: gesture_list_cur = 0
+        return seen
+
+    def get_gestures(self):
+        self._sync()
+        out = tuple(_GESTURE_NAMES[g] for g in self._list)
+        self._list = []
+        return out
+
+    def set_range(self, g):
+        self._range = _int(g)
+
+
+accelerometer = MicroBitAccelerometer()

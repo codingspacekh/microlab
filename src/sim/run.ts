@@ -1,5 +1,6 @@
 import { RealClock, type Clock } from './clock';
 import { PinBank, RP2040_RESET, type AnalogEntry, type InputChange, type Level, type PinMode, type PinState, type Pull, type PwmEntry, type TraceEntry } from './pins';
+import { Motion, type MotionChange } from './motion';
 import { TimerBank } from './timers';
 import { Console, lineBeingRun, startMicroPython, type LoadMicroPython, type MicroPython, type Where } from './vm';
 
@@ -32,6 +33,8 @@ export interface RunResult {
   analog: AnalogEntry[];
   /** Every change of the micro:bit's 5×5 display: [µs, 25 brightnesses 0–9, row by row] (M2.6). */
   display: [number, string][];
+  /** Every change of the micro:bit's sound (music, pitch): [µs, Hz], 0 for silence (M2.6c). */
+  sound: [number, number][];
   /** done: the program ended (or there was no main.py); error: an exception; stopped: KeyboardInterrupt (Stop). */
   ended: 'done' | 'error' | 'stopped';
   error?: SimError;
@@ -84,7 +87,9 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const timers = new TimerBank(now);
   const events = new Events(mp, pins, timers);
   const display: [number, string][] = [];
-  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, display, options));
+  const sound: [number, number][] = [];
+  const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
+  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, { display, sound, motion }, options));
   mp._module.microlabHook = () => {
     clock.poll();
     events.update();
@@ -117,11 +122,18 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const nl = last.indexOf('\n');
   const ended = last.slice(0, nl) as RunResult['ended'];
   const traceback = last.slice(nl + 1);
-  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
+  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
 }
 
 /** The `_ream` bridge (architecture §2.4): the board-neutral calls the board modules make into the sim. */
-function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, display: [number, string][], options: RunOptions) {
+interface MicrobitParts {
+  display: [number, string][];
+  sound: [number, number][];
+  motion: Motion;
+}
+
+function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
+  const { display, sound, motion } = mb;
   return {
     ticks_us: () => clock.ticksUs(),
     /** Sleeps; returns early, with the µs left, when an IRQ or timer callback is due (it is scheduled first, and
@@ -156,8 +168,10 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     adc_volts: (pin: string): number => { clock.ticksUs(); return pins.volts(pin); },
     /** duty 0–1, or < 0 for no PWM on the pin. */
     pwm_out: (pin: string, freq: number, duty: number) => pins.setPwm(pin, freq, duty),
-    timer_start: (id: number, periodUs: number, periodic: boolean, handler: unknown, owner: unknown) =>
-      timers.start(id, periodUs, periodic, handler, owner),
+    timer_start: (id: number, periodUs: number, periodic: boolean, handler: unknown, owner: unknown, firstDueUs?: number) =>
+      timers.start(id, periodUs, periodic, handler, owner, firstDueUs === undefined || firstDueUs < 0 ? undefined : firstDueUs),
+    /** µs now, for a board module that aligns a timer to its own tick. */
+    now_us: (): number => clock.nowUs(),
     timer_stop: (id: number) => timers.stop(id),
     temperature: (): number => options.temperatureC ?? 25,
     dac_out: (pin: string, volts: number) => pins.setAnalog(pin, volts),
@@ -167,6 +181,20 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
       if (display.at(-1)?.[1] !== pixels && !(display.length === 0 && pixels === '0'.repeat(25))) display.push([clock.nowUs(), pixels]);
     },
     light: (): number => options.lightLevel ?? 128,
+    /** Several changes at one moment (a note switches on, then gets its pitch) are one change. */
+    sound: (hz: number) => {
+      const t = clock.nowUs();
+      const last = sound.at(-1);
+      if (last && last[0] === t) {
+        last[1] = hz;
+        if ((sound.at(-2)?.[1] ?? 0) === hz) sound.pop();
+      } else if ((last?.[1] ?? 0) !== hz) {
+        sound.push([t, hz]);
+      }
+    },
+    accel_values: (): string => { clock.ticksUs(); return motion.values().join(' '); },
+    accel_gesture: (): string => motion.gesture(),
+    accel_events: (): string => motion.takeEvents().join(','),
   };
 }
 
