@@ -9,14 +9,21 @@ ticks_add = _builtin.ticks_add
 ticks_diff = _builtin.ticks_diff
 
 # The date: the board's clock is set to its start date at reset (no RTC battery), then counts the run's time.
-# Each board module calls start_date() (Pico W: 2021-01-01, ports/rp2/main.c). Seconds since 1970.
+# Each board module calls start_date(): the Pico W counts from 1970 and starts at 2021-01-01 (ports/rp2/main.c);
+# the ESP32 counts from 2000 (MICROPY_EPOCH_IS_2000) and starts at 0. The firmware here counts from 1970, so
+# gmtime and mktime are shifted by the board's epoch.
 _start = 0
-mktime = _builtin.mktime
+_epoch = 0   # seconds from 1970 to the board's epoch
 
 
-def start_date(seconds):
-    global _start
+def start_date(seconds, epoch=1970):
+    global _start, _epoch
     _start = seconds
+    _epoch = 946684800 if epoch == 2000 else 0
+
+
+def mktime(t):
+    return _builtin.mktime(t) - _epoch
 
 
 def time():
@@ -28,7 +35,7 @@ def time_ns():
 
 
 def gmtime(secs=None):
-    return _builtin.gmtime(time() if secs is None else secs)
+    return _builtin.gmtime((time() if secs is None else secs) + _epoch)
 
 
 localtime = gmtime

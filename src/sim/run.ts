@@ -1,5 +1,5 @@
 import { RealClock, type Clock } from './clock';
-import { PinBank, type InputChange, type Level, type PinMode, type Pull, type PwmEntry, type TraceEntry } from './pins';
+import { PinBank, RP2040_RESET, type AnalogEntry, type InputChange, type Level, type PinMode, type PinState, type Pull, type PwmEntry, type TraceEntry } from './pins';
 import { TimerBank } from './timers';
 import { Console, lineBeingRun, startMicroPython, type LoadMicroPython, type MicroPython, type Where } from './vm';
 
@@ -28,16 +28,22 @@ export interface RunResult {
   trace: TraceEntry[];
   /** Every change of a PWM output (M2.4). */
   pwm: PwmEntry[];
+  /** Every change of an analog output (ESP32 DAC, M2.5). */
+  analog: AnalogEntry[];
   /** done: the program ended (or there was no main.py); error: an exception; stopped: KeyboardInterrupt (Stop). */
   ended: 'done' | 'error' | 'stopped';
   error?: SimError;
 }
 
-/** The boards with simulated MicroPython modules, and the folder of src/python each one uses. */
-export const BOARD_PYTHON = {
-  'pico-w': 'rp2',
-} as const;
-export type SimBoard = keyof typeof BOARD_PYTHON;
+/** The boards with simulated MicroPython modules: the folder of src/python each one uses, and its pins after
+ *  reset. The ESP32 with the extension board runs the same firmware as the plain one. */
+const ESP32_RESET: PinState = { mode: 'in', pull: 'none', out: 0 };
+export const BOARDS = {
+  'pico-w': { python: 'rp2', reset: RP2040_RESET },
+  'esp32-devkit-v1': { python: 'esp32', reset: ESP32_RESET },
+  'esp32-devkit-v1-ext': { python: 'esp32', reset: ESP32_RESET },
+} as const satisfies Record<string, { python: string; reset: PinState }>;
+export type SimBoard = keyof typeof BOARDS;
 
 export interface RunOptions {
   /** Which board's modules (machine, ...) the program gets; none: only MicroPython's own. */
@@ -65,7 +71,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const mp = await startMicroPython(load, console);
   const clock = options.clock ?? new RealClock();
   const now = () => clock.nowUs();
-  const pins = new PinBank(options.inputs, now);
+  const pins = new PinBank(options.inputs, now, options.board ? BOARDS[options.board].reset : undefined);
   const timers = new TimerBank(now);
   const events = new Events(mp, pins, timers);
   mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, options));
@@ -75,7 +81,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
     events.deliver();
   };
   const common = modules('common');
-  const board = options.board ? modules(BOARD_PYTHON[options.board]) : {};
+  const board = options.board ? modules(BOARDS[options.board].python) : {};
   writeTree(mp, SIM_DIR, { ...common, ...board });
   writeTree(mp, PROJECT_DIR, options.files);
 
@@ -101,7 +107,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const nl = last.indexOf('\n');
   const ended = last.slice(0, nl) as RunResult['ended'];
   const traceback = last.slice(nl + 1);
-  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
+  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
 }
 
 /** The `_ream` bridge (architecture §2.4): the board-neutral calls the board modules make into the sim. */
@@ -144,6 +150,8 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
       timers.start(id, periodUs, periodic, handler, owner),
     timer_stop: (id: number) => timers.stop(id),
     temperature: (): number => options.temperatureC ?? 25,
+    dac_out: (pin: string, volts: number) => pins.setAnalog(pin, volts),
+    touched: (pin: string): boolean => { clock.ticksUs(); return pins.touched(pin); },
   };
 }
 

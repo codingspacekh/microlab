@@ -16,7 +16,15 @@ export type TraceEntry = [number, string, Level];
 
 /** From `atUs` on, something outside drives `pin`: to a logic `level` (a button pressed, released), or to a
  *  voltage (a knob; its logic level is HIGH from half the supply up). */
-export type InputChange = { atUs: number; pin: string } & ({ level: Level; volts?: undefined } | { volts: number; level?: undefined });
+export type InputChange = { atUs: number; pin: string } & (
+  | { level: Level; volts?: undefined; touched?: undefined }
+  | { volts: number; level?: undefined; touched?: undefined }
+  /** A finger on a touch pin (ESP32 TouchPad, micro:bit). */
+  | { touched: boolean; level?: undefined; volts?: undefined }
+);
+
+/** [µs since the run started, pin, volts] — one entry per change of an analog output (ESP32 DAC). */
+export type AnalogEntry = [number, string, number];
 
 /** [µs since the run started, pin, frequency in Hz, duty 0–1] — one entry per change of a PWM output. */
 export type PwmEntry = [number, string, number, number];
@@ -37,12 +45,16 @@ export interface PendingIrq {
   owner: unknown;
 }
 
-/** RP2040 pads come out of reset with their pull-down on (datasheet §2.19.6.3, PADS_BANK0 PDE = 1). */
-const RESET: PinState = { mode: 'reset', pull: 'down', out: 0 };
+/** A pin after reset: RP2040 pads come out of reset with their pull-down on (datasheet §2.19.6.3, PADS_BANK0
+ *  PDE = 1); the ESP32's GPIO matrix starts as inputs with no pull (each board passes its own). */
+export const RP2040_RESET: PinState = { mode: 'reset', pull: 'down', out: 0 };
 
 export class PinBank {
   readonly trace: TraceEntry[] = [];
   readonly pwmTrace: PwmEntry[] = [];
+  readonly analogTrace: AnalogEntry[] = [];
+  private readonly analogOut = new Map<string, number>();
+  private readonly touchedPins = new Set<string>();
   private readonly pwm = new Map<string, { freq: number; duty: number }>();
   private readonly outsideVolts = new Map<string, number>();
   private readonly state = new Map<string, PinState>();
@@ -53,12 +65,16 @@ export class PinBank {
   private readonly irqs = new Map<string, { rising: boolean; falling: boolean; handler: unknown; owner: unknown }>();
   private readonly pending: PendingIrq[] = [];
 
-  constructor(inputs: InputChange[] = [], private readonly now: () => number = () => 0) {
+  constructor(
+    inputs: InputChange[] = [],
+    private readonly now: () => number = () => 0,
+    private readonly reset: PinState = RP2040_RESET,
+  ) {
     this.script = [...inputs].sort((a, b) => a.atUs - b.atUs);
   }
 
   get(pin: string): PinState {
-    return this.state.get(pin) ?? { ...RESET };
+    return this.state.get(pin) ?? { ...this.reset };
   }
 
   /** mode, pull and (if given) the output register, which is set first so an output starts at its value. */
@@ -89,9 +105,29 @@ export class PinBank {
     this.update();
     const v = this.outsideVolts.get(pin);
     if (v !== undefined) return v;
+    const a = this.analogOut.get(pin);
+    if (a !== undefined) return a;
     const p = this.pwm.get(pin);
     if (p) return p.duty * VDD;
     return this.levelNow(pin) * VDD;
+  }
+
+  /** An analog output on the pin (ESP32 DAC), or none (`volts` < 0). */
+  setAnalog(pin: string, volts: number): void {
+    const before = this.analogOut.get(pin);
+    if (volts < 0) {
+      this.analogOut.delete(pin);
+      return;
+    }
+    if (before === volts) return;
+    this.analogOut.set(pin, volts);
+    this.analogTrace.push([this.now(), pin, volts]);
+  }
+
+  /** Is a finger on the pin (touch sensing)? */
+  touched(pin: string): boolean {
+    this.update();
+    return this.touchedPins.has(pin);
   }
 
   /** A PWM output on the pin (duty 0–1), or none (`duty` < 0): its average is what M3's circuit sees. */
@@ -124,6 +160,11 @@ export class PinBank {
     const t = this.now();
     while (this.next < this.script.length && this.script[this.next]!.atUs <= t) {
       const c = this.script[this.next++]!;
+      if (c.touched !== undefined) {
+        if (c.touched) this.touchedPins.add(c.pin);
+        else this.touchedPins.delete(c.pin);
+        continue;
+      }
       if (c.volts !== undefined) {
         this.outsideVolts.set(c.pin, c.volts);
         this.outside.set(c.pin, c.volts >= VDD / 2 ? 1 : 0);
