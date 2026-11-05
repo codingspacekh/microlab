@@ -89,6 +89,8 @@ export interface RunOptions {
   partInputs?: PartChange[];
   /** Each change of a part's state (LED brightness, servo angle), as it happens (M3.4). */
   onParts?: (entry: PartTraceEntry) => void;
+  /** Stop the run, quietly, when the clock reaches this (µs): the acceptance suite's `seconds` (M3.6). */
+  maxUs?: number;
 }
 
 /** The sim's own Python (src/python/common) and the boards' (src/python/<folder>), written to a folder the
@@ -105,7 +107,9 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const spec = options.board ? BOARDS[options.board] : undefined;
   const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []), options.control);
   const circuit = options.circuit ? new CircuitHost(options.circuit, pins, now, options.partInputs, options.control) : undefined;
-  const stop = stopper(mp, options.control, () => circuit?.damage !== undefined);
+  const timeUp = () => options.maxUs !== undefined && clock.nowUs() >= options.maxUs;
+  const quiet = () => circuit?.damage !== undefined || timeUp();
+  const stop = stopper(mp, options.control, quiet);
   if (circuit) {
     pins.attach(circuit);
     circuit.onChange = options.onParts;
@@ -117,7 +121,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const sound: [number, number][] = [];
   const bus: [number, string][] = [];
   const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
-  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, { display, sound, motion, bus, stop, circuit }, options));
+  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, { display, sound, motion, bus, stop, quiet }, options));
   mp._module.microlabHook = () => {
     clock.poll();
     stop();
@@ -166,7 +170,8 @@ interface MicrobitParts {
   bus: [number, string][];
   /** True once Stop is asked for (and KeyboardInterrupt is on its way). */
   stop: () => boolean;
-  circuit: CircuitHost | undefined;
+  /** A stop the runner reports without a traceback: a fault, or the run's time limit. */
+  quiet: () => boolean;
 }
 
 /** Stop (N-03): KeyboardInterrupt is scheduled when the window asks, and again every 50 ms while it still asks, in
@@ -185,7 +190,7 @@ function stopper(mp: MicroPython, control: Control | undefined, faulted: () => b
 }
 
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
-  const { display, sound, motion, bus, stop, circuit } = mb;
+  const { display, sound, motion, bus, stop, quiet } = mb;
   const log = (entry: string) => bus.push([clock.nowUs(), entry]);
   return {
     ticks_us: () => clock.ticksUs(),
@@ -193,11 +198,12 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
      *  runs in Python before the sleep carries on). Wakes exactly at the next input change or timer. */
     sleep_us: (us: number): number => {
       options.onSleep?.(lineBeingRun(mp));
+      events.update();   // what the program did just before the sleep is in the circuit as the sleep starts
       const end = clock.nowUs() + us;
       for (;;) {
         const left = end - clock.nowUs();
         if (left <= 0) return 0;
-        const next = Math.min(pins.nextChangeUs(), timers.nextDueUs()) - clock.nowUs();
+        const next = Math.min(pins.nextChangeUs(), timers.nextDueUs(), options.maxUs ?? Infinity) - clock.nowUs();
         clock.sleepUs(Math.min(left, Math.max(0, next)), () => events.update() || stop());
         if (stop()) return Math.max(1, end - clock.nowUs());   // KeyboardInterrupt is raised as Python goes on
         events.update();
@@ -229,7 +235,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     timer_stop: (id: number) => timers.stop(id),
     temperature: (): number => options.temperatureC ?? 25,
     /** True when the run is being stopped by a fault: the runner prints no KeyboardInterrupt traceback then. */
-    quiet_stop: (): boolean => circuit?.damage !== undefined,
+    quiet_stop: (): boolean => quiet(),
     dac_out: (pin: string, volts: number) => pins.setAnalog(pin, volts),
     touched: (pin: string): boolean => { clock.ticksUs(); return pins.touched(pin); },
     pin_falls: (pin: string): number => pins.takeFalls(pin),
