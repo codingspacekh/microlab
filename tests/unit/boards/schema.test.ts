@@ -39,6 +39,15 @@ describe('board.json schema', () => {
     expect(() => parseBoard(bad)).toThrow(/supply on unknown pin "NOPE"/);
   });
 
+  it('refuses a built-in part on a pin that is not there', () => {
+    const bad = clone(espJson);
+    bad.builtIn[0] = { kind: 'led', id: 'LED', pin: 'D99', color: 'blue', ohms: 1000 };
+    expect(() => parseBoard(bad)).toThrow(/built-in LED on unknown pin "D99"/);
+    const bad2 = clone(mbitJson);
+    bad2.builtIn[0] = { kind: 'button', id: 'A', a: 'P5', b: 'NOPE' };
+    expect(() => parseBoard(bad2)).toThrow(/built-in A on unknown pin "NOPE"/);
+  });
+
   it('refuses a GPIO pin without its GPIO number', () => {
     const bad = clone(picoJson) as { pins: Record<string, unknown>[] };
     delete bad.pins[0]!.gpio;

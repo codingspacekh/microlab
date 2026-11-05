@@ -6,8 +6,8 @@ export type FunctionKind = 'adc' | 'adc1' | 'adc2' | 'pwm' | 'dac' | 'touch' | '
 export function functionKind(fn: string): FunctionKind {
   if (fn.startsWith('ADC1_')) return 'adc1';
   if (fn.startsWith('ADC2_')) return 'adc2';
-  const head = /^[A-Z]+(?:2C)?/.exec(fn)?.[0] ?? '';
-  return head.toLowerCase() as FunctionKind;
+  // Every name matches FUNCTION (schema.ts), so it starts with its kind: PWM7B, I2C1 SCL, TOUCH9.
+  return /^[A-Z]+(?:2C)?/.exec(fn)![0].toLowerCase() as FunctionKind;
 }
 
 /** Pins that can do `kind`, in header order. `adc` includes the ESP32's adc1 and adc2 pins. */
