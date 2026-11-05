@@ -13,13 +13,14 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --project unit --project python --project integration --project acceptance --project component",
     "e2e": "npm run build && playwright test",
-    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build",
+    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run perf && npm run build",
     "spike:node": "node spikes/micropython-worker/node-spike.mjs",
     "spike:electron": "electron spikes/micropython-worker/electron-main.mjs",
     "pins": "node scripts/print-pins.mjs",
-    "art": "python3 scripts/export-art.py"
+    "art": "python3 scripts/export-art.py",
+    "perf": "vitest run --project perf"
   },
   "dependencies": {
     "@micropython/micropython-webassembly-pyscript": "1.29.0-6",

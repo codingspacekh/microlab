@@ -15,6 +15,7 @@ export interface Solution {
 const GMIN = 1e-12;        // from every node to ground, so a floating node still has a voltage (0 V)
 const MAX_ITER = 200;
 const MAX_STEP = 0.5;      // V per Newton step at most (damping)
+const PHASE1_TOL = 1e-4;
 
 /** A Thevenin source with a smooth current limit: i = L·tanh((V − u) / (R·L)), u = v(plus) − v(minus). */
 function sourceCurrent(volts: number, ohms: number, limitA: number, u: number) {
@@ -58,7 +59,7 @@ export function solve(netlist: Netlist, state: SimState = {}, previous?: Solutio
     }
     return i;
   };
-  for (const n of netlist.nets) node(n);
+  // Only nets a device touches are unknowns: an empty breadboard strip or unused pin is just 0 V.
 
   const resistors: { id: string; a: number; b: number; g: number }[] = [];
   const sources: Source[] = [];
@@ -87,9 +88,10 @@ export function solve(netlist: Netlist, state: SimState = {}, previous?: Solutio
   };
 
   // Two phases (homotopy): first the supplies and pins as plain sources (V and R), then with their current
-  // limits on, starting from that answer. Started cold, a limited source looks like a constant current and
-  // Newton bounces between its two limits; started warm, a normal circuit is already there.
-  let saturate = Boolean(previous?.converged);
+  // limits on, starting from that answer. Started anywhere else — from 0 V, or from the last answer after a pin
+  // changed — a limited source can look like a constant current, and Newton bounces between its two limits.
+  // From the last answer, phase 1 takes only a few steps.
+  let saturate = false;
   let converged = false;
   let iterations = 0;
   while (iterations < MAX_ITER) {
@@ -129,7 +131,8 @@ export function solve(netlist: Netlist, state: SimState = {}, previous?: Solutio
       if (got !== want) limited = true;
       vj[li] = got;
     });
-    if (scale === 1 && !limited && delta < 1e-10) {
+    // Phase 1 only has to get close; phase 2 settles to 1e-10.
+    if (scale === 1 && !limited && delta < (saturate ? 1e-10 : PHASE1_TOL)) {
       if (saturate) {
         converged = true;
         break;
@@ -139,7 +142,7 @@ export function solve(netlist: Netlist, state: SimState = {}, previous?: Solutio
   }
 
   const volts: Record<string, number> = {};
-  if (netlist.ground !== undefined) volts[netlist.ground] = 0;
+  for (const name of netlist.nets) volts[name] = 0;
   names.forEach((name, i) => { volts[name] = v[i]!; });
   const amps: Record<string, number> = {};
   for (const r of resistors) amps[r.id] = (at(r.a) - at(r.b)) * r.g;

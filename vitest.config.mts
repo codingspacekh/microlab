@@ -19,6 +19,8 @@ export default defineConfig({
       { extends: true, test: { name: 'python', include: ['tests/python/**/*.test.ts'], environment: 'node' } },
       { extends: true, test: { name: 'integration', include: ['tests/integration/**/*.test.ts'], environment: 'node' } },
       { extends: true, test: { name: 'acceptance', include: ['tests/acceptance/**/*.test.ts'], environment: 'node' } },
+      // Speed budgets (Q14). Not run with coverage: `npm run perf`.
+      { extends: true, test: { name: 'perf', include: ['tests/perf/**/*.test.ts'], environment: 'node' } },
       {
         extends: true,
         plugins: [react()],
