@@ -1,5 +1,5 @@
 import type { BoardData } from '@lib/boards';
-import { findFaults, solve, toNetlist, type CircuitSpec, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
+import { findFaults, LED, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
 
@@ -22,6 +22,18 @@ export interface PartChange {
 /** Up to this many PWM pins are averaged exactly (2^n solves: an RGB LED is 3); beyond, their DC average. */
 const MAX_PWM_AVERAGED = 4;
 
+/** What the window draws for a part (M3.4, §1.7 behaviours). */
+export type PartView =
+  /** brightness = current / the LED's 20 mA rating, 0–1 (the window decides how a glow looks). */
+  | { kind: 'led'; amps: number; brightness: number }
+  /** angle 0–180° from the pulse width (0.5 ms → 0°, 2.5 ms → 180°, SG90); it moves only with ≥ 4.5 V across it. */
+  | { kind: 'servo'; angle: number; powered: boolean; pulseUs?: number };
+
+/** [µs, part id, its new state] — one entry per change, as the window would be told. */
+export type PartTraceEntry = [number, string, PartView];
+
+const SERVO = { minUs: 500, maxUs: 2500, minVolts: 4.5, rest: 90 };
+
 export class CircuitHost {
   readonly netlist: Netlist;
   private readonly netOfPin = new Map<string, string>();   // pin key ('15') → its net
@@ -32,6 +44,13 @@ export class CircuitHost {
   private solution: Solution | undefined;
   private dirty = true;
   faults: Fault[] = [];
+  readonly partTrace: PartTraceEntry[] = [];
+  /** Told of every change of a part's state (the worker batches them for the window). */
+  onChange?: (entry: PartTraceEntry) => void;
+  private readonly connectivity: Connectivity;
+  private readonly pinOfNet = new Map<string, string>();
+  private readonly views = new Map<string, PartView>();
+  private readonly servoAngle = new Map<string, number>();
 
   constructor(
     private readonly spec: CircuitSpec,
@@ -42,6 +61,7 @@ export class CircuitHost {
   ) {
     const { netlist, connectivity } = toNetlist(spec);
     this.netlist = netlist;
+    this.connectivity = connectivity;
     const board: BoardData | undefined = spec.board?.data;
     for (const p of board?.pins ?? []) {
       if (p.role !== 'gpio' || p.same || p.gpio === undefined) continue;
@@ -49,6 +69,7 @@ export class CircuitHost {
       if (net === undefined) continue;
       this.netOfPin.set(String(p.gpio), net);
       this.labelOfPin.set(String(p.gpio), p.label);
+      this.pinOfNet.set(net, String(p.gpio));
     }
     this.script = [...changes].sort((a, b) => a.atUs - b.atUs);
   }
@@ -129,6 +150,52 @@ export class CircuitHost {
       this.averagePwm(state, pwm);
     }
     for (const pin of this.netOfPin.keys()) this.pins.recheck(pin);
+    this.traceViews();
+  }
+
+  /** Every LED (the board's own too) and servo, as the window draws them. */
+  partStates(): Record<string, PartView> {
+    this.update();
+    return Object.fromEntries(this.views);
+  }
+
+  private traceViews(): void {
+    const t = this.now();
+    for (const d of this.netlist.devices) {
+      if (d.kind !== 'led') continue;
+      const amps = Math.max(0, this.solution!.amps[d.id] ?? 0);
+      this.setView(t, d.id, { kind: 'led', amps, brightness: Math.min(1, amps / LED.ratedA) });
+    }
+    for (const part of this.spec.parts) {
+      if (part.type === 'servo') this.setView(t, part.id, this.servo(part.id));
+    }
+  }
+
+  private servo(id: string): PartView {
+    const v = (leg: string) => this.solution!.volts[this.connectivity.netOf(`${id}.${leg}`) ?? ''] ?? 0;
+    const powered = v('vcc') - v('gnd') >= SERVO.minVolts;
+    const pin = this.pinOfNet.get(this.connectivity.netOf(`${id}.signal`) ?? '');
+    const pwm = pin === undefined ? undefined : this.pins.pwmOf(pin);
+    const pulseUs = pwm && pwm.freq > 0 ? Math.round((pwm.duty / pwm.freq) * 1e6) : undefined;
+    let angle = this.servoAngle.get(id) ?? SERVO.rest;
+    if (powered && pulseUs !== undefined && pulseUs >= SERVO.minUs * 0.8 && pulseUs <= SERVO.maxUs * 1.2) {
+      angle = Math.round(Math.min(180, Math.max(0, ((pulseUs - SERVO.minUs) / (SERVO.maxUs - SERVO.minUs)) * 180)));
+      this.servoAngle.set(id, angle);
+    }
+    return { kind: 'servo', angle, powered, ...(pulseUs !== undefined ? { pulseUs } : {}) };
+  }
+
+  /** Records a part's new state when it differs from the last one (LEDs to 1 %, servos to 1°). */
+  private setView(t: number, id: string, view: PartView): void {
+    const before = this.views.get(id);
+    this.views.set(id, view);
+    const same = before && (view.kind === 'led' && before.kind === 'led'
+      ? Math.round(view.brightness * 100) === Math.round(before.brightness * 100)
+      : JSON.stringify(view) === JSON.stringify(before));
+    if (same) return;
+    const entry: PartTraceEntry = [t, id, view];
+    this.partTrace.push(entry);
+    this.onChange?.(entry);
   }
 
   private averagePwm(state: SimState, pwm: [string, number][]): void {

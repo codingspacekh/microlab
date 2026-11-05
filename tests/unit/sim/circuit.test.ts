@@ -76,3 +76,49 @@ describe('M3.3 PWM is the average over its on and off states', () => {
     within(h.amps('led5'), (3.3 - 2.0) / 221, 0.02);
   });
 });
+
+describe('M3.4 part states for the window', () => {
+  it('an LED\'s state: its current and brightness (current / its 20 mA rating), changes traced', () => {
+    let t = 0;
+    const [parts, wires] = ledOn('GP15', 5);
+    const spec: CircuitSpec = { board: { data: pico }, breadboards: [{ id: 'bb1', size: 'half' }], parts, wires: wires.map(([a, b], i) => ({ id: `w${i}`, a, b })) };
+    const pins = new PinBank();
+    const h = new CircuitHost(spec, pins, () => t);
+    pins.attach(h);
+    pins.configure('15', 'out', 'none', 1);
+    h.update();
+    t = 500_000;
+    pins.write('15', 0);
+    h.update();
+    expect(h.partTrace.map(([at, id, v]) => [at, id, v.kind === 'led' ? Math.round(v.brightness * 100) : -1])).toEqual([[0, 'led5', 29], [500_000, 'led5', 0]]);
+  });
+
+  it('a servo: its angle from the pulse width (0.5 ms = 0°, 2.5 ms = 180°) when it has its 5 V', () => {
+    const spec: CircuitSpec = {
+      board: { data: pico }, breadboards: [{ id: 'bb1', size: 'half' }],
+      parts: [{ id: 's1', type: 'servo', legs: { gnd: 'bb1.a5', vcc: 'bb1.a6', signal: 'bb1.a7' } }],
+      wires: [{ id: 'w1', a: 'board.GND', b: 'bb1.e5' }, { id: 'w2', a: 'board.VBUS', b: 'bb1.e6' }, { id: 'w3', a: 'board.GP16', b: 'bb1.e7' }],
+    };
+    const pins = new PinBank();
+    const h = new CircuitHost(spec, pins, () => 0);
+    pins.attach(h);
+    pins.setPwm('16', 50, 1500 / 20000);   // 1.5 ms of 20 ms
+    expect(h.partStates()['s1']).toEqual({ kind: 'servo', angle: 90, powered: true, pulseUs: 1500 });
+    pins.setPwm('16', 50, 500 / 20000);
+    expect(h.partStates()['s1']).toMatchObject({ angle: 0 });
+  });
+
+  it('a servo on 3V3 has no power to move (it keeps its angle)', () => {
+    const spec: CircuitSpec = {
+      board: { data: pico }, breadboards: [{ id: 'bb1', size: 'half' }],
+      parts: [{ id: 's1', type: 'servo', legs: { gnd: 'bb1.a5', vcc: 'bb1.a6', signal: 'bb1.a7' } }],
+      wires: [{ id: 'w1', a: 'board.GND', b: 'bb1.e5' }, { id: 'w2', a: 'board.3V3', b: 'bb1.e6' }, { id: 'w3', a: 'board.GP16', b: 'bb1.e7' }],
+    };
+    const pins = new PinBank();
+    const h = new CircuitHost(spec, pins, () => 0);
+    pins.attach(h);
+    pins.setPwm('16', 50, 2500 / 20000);
+    expect(h.partStates()['s1']).toMatchObject({ powered: false, angle: 90 });   // where a servo rests here: the middle
+  });
+});
+

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { parseBoard } from '@lib/boards';
+import picoJson from '../../../library/boards/pico-w/board.json';
 import { Control } from '../../../src/sim/control';
 import { handleStart, type WorkerMessage } from '../../../src/sim/worker-core';
 import { nodeLoader } from '../../python/vm';
@@ -18,6 +20,26 @@ describe('M2.8 the worker\'s run: output batched to ≤ 60 a second, then the en
     expect(outputs.length).toBeLessThanOrEqual(3);
     expect(outputs.map((m) => (m as { text: string }).text).join('')).toBe(Array.from({ length: 100 }, (_, i) => `${i}\n`).join(''));
     expect(posts.at(-1)).toMatchObject({ type: 'end', result: { ended: 'done' } });
+  });
+
+  it('part states are batched too: a fast Blink sends the latest LED state, a few times, not every toggle', async () => {
+    const control = new Control();
+    const posts: WorkerMessage[] = [];
+    let t = 0;
+    await handleStart({
+      type: 'start', board: 'pico-w', control: control.buffer, inputs: [],
+      files: { 'main.py': 'from machine import Pin\nimport time\nled = Pin(15, Pin.OUT)\nfor i in range(200):\n    led.toggle()\n    time.sleep_ms(1)\nled.on()\nprint("end")\n' },
+      circuit: {
+        board: { data: parseBoard(picoJson) }, breadboards: [{ id: 'bb1', size: 'half' }],
+        parts: [{ id: 'r1', type: 'resistor', props: { ohms: 220 }, legs: { a: 'bb1.a5', b: 'bb1.a7' } }, { id: 'led1', type: 'led', legs: { a: 'bb1.b7', k: 'bb1.b9' } }],
+        wires: [{ id: 'w1', a: 'board.GP15', b: 'bb1.e5' }, { id: 'w2', a: 'board.GND', b: 'bb1.e9' }],
+      },
+    }, (m) => posts.push(m), await nodeLoader(), () => (t += 1));   // 1 ms a call: ~16 changes a frame
+    const parts = posts.filter((m) => m.type === 'parts') as { states: Record<string, { brightness: number }> }[];
+    expect(parts.length).toBeGreaterThan(1);
+    expect(parts.length).toBeLessThan(200 / 4);
+    expect(parts.at(-1)!.states['led1']!.brightness).toBeGreaterThan(0.2);   // it ends lit
+    expect(posts.at(-1)).toMatchObject({ type: 'end' });
   });
 
   it('Control: input slots by name; an unknown one is an error', () => {

@@ -1,5 +1,5 @@
 import type { CircuitSpec } from '@lib/circuit';
-import { CircuitHost, type PartChange } from './circuit';
+import { CircuitHost, type PartChange, type PartTraceEntry } from './circuit';
 import { RealClock, type Clock } from './clock';
 import type { Control } from './control';
 import { PinBank, RP2040_RESET, type AnalogEntry, type InputChange, type Level, type PinMode, type PinState, type Pull, type PwmEntry, type TraceEntry } from './pins';
@@ -40,6 +40,8 @@ export interface RunResult {
   sound: [number, number][];
   /** Bus traffic (I²C, SPI, UART, bitstream) as it reaches the bridge: [µs, 'i2c sda=4 scl=5 write 3c 00 nack'] (M2.7). */
   bus: [number, string][];
+  /** Every change of a part in the circuit (M3.4); [] without a circuit. The Pico W's LED is in `trace` ('LED'). */
+  parts: PartTraceEntry[];
   /** done: the program ended (or there was no main.py); error: an exception; stopped: KeyboardInterrupt (Stop). */
   ended: 'done' | 'error' | 'stopped';
   error?: SimError;
@@ -80,6 +82,8 @@ export interface RunOptions {
   circuit?: CircuitSpec;
   /** Part inputs over time (buttons, knobs, light), in tests; the app sets them through `control`. */
   partInputs?: PartChange[];
+  /** Each change of a part's state (LED brightness, servo angle), as it happens (M3.4). */
+  onParts?: (entry: PartTraceEntry) => void;
 }
 
 /** The sim's own Python (src/python/common) and the boards' (src/python/<folder>), written to a folder the
@@ -97,7 +101,10 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []), options.control);
   const stop = stopper(mp, options.control);
   const circuit = options.circuit ? new CircuitHost(options.circuit, pins, now, options.partInputs, options.control) : undefined;
-  if (circuit) pins.attach(circuit);
+  if (circuit) {
+    pins.attach(circuit);
+    circuit.onChange = options.onParts;
+  }
   const timers = new TimerBank(now);
   const events = new Events(mp, pins, timers);
   const display: [number, string][] = [];
@@ -133,12 +140,13 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
     // Only reached if Python fails outside the student's code (Stop landing in the runner itself).
     last = /KeyboardInterrupt/.test(String(e)) ? 'stopped\n' : `error\n${String(e)}`;
   }
+  circuit?.update();   // the last writes since the last solve: the parts end as the program left them
   console.flush();
 
   const nl = last.indexOf('\n');
   const ended = last.slice(0, nl) as RunResult['ended'];
   const traceback = last.slice(nl + 1);
-  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, bus, ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
+  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, bus, parts: circuit?.partTrace ?? [], ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
 }
 
 /** The `_ream` bridge (architecture §2.4): the board-neutral calls the board modules make into the sim. */

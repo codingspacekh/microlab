@@ -113,6 +113,11 @@ export class PinBank {
     return { mode: 'in', pull: s.pull === 'both' ? 'up' : s.pull };
   }
 
+  /** The PWM on a pin now (Hz, duty 0–1), if any: a servo reads its pulse width from it. */
+  pwmOf(pin: string): { freq: number; duty: number } | undefined {
+    return this.pwm.get(pin);
+  }
+
   /** The circuit was solved again: see whether the pin's level changed (an edge, an IRQ). */
   recheck(pin: string): void {
     this.changed(pin);
