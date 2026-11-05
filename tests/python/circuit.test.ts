@@ -91,3 +91,15 @@ describe('M3.1 pin reads come from the circuit', () => {
   });
 });
 
+describe('M3.2 inputs drive IRQs and wake the program', () => {
+  const button = () => circuit('pico-w', [{ id: 'btn1', type: 'button', legs: { '1a': 'bb1.e10', '2a': 'bb1.e12', '1b': 'bb1.f10', '2b': 'bb1.f12' } }],
+    [w('w1', 'board.GP14', 'bb1.a10'), w('w2', 'board.GND', 'bb1.j12')]);
+  const counter = 'from machine import Pin\nimport time\ncount = 0\ndef pressed(p):\n    global count\n    count += 1\nPin(14, Pin.IN, Pin.PULL_UP).irq(pressed, Pin.IRQ_FALLING)\n';
+
+  it('an IRQ counter counts three simulated presses, during sleeps and a busy loop', async () => {
+    const presses = [100, 400, 700].flatMap((ms) => [{ atUs: ms * 1000, part: 'btn1', pressed: true }, { atUs: ms * 1000 + 80_000, part: 'btn1', pressed: false }]);
+    const r = await run('pico-w', button(), `${counter}time.sleep(0.5)\nt = time.ticks_ms()\nwhile time.ticks_diff(time.ticks_ms(), t) < 500:\n    pass\nprint(count)\n`, presses);
+    expect(r.output).toBe('3\n');
+  });
+});
+
