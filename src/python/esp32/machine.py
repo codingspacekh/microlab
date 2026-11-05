@@ -445,3 +445,85 @@ class Timer:
     def __repr__(self):
         # as machine_timer_print prints it: `self->repeat ? ONE_SHOT : PERIODIC` (the names are swapped)
         return 'Timer(%d, mode=%s, period=%d)' % (self._id, 'ONE_SHOT' if self._repeat else 'PERIODIC', self._period_us // 1000)
+
+
+# --- buses (M2.7): machine_i2c.c (+ .h), machine_hw_spi.c, machine_uart.c (+ .h) on the classic ESP32 ---------------
+import _bus
+
+_I2C_PINS = ((18, 19), (25, 26))        # (scl, sda)
+_SPI_PINS = {1: (14, 13, 12), 2: (18, 23, 19)}   # HSPI, VSPI: (sck, mosi, miso)
+_UART_PINS = ((1, 3), (10, 9), (17, 16))         # (tx, rx); UART0 is the REPL
+
+
+class I2C(_bus.I2CBus):
+    def __init__(self, id=0, *, scl=None, sda=None, freq=400000, timeout=50000):
+        id = _int(id)
+        if id not in (0, 1):
+            raise ValueError("I2C(%d) doesn't exist" % id)
+        c, d = _I2C_PINS[id]
+        if scl is not None:
+            c = Pin(scl)._n
+        if sda is not None:
+            d = Pin(sda)._n
+        self._id, self._freq, self._timeout = id, _int(freq), _int(timeout)
+        self._scl_n, self._sda_n = c, d
+        self._scl, self._sda = str(c), str(d)
+
+    def __repr__(self):
+        return 'I2C(%d, scl=%d, sda=%d, freq=%d, timeout=%d)' % (self._id, self._scl_n, self._sda_n, self._freq, self._timeout)
+
+
+class SoftI2C(_bus.I2CBus):
+    def __init__(self, scl, sda, *, freq=400000, timeout=50000):
+        self._scl, self._sda = Pin(scl)._key, Pin(sda)._key
+
+
+class SPI(_bus.SPIBus):
+    MSB = 0
+    LSB = 1
+
+    def __init__(self, id, baudrate=500000, *, polarity=0, phase=0, bits=8, firstbit=0, sck=None, mosi=None, miso=None):
+        id = _int(id)
+        if id not in _SPI_PINS:
+            raise ValueError("SPI(%d) doesn't exist" % id)
+        s, o, i = _SPI_PINS[id]
+        s = Pin(sck)._n if sck is not None else s
+        o = Pin(mosi)._n if mosi is not None else o
+        i = Pin(miso)._n if miso is not None else i
+        self._id, self._baud, self._pol, self._pha, self._bits, self._first = id, _int(baudrate), polarity, phase, bits, firstbit
+        self._pins = (s, o, i)
+        self._sck, self._mosi, self._miso = str(s), str(o), str(i)
+
+    def __repr__(self):
+        s, o, i = self._pins
+        return 'SPI(id=%d, baudrate=%d, polarity=%d, phase=%d, bits=%d, firstbit=%d, sck=%d, mosi=%d, miso=%d)' % (
+            self._id, self._baud, self._pol, self._pha, self._bits, self._first, s, o, i)
+
+
+class SoftSPI(_bus.SPIBus):
+    MSB = 0
+    LSB = 1
+
+    def __init__(self, baudrate=500000, *, polarity=0, phase=0, bits=8, firstbit=0, sck=None, mosi=None, miso=None):
+        self._sck = Pin(sck)._key if sck is not None else ''
+        self._mosi = Pin(mosi)._key if mosi is not None else ''
+        self._miso = Pin(miso)._key if miso is not None else ''
+
+
+class UART(_bus.UARTBus):
+    def __init__(self, id, baudrate=115200, bits=8, parity=None, stop=1, *, tx=None, rx=None, **kwargs):
+        id = _int(id)
+        if id not in (0, 1, 2):
+            raise ValueError("UART(%d) doesn't exist" % id)
+        t, r = _UART_PINS[id]
+        self._tx = str(Pin(tx)._n if tx is not None else t)
+        self._rx = str(Pin(rx)._n if rx is not None else r)
+        self._baud = _int(baudrate)
+
+
+def time_pulse_us(pin, pulse_level, timeout_us=1000000):
+    return _bus.time_pulse_us(Pin(pin)._key, pulse_level, timeout_us)
+
+
+def bitstream(pin, encoding, timing, buf):
+    _bus.bitstream(Pin(pin)._key, encoding, timing, buf)

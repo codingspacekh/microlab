@@ -426,3 +426,100 @@ class Timer:
 
     def __repr__(self):
         return 'Timer(mode=%s, tick_hz=1000000, period=%d)' % ('ONE_SHOT' if self._mode == Timer.ONE_SHOT else 'PERIODIC', self._delta)
+
+
+# --- buses (M2.7): machine_i2c.c (+ .h), machine_spi.c, machine_uart.c; pico_w's default pins ---------------------
+import _bus
+
+_I2C_PINS = ((5, 4), (7, 6))          # (scl, sda): PICO_DEFAULT_I2C 0 on GP4 / GP5, I2C1 on GP6 / GP7
+_SPI_PINS = ((18, 19, 16), (10, 11, 8))   # (sck, mosi, miso)
+_UART_PINS = ((0, 1), (4, 5))         # (tx, rx)
+
+
+def _gpio(pin):
+    p = Pin(pin)
+    if p._ext:
+        raise ValueError('invalid pin')
+    return int(p._key)
+
+
+class I2C(_bus.I2CBus):
+    _nack = _bus._EIO   # i2c_write_timeout_us's PICO_ERROR_GENERIC becomes EIO
+
+    def __init__(self, id=0, freq=400000, *, scl=None, sda=None, timeout=50000):
+        id = _int(id)
+        if id not in (0, 1):
+            raise ValueError("I2C(%d) doesn't exist" % id)
+        c, d = _I2C_PINS[id]
+        if scl is not None:
+            c = _gpio(scl)
+            if not (c & 1 == 1 and (c & 2) >> 1 == id):
+                raise ValueError('bad SCL pin')
+        if sda is not None:
+            d = _gpio(sda)
+            if not (d & 1 == 0 and (d & 2) >> 1 == id):
+                raise ValueError('bad SDA pin')
+        self._id, self._freq, self._timeout = id, _int(freq), _int(timeout)
+        self._scl_n, self._sda_n = c, d
+        self._scl, self._sda = str(c), str(d)
+        for k in (self._scl, self._sda):
+            _ream.pin_config(k, 'alt', 'up', -1)   # gpio_set_pulls(.., true, 0)
+
+    def __repr__(self):
+        return 'I2C(%d, freq=%d, scl=%d, sda=%d, timeout=%d)' % (self._id, self._freq, self._scl_n, self._sda_n, self._timeout)
+
+
+class SoftI2C(_bus.I2CBus):
+    def __init__(self, scl, sda, *, freq=400000, timeout=50000):
+        self._scl, self._sda = Pin(scl)._key, Pin(sda)._key
+
+
+class SPI(_bus.SPIBus):
+    MSB = 1
+    LSB = 0
+
+    def __init__(self, id, baudrate=1000000, *, polarity=0, phase=0, bits=8, firstbit=1, sck=None, mosi=None, miso=None):
+        id = _int(id)
+        if id not in (0, 1):
+            raise ValueError("SPI(%d) doesn't exist" % id)
+        s, o, i = _SPI_PINS[id]
+        s = _gpio(sck) if sck is not None else s
+        o = _gpio(mosi) if mosi is not None else o
+        i = _gpio(miso) if miso is not None else i
+        self._id, self._baud, self._pol, self._pha, self._bits = id, _int(baudrate), polarity, phase, bits
+        self._pins = (s, o, i)
+        self._sck, self._mosi, self._miso = str(s), str(o), str(i)
+
+    def __repr__(self):
+        s, o, i = self._pins
+        return 'SPI(%d, baudrate=%d, polarity=%d, phase=%d, bits=%d, sck=%d, mosi=%d, miso=%d)' % (
+            self._id, self._baud, self._pol, self._pha, self._bits, s, o, i)
+
+
+class SoftSPI(_bus.SPIBus):
+    MSB = 1
+    LSB = 0
+
+    def __init__(self, baudrate=500000, *, polarity=0, phase=0, bits=8, firstbit=1, sck=None, mosi=None, miso=None):
+        self._sck = Pin(sck)._key if sck is not None else ''
+        self._mosi = Pin(mosi)._key if mosi is not None else ''
+        self._miso = Pin(miso)._key if miso is not None else ''
+
+
+class UART(_bus.UARTBus):
+    def __init__(self, id, baudrate=115200, bits=8, parity=None, stop=1, *, tx=None, rx=None, **kwargs):
+        id = _int(id)
+        if id not in (0, 1):
+            raise ValueError("UART(%d) doesn't exist" % id)
+        t, r = _UART_PINS[id]
+        self._tx = str(_gpio(tx) if tx is not None else t)
+        self._rx = str(_gpio(rx) if rx is not None else r)
+        self._baud = _int(baudrate)
+
+
+def time_pulse_us(pin, pulse_level, timeout_us=1000000):
+    return _bus.time_pulse_us(Pin(pin)._key, pulse_level, timeout_us)
+
+
+def bitstream(pin, encoding, timing, buf):
+    _bus.bitstream(Pin(pin)._key, encoding, timing, buf)

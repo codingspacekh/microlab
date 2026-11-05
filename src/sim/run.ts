@@ -35,6 +35,8 @@ export interface RunResult {
   display: [number, string][];
   /** Every change of the micro:bit's sound (music, pitch): [µs, Hz], 0 for silence (M2.6c). */
   sound: [number, number][];
+  /** Bus traffic (I²C, SPI, UART, bitstream) as it reaches the bridge: [µs, 'i2c sda=4 scl=5 write 3c 00 nack'] (M2.7). */
+  bus: [number, string][];
   /** done: the program ended (or there was no main.py); error: an exception; stopped: KeyboardInterrupt (Stop). */
   ended: 'done' | 'error' | 'stopped';
   error?: SimError;
@@ -88,8 +90,9 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const events = new Events(mp, pins, timers);
   const display: [number, string][] = [];
   const sound: [number, number][] = [];
+  const bus: [number, string][] = [];
   const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
-  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, { display, sound, motion }, options));
+  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, { display, sound, motion, bus }, options));
   mp._module.microlabHook = () => {
     clock.poll();
     events.update();
@@ -122,7 +125,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const nl = last.indexOf('\n');
   const ended = last.slice(0, nl) as RunResult['ended'];
   const traceback = last.slice(nl + 1);
-  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
+  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, bus, ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
 }
 
 /** The `_ream` bridge (architecture §2.4): the board-neutral calls the board modules make into the sim. */
@@ -130,10 +133,12 @@ interface MicrobitParts {
   display: [number, string][];
   sound: [number, number][];
   motion: Motion;
+  bus: [number, string][];
 }
 
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
-  const { display, sound, motion } = mb;
+  const { display, sound, motion, bus } = mb;
+  const log = (entry: string) => bus.push([clock.nowUs(), entry]);
   return {
     ticks_us: () => clock.ticksUs(),
     /** Sleeps; returns early, with the µs left, when an IRQ or timer callback is due (it is scheduled first, and
@@ -195,8 +200,55 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     accel_values: (): string => { clock.ticksUs(); return motion.values().join(' '); },
     accel_gesture: (): string => motion.gesture(),
     accel_events: (): string => motion.takeEvents().join(','),
+
+    // --- buses (M2.7): transaction level. Nothing answers until M3 puts parts on the nets. ---
+    /** Addresses that answer on this bus, comma-separated hex. */
+    i2c_scan: (sda: string, scl: string): string => { log(`i2c sda=${sda} scl=${scl} scan`); return ''; },
+    /** Bytes ACKed, or -1 when the address is not ACKed. */
+    i2c_write: (sda: string, scl: string, addr: number, hex: string): number => {
+      log(`i2c sda=${sda} scl=${scl} write ${hexByte(addr)}${hex ? ' ' + spaced(hex) : ''} nack`);
+      return -1;
+    },
+    /** The bytes read (hex), or -1 when the address is not ACKed. */
+    i2c_read: (sda: string, scl: string, addr: number, n: number): string | number => {
+      log(`i2c sda=${sda} scl=${scl} read ${hexByte(addr)} ${n} nack`);
+      return -1;
+    },
+    /** Clocks `hex` out on MOSI; returns what MISO gave back (its idle level: 0x00 low, 0xff high). */
+    spi_xfer: (sck: string, mosi: string, miso: string, hex: string, kind: string): string => {
+      log(`spi sck=${sck} mosi=${mosi} miso=${miso} ${kind}${kind === 'read' ? ' ' + hex.length / 2 : ' ' + spaced(hex)}`);
+      const idle = miso && pins.level(miso) ? 'ff' : '00';
+      return idle.repeat(hex.length / 2);
+    },
+    uart_write: (tx: string, rx: string, baud: number, hex: string) => { log(`uart tx=${tx} rx=${rx} ${baud} write ${hex}`); },
+    /** Bytes waiting on RX (hex): none until M3. */
+    uart_read: (): string => '',
+    bitstream: (pin: string, timing: string, hex: string) => { log(`bitstream pin=${pin} timing=${timing} ${hex}`); },
+    /** machine_time_pulse_us (extmod/machine_pulse.c, v1.29): two changes, -2 / -1 on a timeout; virtual time jumps to
+     *  the next input change. */
+    pulse_us: (pin: string, level: number, timeoutUs: number): number => {
+      let want = level ? 1 : 0;
+      let left = 2;
+      let start = clock.ticksUs();
+      for (;;) {
+        const t = clock.ticksUs();
+        if (pins.level(pin) === want) {
+          want = 1 - want;
+          if (--left === 0) return t - start;
+          start = t;
+        } else {
+          if (t - start >= timeoutUs) return -left;
+          const until = Math.min(pins.nextChangeUs(), start + timeoutUs);
+          const wait = until - clock.nowUs();
+          if (wait > 0) clock.sleepUs(wait);
+        }
+      }
+    },
   };
 }
+
+const hexByte = (n: number) => n.toString(16).padStart(2, '0');
+const spaced = (hex: string) => hex.match(/../g)?.join(' ') ?? '';
 
 /** Pin IRQs and timer callbacks that are due, handed to micropython.schedule: they run at the VM's next pending
  *  check, as soft IRQs do on the boards. */

@@ -542,3 +542,40 @@ class MicroBitAccelerometer:
 
 
 accelerometer = MicroBitAccelerometer()
+
+
+# --- i2c on P19 / P20 (microbit_i2c.c): a NACK is ENODEV --------------------------------------------------------
+import _bus
+
+
+class MicroBitI2C:
+    def __init__(self):
+        self._sda, self._scl = '20', '19'
+        self._freq = 100000
+
+    def __repr__(self):
+        return '<MicroBitI2C>'
+
+    def init(self, freq=100000, sda=None, scl=None):
+        self._freq = _int(freq)
+        if sda is not None:
+            self._sda = sda._key
+        if scl is not None:
+            self._scl = scl._key
+
+    def scan(self):
+        found = str(_ream.i2c_scan(self._sda, self._scl))
+        return [int(a, 16) for a in found.split(',') if a]
+
+    def read(self, addr, n, repeat=False):
+        r = _ream.i2c_read(self._sda, self._scl, _int(addr), _int(n))
+        if isinstance(r, int):
+            raise OSError(_bus._ENODEV)
+        return bytes.fromhex(str(r))
+
+    def write(self, addr, buf, repeat=False):
+        if int(_ream.i2c_write(self._sda, self._scl, _int(addr), bytes(buf).hex())) < 0:
+            raise OSError(_bus._ENODEV)
+
+
+i2c = MicroBitI2C()
