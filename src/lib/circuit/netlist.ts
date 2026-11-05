@@ -1,6 +1,7 @@
 import { findPin } from '../boards';
 import { connect, type Connectivity } from './connectivity';
 import type { Device, Netlist } from './devices';
+import { MODELS } from './models';
 import type { CircuitSpec } from './spec';
 
 /** The circuit → nets (connect) → the devices each part, pin and supply becomes (architecture §2.5). */
@@ -31,7 +32,9 @@ export function toNetlist(spec: CircuitSpec): { netlist: Netlist; connectivity: 
     for (const part of board.builtIn) {
       if (part.kind === 'resistor') {
         devices.push({ kind: 'resistor', id: `board.${part.id}`, a: net(`board.${part.a}`), b: net(`board.${part.b}`), ohms: part.ohms });
-      } else if (part.kind === 'led') {
+      } else if (part.kind === 'button') {
+        devices.push({ kind: 'switch', id: `board.${part.id}`, a: net(`board.${part.a}`), b: net(`board.${part.b}`), part: `board.${part.id}`, closedWhen: 'pressed' });
+      } else {
         const mid = `board.${part.id}#r`;
         extraNets.push(mid);
         devices.push(
@@ -43,12 +46,9 @@ export function toNetlist(spec: CircuitSpec): { netlist: Netlist; connectivity: 
   }
 
   for (const part of spec.parts) {
-    const leg = (name: string) => c.netOf(`${part.id}.${name}`);
-    if (part.type === 'resistor') {
-      devices.push({ kind: 'resistor', id: part.id, a: leg('a')!, b: leg('b')!, ohms: Number(part.props?.ohms ?? 220) });
-    } else if (part.type === 'led') {
-      devices.push({ kind: 'led', id: part.id, a: leg('a')!, k: leg('k')!, color: String(part.props?.color ?? 'red') });
-    }
+    const model = MODELS[part.type];
+    if (!model) continue;   // reported by connect() as unknown-part-type
+    devices.push(...model.devices({ id: part.id, leg: (name) => net(`${part.id}.${name}`), props: part.props ?? {} }));
   }
 
   const nets = [...c.nets.map((n) => n.id), ...extraNets];

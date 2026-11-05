@@ -60,13 +60,14 @@ export function connect(spec: CircuitSpec): Connectivity {
 
   for (const [pin, hole] of Object.entries(spec.board?.plugs ?? {})) join(`board.${pin}`, hole, 'board');
 
+  // Every leg exists before any is plugged in, so a leg can go into another part's leg in any order.
+  for (const part of spec.parts) for (const leg of MODELS[part.type]?.legs ?? []) uf.add(`${part.id}.${leg}`);
   for (const part of spec.parts) {
     const model = MODELS[part.type];
     if (!model) {
       problems.push({ kind: 'unknown-part-type', part: part.id, type: part.type });
       continue;
     }
-    for (const leg of model.legs) uf.add(`${part.id}.${leg}`);
     for (const leg of Object.keys(part.legs)) {
       if (!model.legs.includes(leg)) problems.push({ kind: 'unknown-leg', part: part.id, leg });
     }

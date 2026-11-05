@@ -1,4 +1,4 @@
-import { LED, LED_COLORS, type Device, type Netlist, type SimState } from './devices';
+import { CONTACT_OHMS, LED, LED_COLORS, WIPER_OHMS, ldrOhms, type Device, type Netlist, type SimState } from './devices';
 
 export interface Solution {
   /** Each net's voltage to ground. */
@@ -173,6 +173,23 @@ function addDevice(
       }
       return;
     }
+    case 'switch': {
+      const s = state.parts?.[d.part];
+      const closed = d.closedWhen === 'pressed' ? Boolean(s?.pressed) : (s?.position ?? 0) === d.closedWhen;
+      if (closed) resistors.push({ id: d.id, a: node(d.a), b: node(d.b), g: 1 / CONTACT_OHMS });
+      return;
+    }
+    case 'pot': {
+      const p = Math.min(1, Math.max(0, state.parts?.[d.part]?.position ?? 0.5));
+      resistors.push(
+        { id: `${d.id}:1-2`, a: node(d.e1), b: node(d.w), g: 1 / (p * d.ohms + WIPER_OHMS) },
+        { id: `${d.id}:2-3`, a: node(d.w), b: node(d.e2), g: 1 / ((1 - p) * d.ohms + WIPER_OHMS) },
+      );
+      return;
+    }
+    case 'ldr':
+      resistors.push({ id: d.id, a: node(d.a), b: node(d.b), g: 1 / ldrOhms(state.parts?.[d.part]?.lux ?? 300) });
+      return;
     case 'led': {
       const vf = (LED_COLORS[d.color] ?? LED_COLORS.red!).vf;
       const vcrit = vf + LED.nvt * Math.log(LED.nvt / (Math.SQRT2 * LED.refA));
