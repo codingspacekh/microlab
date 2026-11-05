@@ -14,12 +14,15 @@ export type Level = 0 | 1;
 /** [µs since the run started, pin, level] — one entry per change of a pin's level. */
 export type TraceEntry = [number, string, Level];
 
-/** From `atUs` on, something outside drives `pin` to `level` (a button pressed, released). */
-export interface InputChange {
-  atUs: number;
-  pin: string;
-  level: Level;
-}
+/** From `atUs` on, something outside drives `pin`: to a logic `level` (a button pressed, released), or to a
+ *  voltage (a knob; its logic level is HIGH from half the supply up). */
+export type InputChange = { atUs: number; pin: string } & ({ level: Level; volts?: undefined } | { volts: number; level?: undefined });
+
+/** [µs since the run started, pin, frequency in Hz, duty 0–1] — one entry per change of a PWM output. */
+export type PwmEntry = [number, string, number, number];
+
+/** The supply the pins switch between (all three boards run their GPIO at 3.3 V). */
+export const VDD = 3.3;
 
 export interface PinState {
   mode: PinMode;
@@ -39,6 +42,9 @@ const RESET: PinState = { mode: 'reset', pull: 'down', out: 0 };
 
 export class PinBank {
   readonly trace: TraceEntry[] = [];
+  readonly pwmTrace: PwmEntry[] = [];
+  private readonly pwm = new Map<string, { freq: number; duty: number }>();
+  private readonly outsideVolts = new Map<string, number>();
   private readonly state = new Map<string, PinState>();
   private readonly seen = new Map<string, Level>();
   private readonly outside = new Map<string, Level>();
@@ -78,6 +84,35 @@ export class PinBank {
     return this.levelNow(pin);
   }
 
+  /** The voltage on the pin, for an ADC: from outside if driven, else what the pin itself drives or pulls to. */
+  volts(pin: string): number {
+    this.update();
+    const v = this.outsideVolts.get(pin);
+    if (v !== undefined) return v;
+    const p = this.pwm.get(pin);
+    if (p) return p.duty * VDD;
+    return this.levelNow(pin) * VDD;
+  }
+
+  /** A PWM output on the pin (duty 0–1), or none (`duty` < 0): its average is what M3's circuit sees. */
+  setPwm(pin: string, freq: number, duty: number): void {
+    const before = this.pwm.get(pin);
+    if (duty < 0) {
+      if (!before) return;
+      this.pwm.delete(pin);
+      this.pwmTrace.push([this.now(), pin, before.freq, 0]);
+      return;
+    }
+    if (before && before.freq === freq && before.duty === duty) return;
+    this.pwm.set(pin, { freq, duty });
+    this.pwmTrace.push([this.now(), pin, freq, duty]);
+  }
+
+  /** When the next scripted input change is due (µs), or Infinity: a sleep wakes for it. */
+  nextChangeUs(): number {
+    return this.script[this.next]?.atUs ?? Infinity;
+  }
+
   irq(pin: string, rising: boolean, falling: boolean, handler: unknown, owner: unknown): void {
     if (handler === null || handler === undefined || (!rising && !falling)) this.irqs.delete(pin);
     else this.irqs.set(pin, { rising, falling, handler, owner });
@@ -89,7 +124,13 @@ export class PinBank {
     const t = this.now();
     while (this.next < this.script.length && this.script[this.next]!.atUs <= t) {
       const c = this.script[this.next++]!;
-      this.outside.set(c.pin, c.level);
+      if (c.volts !== undefined) {
+        this.outsideVolts.set(c.pin, c.volts);
+        this.outside.set(c.pin, c.volts >= VDD / 2 ? 1 : 0);
+      } else {
+        this.outsideVolts.delete(c.pin);
+        this.outside.set(c.pin, c.level);
+      }
       this.changed(c.pin);
     }
   }

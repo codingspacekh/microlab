@@ -1,5 +1,6 @@
 import { RealClock, type Clock } from './clock';
-import { PinBank, type InputChange, type Level, type PinMode, type Pull, type TraceEntry } from './pins';
+import { PinBank, type InputChange, type Level, type PinMode, type Pull, type PwmEntry, type TraceEntry } from './pins';
+import { TimerBank } from './timers';
 import { Console, lineBeingRun, startMicroPython, type LoadMicroPython, type MicroPython, type Where } from './vm';
 
 /**
@@ -25,6 +26,8 @@ export interface RunResult {
   output: string;
   /** Every change of an output pin's level, in time order (M2.3). */
   trace: TraceEntry[];
+  /** Every change of a PWM output (M2.4). */
+  pwm: PwmEntry[];
   /** done: the program ended (or there was no main.py); error: an exception; stopped: KeyboardInterrupt (Stop). */
   ended: 'done' | 'error' | 'stopped';
   error?: SimError;
@@ -45,6 +48,8 @@ export interface RunOptions {
   onOutput?: (text: string) => void;
   /** The board's time (M2.2): the RealClock in the app, a VirtualClock in tests. */
   clock?: Clock;
+  /** What the board's own temperature sensor reads (°C); 25 if not set (M6 adds the slider, F-35). */
+  temperatureC?: number;
   /** The line being run each time the program starts to sleep (screen 03: where a program spends its time). */
   onSleep?: (at: Where | undefined) => void;
 }
@@ -59,13 +64,15 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const console = new Console(options.onOutput);
   const mp = await startMicroPython(load, console);
   const clock = options.clock ?? new RealClock();
-  const pins = new PinBank(options.inputs, () => clock.nowUs());
-  const irqs = deliverIrqs(mp, pins);
-  mp.registerJsModule('_ream', bridge(mp, clock, pins, irqs, options));
+  const now = () => clock.nowUs();
+  const pins = new PinBank(options.inputs, now);
+  const timers = new TimerBank(now);
+  const events = new Events(mp, pins, timers);
+  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, options));
   mp._module.microlabHook = () => {
     clock.poll();
-    pins.update();
-    irqs();
+    events.update();
+    events.deliver();
   };
   const common = modules('common');
   const board = options.board ? modules(BOARD_PYTHON[options.board]) : {};
@@ -94,21 +101,26 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const nl = last.indexOf('\n');
   const ended = last.slice(0, nl) as RunResult['ended'];
   const traceback = last.slice(nl + 1);
-  return { output: console.output, trace: pins.trace, ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
+  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
 }
 
 /** The `_ream` bridge (architecture §2.4): the board-neutral calls the board modules make into the sim. */
-function bridge(mp: MicroPython, clock: Clock, pins: PinBank, irqs: () => void, options: RunOptions) {
+function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, options: RunOptions) {
   return {
     ticks_us: () => clock.ticksUs(),
-    /** Sleeps; returns early, with the µs left, when a pin IRQ is due (its handler is scheduled first). */
+    /** Sleeps; returns early, with the µs left, when an IRQ or timer callback is due (it is scheduled first, and
+     *  runs in Python before the sleep carries on). Wakes exactly at the next input change or timer. */
     sleep_us: (us: number): number => {
       options.onSleep?.(lineBeingRun(mp));
       const end = clock.nowUs() + us;
-      const woke = clock.sleepUs(us, () => { pins.update(); return pins.hasPending(); });
-      if (!woke) return 0;
-      irqs();
-      return Math.max(0, end - clock.nowUs());
+      for (;;) {
+        const left = end - clock.nowUs();
+        if (left <= 0) return 0;
+        const next = Math.min(pins.nextChangeUs(), timers.nextDueUs()) - clock.nowUs();
+        clock.sleepUs(Math.min(left, Math.max(0, next)), () => events.update());
+        events.update();
+        if (events.deliver()) return Math.max(0, end - clock.nowUs());
+      }
     },
     /** '' leaves the mode or pull as it is; out -1 leaves the output register. */
     pin_config: (pin: string, mode: PinMode | '', pull: Pull | '', out: number) => {
@@ -117,30 +129,52 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, irqs: () => void, 
     },
     pin_write: (pin: string, value: number) => pins.write(pin, (value ? 1 : 0) as Level),
     pin_toggle: (pin: string) => pins.toggle(pin),
-    pin_level: (pin: string): number => pins.level(pin),
+    // a reading takes a little time, as the call does on a board (VirtualClock; nothing on the RealClock)
+    pin_level: (pin: string): number => { clock.ticksUs(); return pins.level(pin); },
     pin_state: (pin: string): string => {
       const s = pins.get(pin);
       return `${s.mode} ${s.pull} ${s.out}`;
     },
     pin_irq: (pin: string, rising: boolean, falling: boolean, handler: unknown, owner: unknown) =>
       pins.irq(pin, rising, falling, handler, owner),
+    adc_volts: (pin: string): number => { clock.ticksUs(); return pins.volts(pin); },
+    /** duty 0–1, or < 0 for no PWM on the pin. */
+    pwm_out: (pin: string, freq: number, duty: number) => pins.setPwm(pin, freq, duty),
+    timer_start: (id: number, periodUs: number, periodic: boolean, handler: unknown, owner: unknown) =>
+      timers.start(id, periodUs, periodic, handler, owner),
+    timer_stop: (id: number) => timers.stop(id),
+    temperature: (): number => options.temperatureC ?? 25,
   };
 }
 
-/** Hands due IRQ handlers to micropython.schedule: they run at the VM's next pending check, as soft IRQs do. */
-function deliverIrqs(mp: MicroPython, pins: PinBank): () => void {
-  let schedule: ((handler: unknown, arg: unknown) => unknown) | undefined;
-  return () => {
-    if (!pins.hasPending()) return;
-    schedule ??= mp.pyimport('micropython').schedule as typeof schedule;
-    for (const irq of pins.takePending()) {
+/** Pin IRQs and timer callbacks that are due, handed to micropython.schedule: they run at the VM's next pending
+ *  check, as soft IRQs do on the boards. */
+class Events {
+  private schedule: ((handler: unknown, arg: unknown) => unknown) | undefined;
+
+  constructor(private readonly mp: MicroPython, private readonly pins: PinBank, private readonly timers: TimerBank) {}
+
+  /** Brings inputs and timers up to now; true if something is waiting to be delivered. */
+  update(): boolean {
+    this.pins.update();
+    this.timers.update();
+    return this.pins.hasPending() || this.timers.hasPending();
+  }
+
+  /** Schedules everything due; true if anything was. */
+  deliver(): boolean {
+    const due = [...this.pins.takePending(), ...this.timers.takePending()];
+    if (!due.length) return false;
+    this.schedule ??= this.mp.pyimport('micropython').schedule as typeof this.schedule;
+    for (const e of due) {
       try {
-        schedule!(irq.handler, irq.owner);
+        this.schedule!(e.handler, e.owner);
       } catch {
         // the schedule queue is full: the board drops the event too
       }
     }
-  };
+    return true;
+  }
 }
 
 /** The .py files of one folder of src/python, by file name. */

@@ -8,13 +8,30 @@ _MASK = (1 << 30) - 1
 ticks_add = _builtin.ticks_add
 ticks_diff = _builtin.ticks_diff
 
-# Still the laptop's date: each board's own start date (2021-01-01 on a Pico W, 2000-01-01 on an ESP32) comes
-# with its board module (M2.4, M2.5).
-time = _builtin.time
-time_ns = _builtin.time_ns
-localtime = _builtin.localtime
-gmtime = _builtin.gmtime
+# The date: the board's clock is set to its start date at reset (no RTC battery), then counts the run's time.
+# Each board module calls start_date() (Pico W: 2021-01-01, ports/rp2/main.c). Seconds since 1970.
+_start = 0
 mktime = _builtin.mktime
+
+
+def start_date(seconds):
+    global _start
+    _start = seconds
+
+
+def time():
+    return _start + int(_ream.ticks_us()) // 1000000
+
+
+def time_ns():
+    return (_start * 1000000 + int(_ream.ticks_us())) * 1000
+
+
+def gmtime(secs=None):
+    return _builtin.gmtime(time() if secs is None else secs)
+
+
+localtime = gmtime
 
 
 def ticks_us():

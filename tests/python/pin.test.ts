@@ -55,7 +55,7 @@ describe('M2.3 Pin inputs, pulls and scripted levels', () => {
 
   it('reads a level that changes over time (a button pressed at 300 ms)', async () => {
     const r = await run(
-      'from machine import Pin\nimport time\nb = Pin(14, Pin.IN, Pin.PULL_UP)\nt0 = time.ticks_ms()\nwhile b.value() == 1:\n    pass\nprint("pressed after", time.ticks_diff(time.ticks_ms(), t0) // 100 * 100, "ms")\n',
+      'from machine import Pin\nimport time\nb = Pin(14, Pin.IN, Pin.PULL_UP)\nt0 = time.ticks_ms()\nwhile b.value() == 1 and time.ticks_ms() < 5000:\n    pass\nprint("pressed after", time.ticks_diff(time.ticks_ms(), t0) // 100 * 100, "ms")\n',
       [{ atUs: 300_000, pin: '14', level: 0 }],
     );
     expect(r.output).toBe('pressed after 300 ms\n');
@@ -114,7 +114,7 @@ describe('M2.3 Pin.irq: handlers run as soft IRQs (micropython.schedule)', () =>
   });
 
   it('during a busy loop (the VM hook delivers it)', async () => {
-    const r = await run([...button('Pin.IRQ_FALLING'), 'while presses < 2:', '    pass', 'print("done")'].join('\n'), [...press(100_000), ...press(400_000)]);
+    const r = await run([...button('Pin.IRQ_FALLING'), 'while presses < 2 and time.ticks_ms() < 5000:', '    pass', 'print("done")'].join('\n'), [...press(100_000), ...press(400_000)]);
     expect(r.output).toBe('irq Pin(GPIO14, mode=IN, pull=PULL_UP) 1\nirq Pin(GPIO14, mode=IN, pull=PULL_UP) 2\ndone\n');
   });
 

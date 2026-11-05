@@ -7,8 +7,9 @@
 export interface Clock {
   /** Microseconds since the run started. */
   nowUs(): number;
-  /** The program reading the time (ticks_us, ticks_ms): on the VirtualClock each reading takes a little time, as
-   *  the call does on a board, so `while ticks_diff(ticks_ms(), t0) < 1000` ends after a sensible number of turns. */
+  /** The program reading the time (ticks_us, ticks_ms) or a pin: on the VirtualClock each reading takes a little
+   *  time, as the call does on a board, so `while ticks_diff(ticks_ms(), t0) < 1000` and `while not b.value()`
+   *  end after a sensible number of turns. */
   ticksUs(): number;
   /** Sleeps `us`. `wake` is asked between slices (Stop, an input changed); true from it ends the sleep early,
    *  and sleepUs returns true. */
