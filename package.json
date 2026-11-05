@@ -1,0 +1,46 @@
+{
+  "name": "microlab",
+  "productName": "MicroLab",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Build breadboard circuits, write MicroPython and simulate them — micro:bit, Pico W, ESP32",
+  "main": "out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "e2e": "npm run build && playwright test",
+    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build",
+    "spike:node": "node spikes/micropython-worker/node-spike.mjs",
+    "spike:electron": "electron spikes/micropython-worker/electron-main.mjs"
+  },
+  "dependencies": {
+    "@micropython/micropython-webassembly-pyscript": "1.29.0-6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.64.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.2.1",
+    "@vitest/coverage-v8": "5.1.0",
+    "electron": "45.2.3",
+    "electron-vite": "6.0.0",
+    "eslint": "^10.14.0",
+    "jsdom": "^30.1.3",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^8.3.6",
+    "vitest": "5.1.0"
+  }
+}

@@ -1,0 +1,13 @@
+:root {
+  --bg: #f4f6f8;
+  --tx-1: #151a21;
+  --tx-3: #7c8594;
+  --accent: #2563d9;
+  --font: -apple-system, "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
+body { font-family: var(--font); background: var(--bg); color: var(--tx-1); -webkit-font-smoothing: antialiased; }
+.placeholder { height: 100%; display: grid; place-content: center; gap: 8px; text-align: center; }
+.placeholder h1 { font-size: 28px; font-weight: 650; color: var(--accent); }
+.placeholder p { color: var(--tx-3); font-size: 14px; }
