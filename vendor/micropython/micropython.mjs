@@ -4777,6 +4777,8 @@ var _mp_js_do_exec = Module['_mp_js_do_exec'] = makeInvalidEarlyAccess('_mp_js_d
 var _mp_js_do_exec_async = Module['_mp_js_do_exec_async'] = makeInvalidEarlyAccess('_mp_js_do_exec_async');
 var _mp_js_repl_init = Module['_mp_js_repl_init'] = makeInvalidEarlyAccess('_mp_js_repl_init');
 var _mp_js_repl_process_char = Module['_mp_js_repl_process_char'] = makeInvalidEarlyAccess('_mp_js_repl_process_char');
+var _microlab_frame_line = Module['_microlab_frame_line'] = makeInvalidEarlyAccess('_microlab_frame_line');
+var _microlab_frame_file = Module['_microlab_frame_file'] = makeInvalidEarlyAccess('_microlab_frame_file');
 var _mp_hal_get_interrupt_char = Module['_mp_hal_get_interrupt_char'] = makeInvalidEarlyAccess('_mp_hal_get_interrupt_char');
 var _proxy_c_init = Module['_proxy_c_init'] = makeInvalidEarlyAccess('_proxy_c_init');
 var _proxy_c_free_obj = Module['_proxy_c_free_obj'] = makeInvalidEarlyAccess('_proxy_c_free_obj');
@@ -4817,6 +4819,8 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['mp_js_do_exec_async'] !== 'undefined', 'missing Wasm export: mp_js_do_exec_async');
   assert(typeof wasmExports['mp_js_repl_init'] !== 'undefined', 'missing Wasm export: mp_js_repl_init');
   assert(typeof wasmExports['mp_js_repl_process_char'] !== 'undefined', 'missing Wasm export: mp_js_repl_process_char');
+  assert(typeof wasmExports['microlab_frame_line'] !== 'undefined', 'missing Wasm export: microlab_frame_line');
+  assert(typeof wasmExports['microlab_frame_file'] !== 'undefined', 'missing Wasm export: microlab_frame_file');
   assert(typeof wasmExports['mp_hal_get_interrupt_char'] !== 'undefined', 'missing Wasm export: mp_hal_get_interrupt_char');
   assert(typeof wasmExports['proxy_c_init'] !== 'undefined', 'missing Wasm export: proxy_c_init');
   assert(typeof wasmExports['proxy_c_free_obj'] !== 'undefined', 'missing Wasm export: proxy_c_free_obj');
@@ -4853,6 +4857,8 @@ function assignWasmExports(wasmExports) {
   _mp_js_do_exec_async = Module['_mp_js_do_exec_async'] = createExportWrapper('mp_js_do_exec_async', wasmExports['mp_js_do_exec_async'], 3);
   _mp_js_repl_init = Module['_mp_js_repl_init'] = createExportWrapper('mp_js_repl_init', wasmExports['mp_js_repl_init'], 0);
   _mp_js_repl_process_char = Module['_mp_js_repl_process_char'] = createExportWrapper('mp_js_repl_process_char', wasmExports['mp_js_repl_process_char'], 1);
+  _microlab_frame_line = Module['_microlab_frame_line'] = createExportWrapper('microlab_frame_line', wasmExports['microlab_frame_line'], 1);
+  _microlab_frame_file = Module['_microlab_frame_file'] = createExportWrapper('microlab_frame_file', wasmExports['microlab_frame_file'], 1);
   _mp_hal_get_interrupt_char = Module['_mp_hal_get_interrupt_char'] = createExportWrapper('mp_hal_get_interrupt_char', wasmExports['mp_hal_get_interrupt_char'], 0);
   _proxy_c_init = Module['_proxy_c_init'] = createExportWrapper('proxy_c_init', wasmExports['proxy_c_init'], 0);
   _proxy_c_free_obj = Module['_proxy_c_free_obj'] = createExportWrapper('proxy_c_free_obj', wasmExports['proxy_c_free_obj'], 1);
@@ -4973,8 +4979,6 @@ var wasmImports = {
   /** @export */
   js_get_iter,
   /** @export */
-  js_get_proxy_js_ref_info,
-  /** @export */
   js_iter_next,
   /** @export */
   js_reflect_construct,
@@ -4998,10 +5002,6 @@ var wasmImports = {
   mp_js_ticks_ms: _mp_js_ticks_ms,
   /** @export */
   mp_js_time_ms: _mp_js_time_ms,
-  /** @export */
-  proxy_convert_mp_to_js_then_js_to_js_then_js_to_mp_obj_jsside,
-  /** @export */
-  proxy_convert_mp_to_js_then_js_to_mp_obj_jsside,
   /** @export */
   proxy_js_free_obj,
   /** @export */

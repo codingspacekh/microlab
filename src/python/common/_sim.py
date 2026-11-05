@@ -6,11 +6,15 @@ import io
 import vfs
 import uos
 import _os   # now, while the sim's folder is on the path
+import _time
 
 
 def setup(project, hidden):
-    sys.modules['os'] = _os.os
-    sys.modules['uos'] = _os.os
+    # the board's modules under the board's names ("import time" finds sys.modules before the firmware's)
+    _time.__name__ = 'time'
+    del _time.__file__   # print(time) reads <module 'time'>, as on the boards
+    for name, module in (('os', _os.os), ('uos', _os.os), ('time', _time), ('utime', _time)):
+        sys.modules[name] = module
     import builtins
     builtins.open = _os.open
     vfs.umount('/')

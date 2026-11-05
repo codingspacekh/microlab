@@ -18,8 +18,39 @@ export interface MicroPython {
   registerJsModule(name: string, module: object): void;
   pyimport(name: string): PyProxy;
   FS: EmscriptenFS;
-  /** The VM hook (every 64 backward jumps, MICROLAB patch) and the call that raises KeyboardInterrupt. */
-  _module: { microlabHook?: () => void; _mp_sched_keyboard_interrupt(): void };
+  /** The VM hook (every 64 backward jumps, MICROLAB patch), the call that raises KeyboardInterrupt, and the chain
+   *  of running frames (MICROLAB_FRAMES: depth 0 is the innermost; line 0 = no frame that deep). */
+  _module: {
+    microlabHook?: () => void;
+    _mp_sched_keyboard_interrupt(): void;
+    _microlab_frame_line(depth: number): number;
+    _microlab_frame_file(depth: number): number;
+    HEAPU8: Uint8Array;
+  };
+}
+
+/** A place in the student's code. */
+export interface Where {
+  file: string;
+  line: number;
+}
+
+/** The innermost running frame in one of the student's files ('main.py', 'lib/util.py'), skipping the sim's own
+ *  modules: the line being run (screen 03). Valid while Python waits in a call into JavaScript, or in the hook. */
+export function lineBeingRun(mp: MicroPython): Where | undefined {
+  const m = mp._module;
+  for (let depth = 0; ; depth++) {
+    const line = m._microlab_frame_line(depth);
+    if (!line) return undefined;
+    const file = cString(m.HEAPU8, m._microlab_frame_file(depth));
+    if (!file.startsWith('/_sim/') && !file.startsWith('<')) return { file: file.replace(/^\//, ''), line };
+  }
+}
+
+function cString(heap: Uint8Array, at: number): string {
+  let end = at;
+  while (heap[end]) end++;
+  return new TextDecoder().decode(heap.subarray(at, end));
 }
 
 export interface LoadOptions {

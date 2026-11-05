@@ -1,4 +1,5 @@
-import { Console, startMicroPython, type LoadMicroPython, type MicroPython } from './vm';
+import { RealClock, type Clock } from './clock';
+import { Console, lineBeingRun, startMicroPython, type LoadMicroPython, type MicroPython, type Where } from './vm';
 
 /**
  * The sim core without a worker (M2.1): a fresh MicroPython, the project's files in its file system, boot.py then
@@ -29,6 +30,10 @@ export interface RunResult {
 export interface RunOptions {
   files: ProjectFiles;
   onOutput?: (text: string) => void;
+  /** The board's time (M2.2): the RealClock in the app, a VirtualClock in tests. */
+  clock?: Clock;
+  /** The line being run each time the program starts to sleep (screen 03: where a program spends its time). */
+  onSleep?: (at: Where | undefined) => void;
 }
 
 /** The sim's own Python (src/python/common), written to a folder the program can't reach once it starts. */
@@ -39,6 +44,9 @@ const PROJECT_DIR = '/flash';
 export async function runProject(load: LoadMicroPython, options: RunOptions): Promise<RunResult> {
   const console = new Console(options.onOutput);
   const mp = await startMicroPython(load, console);
+  const clock = options.clock ?? new RealClock();
+  mp.registerJsModule('_ream', bridge(mp, clock, options));
+  mp._module.microlabHook = () => clock.poll();
   writeTree(mp, SIM_DIR, simModules());
   writeTree(mp, PROJECT_DIR, options.files);
 
@@ -64,6 +72,17 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const ended = last.slice(0, nl) as RunResult['ended'];
   const traceback = last.slice(nl + 1);
   return { output: console.output, ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
+}
+
+/** The `_ream` bridge (architecture §2.4): the board-neutral calls the board modules make into the sim. */
+function bridge(mp: MicroPython, clock: Clock, options: RunOptions) {
+  return {
+    ticks_us: () => clock.ticksUs(),
+    sleep_us: (us: number) => {
+      options.onSleep?.(lineBeingRun(mp));
+      clock.sleepUs(us);
+    },
+  };
 }
 
 function simModules(): ProjectFiles {

@@ -15,7 +15,7 @@ index 6fcd9f2..1d64268 100644
              const mp_interrupt_char = Module.ccall(
                  "mp_hal_get_interrupt_char",
 diff --git a/ports/webassembly/main.c b/ports/webassembly/main.c
-index 670d404..a4ed284 100644
+index 670d404..78c89e8 100644
 --- a/ports/webassembly/main.c
 +++ b/ports/webassembly/main.c
 @@ -216,7 +216,10 @@ static void gc_scan_func(void *begin, void *end) {
@@ -29,3 +29,170 @@ index 670d404..a4ed284 100644
      gc_collect_end();
  }
  
+@@ -237,6 +240,53 @@ mp_obj_t mp_builtin_open(size_t n_args, const mp_obj_t *args, mp_map_t *kwargs)
+ MP_DEFINE_CONST_FUN_OBJ_KW(mp_builtin_open_obj, 1, mp_builtin_open);
+ #endif
+ 
++#if MICROLAB_FRAMES
++#include "py/bc.h"
++#include "py/objfun.h"
++
++// MicroLab: where the program is, for the line marker (screen 03) and errors. Depth 0 is the innermost running
++// Python frame, 1 its caller, and so on. Returns the frame's source line and sets *file to its source file
++// (a qstr's C string), or returns 0 when there is no frame that deep. Read while the program waits in a call
++// into JavaScript (time.sleep) or in the VM hook, when every frame in the chain is alive.
++static mp_code_state_t *microlab_frame_at(size_t depth) {
++    mp_code_state_t *cs = MP_STATE_THREAD(current_code_state);
++    while (cs != NULL && depth-- > 0) {
++        cs = cs->prev_state;
++    }
++    return cs;
++}
++
++EMSCRIPTEN_KEEPALIVE size_t microlab_frame_line(size_t depth) {
++    mp_code_state_t *cs = microlab_frame_at(depth);
++    if (cs == NULL) {
++        return 0;
++    }
++    const byte *ip = cs->fun_bc->bytecode;
++    MP_BC_PRELUDE_SIG_DECODE(ip);
++    MP_BC_PRELUDE_SIZE_DECODE(ip);
++    const byte *line_info_top = ip + n_info;
++    const byte *bytecode_start = ip + n_info + n_cell;
++    size_t bc = cs->ip - bytecode_start;
++    ip = mp_decode_uint_skip(ip);   // the block name
++    for (size_t i = 0; i < n_pos_args + n_kwonly_args; ++i) {
++        ip = mp_decode_uint_skip(ip);
++    }
++    return mp_bytecode_get_source_line(ip, line_info_top, bc);
++}
++
++EMSCRIPTEN_KEEPALIVE const char *microlab_frame_file(size_t depth) {
++    mp_code_state_t *cs = microlab_frame_at(depth);
++    if (cs == NULL) {
++        return "";
++    }
++    #if MICROPY_EMIT_BYTECODE_USES_QSTR_TABLE
++    return qstr_str(cs->fun_bc->context->constants.qstr_table[0]);
++    #else
++    return qstr_str(cs->fun_bc->context->constants.source_file);
++    #endif
++}
++#endif
++
+ void nlr_jump_fail(void *val) {
+     while (1) {
+         ;
+diff --git a/ports/webassembly/modjs.c b/ports/webassembly/modjs.c
+index 2f91a01..c825320 100644
+--- a/ports/webassembly/modjs.c
++++ b/ports/webassembly/modjs.c
+@@ -47,7 +47,9 @@ const mp_obj_module_t mp_module_js = {
+     .globals = (mp_obj_dict_t *)&mp_module_js_globals,
+ };
+ 
++#if !MICROLAB_NO_JS_MODULES   // MicroLab: no way from a student's program to JavaScript
+ MP_REGISTER_MODULE(MP_QSTR_js, mp_module_js);
+ MP_REGISTER_MODULE_DELEGATION(mp_module_js, mp_module_js_attr);
++#endif
+ 
+ #endif // MICROPY_PY_JS
+diff --git a/ports/webassembly/modjsffi.c b/ports/webassembly/modjsffi.c
+index ac3d860..03f642c 100644
+--- a/ports/webassembly/modjsffi.c
++++ b/ports/webassembly/modjsffi.c
+@@ -116,6 +116,8 @@ const mp_obj_module_t mp_module_jsffi = {
+     .globals = (mp_obj_dict_t *)&mp_module_jsffi_globals,
+ };
+ 
++#if !MICROLAB_NO_JS_MODULES   // MicroLab: no way from a student's program to JavaScript
+ MP_REGISTER_MODULE(MP_QSTR_jsffi, mp_module_jsffi);
++#endif
+ 
+ #endif // MICROPY_PY_JSFFI
+diff --git a/py/bc.c b/py/bc.c
+index 7669365..f211023 100644
+--- a/py/bc.c
++++ b/py/bc.c
+@@ -325,7 +325,7 @@ void mp_setup_code_state(mp_code_state_t *code_state, size_t n_args, size_t n_kw
+     #if MICROPY_STACKLESS
+     code_state->prev = NULL;
+     #endif
+-    #if MICROPY_PY_SYS_SETTRACE
++    #if MICROPY_PY_SYS_SETTRACE || MICROLAB_FRAMES
+     code_state->prev_state = NULL;
+     code_state->frame = NULL;
+     #endif
+diff --git a/py/bc.h b/py/bc.h
+index 8caac6d..55c8bc2 100644
+--- a/py/bc.h
++++ b/py/bc.h
+@@ -245,7 +245,8 @@ typedef struct _mp_code_state_t {
+     #if MICROPY_STACKLESS
+     struct _mp_code_state_t *prev;
+     #endif
+-    #if MICROPY_PY_SYS_SETTRACE
++    #if MICROPY_PY_SYS_SETTRACE || MICROLAB_FRAMES
++    // MicroLab: with MICROLAB_FRAMES only prev_state is used (the chain of running frames, for the line marker).
+     struct _mp_code_state_t *prev_state;
+     struct _mp_obj_frame_t *frame;
+     #endif
+diff --git a/py/mpstate.h b/py/mpstate.h
+index 7335309..c224d8c 100644
+--- a/py/mpstate.h
++++ b/py/mpstate.h
+@@ -324,6 +324,8 @@ typedef struct _mp_state_thread_t {
+     mp_obj_t prof_trace_callback;
+     bool prof_callback_is_executing;
+     struct _mp_code_state_t *current_code_state;
++    #elif MICROLAB_FRAMES
++    struct _mp_code_state_t *current_code_state;
+     #endif
+ 
+     #if MICROPY_PY_SSL_MBEDTLS_NEED_ACTIVE_CONTEXT
+diff --git a/py/runtime.c b/py/runtime.c
+index dcfb968..0fe40be 100644
+--- a/py/runtime.c
++++ b/py/runtime.c
+@@ -168,6 +168,8 @@ void mp_init(void) {
+     MP_STATE_THREAD(prof_trace_callback) = MP_OBJ_NULL;
+     MP_STATE_THREAD(prof_callback_is_executing) = false;
+     MP_STATE_THREAD(current_code_state) = NULL;
++    #elif MICROLAB_FRAMES
++    MP_STATE_THREAD(current_code_state) = NULL;
+     #endif
+ 
+     #if MICROPY_PY_SYS_TRACEBACKLIMIT
+diff --git a/py/runtime.h b/py/runtime.h
+index 7547cad..002ac02 100644
+--- a/py/runtime.h
++++ b/py/runtime.h
+@@ -181,6 +181,8 @@ static inline void mp_thread_init_state(mp_state_thread_t *ts, size_t stack_size
+     ts->prof_trace_callback = MP_OBJ_NULL;
+     ts->prof_callback_is_executing = false;
+     ts->current_code_state = NULL;
++    #elif MICROLAB_FRAMES
++    ts->current_code_state = NULL;
+     #endif
+ 
+     // If locals/globals are not given, inherit from main thread
+diff --git a/py/vm.c b/py/vm.c
+index ed0ddd6..3b3eb09 100644
+--- a/py/vm.c
++++ b/py/vm.c
+@@ -187,6 +187,15 @@
+     } \
+ } while(0)
+ 
++#elif MICROLAB_FRAMES
++// MicroLab: only the chain of running frames (where the program is, for the line marker); none of settrace's
++// frame objects or per-instruction ticks, which made every call ~30 times slower.
++#define FRAME_SETUP() do { MP_STATE_THREAD(current_code_state) = code_state; } while (0)
++#define FRAME_ENTER() do { code_state->prev_state = MP_STATE_THREAD(current_code_state); } while (0)
++#define FRAME_LEAVE() do { MP_STATE_THREAD(current_code_state) = code_state->prev_state; } while (0)
++#define FRAME_UPDATE()
++#define TRACE_TICK(current_ip, current_sp, is_exception)
++
+ #else // MICROPY_PY_SYS_SETTRACE
+ #define FRAME_SETUP()
+ #define FRAME_ENTER()

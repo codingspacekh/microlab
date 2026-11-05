@@ -116,6 +116,11 @@ describe('M2.1 the board\'s file system holds the project (F-21)', () => {
     expect(r2.error).toMatchObject({ type: 'OSError', message: '[Errno 17] EEXIST', line: 2 });
   });
 
+  it('a program can\'t reach JavaScript: no js or jsffi module, as on a board', async () => {
+    const r = await run({ 'main.py': 'for m in ("js", "jsffi"):\n    try:\n        __import__(m)\n    except ImportError as e:\n        print(e)\n' });
+    expect(r.output).toBe("no module named 'js'\nno module named 'jsffi'\n");
+  });
+
   it('the sim\'s own modules are not visible to the program', async () => {
     const r = await run({ 'main.py': 'try:\n    import _sim\nexcept ImportError as e:\n    print(e)\nimport os\nprint(os)\n' });
     expect(r.output).toBe("no module named '_sim'\n<module 'os'>\n");
