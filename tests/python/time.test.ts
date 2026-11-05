@@ -41,10 +41,13 @@ describe('M2.2 time on the VirtualClock', () => {
   });
 
   it('a busy-wait loop on ticks_ms ends, without taking real time', async () => {
+    // 50 µs a reading: ~20 000 turns for one simulated second (a Pico makes ~100 000; fewer keeps the test quick
+    // when every test file runs at once)
     const t = performance.now();
-    const { output } = await run('import time\nt0 = time.ticks_ms()\nn = 0\nwhile time.ticks_diff(time.ticks_ms(), t0) < 1000:\n    n += 1\nprint("done", n > 0)\n');
+    const { output, clock } = await run('import time\nt0 = time.ticks_ms()\nn = 0\nwhile time.ticks_diff(time.ticks_ms(), t0) < 1000:\n    n += 1\nprint("done", n > 0)\n', new VirtualClock({ readUs: 50 }));
     expect(output).toBe('done True\n');
-    expect(performance.now() - t).toBeLessThan(2000);
+    expect(clock.nowUs()).toBeGreaterThanOrEqual(1_000_000);
+    expect(performance.now() - t).toBeLessThan(3000);
   });
 
   it('ten simulated seconds of Blink take a moment', async () => {

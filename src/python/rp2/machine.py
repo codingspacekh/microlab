@@ -12,6 +12,7 @@ for _n in list(range(23)) + [26, 27, 28]:
 _EXT = {'LED': 'EXT_GPIO0', 'WL_GPIO0': 'EXT_GPIO0', 'WL_GPIO1': 'EXT_GPIO1', 'WL_GPIO2': 'EXT_GPIO2'}
 _GPIO_COUNT = 30   # NUM_BANK0_GPIOS on the RP2040
 _ALT_NULL = 31     # GPIO_FUNC_NULL: the function of every pin after reset
+_ALT_NAMES = {1: 'SPI', 2: 'UART', 3: 'I2C', 4: 'PWM', 6: 'PIO0', 7: 'PIO1', 8: 'GPCK', 9: 'USB'}
 
 
 def _int(x):
@@ -170,7 +171,10 @@ class Pin:
         elif pull == 'both':
             text += ', pull=PULL_UP|PULL_DOWN'
         if mode == 'reset' or mode == 'alt':
-            text += ', alt=%d' % self._alt
+            # machine_pin_find_alt_by_index: a function this pin has prints by name (rp2040_af.csv); none
+            # (GPIO_FUNC_NULL after reset) as its number
+            name = _ALT_NAMES.get(self._alt)
+            text += (', alt=%s' % name) if name else (', alt=%d' % self._alt)
         return text + ')'
 
 
