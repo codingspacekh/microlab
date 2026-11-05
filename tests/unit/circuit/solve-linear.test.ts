@@ -72,6 +72,22 @@ describe('solving again', () => {
     expect(again.iterations).toBeLessThan(first.iterations);
   });
 
+  it('regression: after a pin changes, solving from the last answer converges to the fresh answer', () => {
+    // Found by the perf test: GP13 LOW → HIGH from the last answer bounced between the pin's limits for 200 steps.
+    const { netlist: n } = toNetlist(picoCircuit({
+      parts: [
+        { id: 'r1', type: 'resistor', props: { ohms: 220 }, legs: { a: 'board.GP13', b: 'led1.a' } },
+        { id: 'led1', type: 'led', legs: { k: 'board.GND' } },
+      ],
+      wires: [],
+    }));
+    const low = solve(n, { pins: { GP13: { mode: 'out', value: 0 } } });
+    const high = solve(n, { pins: { GP13: { mode: 'out', value: 1 } } }, low);
+    expect(high.converged).toBe(true);
+    expect(high.iterations).toBeLessThan(20);
+    within1(high.amps.led1!, solve(n, { pins: { GP13: { mode: 'out', value: 1 } } }).amps.led1!);
+  });
+
   it('from an answer for a different circuit: nets it did not have start at 0 V', () => {
     const first = solve(netlist`3V3 -[1k]- A; A -[1k]- GND`);
     const r = solve(netlist`3V3 -[1k]- B; B -[3k]- GND`, {}, first);

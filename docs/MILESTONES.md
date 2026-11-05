@@ -579,7 +579,7 @@ connection problem says how to fix it.
 | Prototype Rev 6: MicroLab, fluid layout, screen 12b form controls | 📝 For the teacher's comments | | |
 | Architecture Rev 1 + this plan | 📝 For the teacher's comments | | |
 | M0 Foundations + MicroPython spike | ✅ Done — own MicroPython build (no ASYNCIFY); manual check not recorded ([acceptance](acceptance/M0.md)) | 2026-11-05 | `v0.0.0` |
-| M1 Circuit engine | ⏳ | | |
+| M1 Circuit engine | 🔨 Built and green; waiting for the teacher's pin-table check and `npm run perf` on the slowest laptop ([acceptance](acceptance/M1.md)) | | |
 | M2 Simulated boards (headless) | ⏳ | | |
 | M3 Code drives the circuit | ⏳ | | |
 | M4 Walking skeleton | ⏳ | | |
