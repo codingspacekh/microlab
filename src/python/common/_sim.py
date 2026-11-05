@@ -6,6 +6,7 @@ import io
 import vfs
 import uos
 import _os   # now, while the sim's folder is on the path
+import _ream
 import _time
 
 
@@ -58,6 +59,9 @@ def run(names, g):
             buf = io.StringIO()
             sys.print_exception(e, buf)
             text = _tidy(buf.getvalue())
+            if isinstance(e, KeyboardInterrupt) and _ream.quiet_stop():
+                kind = 'stopped'   # a fault stopped the run: the sim reports it, not a traceback
+                break
             print(text, end='')
             if isinstance(e, KeyboardInterrupt):
                 kind = 'stopped'

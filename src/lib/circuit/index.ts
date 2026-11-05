@@ -13,3 +13,4 @@ export { solve } from './solve';
 export type { Solution } from './solve';
 export { analyse, findFaults } from './faults';
 export type { Analysis, Fault, FaultKind } from './faults';
+export { describeFault } from './describe';

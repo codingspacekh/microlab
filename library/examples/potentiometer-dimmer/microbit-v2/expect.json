@@ -1,0 +1,32 @@
+{
+  "seconds": 3,
+  "inputs": [
+    {
+      "at": 0,
+      "part": "pot1",
+      "position": 0.2
+    },
+    {
+      "at": 1.5,
+      "part": "pot1",
+      "position": 0.8
+    }
+  ],
+  "parts": {
+    "led1": {
+      "brightness": [
+        [
+          1.0,
+          0.03,
+          0.08
+        ],
+        [
+          2.5,
+          0.18,
+          0.28
+        ]
+      ]
+    }
+  },
+  "ended": "stopped"
+}

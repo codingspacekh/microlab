@@ -1,0 +1,9 @@
+{
+  "seconds": 4,
+  "parts": {
+    "led1": {
+      "blinks": 1
+    }
+  },
+  "ended": "stopped"
+}
