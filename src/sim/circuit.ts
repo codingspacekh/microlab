@@ -19,6 +19,9 @@ export interface PartChange {
   lux?: number;
 }
 
+/** Up to this many PWM pins are averaged exactly (2^n solves: an RGB LED is 3); beyond, their DC average. */
+const MAX_PWM_AVERAGED = 4;
+
 export class CircuitHost {
   readonly netlist: Netlist;
   private readonly netOfPin = new Map<string, string>();   // pin key ('15') → its net
@@ -100,15 +103,69 @@ export class CircuitHost {
     return this.script[this.next]?.atUs ?? Infinity;
   }
 
-  /** Solves if anything changed, then lets the pins see new input levels (edges, IRQs). */
+  private readonly previous = new Map<number, Solution>();   // the last solution of each on / off combination
+
+  /** Solves if anything changed, then lets the pins see new input levels (edges, IRQs). PWM pins are averaged
+   *  over their on and off states (M3.3): the circuit is solved for each combination of the PWM pins high and low
+   *  and the answers weighted by the duties — an LED on 50 % carries half its current (on a steady duty × 3.3 V it
+   *  would stay below its forward voltage). Faults are found in every combination: the peaks are what burn. */
   update(): void {
     if (this.updateParts()) this.dirty = true;
     if (!this.dirty) return;
     this.dirty = false;
     const state = this.state();
-    this.solution = solve(this.netlist, state, this.solution);
-    this.faults = findFaults(this.spec, this.netlist, this.solution, state);
+    const pwm: [string, number][] = [];
+    for (const [label, p] of Object.entries(state.pins!)) {
+      if (p.mode !== 'pwm') continue;
+      if (p.duty <= 0 || p.duty >= 1) state.pins![label] = { mode: 'out', value: p.duty >= 1 ? 1 : 0 };
+      else pwm.push([label, p.duty]);
+    }
+    if (pwm.length === 0 || pwm.length > MAX_PWM_AVERAGED) {
+      // more PWM pins than that: their DC average (duty × voltage) — fine for resistive loads
+      this.solution = solve(this.netlist, state, this.previous.get(-1));
+      this.previous.set(-1, this.solution);
+      this.faults = findFaults(this.spec, this.netlist, this.solution, state);
+    } else {
+      this.averagePwm(state, pwm);
+    }
     for (const pin of this.netOfPin.keys()) this.pins.recheck(pin);
+  }
+
+  private averagePwm(state: SimState, pwm: [string, number][]): void {
+    const volts: Record<string, number> = {};
+    const amps: Record<string, number> = {};
+    const faults = new Map<string, Fault>();
+    let converged = true;
+    let iterations = 0;
+    for (let mask = 0; mask < 1 << pwm.length; mask++) {
+      let weight = 1;
+      const pins = { ...state.pins };
+      pwm.forEach(([label, duty], i) => {
+        const on = (mask >> i) & 1;
+        weight *= on ? duty : 1 - duty;
+        pins[label] = { mode: 'out', value: on ? 1 : 0 };
+      });
+      const combo = { ...state, pins };
+      const sol = solve(this.netlist, combo, this.previous.get(mask));
+      this.previous.set(mask, sol);
+      converged &&= sol.converged;
+      iterations += sol.iterations;
+      for (const [k, v] of Object.entries(sol.volts)) volts[k] = (volts[k] ?? 0) + weight * v;
+      for (const [k, v] of Object.entries(sol.amps)) amps[k] = (amps[k] ?? 0) + weight * v;
+      for (const f of findFaults(this.spec, this.netlist, sol, combo)) {
+        const key = `${f.kind}:${f.on}`;
+        const before = faults.get(key);
+        if (!before || (f.amps ?? 0) > (before.amps ?? 0)) faults.set(key, f);
+      }
+    }
+    this.solution = { volts, amps, converged, iterations };
+    this.faults = [...faults.values()];
+  }
+
+  /** A device's current (A), averaged over PWM (an LED's, a resistor's …); 0 if it carries none. */
+  amps(id: string): number {
+    this.update();
+    return this.solution!.amps[id] ?? 0;
   }
 
   /** The solved voltage of a header pin's net. */
