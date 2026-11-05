@@ -16,10 +16,10 @@ test.afterAll(async () => {
   rmSync(home, { recursive: true, force: true });
 });
 
-test('the built app opens a window titled MicroLab', async () => {
+test('the built app opens a window titled MicroLab, on the Workspace', async () => {
   const win = await app.firstWindow();
   await expect(win).toHaveTitle('MicroLab');
-  await expect(win.getByRole('heading', { name: 'MicroLab' })).toBeVisible();
+  await expect(win.getByRole('tab', { name: 'Workspace' })).toHaveAttribute('aria-selected', 'true');
 });
 
 test('the window is cross-origin isolated, so the simulation worker can share memory (architecture §2.2)', async () => {

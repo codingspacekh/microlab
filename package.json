@@ -3,7 +3,7 @@
   "productName": "MicroLab",
   "version": "0.0.0",
   "private": true,
-  "description": "Build breadboard circuits, write MicroPython and simulate them \u2014 micro:bit, Pico W, ESP32",
+  "description": "Build breadboard circuits, write MicroPython and simulate them — micro:bit, Pico W, ESP32",
   "main": "out/main/index.js",
   "type": "module",
   "scripts": {
@@ -24,6 +24,8 @@
     "golden": "node scripts/record-golden.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@micropython/micropython-webassembly-pyscript": "1.29.0-6",
     "react": "19.3.1",
     "react-dom": "19.3.1",

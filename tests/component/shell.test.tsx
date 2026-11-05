@@ -1,0 +1,51 @@
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { App } from '../../src/renderer/app/App';
+import type { MicrolabApi } from '../../src/renderer/app/api';
+
+function fakeApi(stored: Record<string, unknown> = {}): MicrolabApi & { set: ReturnType<typeof vi.fn> } {
+  const set = vi.fn(async (key: string, value: unknown) => { stored[key] = value; });
+  return { versions: { app: '0.4.0', electron: '0' }, settings: { get: async (key: string) => stored[key], set }, set } as never;
+}
+
+describe('M4.1 the shell (screens 01–03): top bar, modes, panels, status bar', () => {
+  it('has the brand, the three modes and a status bar', async () => {
+    render(<App api={fakeApi()} width={1440} />);
+    expect(screen.getByText('Lab')).toBeInTheDocument();
+    for (const name of ['Workspace', 'Learn', 'Examples']) expect(screen.getByRole('tab', { name })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Workspace' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('the workspace has the parts panel, the canvas and the code side, with two dividers', async () => {
+    render(<App api={fakeApi()} width={1440} />);
+    expect(screen.getByRole('region', { name: 'Parts' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Circuit' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Code' })).toBeInTheDocument();
+    expect(screen.getAllByRole('separator')).toHaveLength(2);
+  });
+
+  it('panel widths are proportions of the window, within limits: 17 % and 34 % by default', async () => {
+    render(<App api={fakeApi()} width={1440} />);
+    expect(screen.getByRole('separator', { name: 'Parts panel width' })).toHaveAttribute('aria-valuenow', String(Math.round(1440 * 0.17)));
+    expect(screen.getByRole('separator', { name: 'Code panel width' })).toHaveAttribute('aria-valuenow', String(Math.round(1440 * 0.34)));
+  });
+
+  it('a moved divider is saved as a proportion, and read back on the next start', async () => {
+    const api = fakeApi();
+    const { unmount } = render(<App api={api} width={1600} />);
+    const sep = screen.getByRole('separator', { name: 'Parts panel width' });
+    fireEvent.keyDown(sep, { key: 'ArrowRight' });   // 272 → 288 px
+    expect(api.set).toHaveBeenCalledWith('layout', expect.objectContaining({ parts: expect.closeTo(288 / 1600, 4) }));
+    unmount();
+    render(<App api={api} width={1600} />);
+    await vi.waitFor(() => expect(screen.getByRole('separator', { name: 'Parts panel width' })).toHaveAttribute('aria-valuenow', '288'));
+  });
+
+  it('Learn and Examples are their own pages (built in later milestones)', async () => {
+    render(<App api={fakeApi()} width={1440} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Learn' }));
+    expect(screen.getByRole('tab', { name: 'Learn' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('region', { name: 'Parts' })).not.toBeInTheDocument();
+  });
+});

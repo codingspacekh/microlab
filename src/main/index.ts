@@ -1,8 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import { app, BrowserWindow, protocol, session } from 'electron';
+import { app, BrowserWindow, ipcMain, protocol, session } from 'electron';
 import { APP_SCHEME, APP_URL, isolationHeaders, resolveAppPath, responseHeaders } from './app-protocol';
+import { SettingsStore } from './settings';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const rendererDir = join(here, '../renderer');
@@ -49,6 +50,9 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   serveAppFiles();
+  const settings = new SettingsStore(join(app.getPath('userData'), 'settings.json'));
+  ipcMain.handle('settings:get', (_e, key: string) => settings.get(key));
+  ipcMain.handle('settings:set', (_e, key: string, value: unknown) => settings.set(key, value));
   // Nothing in the window may open other sites (N-04, N-08).
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, done) => done(false));
   createWindow();
