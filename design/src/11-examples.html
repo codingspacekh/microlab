@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>11 Examples</title>
+{{include:head}}
+</head>
+<body>
+<!--@MODE_WS: -->
+<!--@MODE_EX: on-->
+<!--@TOP_RIGHT: <button class="btn">{{i:chevl:s14}} Back to Traffic lights</button>-->
+<p class="frame-label"><b>11 · Examples</b> — ready projects for every board, opened as a copy (F-04); each one is also an automated acceptance test that must run in every milestone from M3 (§1.11)</p>
+<div class="frame">
+  {{include:topbar-simple}}
+  <div style="flex:1;padding:24px 32px;display:flex;flex-direction:column;gap:16px;min-height:0">
+    <div class="row" style="align-items:flex-end">
+      <div class="col" style="gap:4px"><h1>Examples</h1><span class="muted">Open one, press Run, then change it. Opening makes a copy — the example stays as it was.</span></div>
+      <span class="spacer"></span>
+      <div class="field" style="width:240px">{{i:search:s14}}<span class="ph">Search examples</span></div>
+    </div>
+    <div class="row" style="gap:12px">
+      <div class="seg"><span class="on">All boards</span><span>{{part:microbit:bp}} micro:bit V2</span><span>{{part:pico:bp}} Pico W</span><span>{{part:esp32:bp}} ESP32</span></div>
+      <div class="seg"><span class="on">Any level</span><span><span class="lvl"><i class="on"></i><i></i><i></i></span> Starter</span><span><span class="lvl"><i class="on"></i><i class="on"></i><i></i></span> Next step</span><span><span class="lvl"><i class="on"></i><i class="on"></i><i class="on"></i></span> Project</span></div>
+      <span class="spacer"></span><span class="small muted">12 examples · 34 board versions</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">{{examples}}</div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>MicroLab — UI prototype</title>
+<meta name="viewport" content="width=device-width">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="fit.js" defer></script>
+
+<style>
+  body { padding: 48px; max-width: 980px; background: var(--bg); }
+  h1 { font-size: 24px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+  .sub { color: var(--tx-2); margin-bottom: 28px; line-height: 1.55; }
+  .list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .list a { display: block; padding: 14px 16px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); color: var(--tx-1); }
+  .list a:hover { border-color: var(--accent); }
+  .list a b { display: block; margin-bottom: 4px; }
+  .list a span { color: var(--tx-3); font-size: 12px; }
+  h2 { font-size: 15px; margin: 32px 0 10px; }
+  ol { color: var(--tx-2); padding-left: 20px; line-height: 1.8; }
+  code { font-family: var(--mono); font-size: 12px; background: var(--bg-2); padding: 1px 5px; border-radius: 4px; color: var(--tx-1); }
+</style></head>
+<body>
+<h1><svg class="logo" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="#2563d9"/><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M11 8V4.5M17 8V4.5M11 23.5V20M17 23.5V20M8 11H4.5M8 17H4.5M20 11h3.5M20 17h3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="14" r="2.2" fill="#7fe0a8"/></svg>
+ MicroLab — UI prototype</h1>
+<p class="sub">Static screens for review before coding. Each screen fills the browser window like the app's own window (1440 × 900 in a 1520 × 1010 window); resize it to see the layout follow — nothing has one fixed width (N-13). Requirement IDs (F-12, Q4…) refer to <code>docs/01-analysis-and-requirements.md</code>. The boards, breadboard and parts are drawn from their real pin positions, so every wire ends on a real pin or hole, and the numbers shown (5.9 mA, 34.0 cm) are worked out, not made up.</p>
+<div class="list">
+  <a href="01-start.html"><b>01 · Start</b><span>New project by board, open a .mlab file, recent projects, Learn and Examples</span></a>
+  <a href="02-wiring.html"><b>02 · Building: wiring</b><span>Drawing a wire from GP15; pin functions on hover; the joined breadboard column</span></a>
+  <a href="02b-properties.html"><b>02b · Part properties &amp; code help</b><span>Resistor inspector with colour bands; autocomplete with a short explanation</span></a>
+  <a href="03-running.html"><b>03 · Running</b><span>Traffic lights on the Pico W: line being run, LED glow, current on hover, press the button</span></a>
+  <a href="04-fault.html"><b>04 · A part burnt out</b><span>LED with no resistor: the run stops, the numbers, the fix</span></a>
+  <a href="05-code-error.html"><b>05 · An error in the code</b><span>Real MicroPython traceback, the line underlined, an explanation for students</span></a>
+  <a href="06-microbit.html"><b>06 · micro:bit V2 running</b><span>Display, buttons, speaker, music; tilt, light, temperature and sound inputs; a knob on P2</span></a>
+  <a href="07-esp32-distance.html"><b>07 · ESP32 with modules</b><span>HC-SR04 + I²C OLED; move the object; library file; Plotter</span></a>
+  <a href="08-send-to-board.html"><b>08 · Send to a real board</b><span>Boards over USB, board check, files, run and console; driver help</span></a>
+  <a href="09-part-servo.html"><b>09 · Learn: servo</b><span>How it works, pins and numbers, connecting to the Pico W with code, common mistakes, Try it</span></a>
+  <a href="10-board-pico.html"><b>10 · Learn: Pico W pinout</b><span>Every pin's functions; the ADC filter; numbers and traps</span></a>
+  <a href="11-examples.html"><b>11 · Examples</b><span>12 ready projects by board and level — also the acceptance tests</span></a>
+  <a href="12-design-system.html"><b>12 · Design system</b><span>Colours, pin functions, wire colours, type, controls, part states, message levels, icons</span></a>
+  <a href="12b-form-controls.html"><b>12b · Form controls</b><span>Fields, dropdowns, checkboxes, radio buttons, switches, segments, sliders, steppers, colour pickers — every state, never the browser's default</span></a>
+</div>
+<h2>Rebuild</h2>
+<ol><li>Edit <code>design/src/*.html</code>, the drawings in <code>design/svgparts.py</code> or the circuits in <code>design/scenes.py</code>.</li><li>Run <code>python3 design/build.py</code> — it writes <code>design/screens/</code>.</li></ol>
+<h2>Import into Figma (optional)</h2>
+<ol><li>Install the <b>html.to.design</b> plugin in Figma.</li><li>Open a screen in the browser, or point the plugin at the file, and import it as a frame — make the browser window 1520 × 1010 first to get a 1440 × 900 frame.</li></ol>
+</body></html>

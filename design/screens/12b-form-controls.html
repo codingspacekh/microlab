@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>12b Form controls</title>
+<meta name="viewport" content="width=device-width">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="fit.js" defer></script>
+
+</head>
+<body>
+<p class="frame-label"><b>12b · Design system: form controls</b> — every control is the app's own, in every state; never the browser's default look (N-14); cards share the width at any window size (N-13)</p>
+<div class="frame">
+  <div class="topbar">
+  <div class="brand"><svg class="logo" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="#2563d9"/><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M11 8V4.5M17 8V4.5M11 23.5V20M17 23.5V20M8 11H4.5M8 17H4.5M20 11h3.5M20 17h3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="14" r="2.2" fill="#7fe0a8"/></svg>
+<b>Micro<span>Lab</span></b></div>
+  <div class="seg modes"><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg> Workspace</span><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M8 7h7"/></svg> Learn</span><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3"/></svg> Examples</span></div>
+  <span class="spacer"></span>
+  <span class="small muted">Design system · form controls</span>
+</div>
+
+  <div class="fc">
+    <div class="fcol">
+      <div class="card">
+        <h2>Text fields <small>name · search · value</small></h2>
+        <div class="fld"><label>Project name</label><div class="field focus"><span class="val">Traffic lights</span><span class="caret"></span></div><span class="help">Saved as <span class="mono">Traffic lights.mlab</span></span></div>
+        <div class="fld"><label>Search</label><div class="field"><svg class="ico s14" viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 0 0 14a7 7 0 0 0 0-14M16.5 16.5L21 21"/></svg><span class="val">servo</span><span class="clr"><svg class="ico s12" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></span></div></div>
+        <div class="states">
+          <div class="st">Normal<div class="field"><span class="ph">Type here</span></div></div>
+          <div class="st">Hover<div class="field hover"><span class="ph">Type here</span></div></div>
+          <div class="st">Error<div class="field err"><span class="val">main.p y</span></div></div>
+          <div class="st">Disabled<div class="field dis"><span class="val">main.py</span></div></div>
+        </div>
+        <span class="help err"><svg class="ico s12" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18M12 8v5M12 16h.01"/></svg> A file name can't have spaces in MicroPython imports.</span>
+        <div class="fld"><label>Notes</label><div class="area small">Build with the green LED first, then add the button.</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Colour pickers <small>wires · LEDs · NeoPixels</small></h2>
+        <div class="fld"><label>Wire colour</label><div class="swatches"><span class="swatch" style="background:#de3b3b"></span><span class="swatch" style="background:#3a3d42"></span><span class="swatch" style="background:#f08024"></span><span class="swatch" style="background:#efbd16"></span><span class="swatch on" style="background:#2fa253"></span><span class="swatch" style="background:#2f6fd6"></span><span class="swatch" style="background:#9160d6"></span><span class="swatch" style="background:#f4f5f7"></span></div><span class="help">Red and black are kept for power and GND.</span></div>
+        <div class="fld"><label>NeoPixel 3</label>
+          <div class="row" style="gap:10px;align-items:stretch">
+            <div style="width:64px;flex:none;border-radius:8px;background:linear-gradient(135deg,#ff4fd8,#5b6cff)"></div>
+            <div class="col" style="gap:6px;flex:1;min-width:0">
+              <div class="slider" style="grid-template-columns:18px 1fr 34px;margin:0"><span>R</span><span class="track"><i style="width:100%;background:#e53935"></i><b style="left:100%;border-color:#e53935"></b></span><span class="v">255</span></div>
+              <div class="slider" style="grid-template-columns:18px 1fr 34px;margin:0"><span>G</span><span class="track"><i style="width:31%;background:#2fa253"></i><b style="left:31%;border-color:#2fa253"></b></span><span class="v">80</span></div>
+              <div class="slider" style="grid-template-columns:18px 1fr 34px;margin:0"><span>B</span><span class="track"><i style="width:85%;background:#2f6fd6"></i><b style="left:85%;border-color:#2f6fd6"></b></span><span class="v">216</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="fcol">
+      <div class="card">
+        <h2>Dropdown <small>never a native select</small></h2>
+        <div class="fld"><label>LED colour</label>
+          <div class="field select open"><span class="row" style="gap:8px"><i class="dot" style="width:10px;height:10px;background:#e53935"></i>Red</span><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+          <div class="menu static">
+            <div class="mi on"><span class="ck"><svg class="ico s12" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span><i class="dot" style="width:10px;height:10px;background:#e53935"></i>Red<small>2.0 V</small></div>
+            <div class="mi hl"><span class="ck"></span><i class="dot" style="width:10px;height:10px;background:#f2b705"></i>Yellow<small>2.1 V</small></div>
+            <div class="mi"><span class="ck"></span><i class="dot" style="width:10px;height:10px;background:#2fa253"></i>Green<small>2.2 V</small></div>
+            <div class="mi"><span class="ck"></span><i class="dot" style="width:10px;height:10px;background:#2f6fd6"></i>Blue<small>3.0 V</small></div>
+            <div class="mi"><span class="ck"></span><i class="dot" style="width:10px;height:10px;background:#f4f5f7;box-shadow:inset 0 0 0 1px #c9d0d8"></i>White<small>3.0 V</small></div>
+          </div>
+        </div>
+        <div class="fld"><label>Board</label>
+          <div class="field select"><span>Raspberry Pi Pico W</span><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+        </div>
+        <div class="states">
+          <div class="st">Error<div class="field select err"><span class="ph">Choose…</span><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div></div>
+          <div class="st">Disabled<div class="field select dis"><span>Red</span><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Numbers <small>stepper · quick values</small></h2>
+        <div class="fld"><label>Resistance</label>
+          <div class="two"><div class="stepper focus"><button><svg class="ico s14" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><span class="v">220</span><button><svg class="ico s14" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div><div class="field select"><span>Ω</span><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div></div>
+          <div class="chips"><span class="chip">100</span><span class="chip on">220</span><span class="chip">330</span><span class="chip">1k</span><span class="chip">4.7k</span><span class="chip">10k</span></div>
+          <span class="help">− / + step through the standard values (E12).</span>
+        </div>
+        <div class="fld"><label>Servo angle</label><div class="stepper" style="border-color:var(--danger);box-shadow:0 0 0 3px var(--danger-soft)"><button><svg class="ico s14" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><span class="v">200 <small>°</small></span><button><svg class="ico s14" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div><span class="help err">An SG90 turns 0–180°.</span></div>
+      </div>
+    </div>
+    <div class="fcol">
+      <div class="card">
+        <h2>Checkboxes &amp; radio buttons</h2>
+        <div class="col" style="gap:2px">
+          <div class="crow"><span class="check on"><svg class="ico s12" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span><div class="tx"><b>Run it when copied</b><span>and show the board's console here</span></div></div>
+          <div class="crow hover"><span class="check hover"></span><div class="tx"><b>Remove other files on the board</b><span>files that aren't in this project</span></div></div>
+          <div class="crow"><span class="check mixed"></span><div class="tx"><b>lib/</b><span>2 of 3 files chosen</span></div></div>
+          <div class="crow dis"><span class="check on dis"><svg class="ico s12" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span><div class="tx"><b>Keep a copy of the old main.py</b><span>not on the micro:bit (no space)</span></div></div>
+        </div>
+        <div class="tag">One of</div>
+        <div class="col" style="gap:2px">
+          <div class="crow"><span class="radio on"></span><div class="tx"><b>Half breadboard</b><span>30 columns</span></div></div>
+          <div class="crow"><span class="radio focus"></span><div class="tx"><b>Full breadboard</b><span>63 columns</span></div></div>
+          <div class="crow dis"><span class="radio dis"></span><div class="tx"><b>No breadboard</b><span>wires straight to the pins</span></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Sliders <small>inputs while running</small></h2>
+        <div class="slider"><span><svg class="ico s12" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8a4 4 0 0 0 0-8M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></svg> Light</span><span class="track"><i style="width:62%"></i><b style="left:62%"></b></span><span class="v">620 lx</span></div>
+        <div class="slider"><span><svg class="ico s12" viewBox="0 0 24 24"><path d="M10 14V5a2 2 0 0 1 4 0v9a4 4 0 1 1-4 0zM12 9v7"/></svg> Temp</span><span class="track"><i style="width:40%"></i><b class="focus" style="left:40%"></b></span><span class="v">24 °C</span></div>
+        <div class="slider"><span>Distance</span><span class="track"><i style="width:8%"></i><b style="left:8%"></b></span><span class="v">34 cm</span><span class="ticks"><span>2</span><span>100</span><span>200</span><span>300</span><span>400</span></span></div>
+        <div class="slider dis"><span>Knob</span><span class="track"><i style="width:55%"></i><b style="left:55%"></b></span><span class="v muted">562</span></div>
+      </div>
+    </div>
+    <div class="fcol">
+      <div class="card">
+        <h2>Switches &amp; segments</h2>
+        <div class="col" style="gap:2px">
+          <div class="crow"><span class="switch on"></span><div class="tx"><b>Show current on hover</b><span>mA and V beside each part while running</span></div></div>
+          <div class="crow"><span class="switch"></span><div class="tx"><b>Sound</b><span>buzzers and the micro:bit speaker</span></div></div>
+          <div class="crow"><span class="switch on focus"></span><div class="tx"><b>Autosave</b><span>keyboard focus</span></div></div>
+          <div class="crow dis"><span class="switch dis"></span><div class="tx"><b>Wi-Fi pages</b><span>IoT phase</span></div></div>
+        </div>
+        <div class="fld"><label>Show examples for</label><span class="seg full"><span class="on">All</span><span>micro:bit</span><span>Pico W</span><span>ESP32</span></span></div>
+      </div>
+
+      <div class="card" style="background:var(--accent-soft);border-color:var(--accent-line)">
+        <h2 style="color:var(--accent-ink)"><svg class="ico " viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18M12 11v5M12 8h.01"/></svg> Rules for the app</h2>
+        <div class="col small" style="gap:7px;color:var(--tx-2);line-height:1.5">
+          <span><b style="color:var(--tx-1)">Fill the width.</b> Panels share the window by proportion between a minimum and a maximum; no fixed page width, no empty bands (N-13).</span>
+          <span><b style="color:var(--tx-1)">Fields stretch</b> to their column; only icons, swatches and checkboxes have a fixed size.</span>
+          <span><b style="color:var(--tx-1)">Our controls only.</b> Native <span class="mono">&lt;select&gt;</span>, date, time and colour inputs are refused by lint; arrow keys and typing work in every control; the system's Open / Save dialogs are the only native ones (N-14).</span>
+          <span><b style="color:var(--tx-1)">Keyboard:</b> Tab reaches every control; Space / Enter choose; arrows move in lists, sliders and segments.</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body></html>

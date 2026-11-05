@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>04 A part burnt out</title>
+{{include:head}}
+</head>
+<body>
+<!--@CTABS: <a>{{i:term:s14}} Console</a><a>{{i:plot:s14}} Plotter</a><a class="on">{{i:warn:s14}} Problems <span class="cnt">2</span></a>-->
+<!--@CONSOLE: <div class="cbody" style="font-family:var(--font);font-size:12.5px;line-height:1.45;padding:4px 0">
+<div class="row" style="padding:9px 12px;border-bottom:1px solid var(--line);align-items:flex-start"><span style="color:var(--danger)">{{i:alert}}</span><div class="col" style="gap:2px;flex:1"><b>LED1 (green) burnt out</b><span class="muted small">About 48 mA from GP13 — no resistor. The simulation stopped at 00:01.4.</span></div><button class="btn sm">Show</button></div>
+<div class="row" style="padding:9px 12px;border-bottom:1px solid var(--line);align-items:flex-start"><span style="color:var(--warn)">{{i:warn}}</span><div class="col" style="gap:2px;flex:1"><b>GP13 gave more than it should</b><span class="muted small">48 mA from one pin; a Pico W pin should give at most 12 mA.</span></div><button class="btn sm">Show</button></div>
+</div>-->
+<!--@STATUS: <span class="st" style="color:var(--danger)"><span class="dot" style="background:var(--danger)"></span>Stopped: a part was damaged</span>-->
+<!--@STATUS_R: <span class="row" style="gap:5px;color:var(--danger)">{{i:alert:s12}} 1 part damaged</span>-->
+<p class="frame-label"><b>04 · A mistake shows a real result</b> — the green LED is wired with no resistor: it burns out, the run stops, and the app says why, with the numbers and the fix (F-37, §1.3 <i>Teaching faults</i>); Problems lists it (F-24)</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:traffic:fault}}
+      <div class="float fault" style="left:232px;top:562px">
+        <div class="fh">{{i:alert:s18}} LED1 burnt out</div>
+        <p>GP13 goes straight to the green LED with no resistor, so far too much current flowed. A real LED would now be dead.</p>
+        <div class="nums"><div><small>Current</small><b class="bad">≈ 48 mA</b></div><div><small>LED can take</small><b>20 mA</b></div><div><small>Pin can give</small><b>12 mA</b></div></div>
+        <p><b style="color:var(--tx-1)">Fix:</b> put a 220 Ω resistor between GP13 and the LED, like the other two.</p>
+        <div class="acts"><button class="btn sm primary">{{i:book:s14}} Show me how</button><button class="btn sm">Replace the LED</button><button class="btn sm ghost">{{i:undo:s14}} Undo</button></div>
+      </div></div>
+      <div class="ctools" style="opacity:0"></div>
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

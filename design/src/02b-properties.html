@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>02b Part properties</title>
+{{include:head}}
+</head>
+<body>
+<!--@EDITOR: {{code:traffic_typing}}<div class="ac" style="left:150px;top:166px"><div class="on"><b style="color:var(--code-num)">C</b> PULL_UP<small>pull-up resistor on</small></div><div><b style="color:var(--code-num)">C</b> PULL_DOWN<small>pull-down resistor on</small></div><span class="doc"><b>Pin.PULL_UP</b> — turns on the pin's own resistor to 3.3 V (about 50 kΩ), so the pin reads <b>1</b> until a button joins it to GND and it reads <b>0</b>. No resistor needed on the breadboard.</span></div>-->
+<!--@UNSAVED: <span class="unsaved" title="Not saved"></span>-->
+<!--@PROJECT_SUB: Pico W · not saved-->
+<p class="frame-label"><b>02b · Building: part properties &amp; code help</b> — the selected resistor's inspector with colour bands (F-14); autocomplete for the board's modules with a short explanation (F-20)</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:traffic:props}}
+      <div class="float inspector" style="left:384px;top:566px">
+        <div class="ih"><span class="pic" style="width:28px;height:28px;border-radius:6px;background:var(--bg);display:grid;place-items:center">{{part:resistor:bp}}</span><div class="col" style="gap:0"><b>R3 · Resistor</b><span class="tiny muted">for the red LED</span></div><span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+        <div class="prop"><span>Resistance</span><div class="row" style="gap:4px;min-width:0"><div class="stepper sm focus" style="flex:1"><button>{{i:minus:s12}}</button><span class="v">220</span><button>{{i:plus:s12}}</button></div><div class="field select" style="height:28px;flex:0 0 64px;padding:0 6px 0 9px"><span>Ω</span>{{i:chevd:s12}}</div></div></div>
+        <div class="prop"><span></span><div class="chips"><span class="chip">100</span><span class="chip on">220</span><span class="chip">330</span><span class="chip">1k</span><span class="chip">4.7k</span><span class="chip">10k</span></div></div>
+        <div class="prop"><span>Colour bands</span><div class="row" style="gap:3px"><i class="wire-sw" style="width:16px;height:14px;border-radius:3px;background:#d32f2f"></i><i class="wire-sw" style="width:16px;height:14px;border-radius:3px;background:#d32f2f"></i><i class="wire-sw" style="width:16px;height:14px;border-radius:3px;background:#6d4c41"></i><i class="wire-sw" style="width:16px;height:14px;border-radius:3px;background:#c9a227"></i></div></div>
+        <div class="prop"><span>Joins</span><span class="small">GP15 ↔ LED3</span></div>
+        <div class="row" style="gap:6px;margin-top:12px"><button class="btn sm">{{i:rotate:s14}} Rotate</button><button class="btn sm">{{i:copy:s14}}</button><button class="btn sm danger">{{i:trash:s14}}</button><span class="spacer"></span><a class="small" style="font-weight:600">{{i:book:s12}} Learn</a></div>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

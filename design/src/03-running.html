@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>03 Running</title>
+{{include:head}}
+</head>
+<body>
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@EDITOR: {{code:traffic:cur=21}}-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.24.1 on Raspberry Pi Pico W (simulated)
+Type "help()" for more information.</span>
+Button pressed: stopping traffic
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running main.py — Stop or <span class="kbd">Ctrl</span>+<span class="kbd">C</span> breaks in</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.08 ms</span>-->
+<p class="frame-label"><b>03 · Running</b> — MicroPython runs the student's code (F-30); the line being run is marked; the red LED glows from the real current (F-31, F-36); hover shows current and voltage; click the button to press it (F-35); print() in the console (F-23); Stop always works (F-22, N-03)</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:traffic:run}}
+      <div class="tip" style="left:330px;top:548px;width:176px">
+        <b>LED3 · red · ON</b>
+        <div style="margin-top:4px;font-family:var(--mono);font-size:11.5px">5.9 mA · 2.0 V across</div>
+        <div style="height:4px;background:rgba(255,255,255,.18);border-radius:2px;margin-top:6px"><div style="width:30%;height:4px;background:#7fe0a8;border-radius:2px"></div></div>
+        <div style="opacity:.7;font-size:11px;margin-top:3px">30 % of the 20 mA it can take</div>
+      </div>
+      <div class="tip" style="left:530px;top:392px;width:150px"><b>Push button</b><div style="opacity:.8">Click to press. <span style="white-space:nowrap">Shift-click</span> keeps it pressed.</div></div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

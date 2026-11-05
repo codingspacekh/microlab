@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>05 Error in the code</title>
+{{include:head}}
+</head>
+<body>
+<!--@EDITOR: {{code:traffic:err=5}}-->
+<!--@FILES: <a class="on">{{i:file:s14}} main.py <span class="dot" style="background:var(--danger);width:7px;height:7px"></span></a>-->
+<!--@CTABS: <a class="on">{{i:term:s14}} Console</a><a>{{i:plot:s14}} Plotter</a><a>{{i:warn:s14}} Problems <span class="cnt">1</span></a>-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.24.1 on Raspberry Pi Pico W (simulated)</span>
+<span class="err">Traceback (most recent call last):
+  File "main.py", line 5, in &lt;module&gt;
+NameError: name 'pin' isn't defined</span>
+<div class="explain"><b>What this means:</b> Python doesn't know the name <code>pin</code> on line 5. Names are case-sensitive — line 1 brings in <code>Pin</code> with a capital <b>P</b>.<div class="row" style="margin-top:8px;gap:6px"><button class="btn sm primary">Go to line 5</button><button class="btn sm">More about NameError</button></div></div></div><div class="prompt"><b>&gt;&gt;&gt;</b><span class="blink">|</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--danger)"><span class="dot" style="background:var(--danger)"></span>Stopped: error on line 5</span>-->
+<p class="frame-label"><b>05 · An error in the code</b> — the real MicroPython message, the line highlighted and underlined, and a short explanation for students beside it (F-24, N-01, N-07); the REPL is ready after the program ends (F-23)</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:traffic:error}}</div>
+      <div class="float row" style="left:12px;top:12px;padding:8px 12px;gap:8px;font-size:12.5px;border-color:var(--danger-line)"><span style="color:var(--danger)">{{i:alert}}</span>The program stopped: an error in <b>main.py</b>, line 5. The circuit is fine.</div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

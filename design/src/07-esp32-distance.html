@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>07 ESP32 distance meter</title>
+{{include:head}}
+</head>
+<body>
+<!--@PROJECT: Distance meter-->
+<!--@PROJECT_SUB: ESP32 · saved 5 min ago-->
+<!--@BOARD: ESP32 DevKit V1 (30-pin)-->
+<!--@BOARD_PIC: {{part:esp32:bp}}-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 00:16-->
+<!--@EDITOR: {{code:distance:cur=25}}-->
+<!--@FILES: <a class="on">{{i:file:s14}} main.py</a><a>{{i:file:s14}} ssd1306.py <span class="tiny muted" style="font-family:var(--font)">library</span></a>-->
+<!--@COUNTS: ESP32 + 5 parts · 14 wires-->
+<!--@CTABS: <a>{{i:term:s14}} Console</a><a class="on">{{i:plot:s14}} Plotter</a><a>{{i:warn:s14}} Problems</a>-->
+<!--@CONSOLE: <div class="cbody" style="padding:6px 10px 0;font-family:var(--font)"><div class="row" style="gap:8px;font-size:12px;margin-bottom:2px"><b>d</b><span class="muted">— printed by line 24 · 5 a second · cm</span><span class="spacer"></span><span class="seg" style="padding:2px"><span class="on" style="height:20px;font-size:11px">16 s</span><span style="height:20px;font-size:11px">1 min</span></span></div>{{scene:plot}}</div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span><span>I²C: OLED at 0x3C</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.11 ms</span>-->
+<p class="frame-label"><b>07 · ESP32 with modules</b> — HC-SR04 and an I²C OLED answer at the protocol level (F-34); move the object in front of the sensor while it runs (F-35); the OLED shows what the code drew (F-36); a library file beside <code>main.py</code> (F-21); printed numbers in the Plotter (F-26); a 1 k + 2 k divider brings Echo's 5 V down to 3.3 V</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:distance}}
+      <div class="float inputs" style="left:388px;top:672px;width:292px">
+        <div class="ih">Object in front of the HC-SR04</div>
+        <div class="slider" style="grid-template-columns:1fr 64px"><span class="track"><i style="width:8%"></i><b style="left:8%"></b></span><span class="v">34.0 cm</span></div>
+        <div class="row tiny muted" style="justify-content:space-between;margin-top:6px"><span>2 cm</span><span>Echo lasts 1972 µs</span><span>400 cm</span></div>
+      </div></div>
+      <div class="ctools">
+        <button class="btn ghost sm icon">{{i:zoomout:s14}}</button><span class="zoom">100%</span><button class="btn ghost sm icon">{{i:zoomin:s14}}</button>
+      </div>
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

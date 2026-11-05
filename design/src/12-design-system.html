@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>12 Design system</title>
+{{include:head}}
+</head>
+<body>
+<p class="frame-label"><b>12 · Design system</b> — colours, pin functions, wire colours, type, controls, part states, how serious a message is, icons</p>
+<div class="frame">
+  <div class="ds">
+    <div>
+      <h2>Colours</h2>
+      <div class="sw">
+        <div><i style="background:var(--accent)"></i><b>Accent</b>#2563D9</div>
+        <div><i style="background:var(--run)"></i><b>Run</b>#1F9D55</div>
+        <div><i style="background:var(--danger)"></i><b>Danger · Stop</b>#D03B3B</div>
+        <div><i style="background:var(--warn)"></i><b>Warning</b>#B7791F</div>
+        <div><i style="background:var(--tx-1)"></i><b>Text 1</b>#151A21</div>
+        <div><i style="background:var(--tx-3)"></i><b>Text 3</b>#7C8594</div>
+        <div><i style="background:var(--bg)"></i><b>Background</b>#F4F6F8</div>
+        <div><i style="background:var(--canvas);background-image:radial-gradient(var(--canvas-dot) 1px,transparent 1.2px);background-size:8px 8px"></i><b>Workspace</b>#EEF1F3</div>
+      </div>
+      <h2 style="margin-top:22px">Pin functions</h2>
+      <p class="small muted" style="margin:-4px 0 8px">The same colour on every board page and pin tooltip.</p>
+      <div class="legend"><span class="fn power">Power</span><span class="fn gnd">GND</span><span class="fn gpio">Digital</span><span class="fn pwm">PWM</span><span class="fn adc">ADC</span><span class="fn i2c">I²C</span><span class="fn spi">SPI</span><span class="fn uart">UART</span><span class="fn touch">Touch</span><span class="fn adc dim">not this filter</span></div>
+      <h2 style="margin-top:22px">Wire colours</h2>
+      <p class="small muted" style="margin:-4px 0 8px">Red and black are kept for power and GND, as on a real build.</p>
+      <div class="col" style="gap:6px;font-size:12.5px">
+        <span><i class="wire-sw" style="background:#de3b3b"></i><b>Red</b> — power (3V3, 5 V)</span>
+        <span><i class="wire-sw" style="background:#f08024"></i><b>Orange</b> — 5 V when 3V3 is also used</span>
+        <span><i class="wire-sw" style="background:#3a3d42"></i><b>Black</b> — GND</span>
+        <span><i class="wire-sw" style="background:#efbd16"></i><i class="wire-sw" style="background:#2fa253"></i><i class="wire-sw" style="background:#2f6fd6"></i><i class="wire-sw" style="background:#9160d6"></i><i class="wire-sw" style="background:#f4f5f7;border:1px solid #c9d0d8"></i><b>Signals</b> — the student's choice</span>
+      </div>
+    </div>
+    <div>
+      <h2>Type · Inter &amp; JetBrains Mono</h2>
+      <div class="col" style="gap:0">
+        <div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><span class="small muted" style="width:120px">Page title · 20/650</span><h1>Servo motor</h1></div>
+        <div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><span class="small muted" style="width:120px">Section · 15/650</span><h2>How it works</h2></div>
+        <div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><span class="small muted" style="width:120px">Body · 13/400</span><span>Press Run to start.</span></div>
+        <div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><span class="small muted" style="width:120px">Code · 12.5 mono</span><span class="mono" style="font-size:12.5px"><span class="k">from</span> machine <span class="k">import</span> Pin</span></div>
+      </div>
+      <h2 style="margin-top:22px">Buttons &amp; controls <a class="small" href="12b-form-controls.html" style="font-weight:600;margin-left:6px">all form controls →</a></h2>
+      <div class="row" style="flex-wrap:wrap;gap:8px">
+        <span class="btn run">{{i:play:s14}} Run</span><span class="btn stop">{{i:stop:s14}} Stop</span><span class="btn primary">{{i:send:s14}} Send and run</span><span class="btn">Secondary</span><span class="btn ghost">Ghost</span><span class="btn danger">{{i:trash:s14}}</span><span class="btn sm">Small</span>
+      </div>
+      <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">
+        <div class="field" style="width:160px">{{i:search:s14}}<span class="ph">Search parts</span></div><div class="field focus" style="width:110px"><b>220 Ω</b></div>
+        <span class="seg"><span class="on">Pico W</span><span>ESP32</span></span><span class="check on">{{i:check:s12}}</span><span class="radio on"></span>
+      </div>
+      <h2 style="margin-top:22px">Code colours</h2>
+      <div class="codebox" style="padding:6px 0">{{code:adc}}</div>
+      <div class="legend" style="margin-top:8px;font-size:11.5px"><span class="k">keyword</span>·<span class="f">function</span>·<span class="s">"text"</span>·<span class="n">number</span>·<span class="c"># comment</span>·<span style="background:var(--code-cur);padding:0 4px">line running</span>·<span style="background:var(--code-err);padding:0 4px">error line</span></div>
+    </div>
+    <div>
+      <h2>Part states</h2>
+      <div class="card" style="padding:6px 10px;background:var(--canvas)">{{scene:ledstates}}</div>
+      <h2 style="margin-top:22px">How serious a message is</h2>
+      <div class="col" style="gap:8px">
+        <div class="row" style="gap:10px;padding:9px 11px;border:1px solid var(--danger-line);background:var(--danger-soft);border-radius:9px"><span style="color:var(--danger)">{{i:alert}}</span><div class="col" style="gap:0"><b class="small">Damage · the run stops</b><span class="tiny muted">a part burnt out, a short circuit, 5 V on a 3.3 V pin</span></div></div>
+        <div class="row" style="gap:10px;padding:9px 11px;border:1px solid var(--warn-line);background:var(--warn-soft);border-radius:9px"><span style="color:var(--warn)">{{i:warn}}</span><div class="col" style="gap:0"><b class="small">Warning · keeps running</b><span class="tiny muted">a floating input, a pin giving too much, servo on 3V3</span></div></div>
+        <div class="row" style="gap:10px;padding:9px 11px;border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:9px"><span style="color:var(--accent)">{{i:info}}</span><div class="col" style="gap:0"><b class="small">Tip · explains</b><span class="tiny muted">what an error means, what to try next</span></div></div>
+      </div>
+      <h2 style="margin-top:22px">Icons</h2>
+      <div class="row" style="flex-wrap:wrap;gap:12px;color:var(--tx-2)">{{i:play}}{{i:stop}}{{i:restart}}{{i:undo}}{{i:redo}}{{i:usb}}{{i:send}}{{i:book}}{{i:bulb}}{{i:grid}}{{i:search}}{{i:wire}}{{i:meter}}{{i:plot}}{{i:term}}{{i:rotate}}{{i:trash}}{{i:copy}}{{i:alert}}{{i:warn}}{{i:info}}{{i:check}}{{i:cpu}}{{i:bolt}}{{i:tilt}}{{i:shake}}{{i:sun}}{{i:therm}}{{i:mic}}{{i:touch}}</div>
+      <h2 style="margin-top:22px">Part icons</h2>
+      <div class="row" style="flex-wrap:wrap;gap:6px">{{part:led:bp}}{{part:resistor:bp}}{{part:button:bp}}{{part:pot:bp}}{{part:ldr:bp}}{{part:buzzer:bp}}{{part:hcsr04:bp}}{{part:dht:bp}}{{part:pir:bp}}{{part:servo:bp}}{{part:motor:bp}}{{part:driver:bp}}{{part:oled:bp}}{{part:lcd:bp}}{{part:seg7:bp}}{{part:neopixel:bp}}{{part:microbit:bp}}{{part:pico:bp}}{{part:esp32:bp}}</div>
+    </div>
+  </div>
+</div>
+</body></html>

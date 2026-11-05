@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>01 Start</title>
+{{include:head}}
+</head>
+<body>
+<!--@MODE_WS: -->
+<!--@TOP_RIGHT: <button class="btn">{{i:folder:s14}} Open a project…</button>-->
+<p class="frame-label"><b>01 · Start</b> — a new project starts from the board the student will use (F-01); open a <code>.mlab</code> file (F-02); recent projects (F-05); a way into Learn and Examples (F-04, F-40)</p>
+<div class="frame">
+  {{include:topbar-simple}}
+  <div class="start">
+    <div class="col" style="flex:1;gap:16px;min-width:0">
+      <div><h1>Start a new project</h1><p class="muted" style="margin-top:4px">Choose the board you'll use. The breadboard and a starter <code>main.py</code> are ready for you.</p></div>
+      <div class="row" style="gap:14px;align-items:stretch">
+        <div class="card bcard"><div class="art">{{scene:board:microbit}}</div><div class="col" style="gap:2px"><b style="font-size:14px">BBC micro:bit V2</b><span class="small muted">5×5 display, buttons, speaker, motion sensor, radio</span></div><span class="small muted mono">from microbit import *</span><button class="btn" style="justify-content:center">{{i:plus:s14}} New micro:bit project</button></div>
+        <div class="card bcard on"><div class="art">{{scene:board:pico}}</div><div class="col" style="gap:2px"><b style="font-size:14px">Raspberry Pi Pico W</b><span class="small muted">26 GP pins, 3 analog inputs, Wi-Fi</span></div><span class="small muted mono">from machine import Pin</span><button class="btn primary" style="justify-content:center">{{i:plus:s14}} New Pico W project</button></div>
+        <div class="card bcard"><div class="art">{{scene:board:esp32}}</div><div class="col" style="gap:2px"><b style="font-size:14px">ESP32 DevKit V1</b><span class="small muted">30 pins, touch pins, Wi-Fi and Bluetooth</span></div><span class="small muted mono">from machine import Pin</span><button class="btn" style="justify-content:center">{{i:plus:s14}} New ESP32 project</button></div>
+      </div>
+      <div class="card" style="padding:4px 6px">
+        <div class="row" style="padding:10px 12px 4px"><h2>Recent projects</h2><span class="spacer"></span><a class="small" style="font-weight:600">{{i:folder:s12}} Open a project…</a></div>
+        <div class="recent"><span class="ri" style="background:#e8f4ec">{{part:pico:bp}}</span><div class="col" style="gap:1px;flex:1"><b>Traffic lights</b><span class="tiny muted mono">Documents/MicroLab/Traffic lights.mlab</span></div><span class="pill">Pico W</span><span class="small muted" style="width:90px;text-align:right">Today 10:42</span></div>
+        <div class="recent"><span class="ri" style="background:#e9edf3">{{part:esp32:bp}}</span><div class="col" style="gap:1px;flex:1"><b>Distance meter</b><span class="tiny muted mono">Documents/MicroLab/Distance meter.mlab</span></div><span class="pill">ESP32</span><span class="small muted" style="width:90px;text-align:right">Yesterday</span></div>
+        <div class="recent"><span class="ri" style="background:#ececed">{{part:microbit:bp}}</span><div class="col" style="gap:1px;flex:1"><b>Heart &amp; knob</b><span class="tiny muted mono">Documents/MicroLab/Heart and knob.mlab</span></div><span class="pill">micro:bit V2</span><span class="small muted" style="width:90px;text-align:right">3 Nov</span></div>
+        <div class="recent"><span class="ri" style="background:#e8f4ec">{{part:pico:bp}}</span><div class="col" style="gap:1px;flex:1"><b>Night light</b><span class="tiny muted mono">Desktop/Night light.mlab</span></div><span class="pill">Pico W</span><span class="small muted" style="width:90px;text-align:right">1 Nov</span></div>
+      </div>
+    </div>
+    <div class="col" style="flex:0 0 clamp(300px, 27%, 440px);gap:14px;min-width:0">
+      <div class="card" style="padding:16px 18px">
+        <h2 style="display:flex;gap:8px;align-items:center">{{i:book}} Learn</h2>
+        <p class="small muted" style="margin:4px 0 10px">How every part works, its pins, and how to connect it to your board.</p>
+        <div class="col" style="gap:2px">
+          <a class="pitem">{{i:grid:s14}}<span class="nm">How a breadboard works</span>{{i:chevr:s14}}</a>
+          <a class="pitem">{{i:bolt:s14}}<span class="nm">Volts, amps and ohms</span>{{i:chevr:s14}}</a>
+          <a class="pitem">{{i:cpu:s14}}<span class="nm">Which board should I use?</span>{{i:chevr:s14}}</a>
+          <a class="pitem">{{i:list:s14}}<span class="nm">All 24 parts</span>{{i:chevr:s14}}</a>
+        </div>
+      </div>
+      <div class="card" style="padding:16px 18px">
+        <h2 style="display:flex;gap:8px;align-items:center">{{i:bulb}} Examples</h2>
+        <p class="small muted" style="margin:4px 0 10px">Ready projects to run and change.</p>
+        <div class="row" style="gap:8px">
+          <div class="col" style="flex:1;gap:4px;padding:10px;background:var(--bg);border-radius:9px"><span class="row" style="gap:2px">{{part:led:bp}}{{part:led:bp}}{{part:button:bp}}</span><b class="small">Traffic lights</b></div>
+          <div class="col" style="flex:1;gap:4px;padding:10px;background:var(--bg);border-radius:9px"><span class="row" style="gap:2px">{{part:servo:bp}}</span><b class="small">Servo sweep</b></div>
+          <div class="col" style="flex:1;gap:4px;padding:10px;background:var(--bg);border-radius:9px"><span class="row" style="gap:2px">{{part:hcsr04:bp}}{{part:oled:bp}}</span><b class="small">Distance meter</b></div>
+        </div>
+        <button class="btn" style="margin-top:12px;width:100%;justify-content:center">See all 12 examples</button>
+      </div>
+      <div class="card" style="padding:14px 16px;background:var(--accent-soft);border-color:var(--accent-line)">
+        <b class="small" style="color:var(--accent-ink)">{{i:bulb:s12}} Tip</b>
+        <p class="small" style="margin-top:4px;color:var(--tx-2);line-height:1.5">Hover a breadboard hole to see every hole joined to it.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

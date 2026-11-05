@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>02 Wiring</title>
+{{include:head}}
+</head>
+<body>
+<!--@PARTS_LIST: {{parts:led}}-->
+<!--@STATUS: <span class="st"><span class="dot" style="background:var(--tx-3)"></span>Stopped</span><span class="row" style="gap:6px;color:var(--accent)">{{i:wire:s14}} Drawing a wire from GP15</span>-->
+<p class="frame-label"><b>02 · Building: wiring</b> — a wire from GP15 being drawn; the pin's name and what it can do on hover (F-15); the breadboard column it will join lights up (F-12); wire colour (F-13); parts panel with <i>Learn</i> on hover (F-10, F-44)</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:traffic:wiring}}      <div class="tip" style="left:474px;top:208px;width:206px">
+        <b>GP15</b> <span style="opacity:.7">· pin 20 · wire starts here</span>
+        <div class="fx"><span class="fn gpio">Digital in/out</span><span class="fn pwm">PWM7B</span><span class="fn i2c">I2C1 SCL</span><span class="fn spi">SPI1 TX</span></div>
+        <div style="margin-top:6px;opacity:.75">3.3 V logic · up to 12 mA</div>
+      </div>
+      <div class="tip" style="left:408px;top:380px;width:190px;background:#fff;color:var(--tx-1);border:1px solid var(--success-line)">
+        <b style="color:var(--success)">Column 18, rows a–e</b><div class="small" style="color:var(--tx-2)">These 5 holes are joined inside the breadboard. R3 is already in row e.</div>
+      </div></div>
+      <div class="float row" style="left:12px;top:12px;padding:6px 8px 6px 12px;gap:10px;font-size:12.5px">
+        <span>{{i:wire:s14}}</span><span>Click a hole to finish the wire · <span class="kbd">Esc</span> cancels</span>
+        <span class="vsep" style="height:18px"></span><span class="muted small">Colour</span>
+        <span class="row" style="gap:4px"><i class="dot" style="width:14px;height:14px;background:#de3b3b"></i><i class="dot" style="width:14px;height:14px;background:#3a3d42"></i><i class="dot" style="width:14px;height:14px;background:#efbd16"></i><i class="dot" style="width:14px;height:14px;background:#2fa253"></i><i class="dot" style="width:14px;height:14px;background:#2f6fd6"></i><i class="dot" style="width:16px;height:16px;background:#9160d6;box-shadow:0 0 0 2px #fff,0 0 0 3.5px #9160d6"></i></span>
+      </div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>
