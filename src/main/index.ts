@@ -33,6 +33,11 @@ const rendererDir = join(here, '../renderer');
 // Tests and spikes get their own settings folder, so they never touch a student's own.
 if (process.env.MICROLAB_USER_DATA) app.setPath('userData', process.env.MICROLAB_USER_DATA);
 
+// E2E runs hidden (the teacher's request, 2026-11-06): the window is never shown, the app has no Dock icon and never
+// takes focus from what the teacher is doing; its page still lays out, draws and runs timers at full speed.
+const HIDDEN = process.env.MICROLAB_HIDDEN === '1';
+if (HIDDEN) app.dock?.hide();
+
 protocol.registerSchemesAsPrivileged([
   { scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
 ]);
@@ -69,9 +74,10 @@ function createWindow(): void {
       nodeIntegration: false,
       // the version and the system, for the window (the helper's report): a sandboxed preload can't ask for them
       additionalArguments: [`--microlab-version=${pkg.version}`, `--microlab-system=${systemName()}`],
+      ...(HIDDEN ? { backgroundThrottling: false } : {}),
     },
   });
-  win.once('ready-to-show', () => win.show());
+  if (!HIDDEN) win.once('ready-to-show', () => win.show());
   // unsaved changes: the window asks the student first (M4.6), then closes itself through app:close
   win.on('close', (e) => {
     if (!dirty.get(win.webContents.id) || closing.has(win.webContents.id)) return;

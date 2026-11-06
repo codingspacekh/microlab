@@ -109,6 +109,9 @@ test('closing the window with unsaved changes asks first; Don\'t save closes it'
     const w = BrowserWindow.getAllWindows()[0]!;
     w.once('closed', () => resolve(BrowserWindow.getAllWindows().length));
   }));
-  await win.getByRole('button', { name: "Don't save" }).click();
+  // the click closes the window; hidden (MICROLAB_HIDDEN) it can close before Playwright's click returns
+  await win.getByRole('button', { name: "Don't save" }).click().catch((e: Error) => {
+    if (!/has been closed/.test(e.message)) throw e;
+  });
   expect(await closed).toBe(0);
 });
