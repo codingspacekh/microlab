@@ -1,4 +1,4 @@
-import { BoardConsole, checkBoard, modelOf, ReplError, sendFiles, type ConsoleAction, type ConsoleKind, type ConsoleState, type ReplOptions, type SendRequest, type SendResult, type Uname } from '@lib/repl';
+import { BoardConsole, BoardFiles, RawRepl, UNAME_CODE, boardListing, checkBoard, modelOf, parseUname, ReplError, sendFiles, type BoardListing, type ConsoleAction, type ConsoleKind, type ConsoleState, type ReplOptions, type SendRequest, type SendResult, type Uname } from '@lib/repl';
 import { openFailure, type BoardCheck, type FoundBoard } from '@lib/usb';
 import type { SerialLink } from './serial-link';
 
@@ -11,8 +11,9 @@ import type { SerialLink } from './serial-link';
 export interface PortDeps {
   open(port: string): Promise<SerialLink>;
   whoHolds(port: string): Promise<string | undefined>;
-  /** Keeps a copy of a board's old file on the laptop; returns the folder it went in. */
-  keepOld?: (board: string, path: string, data: Uint8Array) => Promise<string>;
+  /** Keeps a copy of a board's old file on the laptop, in the named folder (one per job: "Pico W 2026-11-06
+   *  14-03-09"); returns where that folder is. */
+  keepOld?: (folder: string, path: string, data: Uint8Array) => Promise<string>;
   repl?: ReplOptions;
 }
 
@@ -66,6 +67,17 @@ interface Session {
 const busyMessage = (f: BoardCheck) => (f.state === 'busy'
   ? `The board is used by ${f.by ?? 'another program'}. Close ${f.by ?? 'it'}, or press Stop/Disconnect in it, then try again.`
   : `MicroLab can't talk to the board: ${(f as { message: string }).message}`);
+
+const KIND_SHORT = { pico: 'Pico', microbit: 'micro:bit', esp32: 'ESP32' } as const;
+
+/** A failure, in the student's words. */
+function failure(e: unknown): string {
+  const reason = e instanceof ReplError ? e.reason : undefined;
+  if (reason === 'no-micropython') return "The board didn't answer as MicroPython does — it may be running a MakeCode or Arduino program, or a program that doesn't stop when asked.";
+  if (reason === 'lost') return 'The board was unplugged. Plug it back in and try again.';
+  if (reason === 'timeout') return 'The board stopped answering. Unplug it, plug it back in, and try again.';
+  return (e as Error).message;
+}
 
 const unameOf = (c: BoardCheck | undefined) => (c && (c.state === 'micropython' || c.state === 'sending') ? c.uname : undefined);
 
@@ -236,7 +248,7 @@ export class Boards {
           // run: the board restarts in its console, so what main.py prints is seen (F-51, screen 16)
           run: false,
           onProgress: (p) => { if (p.uname) uname = p.uname; sending(p.done); },
-          ...(req.keep && this.deps.keepOld ? { keepOld: async (path: string, data: Uint8Array) => { keptIn = await this.deps.keepOld!(short(), path, data); } } : {}),
+          ...(req.keep && this.deps.keepOld ? { keepOld: this.keeper(short, (dir) => { keptIn = dir; }) } : {}),
         }), req.run);
         if ('failed' in r) {
           this.set(board.id, r.failed, era);
@@ -257,6 +269,139 @@ export class Boards {
         return { ok: false, message: (e as Error).message };
       }
     });
+  }
+
+  /** Keeps old files for one job: all in one folder, named when the first is kept. */
+  private keeper(short: () => string, told: (dir: string) => void) {
+    let folder: string | undefined;
+    return async (path: string, data: Uint8Array) => {
+      folder ??= backupFolder(short(), new Date());
+      told(await this.deps.keepOld!(folder, path, data));
+    };
+  }
+
+  /**
+   * A job with the board's files (Board files, F-53, screen 15): its program stopped, the helpers loaded; afterwards
+   * the board waits at its prompt — its program runs again when the panel is closed (filesDone).
+   */
+  private onBoard<T extends object>(board: FoundBoard, job: (f: BoardFiles, short: () => string) => Promise<T>): Promise<({ ok: true } & T) | { ok: false; message: string }> {
+    const era = this.eraOf(board.id);
+    return this.queue(board.id, async () => {
+      let uname = unameOf(this.checks[board.id]);
+      const short = () => (uname ? modelOf(uname).short : KIND_SHORT[board.kind]);
+      try {
+        const r = await this.withPort(board, async (link) => {
+          const repl = new RawRepl(link, this.deps.repl);
+          try {
+            await repl.enter().catch((e: ReplError) => {
+              throw e.reason === 'refused' ? new ReplError('no-micropython', "The board didn't answer as MicroPython does", e.seen) : e;
+            });
+            uname = parseUname((await repl.exec(UNAME_CODE)).out) ?? uname;
+            if (uname) this.set(board.id, answered(uname), era);
+            const out = await job(new BoardFiles(repl), short);
+            await repl.leave();
+            return out;
+          } finally {
+            repl.dispose();
+          }
+        });
+        if ('failed' in r) {
+          this.set(board.id, r.failed, era);
+          return { ok: false as const, message: busyMessage(r.failed) };
+        }
+        return { ok: true as const, ...r };
+      } catch (e) {
+        return { ok: false as const, message: failure(e) };
+      }
+    });
+  }
+
+  /** The board's files beside the project's: sizes, folders, which are the same, the space. */
+  listFiles(board: FoundBoard, project: Record<string, string | Uint8Array>) {
+    return this.onBoard(board, async (f, short): Promise<{ listing: BoardListing; board: string }> => ({
+      listing: await boardListing(f, project, board.kind === 'microbit'),
+      board: short(),
+    }));
+  }
+
+  /** Files from the board (a folder: all in it), to copy into the project. */
+  readFiles(board: FoundBoard, paths: string[]) {
+    return this.onBoard(board, async (f) => {
+      await f.load();
+      const all = await f.list();
+      const files: Record<string, Uint8Array> = {};
+      for (const p of paths) {
+        const inside = all.files.has(p) ? [p] : [...all.files.keys()].filter((x) => x.startsWith(`${p}/`)).sort();
+        for (const x of inside) files[x] = await f.read(x);
+      }
+      return { files };
+    });
+  }
+
+  /** Project files to the board — only what changed; what they replace kept on the laptop first (`keep`). */
+  copyToBoard(board: FoundBoard, files: Record<string, string | Uint8Array>, keep: boolean) {
+    return this.queue(board.id, async () => {
+      let keptIn: string | undefined;
+      let uname = unameOf(this.checks[board.id]);
+      const short = () => (uname ? modelOf(uname).short : KIND_SHORT[board.kind]);
+      try {
+        const r = await this.withPort(board, (link) => sendFiles(link, files, {
+          ...this.deps.repl,
+          run: false,
+          keepAll: true,
+          onProgress: (p) => { if (p.uname) uname = p.uname; },
+          ...(keep && this.deps.keepOld ? { keepOld: this.keeper(short, (dir) => { keptIn = dir; }) } : {}),
+        }));
+        if ('failed' in r) return { ok: false as const, message: busyMessage(r.failed) };
+        return { ok: true as const, sent: r.sent, same: r.same, ...(keptIn ? { keptIn } : {}) };
+      } catch (e) {
+        return { ok: false as const, message: failure(e) };
+      }
+    });
+  }
+
+  /** Deletes files and folders (with all in them) on the board; each file kept on the laptop first (`keep`). */
+  deleteOnBoard(board: FoundBoard, paths: string[], keep: boolean) {
+    return this.onBoard(board, async (f, short): Promise<{ keptIn?: string }> => {
+      await f.load();
+      const all = await f.list();
+      let keptIn: string | undefined;
+      const kept = this.deps.keepOld && keep ? this.keeper(short, (dir) => { keptIn = dir; }) : undefined;
+      for (const p of paths) {
+        const isDir = all.dirs.has(p);
+        if (kept) {
+          for (const x of isDir ? [...all.files.keys()].filter((y) => y.startsWith(`${p}/`)).sort() : [p]) await kept(x, await f.read(x));
+        }
+        if (isDir) await f.removeDir(p);
+        else await f.remove(p);
+      }
+      return keptIn ? { keptIn } : {};
+    });
+  }
+
+  makeFolder(board: FoundBoard, path: string) {
+    return this.onBoard(board, async (f) => {
+      await f.load();
+      await f.mkdir(path);
+      return {};
+    });
+  }
+
+  /** The Board files panel closed: the board's program runs again (unless its console is open — it is the student's). */
+  async filesDone(board: FoundBoard): Promise<void> {
+    if (this.sessions.has(board.id)) return;
+    await this.queue(board.id, async () => {
+      await this.withPort(board, async (link) => {
+        const repl = new RawRepl(link, this.deps.repl);
+        try {
+          await repl.enter();
+          await repl.leave();
+          await repl.softReset();
+        } finally {
+          repl.dispose();
+        }
+      });
+    }).catch(() => {});
   }
 
   forget(ids: string[]): void {

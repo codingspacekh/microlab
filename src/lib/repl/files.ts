@@ -80,6 +80,20 @@ def _mlmv(a,b):
  f.close()
  g.close()
  os.remove(a)
+def _mlrd(p):
+ for n in os.listdir(p):
+  q=p+'/'+n
+  if os.stat(q)[0]&0x4000:
+   _mlrd(q)
+  else:
+   os.remove(q)
+ os.rmdir(p)
+def _mldf():
+ try:
+  s=os.statvfs('/')
+  print(s[1]*s[2],s[1]*s[3])
+ except AttributeError:
+  print('-')
 `;
 
 /** The temporary name a file is written under until it is checked. */
@@ -115,8 +129,13 @@ export class BoardFiles {
    *  it is done); a long answer that keeps coming is always waited for. */
   constructor(private readonly repl: RawRepl, private readonly quietMs = 5000) {}
 
+  private loaded = false;
+
+  /** Puts the helpers on the board (once a session). */
   async load(): Promise<void> {
+    if (this.loaded) return;
     await this.call(PRELUDE);
+    this.loaded = true;
   }
 
   private async call(code: string): Promise<string> {
@@ -170,6 +189,50 @@ export class BoardFiles {
   async move(from: string, to: string): Promise<void> {
     await this.call(`_mlmv(${py(from)},${py(to)})`);
   }
+
+  /** A folder, with everything in it. */
+  async removeDir(path: string): Promise<void> {
+    await this.call(`_mlrd(${py(path)})`);
+  }
+
+  /** The file system's size and what is free, in bytes; null where the board can't say (the micro:bit). */
+  async space(): Promise<{ total: number; free: number } | null> {
+    const l = lines(await this.call('_mldf()'))[0] ?? '-';
+    const m = /^(\d+) (\d+)$/.exec(l);
+    return m ? { total: Number(m[1]), free: Number(m[2]) } : null;
+  }
+}
+
+/** The board's files beside a project's (F-53, screen 15). */
+export interface BoardListing {
+  files: { path: string; size: number }[];
+  dirs: string[];
+  /** Files on both sides, compared: true when the board's holds exactly the project's. */
+  same: Record<string, boolean>;
+  space?: { total: number; free: number };
+  /** No folders (the micro:bit). */
+  flat: boolean;
+}
+
+/** Lists the board (helpers loaded here) and compares the files the project has too: size, then checksum. */
+export async function boardListing(f: BoardFiles, project: Record<string, string | Uint8Array>, flat?: boolean): Promise<BoardListing> {
+  await f.load();
+  const l = await f.list();
+  const same: Record<string, boolean> = {};
+  for (const [path, v] of Object.entries(project)) {
+    const size = l.files.get(path);
+    if (size === undefined) continue;
+    const data = typeof v === 'string' ? new TextEncoder().encode(v) : v;
+    same[path] = size === data.length && await f.holds(path, data);
+  }
+  const space = await f.space();
+  return {
+    files: [...l.files].map(([path, size]) => ({ path, size })).sort((a, b) => a.path.localeCompare(b.path)),
+    dirs: [...l.dirs].sort(),
+    same,
+    ...(space ? { space } : {}),
+    flat: flat ?? space === null,
+  };
 }
 
 export interface SendProgress {
@@ -186,6 +249,8 @@ export interface SendOptions extends ReplOptions {
   run?: boolean;
   /** Given the board's old main.py before it is replaced, to keep a copy on the laptop. */
   keepOld?: (path: string, data: Uint8Array) => Promise<void>;
+  /** keepOld for every file replaced, not only main.py (Board files, screen 15). */
+  keepAll?: boolean;
   onProgress?: (p: SendProgress) => void;
   /** How long the board may stay silent on a file command (default 5 s). */
   fileMs?: number;
@@ -248,7 +313,7 @@ export async function sendFiles(link: Link, project: Record<string, string | Uin
         report.same.push(path);
         continue;
       }
-      if (path === 'main.py' && there !== undefined && opts.keepOld) {
+      if ((opts.keepAll || path === 'main.py') && there !== undefined && opts.keepOld) {
         await opts.keepOld(path, await files.read(path));
         report.kept.push(path);
       }

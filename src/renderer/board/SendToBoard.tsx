@@ -23,6 +23,7 @@ export interface SendToBoardProps {
   entry: string;
   onRunFile: (id: string) => void;
   onOpenConsole: (id: string) => void;
+  onBoardFiles: (id: string) => void;
 }
 
 /** "0.6 KB"; a few bytes as bytes. */
@@ -32,7 +33,7 @@ export function size(n: number): string {
 
 const bytesOf = (v: string | Uint8Array) => (typeof v === 'string' ? new TextEncoder().encode(v).length : v.length);
 
-export function SendToBoard({ detection, project, chosen, files, busy, onSend, entry, onRunFile, onOpenConsole }: SendToBoardProps) {
+export function SendToBoard({ detection, project, chosen, files, busy, onSend, entry, onRunFile, onOpenConsole, onBoardFiles }: SendToBoardProps) {
   const [asking, setAsking] = useState(false);
   const state = chipState(detection, project, chosen);
   const sending = busy || state.kind === 'sending';
@@ -50,6 +51,7 @@ export function SendToBoard({ detection, project, chosen, files, busy, onSend, e
           { label: 'Send to board and run…', icon: 'send', description: 'Copies the files that changed. The board runs main.py now, and every time it starts.', onSelect: () => setAsking(true) },
           { label: `Run ${entry} on the board`, icon: 'play', description: `Runs the file in the editor there now, without saving it as main.py — as Thonny does. The board's own program is unchanged.`, onSelect: () => { if ('board' in state) onRunFile(state.board.id); } },
           { label: "Open the board's console", icon: 'term', description: 'Shows what the board prints; Ctrl+C stops its program and gives its >>> prompt.', onSelect: () => { if ('board' in state) onOpenConsole(state.board.id); } },
+          { label: 'Board files…', icon: 'folder', description: "See and copy the board's files, beside this project's.", onSelect: () => { if ('board' in state) onBoardFiles(state.board.id); } },
         ]} />
       </span>
       {asking && 'board' in state && (

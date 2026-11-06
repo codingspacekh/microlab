@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { FakeBoard, ReplError, parsePyCall, pyBytes, sendFiles, type FakeBoardOptions } from '@lib/repl';
+import { BoardFiles, FakeBoard, RawRepl, ReplError, boardListing, parsePyCall, pyBytes, sendFiles, type FakeBoardOptions } from '@lib/repl';
 
 /**
  * M10.3 F-50, Q15: Send to board copies the project's files over the raw REPL — only those that changed (size, then
@@ -151,5 +151,45 @@ describe('M10.3 a big file, read slowly (found on the teacher\'s Pico W: its 12.
   it('a board that goes quiet in the middle of an answer still times out', async () => {
     const b = board({ 'main.py': 'x'.repeat(2000) }, { pace: 15, stallAfter: 3 });
     await expect(sendFiles(b, { 'main.py': 'new' }, { ...quick, replyMs: 100, fileMs: 100, keepOld: async () => {} })).rejects.toMatchObject({ reason: 'timeout' });
+  });
+});
+
+describe('M10.5 F-53 the board\'s files beside the project\'s', () => {
+  const listing = async (b: FakeBoard, project: Record<string, string>) => {
+    const repl = new RawRepl(b, quick);
+    await repl.enter();
+    try { return await boardListing(new BoardFiles(repl, 200), project); } finally { await repl.leave(); repl.dispose(); }
+  };
+
+  it('every file and folder with its size; the files on both sides compared; the space', async () => {
+    const b = board({ 'main.py': 'theirs', 'lib/a.py': 'a = 1\n', 'lib/x/y.py': 'y', 'index.html': '<p>' });
+    const l = await listing(b, { 'main.py': 'mine!!', 'lib/a.py': 'a = 1\n', 'ssd1306.py': 'x' });
+    expect(l.files).toEqual([
+      { path: 'index.html', size: 3 }, { path: 'lib/a.py', size: 6 }, { path: 'lib/x/y.py', size: 1 }, { path: 'main.py', size: 6 },
+    ]);
+    expect(l.dirs).toEqual(['lib', 'lib/x']);
+    expect(l.same).toEqual({ 'main.py': false, 'lib/a.py': true });
+    expect(l.space).toEqual({ total: 868352, free: 868352 - 16 });
+    expect(l.flat).toBe(false);
+  });
+
+  it('the micro:bit: flat, no space figure (no os.statvfs); compared by reading back', async () => {
+    const b = board({ 'main.py': 'same' }, { preset: 'microbit-v2' });
+    const l = await listing(b, { 'main.py': 'same' });
+    expect(l).toMatchObject({ flat: true, same: { 'main.py': true } });
+    expect(l.space).toBeUndefined();
+  });
+
+  it('a folder deleted with all in it; a folder made; a file read whole', async () => {
+    const b = board({ 'lib/a.py': 'a', 'lib/sub/b.py': 'b', 'keep.py': 'k' });
+    const repl = new RawRepl(b, quick);
+    await repl.enter();
+    const f = new BoardFiles(repl, 200);
+    await f.load();
+    expect(dec(await f.read('lib/sub/b.py'))).toBe('b');
+    await f.removeDir('lib');
+    await f.mkdir('www');
+    expect([...b.files.keys()]).toEqual(['keep.py']);
+    expect([...b.dirs]).toEqual(['www']);
   });
 });

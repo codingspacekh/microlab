@@ -5,7 +5,7 @@ import type { MicrolabApi } from '../../src/renderer/app/api';
 
 function fakeApi(stored: Record<string, unknown> = {}): MicrolabApi & { set: ReturnType<typeof vi.fn> } {
   const set = vi.fn(async (key: string, value: unknown) => { stored[key] = value; });
-  return { versions: { app: '0.4.0', electron: '0' }, settings: { get: async (key: string) => stored[key], set }, project: { open: vi.fn(), save: vi.fn() }, boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(), send: vi.fn(), console: { open: vi.fn(), close: vi.fn(), do: vi.fn(), onOutput: vi.fn(() => () => {}) }, onChange: vi.fn(() => () => {}) }, app: { setDirty: vi.fn(), onCloseRequest: vi.fn(() => () => {}), close: vi.fn() }, set } as never;
+  return { versions: { app: '0.4.0', electron: '0' }, settings: { get: async (key: string) => stored[key], set }, project: { open: vi.fn(), save: vi.fn() }, boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(), send: vi.fn(), files: {}, console: { open: vi.fn(), close: vi.fn(), do: vi.fn(), onOutput: vi.fn(() => () => {}) }, onChange: vi.fn(() => () => {}) }, app: { setDirty: vi.fn(), onCloseRequest: vi.fn(() => () => {}), close: vi.fn() }, set } as never;
 }
 
 /** The workspace needs a project (M4.2): start one on the Pico W. */

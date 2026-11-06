@@ -128,3 +128,33 @@ test('M10.4 F-51 the board\'s console: Send and run shows it; Stop gives >>>; ty
   await win.getByRole('button', { name: 'Let go of the board' }).click();
   await expect(win.getByRole('button', { name: 'Open the console' })).toBeVisible();
 });
+
+test('M10.5 F-53 Board files: the board beside the project; a folder made and deleted; done', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  plug('mac-pico-w');
+  await expect(win.getByRole('button', { name: /^Board:/ })).toHaveAccessibleName('Board: Pico W, ready, MicroPython 1.29', { timeout: 2000 });
+  await win.getByRole('button', { name: 'Send to board' }).click();
+  await win.getByRole('dialog', { name: 'Send to a real board' }).getByRole('button', { name: 'Send and run' }).click();
+  await expect(win.locator('.toasts').getByText(/^Sent to the Pico W/)).toBeVisible({ timeout: 3000 });
+
+  await win.getByRole('button', { name: 'More ways to send' }).click();
+  await win.getByRole('menuitem', { name: /Board files/ }).click();
+  const dialog = win.getByRole('dialog', { name: 'Board files' });
+  const board = dialog.getByRole('tree', { name: 'On the Pico W' });
+  await expect(board.getByRole('treeitem', { name: 'main.py, same' })).toBeVisible({ timeout: 3000 });
+  await expect(dialog).toContainText('KB used of 848 KB');
+
+  await dialog.getByRole('button', { name: 'New folder' }).click();
+  await dialog.getByRole('textbox', { name: 'Folder name' }).fill('www');
+  await dialog.getByRole('button', { name: 'Make it' }).click();
+  await expect(board.getByRole('treeitem', { name: 'www, only on the board' })).toBeVisible();
+
+  await board.getByRole('treeitem', { name: 'www, only on the board' }).click();
+  await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
+  await dialog.getByRole('group', { name: 'Delete www from the Pico W?' }).getByRole('button', { name: 'Delete' }).click();
+  await expect(board.getByRole('treeitem', { name: /^www/ })).toHaveCount(0);
+
+  await dialog.getByRole('button', { name: 'Done' }).click();
+  await expect(dialog).toHaveCount(0);
+});

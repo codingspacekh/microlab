@@ -187,7 +187,7 @@ describe('M10.3 F-50 sending, from the main process', () => {
     const { d } = deps(new FakeBoard(W));
     d.keepOld = vi.fn(async () => '/Users/t/Documents/MicroLab/Board backups/Pico W 2026-11-06 13-40');
     const r = await new Boards(d, () => {}).send(PICO, { 'main.py': 'new' }, { run: true, keep: true });
-    expect(d.keepOld).toHaveBeenCalledWith('Pico W', 'main.py', enc('# theirs\n'));
+    expect(d.keepOld).toHaveBeenCalledWith(expect.stringMatching(/^Pico W \d{4}-\d\d-\d\d \d\d-\d\d-\d\d$/), 'main.py', enc('# theirs\n'));
     expect(r).toMatchObject({ ok: true, kept: ['main.py'], keptIn: '/Users/t/Documents/MicroLab/Board backups/Pico W 2026-11-06 13-40' });
   });
 
@@ -376,5 +376,106 @@ describe('M10.4 the console\'s rarer ways', () => {
     await r.c.openConsole(PICO);
     r.c.forget(['e661']);
     expect(r.c.consoles).toEqual({});
+  });
+});
+
+describe('M10.5 F-53 Board files, from the main process', () => {
+  const enc = (t: string) => new TextEncoder().encode(t);
+  const dec = (b?: Uint8Array) => (b ? new TextDecoder().decode(b) : undefined);
+  function rig() {
+    const b = new FakeBoard({ preset: 'pico-w', program: {}, files: {
+      'main.py': enc('# theirs\n'), 'lib/a.py': enc('a = 1\n'), 'smarthome/door.py': enc('door'), 'smarthome/web/x.html': enc('<p>'),
+    } } as FakeBoardOptions);
+    const { d } = deps(b);
+    const kept: [string, string, string][] = [];
+    d.keepOld = vi.fn(async (folder: string, path: string, data: Uint8Array) => { kept.push([folder, path, dec(data)!]); return `/backups/${folder}`; });
+    return { b, d, kept, c: new Boards(d, () => {}) };
+  }
+
+  it('lists the board beside the project; its program waits while the panel is open, and runs again when it is done', async () => {
+    const r = rig();
+    const l = await r.c.listFiles(PICO, { 'main.py': '# mine\n', 'lib/a.py': 'a = 1\n' });
+    expect(l).toMatchObject({ ok: true, board: 'Pico W', listing: { same: { 'main.py': false, 'lib/a.py': true }, dirs: ['lib', 'smarthome', 'smarthome/web'] } });
+    expect(r.b.state).toBe('friendly');
+    await r.c.filesDone(PICO);
+    expect(r.b.state).toBe('program');
+    expect(r.b.softReboots).toBe(1);
+  });
+
+  it('copied to the laptop: a file, or a folder with all in it', async () => {
+    const r = rig();
+    const got = await r.c.readFiles(PICO, ['main.py', 'smarthome']);
+    expect(got.ok && Object.fromEntries(Object.entries(got.files).map(([k, v]) => [k, dec(v)]))).toEqual({
+      'main.py': '# theirs\n', 'smarthome/door.py': 'door', 'smarthome/web/x.html': '<p>',
+    });
+  });
+
+  it('copied to the board: what it replaces is kept on the laptop first, all in one folder', async () => {
+    const r = rig();
+    const res = await r.c.copyToBoard(PICO, { 'main.py': 'new', 'lib/a.py': 'a = 2\n', 'lib/b.py': 'b' }, true);
+    expect(res).toMatchObject({ ok: true, sent: [{ path: 'lib/a.py' }, { path: 'lib/b.py' }, { path: 'main.py' }] });
+    expect(r.kept.map(([, p, t]) => [p, t])).toEqual([['lib/a.py', 'a = 1\n'], ['main.py', '# theirs\n']]);
+    expect(new Set(r.kept.map(([f]) => f)).size).toBe(1);
+    expect(dec(r.b.files.get('main.py'))).toBe('new');
+    expect(r.b.softReboots).toBe(0);
+  });
+
+  it('deleted: a file, and a folder with all in it — each kept first when asked', async () => {
+    const r = rig();
+    const res = await r.c.deleteOnBoard(PICO, ['smarthome', 'lib/a.py'], true);
+    expect(res).toMatchObject({ ok: true, keptIn: expect.stringMatching(/^\/backups\/Pico W /) });
+    expect(r.kept.map(([, p]) => p).sort()).toEqual(['lib/a.py', 'smarthome/door.py', 'smarthome/web/x.html']);
+    expect([...r.b.files.keys()]).toEqual(['main.py']);
+    expect([...r.b.dirs]).toEqual(['lib']);
+  });
+
+  it('a folder made', async () => {
+    const r = rig();
+    expect(await r.c.makeFolder(PICO, 'www')).toEqual({ ok: true });
+    expect(r.b.dirs.has('www')).toBe(true);
+  });
+
+  it('a board another program holds: why', async () => {
+    const c = new Boards(deps(new Error('Cannot lock port'), 'Thonny').d, () => {});
+    expect(await c.listFiles(PICO, {})).toEqual({ ok: false, message: expect.stringMatching(/used by Thonny/) });
+  });
+});
+
+describe('M10.5 Board files: when it can\'t be done', () => {
+  const enc = (t: string) => new TextEncoder().encode(t);
+  const quiet = { pauseMs: 0, replyMs: 60, chunkPauseMs: 0 };
+
+  it.each([
+    [{ preset: 'pico-w' as const, silent: true }, /didn't answer as MicroPython does/],
+    [{ preset: 'pico-w' as const, unplugged: true }, /unplugged|stopped answering/],
+  ])('listing a board that %j says why', async (board, message) => {
+    const c = new Boards({ ...deps(board).d, repl: quiet }, () => {});
+    expect(await c.listFiles(PICO, {})).toEqual({ ok: false, message: expect.stringMatching(message) });
+  });
+
+  it('a board that stops answering mid-way: "stopped answering"', async () => {
+    const b = new FakeBoard({ preset: 'pico-w', pace: 5, stallAfter: 1, files: { 'main.py': enc('x\n'.repeat(400)) } } as FakeBoardOptions);
+    const c = new Boards({ ...deps(b).d, repl: { ...quiet } }, () => {});
+    const r = await c.readFiles(PICO, ['main.py']);
+    expect(r).toEqual({ ok: false, message: expect.stringMatching(/stopped answering/) });
+  }, 15_000);
+
+  it('copied to a micro:bit into a folder: refused, saying why; a held port: who holds it', async () => {
+    const mb = new Boards(deps({ preset: 'microbit-v2' }).d, () => {});
+    expect(await mb.copyToBoard({ ...PICO, kind: 'microbit' }, { 'lib/x.py': 'x' }, false)).toEqual({ ok: false, message: expect.stringMatching(/micro:bit has no folders/) });
+    const held = new Boards(deps(new Error('Cannot lock port'), 'Thonny').d, () => {});
+    expect(await held.copyToBoard(PICO, { 'main.py': 'x' }, false)).toEqual({ ok: false, message: expect.stringMatching(/used by Thonny/) });
+  });
+
+  it('deleted without a copy kept; done with its console open leaves it be', async () => {
+    const b = new FakeBoard({ preset: 'pico-w', files: { 'a.py': enc('a') } } as FakeBoardOptions);
+    const { d } = deps(b);
+    d.keepOld = vi.fn(async () => '/k');
+    const c = new Boards(d, () => {}, { output: () => {}, sessions: () => {} });
+    expect(await c.deleteOnBoard(PICO, ['a.py'], false)).toEqual({ ok: true });
+    expect(d.keepOld).not.toHaveBeenCalled();
+    await c.openConsole(PICO);
+    await c.filesDone(PICO);
+    expect(b.softReboots).toBe(0);
   });
 });

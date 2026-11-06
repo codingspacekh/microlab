@@ -53,3 +53,21 @@ describe('M10.3 Q15 the board helpers on MicroPython', () => {
     expect(out.some((l) => l.includes('mlab-part'))).toBe(false);
   }, 20_000);
 });
+
+describe('M10.5 F-53 deleting a folder, and the space', () => {
+  it('on the Pico W: a folder goes with all in it; the space is total and free bytes', async () => {
+    const r = await runProject(await nodeLoader(), {
+      board: 'pico-w',
+      files: { 'lib/a.py': 'a', 'lib/sub/b.py': 'b', 'keep.py': 'k', 'main.py': `${PRELUDE}_mlrd('lib')\n_mlls('')\nprint('--')\n_mldf()\n` },
+      clock: new VirtualClock(), maxUs: 5e6,
+    });
+    expect(r.error).toBeUndefined();
+    const [list, space] = r.output.split('--');
+    expect(list).not.toMatch(/lib/);
+    expect(list).toMatch(/F 1 keep\.py/);
+    const [total, free] = space!.trim().split(' ').map(Number);
+    expect(total).toBeGreaterThan(0);
+    expect(free).toBeGreaterThan(0);
+    expect(free).toBeLessThanOrEqual(total!);
+  }, 20_000);
+});

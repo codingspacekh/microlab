@@ -15,6 +15,14 @@ contextBridge.exposeInMainWorld('microlab', {
     get: (): Promise<unknown> => ipcRenderer.invoke('boards:get'),
     check: (id: string): Promise<void> => ipcRenderer.invoke('boards:check', id),
     send: (id: string, files: unknown, req: unknown): Promise<unknown> => ipcRenderer.invoke('boards:send', id, files, req),
+    files: {
+      list: (id: string, project: unknown): Promise<unknown> => ipcRenderer.invoke('boards:files-list', id, project),
+      read: (id: string, paths: string[]): Promise<unknown> => ipcRenderer.invoke('boards:files-read', id, paths),
+      copy: (id: string, files: unknown, keep: boolean): Promise<unknown> => ipcRenderer.invoke('boards:files-copy', id, files, keep),
+      delete: (id: string, paths: string[], keep: boolean): Promise<unknown> => ipcRenderer.invoke('boards:files-delete', id, paths, keep),
+      mkdir: (id: string, path: string): Promise<unknown> => ipcRenderer.invoke('boards:files-mkdir', id, path),
+      done: (id: string): Promise<void> => ipcRenderer.invoke('boards:files-done', id),
+    },
     console: {
       open: (id: string): Promise<unknown> => ipcRenderer.invoke('boards:console-open', id),
       close: (id: string): Promise<void> => ipcRenderer.invoke('boards:console-close', id),

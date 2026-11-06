@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, protocol, session } from 'electron';
 import { APP_SCHEME, APP_URL, isolationHeaders, resolveAppPath, responseHeaders } from './app-protocol';
 import { mkdirSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { SerialPort } from 'serialport';
-import { backupFolder, Boards } from './board-check';
+import { Boards } from './board-check';
 import { BoardWatcher, listVolumes } from './board-watcher';
 import { whoHolds } from './port-holder';
 import { openSerial, type SerialLink } from './serial-link';
@@ -153,11 +153,14 @@ app.whenReady().then(() => {
     return { write: (d) => b.write(d), onData: (l) => b.onData(l), onClose: (l) => b.onClose(l), close: async () => {} };
   };
   // Send to board keeps the board's old main.py (F-50, screen 08): Documents/MicroLab/Board backups/<board> <time>/
-  const keepOld = async (board: string, path: string, data: Uint8Array): Promise<string> => {
+  const keepOld = async (folder: string, path: string, data: Uint8Array): Promise<string> => {
     // (with fake USB — the tests — in the test's own folder, never the user's Documents)
-    const dir = join(app.getPath(fake ? 'userData' : 'documents'), 'MicroLab', 'Board backups', backupFolder(board, new Date()));
-    await mkdir(join(dir, path, '..'), { recursive: true });
-    await writeFile(join(dir, path), data);
+    const dir = join(app.getPath(fake ? 'userData' : 'documents'), 'MicroLab', 'Board backups', folder);
+    const target = resolve(dir, path);
+    // the name comes from the board: it must stay inside the backup folder
+    if (!target.startsWith(dir + sep)) throw new Error(`Not kept: “${path}” is not a file name MicroLab can keep`);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, data);
     return dir;
   };
   const checker = new Boards(
@@ -192,6 +195,14 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('boards:console-close', (_e, id: string) => checker.closeConsole(id));
   ipcMain.handle('boards:console-do', (_e, id: string, a: ConsoleAction) => checker.console(id, a));
+  // Board files (F-53, screen 15)
+  const gone = { ok: false, message: 'The board is no longer plugged in.' };
+  ipcMain.handle('boards:files-list', async (_e, id: string, project: Record<string, string | Uint8Array>) => { const b = boardBy(id); return b ? checker.listFiles(b, project) : gone; });
+  ipcMain.handle('boards:files-read', async (_e, id: string, paths: string[]) => { const b = boardBy(id); return b ? checker.readFiles(b, paths) : gone; });
+  ipcMain.handle('boards:files-copy', async (_e, id: string, files: Record<string, string | Uint8Array>, keep: boolean) => { const b = boardBy(id); return b ? checker.copyToBoard(b, files, keep) : gone; });
+  ipcMain.handle('boards:files-delete', async (_e, id: string, paths: string[], keep: boolean) => { const b = boardBy(id); return b ? checker.deleteOnBoard(b, paths, keep) : gone; });
+  ipcMain.handle('boards:files-mkdir', async (_e, id: string, path: string) => { const b = boardBy(id); return b ? checker.makeFolder(b, path) : gone; });
+  ipcMain.handle('boards:files-done', async (_e, id: string) => { const b = boardBy(id); if (b) await checker.filesDone(b); });
   ipcMain.handle('boards:send', async (_e, id: string, files: Record<string, string | Uint8Array>, req: SendRequest) => {
     const b = watcher.current.boards.find((x) => x.id === id);
     return b ? checker.send(b, files, req) : { ok: false, message: 'The board is no longer plugged in.' };

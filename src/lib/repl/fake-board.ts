@@ -79,6 +79,8 @@ export interface FakeBoardOptions {
 }
 
 const HELP = 'Type "help()" for more information.\r\n';
+/** A Pico W's file system: 848 KB. */
+const SPACE = 868352;
 /** The raw-paste window, as the teacher's micro:bit gave it. */
 const WINDOW = 128;
 const TRACEBACK = 'Traceback (most recent call last):\r\n  File "main.py", line 1, in <module>\r\nKeyboardInterrupt: \r\n';
@@ -418,6 +420,17 @@ export class FakeBoard implements Link {
         this.files.set(b, f);
         this.files.delete(a);
         return {};
+      }
+      case '_mlrd': {
+        if (!this.dirs.has(a)) return oserror('_mlrd', '2] ENOENT');
+        for (const f of [...this.files.keys()]) if (f.startsWith(`${a}/`)) this.files.delete(f);
+        for (const d of [...this.dirs]) if (d === a || d.startsWith(`${a}/`)) this.dirs.delete(d);
+        return {};
+      }
+      case '_mldf': {
+        if (flat) return { out: '-\r\n' };
+        const used = [...this.files.values()].reduce((n, f) => n + f.length, 0);
+        return { out: `${SPACE} ${SPACE - used}\r\n` };
       }
       default:
         return { err: `Traceback (most recent call last):\r\nNameError: name '${name}' isn't defined\r\n` };

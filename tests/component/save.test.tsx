@@ -17,6 +17,14 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       save: vi.fn(save),
     },
     boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(async () => {}), send: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+      files: {
+        list: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+        read: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+        copy: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+        delete: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+        mkdir: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+        done: vi.fn(async () => {}),
+      },
       console: { open: vi.fn(async () => ({ ok: true as const })), close: vi.fn(async () => {}), do: vi.fn(async () => {}), onOutput: vi.fn(() => () => {}) },
       onChange: vi.fn(() => () => {}) },
     app: {
