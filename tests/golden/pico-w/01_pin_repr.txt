@@ -1,0 +1,9 @@
+reset Pin(GPIO15, mode=ALT, pull=PULL_DOWN, alt=31)
+reset value 0
+out Pin(GPIO15, mode=OUT)
+in up Pin(GPIO14, mode=IN, pull=PULL_UP)
+in down Pin(GPIO13, mode=IN, pull=PULL_DOWN)
+in Pin(GPIO12, mode=IN)
+od Pin(GPIO11, mode=OPEN_DRAIN, pull=PULL_UP)
+same True
+irq <irq>

@@ -1,0 +1,5 @@
+30 ValueError: invalid pin
+GP23 ValueError: unknown named pin "GP23"
+GPIO23 Pin(GPIO23, mode=ALT, alt=31)
+mode str TypeError: can't convert str to int
+constants (0, 1, 2, 3, 1, 2, 8, 4)

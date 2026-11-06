@@ -1,0 +1,5 @@
+repr Pin(EXT_GPIO0, mode=OUT)
+on 1
+pull ValueError: pulls are not supported for external pins
+od ValueError: only Pin.OUT and Pin.IN are supported for this pin
+irq ValueError: expecting a regular GPIO Pin

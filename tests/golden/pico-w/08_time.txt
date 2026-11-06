@@ -1,0 +1,5 @@
+add (1073741823, -1)
+overflow OverflowError: ticks interval overflow
+year (2021, 1, 1)
+freq 125000000
+time <module 'time'>

@@ -1,0 +1,4 @@
+count 4
+repr Timer(mode=PERIODIC, tick_hz=1000000, period=250000)
+one shot Timer(mode=ONE_SHOT, tick_hz=1000000, period=100000)
+0 ValueError: Timer doesn't exist

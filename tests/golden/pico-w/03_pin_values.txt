@@ -1,0 +1,7 @@
+out 0
+on 1
+toggle 0
+in after value(1) 0
+then OUT 1
+od 0 0
+od 1 1

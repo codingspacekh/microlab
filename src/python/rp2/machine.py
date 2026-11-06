@@ -48,6 +48,9 @@ class _IRQ:
     def __init__(self):
         self._trigger = 0
 
+    def __repr__(self):
+        return '<irq>'   # as a real Pico W prints it (golden 01_pin_repr, 2026-11-06)
+
     def flags(self):
         return 0
 
@@ -216,7 +219,9 @@ class ADC:
             # RP2040 datasheet §4.9.5: V = 0.706 - (T - 27) * 0.001721
             volts = 0.706 - (float(_ream.temperature()) - 27) * 0.001721
         elif self._channel == 3:
-            volts = 4.7 / 3   # VSYS / 3 (GP29 is not on the Pico W's header); about 4.7 V on USB
+            # On the Pico W, GP29 is also the Wi-Fi chip's clock (WL_CLK): ADC3 does not see VSYS / 3 as on the Pico,
+            # it reads about 0.02 V (a real Pico W read 384-400, golden 05_adc, 2026-11-06)
+            volts = 400 / 65535 * 3.3
         else:
             volts = float(_ream.adc_volts(str(26 + self._channel)))
         raw = int(volts / 3.3 * 4095 + 0.5)
@@ -447,6 +452,14 @@ def _gpio(pin):
     return int(p._key)
 
 
+def _baud(want):
+    """pico-sdk i2c_set_baudrate: the clock divides clk_sys by a whole number of cycles, rounded; what it gives is
+    what I2C() reports — 400 kHz is 125 MHz / 313 = 399361 (a real Pico W, golden 09_buses, 2026-11-06)."""
+    if want <= 0:
+        raise ValueError('freq must be > 0')
+    return _SYS_HZ // ((_SYS_HZ + want // 2) // want)
+
+
 class I2C(_bus.I2CBus):
     _nack = _bus._EIO   # i2c_write_timeout_us's PICO_ERROR_GENERIC becomes EIO
 
@@ -463,7 +476,7 @@ class I2C(_bus.I2CBus):
             d = _gpio(sda)
             if not (d & 1 == 0 and (d & 2) >> 1 == id):
                 raise ValueError('bad SDA pin')
-        self._id, self._freq, self._timeout = id, _int(freq), _int(timeout)
+        self._id, self._freq, self._timeout = id, _baud(_int(freq)), _int(timeout)
         self._scl_n, self._sda_n = c, d
         self._scl, self._sda = str(c), str(d)
         for k in (self._scl, self._sda):

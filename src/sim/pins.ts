@@ -91,12 +91,14 @@ export class PinBank {
     private readonly pulledUp: ReadonlySet<string> = new Set(),
     /** Inputs the window sets while the program runs (src/sim/control.ts), read on every update. */
     private readonly live?: Control,
+    /** Pins that start with no pull, unlike the rest (the Pico W's Wi-Fi pins GP23, GP24). */
+    private readonly noPull: ReadonlySet<string> = new Set(),
   ) {
     this.script = inputs.filter((c) => c.pin !== 'ACCEL').sort((a, b) => a.atUs - b.atUs);
   }
 
   get(pin: string): PinState {
-    return this.state.get(pin) ?? { ...this.reset };
+    return this.state.get(pin) ?? { ...this.reset, ...(this.noPull.has(pin) ? { pull: 'none' as const } : {}) };
   }
 
   private circuit?: CircuitLink;

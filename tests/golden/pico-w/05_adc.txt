@@ -1,0 +1,7 @@
+reprs (<ADC channel=0>, <ADC channel=1>, <ADC channel=2>, <ADC channel=4>)
+pin after Pin(GPIO27, mode=ALT, alt=31)
+5 ValueError: Pin doesn't have ADC capabilities
+Pin 15 ValueError: Pin doesn't have ADC capabilities
+temp ok True
+vsys ok False
+CORE_TEMP 4

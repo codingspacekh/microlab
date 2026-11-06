@@ -1,0 +1,11 @@
+repr <PWM slice=7 channel=1 invert=0>
+freq 50 (50, 32768, 9999933)
+freq 123 (123, 32768, 4065049)
+freq 1000 (1000, 32768, 499999)
+freq 10000 (10000, 32768, 50000)
+freq 100000 (100000, 32768, 5000)
+shared (1000, 16384)
+pin Pin(GPIO15, mode=ALT, pull=PULL_DOWN, alt=PWM)
+no freq (0, 0)
+too small ValueError: freq too small
+invert <PWM slice=0 channel=0 invert=1>

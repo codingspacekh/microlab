@@ -59,11 +59,12 @@ const ESP32_RESET: PinState = { mode: 'in', pull: 'none', out: 0 };
  *  board (library/boards/microbit-v2/board.json). */
 const MICROBIT_RESET: PinState = { mode: 'reset', pull: 'down', out: 0 };
 export const BOARDS = {
-  'pico-w': { python: 'rp2', reset: RP2040_RESET, pulledUp: [] },
+  // GP23 and GP24 (WL_ON, WL_D: the Wi-Fi chip's) start with no pull on a real Pico W; 25 and 29 pulled down (2026-11-06)
+  'pico-w': { python: 'rp2', reset: RP2040_RESET, pulledUp: [], noPull: ['23', '24'] },
   'esp32-devkit-v1': { python: 'esp32', reset: ESP32_RESET, pulledUp: [] },
   'esp32-devkit-v1-ext': { python: 'esp32', reset: ESP32_RESET, pulledUp: [] },
   'microbit-v2': { python: 'microbit', reset: MICROBIT_RESET, pulledUp: ['5', '11', '19', '20'] },
-} as const satisfies Record<string, { python: string; reset: PinState; pulledUp: readonly string[] }>;
+} as const satisfies Record<string, { python: string; reset: PinState; pulledUp: readonly string[]; noPull?: readonly string[] }>;
 export type SimBoard = keyof typeof BOARDS;
 
 export interface RunOptions {
@@ -112,7 +113,8 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const clock = options.clock ?? new RealClock();
   const now = () => clock.nowUs();
   const spec = options.board ? BOARDS[options.board] : undefined;
-  const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []), options.control);
+  const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []), options.control,
+    new Set<string>(spec && 'noPull' in spec ? spec.noPull : []));
   const circuit = options.circuit ? new CircuitHost(options.circuit, pins, now, options.partInputs, options.control) : undefined;
   const timeUp = () => options.maxUs !== undefined && clock.nowUs() >= options.maxUs;
   const quiet = () => circuit?.damage !== undefined || timeUp();
