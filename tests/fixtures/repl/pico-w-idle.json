@@ -1,0 +1,85 @@
+{
+ "source": "Recorded on the teacher's Pico W (MicroPython v1.29.0, their own main.py) with serialport 13 on macOS, 2026-11-06: the board idle at its >>> prompt; interrupt, raw REPL, os.uname(), Ctrl-B, soft reset (its main.py starts again)",
+ "exchange": [
+  {
+   "t": 305,
+   "app": "\r\u0003\u0003"
+  },
+  {
+   "t": 307,
+   "board": "\r\n>>> \r\n>>> \r\n>>> "
+  },
+  {
+   "t": 406,
+   "app": "\r\u0001"
+  },
+  {
+   "t": 406,
+   "board": "\r\n"
+  },
+  {
+   "t": 407,
+   "board": ">>> \r\nraw REPL; CTRL-B to exit\r\n>"
+  },
+  {
+   "t": 411,
+   "app": "import os\nprint(os.uname())\u0004"
+  },
+  {
+   "t": 412,
+   "board": "OK"
+  },
+  {
+   "t": 430,
+   "board": "("
+  },
+  {
+   "t": 432,
+   "board": "sysname='rp2', nodename='rp2', release='1.29.0', version='v1.29.0 on 2026-08-24 (GNU 16.1.0 MinSizeRel)', machine='Raspberry Pi "
+  },
+  {
+   "t": 432,
+   "board": "Pico W with RP2040')\r\n\u0004\u0004>"
+  },
+  {
+   "t": 438,
+   "app": "\u0002"
+  },
+  {
+   "t": 438,
+   "board": "\r\n"
+  },
+  {
+   "t": 438,
+   "board": "MicroPython v1.29.0 on 2026-08-24; Raspberry Pi Pico W with RP2040\r\nType \"help()\" for more information.\r\n>>> "
+  },
+  {
+   "t": 443,
+   "app": "\u0004"
+  },
+  {
+   "t": 443,
+   "board": "\r\n"
+  },
+  {
+   "t": 451,
+   "board": "MPY: soft reboot\r\n"
+  },
+  {
+   "t": 1713,
+   "board": "Joining 'CHAMPIONCODERS' ..."
+  },
+  {
+   "t": 1716,
+   "board": "\r\n"
+  },
+  {
+   "t": 1720,
+   "board": "   status:"
+  },
+  {
+   "t": 1720,
+   "board": " connecting\r\n"
+  }
+ ]
+}

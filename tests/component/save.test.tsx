@@ -16,7 +16,7 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       open: vi.fn(async () => ({ ok: true as const, path: '/s/Other.mlab', name: 'Other', doc: newProject('microbit-v2') })),
       save: vi.fn(save),
     },
-    boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), onChange: vi.fn(() => () => {}) },
+    boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(async () => {}), onChange: vi.fn(() => () => {}) },
     app: {
       setDirty: vi.fn(),
       onCloseRequest: vi.fn((cb: () => void) => { closeRequest = cb; return () => { closeRequest = undefined; }; }),

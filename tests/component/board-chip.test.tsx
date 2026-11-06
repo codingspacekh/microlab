@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { parseUname } from '@lib/repl';
 import type { Detection, FoundBoard } from '@lib/usb';
 import { App } from '../../src/renderer/app/App';
 import { fakeApi } from './fake-api';
@@ -99,5 +100,72 @@ describe('M10.1 the board chip', () => {
     fireEvent.click(await chip());
     fireEvent.mouseDown(document.body);
     expect(screen.queryByRole('dialog', { name: 'Board' })).toBeNull();
+  });
+});
+
+/** M10.2 F-55, F-56 (screen 13b): once the board is asked, the chip names it with its MicroPython, or says why not. */
+const W = parseUname("(sysname='rp2', nodename='rp2', release='1.29.0', version='v1.29.0 on 2026-08-24 (GNU 16.1.0 MinSizeRel)', machine='Raspberry Pi Pico W with RP2040')")!;
+const at = (checks: Detection['checks'], boards = [PICO]): Detection => ({ boards, drives: [], checks });
+
+describe('M10.2 the chip, with the board\'s answer', () => {
+  it('being asked: "checking…"', async () => {
+    setup(at({ e661: { state: 'checking' } }));
+    expect(await chip()).toHaveAccessibleName('Board: Pico, checking…');
+    expect(await chip()).toHaveClass('looking');
+  });
+
+  it('answered: its own name and MicroPython version, in the chip and its card', async () => {
+    setup(at({ e661: { state: 'micropython', uname: W } }));
+    expect(await chip()).toHaveAccessibleName('Board: Pico W, ready, MicroPython 1.29');
+    expect(await chip()).toHaveTextContent('Pico W · MicroPython 1.29');
+    fireEvent.click(await chip());
+    const card = screen.getByRole('dialog', { name: 'Board' });
+    expect(card).toHaveTextContent('Raspberry Pi Pico W');
+    expect(card).toHaveTextContent('MicroPython v1.29.0 (2026-08-24)');
+    expect(within(card).queryByRole('button', { name: 'Check the board' })).toBeNull();
+  });
+
+  it('plugged in: the message waits for the answer, then names the board and its version', async () => {
+    const s = setup(none);
+    await chip();
+    s.change(at({ e661: { state: 'checking' } }), [PICO]);
+    expect(screen.getByText('Pico plugged in — checking…')).toBeInTheDocument();
+    s.change(at({ e661: { state: 'micropython', uname: W } }));
+    expect(screen.getByText('Pico W plugged in — MicroPython 1.29.0. It matches this project.')).toBeInTheDocument();
+  });
+
+  it('used by another program: says which, how to free it, and asks again', async () => {
+    const s = setup(at({ e661: { state: 'busy', by: 'Thonny' } }));
+    expect(await chip()).toHaveAccessibleName('Board: Pico, used by Thonny');
+    expect(await chip()).toHaveClass('warn');
+    fireEvent.click(await chip());
+    const card = screen.getByRole('dialog', { name: 'Board' });
+    expect(card).toHaveTextContent('Close Thonny, or press Stop/Disconnect in it');
+    fireEvent.click(within(card).getByRole('button', { name: 'Try again' }));
+    expect(s.api.boards.check).toHaveBeenCalledWith('e661');
+  });
+
+  it('no MicroPython on it', async () => {
+    setup(at({ 9906: { state: 'no-micropython', seen: '' } }, [MB]), 'New micro:bit project');
+    expect(await chip()).toHaveAccessibleName('Board: micro:bit, no MicroPython');
+    fireEvent.click(await chip());
+    expect(screen.getByRole('dialog', { name: 'Board' })).toHaveTextContent('MakeCode');
+  });
+
+  it('can\'t connect: in red, with the reason', async () => {
+    setup(at({ e661: { state: 'cant-open', message: 'Opening COM7: The semaphore timeout period has expired.' } }));
+    expect(await chip()).toHaveAccessibleName("Board: Board found, can't connect");
+    expect(await chip()).toHaveClass('bad');
+    fireEvent.click(await chip());
+    expect(screen.getByRole('dialog', { name: 'Board' })).toHaveTextContent('The semaphore timeout period has expired.');
+  });
+
+  it('there before MicroLab started, not asked yet: its card can ask it, saying its program restarts', async () => {
+    const s = setup({ boards: [PICO], drives: [] });
+    fireEvent.click(await chip());
+    const card = screen.getByRole('dialog', { name: 'Board' });
+    expect(card).toHaveTextContent('its program stops for a moment and starts again');
+    fireEvent.click(within(card).getByRole('button', { name: 'Check the board' }));
+    expect(s.api.boards.check).toHaveBeenCalledWith('e661');
   });
 });

@@ -12,7 +12,8 @@ export interface WatcherDeps {
   platform: string;
 }
 
-export type OnBoards = (now: Detection, changes: ReturnType<typeof plugChanges>) => void;
+/** `first`: this is the first look — the boards in it were there before MicroLab started, not just plugged in. */
+export type OnBoards = (now: Detection, changes: ReturnType<typeof plugChanges>, first: boolean) => void;
 
 export const LOOK_MS = 1000;
 
@@ -20,6 +21,7 @@ export class BoardWatcher {
   current: Detection = { boards: [], drives: [] };
   private timer: ReturnType<typeof setTimeout> | undefined;
   private running = false;
+  private looked = false;
 
   constructor(private readonly deps: WatcherDeps, private readonly onChange: OnBoards, private readonly everyMs = LOOK_MS) {}
 
@@ -43,8 +45,9 @@ export class BoardWatcher {
       if (JSON.stringify(next) !== JSON.stringify(this.current)) {
         const changes = plugChanges(this.current, next);
         this.current = next;
-        this.onChange(next, changes);
+        this.onChange(next, changes, !this.looked);
       }
+      this.looked = true;
     } catch {
       // a port list that fails (the system busy) changes nothing; the next look tries again
     }

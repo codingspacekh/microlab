@@ -8,6 +8,9 @@
 .boardchip.none .dot { background: transparent; border: 1.5px solid var(--tx-3); }
 .boardchip.warn { background: var(--warn-soft); border-color: var(--warn-line); }
 .boardchip.warn .dot { background: var(--warn); }
+.boardchip.looking .dot { background: transparent; border: 1.5px dashed var(--accent); }
+.boardchip.bad { background: var(--danger-soft); border-color: var(--danger-line); color: var(--danger-ink); }
+.boardchip.bad .dot { background: var(--danger); }
 .boardchip.on, .boardchip:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); outline: none; }
 @media (max-width: 1500px) { .boardchip .sub { display: none; } }
 .chipcard { position: absolute; right: 0; top: calc(100% + 8px); width: 360px; padding: 14px; z-index: 40; display: flex; flex-direction: column; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-l); }
@@ -19,6 +22,9 @@
 .chipcard .pic img { max-width: 80px; max-height: 40px; }
 .chipcard .kv { display: grid; grid-template-columns: 76px 1fr; gap: 6px 10px; font-size: 12.5px; }
 .chipcard .kv > span:nth-child(odd) { color: var(--tx-3); }
+.chipcard .kv > span { min-width: 0; overflow-wrap: anywhere; }
+.chipcard .say { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; background: var(--bg-2); }
+.chipcard .say p { margin: 0; line-height: 1.5; }
 .chipcard .note { line-height: 1.5; margin: 0; }
 .toast { position: fixed; right: 16px; bottom: 40px; z-index: 90; display: flex; gap: 10px; align-items: center; padding: 10px 10px 10px 14px; border-radius: 10px; background: var(--inverse, #1f2937); color: #fff; box-shadow: var(--shadow-l); font-size: 12.5px; max-width: 460px; }
 .toast .btn { color: #c9d1db; }

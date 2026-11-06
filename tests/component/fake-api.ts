@@ -12,7 +12,7 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}): Microlab
       save: vi.fn(async () => ({ ok: false as const, canceled: true as const })),
       ...project,
     },
-    boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), onChange: vi.fn(() => () => {}) },
+    boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(async () => {}), onChange: vi.fn(() => () => {}) },
     app: { setDirty: vi.fn(), onCloseRequest: vi.fn(() => () => {}), close: vi.fn() },
   };
 }

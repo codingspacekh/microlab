@@ -17,6 +17,8 @@ export interface MicrolabApi {
   /** Real boards on USB (F-55): what is plugged in now, and every change. */
   boards: {
     get(): Promise<Detection>;
+    /** Asks the board (by id) what it is: its program stops for a moment and starts again (M10.2, R10). */
+    check(id: string): Promise<void>;
     onChange(handler: (now: Detection, changes: { plugged: FoundBoard[]; unplugged: FoundBoard[] }) => void): () => void;
   };
   app: {
@@ -46,7 +48,7 @@ export function getApi(): MicrolabApi {
       open: async () => ({ ok: false, message: 'Opening a file needs the MicroLab app.' }),
       save: async () => ({ ok: false, message: 'Saving a file needs the MicroLab app.' }),
     },
-    boards: { get: async () => ({ boards: [], drives: [] }), onChange: () => () => {} },
+    boards: { get: async () => ({ boards: [], drives: [] }), check: async () => {}, onChange: () => () => {} },
     app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close() },
   };
 }

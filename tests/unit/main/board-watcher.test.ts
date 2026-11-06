@@ -32,6 +32,21 @@ describe('M10.1 the board watcher', () => {
     s.w.stop();
   });
 
+  it('M10.2 R10 says whether a board was there at the first look (already running) or plugged in since', async () => {
+    const there = setup([PICO]);
+    there.w.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(there.changes.mock.calls[0]![2]).toBe(true);
+    there.w.stop();
+    const later = setup();
+    later.w.start();
+    await vi.advanceTimersByTimeAsync(0);
+    later.set([PICO]);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(later.changes.mock.calls[0]![2]).toBe(false);
+    later.w.stop();
+  });
+
   it('tells only when something changed, and what: unplugged, another board, a BOOTSEL drive', async () => {
     const s = setup([PICO]);
     s.w.start();

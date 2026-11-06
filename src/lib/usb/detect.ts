@@ -1,4 +1,5 @@
 import type { BoardId } from '../boards';
+import { boardFits, modelOf, type ModelInfo, type Uname } from '../repl/greeting';
 
 /**
  * Which boards a USB port list means (F-55, §1.13, N-12): every USB device reports a vendor and a product ID; the
@@ -41,7 +42,17 @@ export interface BoardDrive {
 export interface Detection {
   boards: FoundBoard[];
   drives: BoardDrive[];
+  /** What each board (by id) said when it was asked (M10.2); none until it is asked. */
+  checks?: Record<string, BoardCheck>;
 }
+
+/** The answer to asking a board (F-55, R10): its MicroPython and name, or why it couldn't be asked. */
+export type BoardCheck =
+  | { state: 'checking' }
+  | { state: 'micropython'; uname?: Uname }
+  | { state: 'no-micropython'; seen: string }
+  | { state: 'busy'; by?: string }
+  | { state: 'cant-open'; message: string };
 
 const KNOWN: Record<string, { kind: BoardKind; chip?: UsbChip }> = {
   '2e8a:0005': { kind: 'pico' },                       // Raspberry Pi Pico / Pico W running MicroPython
@@ -80,12 +91,23 @@ export function kindOf(board: BoardId): BoardKind {
   return board === 'pico-w' ? 'pico' : board === 'microbit-v2' ? 'microbit' : 'esp32';
 }
 
-/** What the board chip says (screens 13, 13b) — the states USB alone can tell; asking the board adds the rest. */
+/** What the board chip says (screens 13, 13b). */
+type On = { board: FoundBoard; others?: number };
 export type ChipState =
   | { kind: 'none' }
   | { kind: 'bootsel'; volume: string }
-  | { kind: 'ready'; board: FoundBoard; others?: number }
-  | { kind: 'wrong'; board: FoundBoard; want: BoardKind; others?: number };
+  | ({ kind: 'checking' } & On)
+  | ({ kind: 'ready'; uname?: Uname; model?: ModelInfo } & On)
+  | ({ kind: 'wrong'; want: BoardKind; uname?: Uname; model?: ModelInfo } & On)
+  | ({ kind: 'busy'; by?: string } & On)
+  | ({ kind: 'no-micropython' } & On)
+  | ({ kind: 'cant-open'; message: string } & On);
+
+/** Whether a board fits the project: by its answer once it gave one, else by its USB IDs. */
+function fits(b: FoundBoard, check: BoardCheck | undefined, project: BoardId): boolean {
+  if (check?.state === 'micropython' && check.uname) return boardFits(modelOf(check.uname).model, project);
+  return b.kind === kindOf(project);
+}
 
 /** `chosen`: the board picked last (its id), if it is still there. */
 export function chipState(d: Detection, project: BoardId | undefined, chosen?: string): ChipState {
@@ -93,8 +115,19 @@ export function chipState(d: Detection, project: BoardId | undefined, chosen?: s
     const bootsel = d.drives.find((x) => x.kind === 'pico-bootsel');
     return bootsel ? { kind: 'bootsel', volume: bootsel.volume } : { kind: 'none' };
   }
-  const want = project ? kindOf(project) : undefined;
-  const board = d.boards.find((b) => b.id === chosen) ?? d.boards.find((b) => !want || b.kind === want) ?? d.boards[0]!;
-  const others = d.boards.length > 1 ? { others: d.boards.length - 1 } : {};
-  return !want || board.kind === want ? { kind: 'ready', board, ...others } : { kind: 'wrong', board, want, ...others };
+  const checks = d.checks ?? {};
+  const board = d.boards.find((b) => b.id === chosen)
+    ?? (project && d.boards.find((b) => checks[b.id]?.state === 'micropython' && fits(b, checks[b.id], project)))
+    ?? d.boards.find((b) => !project || fits(b, checks[b.id], project))
+    ?? d.boards[0]!;
+  const on = { board, ...(d.boards.length > 1 ? { others: d.boards.length - 1 } : {}) };
+  const check = checks[board.id];
+  if (check?.state === 'checking') return { kind: 'checking', ...on };
+  if (check?.state === 'busy') return { kind: 'busy', ...on, ...(check.by ? { by: check.by } : {}) };
+  if (check?.state === 'no-micropython') return { kind: 'no-micropython', ...on };
+  if (check?.state === 'cant-open') return { kind: 'cant-open', ...on, message: check.message };
+  const answer = check?.state === 'micropython' && check.uname ? { uname: check.uname, model: modelOf(check.uname) } : {};
+  return !project || fits(board, check, project)
+    ? { kind: 'ready', ...on, ...answer }
+    : { kind: 'wrong', ...on, want: kindOf(project), ...answer };
 }

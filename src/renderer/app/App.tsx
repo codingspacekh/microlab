@@ -11,7 +11,7 @@ import { StartPage } from './StartPage';
 import { Workspace } from '../workspace/Workspace';
 import { BoardChip, plugMessage } from '../board/BoardChip';
 import type { BoardId } from '@lib/boards';
-import type { Detection } from '@lib/usb';
+import type { Detection, FoundBoard } from '@lib/usb';
 import { useRun, type RunState, type StartRun } from './useRun';
 
 /**
@@ -128,26 +128,27 @@ export function App({ api, width, startRun }: AppProps) {
   // real boards on USB (F-55): what the main process sees, the one chosen last, a short message on plug and unplug
   const [boards, setBoards] = useState<Detection>({ boards: [], drives: [] });
   const [chosen, setChosen] = useState<string | undefined>();
-  const [plugNote, setPlugNote] = useState<string | null>(null);
+  // the last plug or unplug; its message is worked out again as the board answers ("checking…", then its version)
+  const [plugged, setPlugged] = useState<{ plugged: FoundBoard[]; unplugged: FoundBoard[] } | null>(null);
   useEffect(() => {
     let live = true;
     void api.boards.get().then((d) => { if (live) setBoards(d); });
     void api.settings.get('board.chosen').then((c) => { if (live && typeof c === 'string') setChosen(c); });
     const off = api.boards.onChange((now, changes) => {
       setBoards(now);
-      const note = plugMessage(changes, latest.current?.doc.project.board as BoardId | undefined);
-      if (note) setPlugNote(note);
+      if (changes.plugged.length || changes.unplugged.length) setPlugged(changes);
     });
     return () => { live = false; off(); };
   }, [api]);
+  const plugNote = plugged ? plugMessage(plugged, latest.current?.doc.project.board as BoardId | undefined, boards.checks) : null;
   useEffect(() => {
     if (!plugNote) return;
-    const t = setTimeout(() => setPlugNote(null), 5000);
+    const t = setTimeout(() => setPlugged(null), 5000);
     return () => clearTimeout(t);
   }, [plugNote]);
   const chip = open ? (
     <BoardChip detection={boards} project={open.doc.project.board as BoardId} chosen={chosen}
-      onChoose={(id) => { setChosen(id); void api.settings.set('board.chosen', id); }} />
+      onChoose={(id) => { setChosen(id); void api.settings.set('board.chosen', id); }} onCheck={(id) => void api.boards.check(id)} />
   ) : null;
 
   const actions = {
@@ -172,7 +173,7 @@ export function App({ api, width, startRun }: AppProps) {
       {plugNote && (
         <div className="toast" role="status" aria-live="polite">
           <Icon name="usb" /><span>{plugNote}</span>
-          <button type="button" className="btn ghost sm icon" aria-label="Dismiss" onClick={() => setPlugNote(null)}><Icon name="x" size={14} /></button>
+          <button type="button" className="btn ghost sm icon" aria-label="Dismiss" onClick={() => setPlugged(null)}><Icon name="x" size={14} /></button>
         </div>
       )}
       {ask && (
