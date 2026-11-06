@@ -36,7 +36,7 @@ export function useRun(start: StartRun = realStart) {
 
   const run = useCallback((doc: ProjectDoc, entry: string, boardName: string) => {
     if (handle.current) return;
-    const greeting = `MicroPython v1.29.0 on ${boardName} (simulated) — running ${entry}\n`;
+    const greeting = `${firmwareOf(doc.project.board)} on ${boardName} (simulated) — running ${entry}\n`;
     setState({ ...IDLE, status: 'running', startedAt: Date.now(), console: [{ kind: 'sys', text: greeting }] });
     handle.current = start({ doc, entry }, {
       onOutput: (text) => add({ kind: 'out', text }),
@@ -87,6 +87,11 @@ export function useRun(start: StartRun = realStart) {
   useEffect(() => () => handle.current?.stop(), []);
 
   return { state, run, stop, restart, setInput, clear, reset };
+}
+
+/** The firmware the simulator copies on each board (as the real board's banner names it). */
+function firmwareOf(board: string): string {
+  return board === 'microbit-v2' ? 'micro:bit MicroPython v2.1.2 (MicroPython v1.18)' : 'MicroPython v1.29.0';
 }
 
 function endNote(r: RunResult, entry: string): ConsoleChunk {

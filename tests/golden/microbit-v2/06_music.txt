@@ -1,0 +1,7 @@
+tempo (120, 4)
+ba ding 51
+pitch 11
+two notes 25
+reset (120, 4)
+TypeError: expecting a str for note
+invalid pitch None

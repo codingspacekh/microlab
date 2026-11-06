@@ -183,6 +183,7 @@ describe('M4.5 while running (screen 03)', () => {
   it('the micro:bit\'s display shows each frame, each pixel as bright as it is', () => {
     const s = setup('New micro:bit project');
     fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    expect(s.consoleText()).toMatch(/^micro:bit MicroPython v2\.1\.2 \(MicroPython v1\.18\) on BBC micro:bit V2 \(simulated\)/);
     s.sim.say((e) => e.onBoard({ pins: {}, display: '0909099999999990999000900' }));
     const d = s.svg.querySelector('[data-display]')!;
     expect(d.getAttribute('data-display')).toBe('0909099999999990999000900');

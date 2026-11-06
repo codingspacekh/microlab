@@ -154,7 +154,10 @@ class MicroBitTouchOnlyPin:
     set_touch_mode = MicroBitTouchPin.set_touch_mode
 
 
-pin0 = MicroBitTouchPin(0, '0', 'unused')
+# pin0 says 'write_digital' from power-on on a real micro:bit V2 (v2.1.2+0697c6d), though microbit_pin.c gives it
+# MODE_UNUSED: something at start-up claims it (probed after a cold start, golden 01_pins, 2026-11-06). Only the
+# mode is copied; how the pin drives at power-on is still to measure with an LED wired to it (docs/acceptance/M2.md).
+pin0 = MicroBitTouchPin(0, '0', 'write_digital')
 pin1 = MicroBitTouchPin(1, '1', 'unused')
 pin2 = MicroBitTouchPin(2, '2', 'unused')
 pin3 = MicroBitAnalogDigitalPin(3, '3', 'display')

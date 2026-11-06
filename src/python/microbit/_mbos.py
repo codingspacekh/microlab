@@ -12,8 +12,8 @@ def size(name):
     return stat(name)[6]
 
 
-# os.uname() as micropython-microbit-v2 v2.1.2 gives it; the version line is to confirm on a real board
-_UNAME = ('microbit', 'microbit', '2.1.2', 'micro:bit v2.1.2 on 2024-06-07; MicroPython v1.22.0 on 2024-06-07',
+# os.uname() as micropython-microbit-v2 v2.1.2 gives it — confirmed on a real micro:bit V2 (golden 07_system, 2026-11-06)
+_UNAME = ('microbit', 'microbit', '2.1.2', 'micro:bit v2.1.2+0697c6d on 2023-10-30; MicroPython v1.18 on 2023-10-30',
           'micro:bit with nRF52833')
 
 

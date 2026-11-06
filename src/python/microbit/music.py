@@ -50,9 +50,10 @@ def _amplitude(on):
 
 
 def _period(us):
-    if us <= 0:
-        return -1
-    _m.period_us = us
+    # music_output_period_us sets the audio mixer's period, which always succeeds on the V2
+    # (microbit_hal_pin_set_analog_period_us returns 0 for MICROBIT_HAL_PIN_MIXER): music.pitch never raises
+    # 'invalid pitch' there — checked on a real micro:bit V2, golden 06_music.
+    _m.period_us = max(us, 0)
     _output()
     return 0
 
