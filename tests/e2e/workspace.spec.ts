@@ -66,3 +66,35 @@ test('at 1280 × 720 the micro:bit and its breadboard fit in the canvas', async 
     expect(b.y + b.height).toBeLessThanOrEqual(canvas.y + canvas.height + 1);
   }
 });
+
+test('M4.3b with the real mouse: a part clicked then placed, a wire with two bends, a value from the inspector', async () => {
+  const win = await app.firstWindow();
+  await resize(win, 1440, 900);
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+
+  // click the LED in the panel, then click on the breadboard
+  await win.locator('.parts .pitem:has-text("LED")').click();
+  const c10 = await centre(win, '[data-point="bb1.c10"]');
+  const c12 = await centre(win, '[data-point="bb1.c12"]');
+  await win.mouse.move((c10.x + c12.x) / 2, c10.y, { steps: 4 });
+  await win.mouse.click((c10.x + c12.x) / 2, c10.y);
+  await expect(win.locator('[data-part="led1"]')).toHaveAttribute('data-legs', 'bb1.c10 bb1.c12');
+
+  // its colour from the inspector
+  await win.getByRole('complementary', { name: 'Inspector' }).getByRole('radio', { name: 'Blue' }).click();
+  await expect(win.locator('[data-part="led1"]')).toHaveAttribute('data-props', '{"color":"blue"}');
+
+  // a wire from GP15: click, two bends, click on a5
+  const gp15 = await centre(win, '[data-point="board.GP15"]');
+  const a5 = await centre(win, '[data-point="bb1.a5"]');
+  await win.mouse.click(gp15.x, gp15.y);
+  await win.mouse.click(gp15.x, gp15.y + 40);
+  await win.mouse.click(a5.x, gp15.y + 40);
+  await win.mouse.click(a5.x, a5.y);
+  await expect(win.locator('[data-wire="w1"]')).toHaveAttribute('data-ends', 'board.GP15 bb1.a5');
+  expect((await win.locator('[data-wire="w1"]').getAttribute('data-via'))!.split(' ')).toHaveLength(2);
+
+  // Delete removes the selected wire
+  await win.keyboard.press('Delete');
+  await expect(win.locator('[data-wire]')).toHaveCount(0);
+});

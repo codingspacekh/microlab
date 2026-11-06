@@ -50,6 +50,12 @@ export function sceneOf(project: Project): Scene {
 
 const GAP = 40;
 
+/** The half-hole grid (8 units) things are put on, so holes line up and wire bends look tidy. */
+export const GRID = 8;
+export function snapToGrid(p: Point): Point {
+  return { x: Math.round(p.x / GRID) * GRID || 0, y: Math.round(p.y / GRID) * GRID || 0 };
+}
+
 /** The board above the breadboards, centred on the first; the breadboards one under another. */
 export function defaultView(project: Project): View {
   const art = boardArt(project.board as BoardId);
@@ -58,10 +64,10 @@ export function defaultView(project: Project): View {
   const breadboards: Record<string, Point> = {};
   let y = art.height + GAP;
   for (const bb of project.breadboards) {
-    breadboards[bb.id] = { x: 0, y };
-    y += BREADBOARD.size(bb.size).height + GAP;
+    breadboards[bb.id] = snapToGrid({ x: 0, y });
+    y = breadboards[bb.id]!.y + BREADBOARD.size(bb.size).height + GAP;
   }
-  return { board: { x: Math.round((bbWidth - art.width) / 2), y: 0 }, breadboards };
+  return { board: snapToGrid({ x: (bbWidth - art.width) / 2, y: 0 }), breadboards };
 }
 
 /** Where a point is: 'bb1.a5' or 'board.GP15' (a pin id); undefined if there is no such point. */

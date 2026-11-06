@@ -66,20 +66,45 @@ export const WIRE_COLOURS: Record<string, [string, string]> = {
   blue: ['#2f6fd6', '#1f4c96'], orange: ['#f08024', '#ad560f'], purple: ['#9160d6', '#5f3a95'], white: ['#f4f5f7', '#9aa1ab'],
 };
 
-export function Wire({ a, b, colour, drawing = false }: { a: Point; b: Point; colour: string; drawing?: boolean }) {
+export function Wire({ points, colour, drawing = false }: { points: Point[]; colour: string; drawing?: boolean }) {
   const [c, d] = WIRE_COLOURS[colour] ?? WIRE_COLOURS.green!;
   const dash = drawing ? '7 5' : undefined;
-  const path = `M${f(a.x)},${f(a.y)} L${f(b.x)},${f(b.y)}`;
+  const path = polyline(points);
+  const a = points[0]!;
+  const b = points[points.length - 1]!;
   return (
     <g className="wire" pointerEvents="none">
-      <path d={path} fill="none" stroke={d} strokeWidth={5.4} strokeLinecap="round" strokeDasharray={dash} />
-      <path d={path} fill="none" stroke={c} strokeWidth={3.4} strokeLinecap="round" strokeDasharray={dash} />
+      <path d={path} fill="none" stroke={d} strokeWidth={5.4} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dash} />
+      <path d={path} fill="none" stroke={c} strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dash} />
       {(drawing ? [a] : [a, b]).map((p, i) => (
         <g key={i}><circle cx={p.x} cy={p.y} r={3.6} fill={d} /><circle cx={p.x} cy={p.y} r={1.6} fill={c} /></g>
       ))}
     </g>
   );
 }
+
+/** A path through the points with rounded corners (design/svgparts.py rpath). */
+export function polyline(pts: Point[], radius = 7): string {
+  let d = `M${f(pts[0]!.x)},${f(pts[0]!.y)}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [p0, p1, p2] = [pts[i - 1]!, pts[i]!, pts[i + 1]!];
+    const l1 = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+    const l2 = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    if (!l1 || !l2) continue;
+    const r = Math.min(radius, l1 / 2, l2 / 2);
+    d += ` L${f(p1.x - ((p1.x - p0.x) / l1) * r)},${f(p1.y - ((p1.y - p0.y) / l1) * r)}`
+      + ` Q${f(p1.x)},${f(p1.y)} ${f(p1.x + ((p2.x - p1.x) / l2) * r)},${f(p1.y + ((p2.y - p1.y) / l2) * r)}`;
+  }
+  const last = pts[pts.length - 1]!;
+  return `${d} L${f(last.x)},${f(last.y)}`;
+}
+
+/** The LED colours the circuit knows (lib/circuit LED_COLORS), as drawn. */
+export const LED_SWATCHES = [
+  { value: 'red', name: 'Red', colour: '#ef3b2c' }, { value: 'yellow', name: 'Yellow', colour: '#ffd400' },
+  { value: 'green', name: 'Green', colour: '#22b14c' }, { value: 'blue', name: 'Blue', colour: '#2f6fe0' },
+  { value: 'white', name: 'White', colour: '#f4f4ee' },
+];
 
 // ------------------------------------------------------------------ parts
 const LED_COLOURS: Record<string, [string, string, string]> = {

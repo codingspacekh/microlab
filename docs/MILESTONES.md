@@ -6,6 +6,8 @@ How MicroLab is built, **in what order**, and **how each part is proven to work*
 - System design (processes, engine, board layer, file format): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html)
 
+*Revision 4 (2026-11-06): **Build like Tinkercad, earlier** — the teacher asked for Tinkercad's way of placing parts, wires with bend points and part values in M4, not M5: new slice **M4.3b** takes the first part of M5.1 (delete), M5.2 (the full breadboard), M5.3 (bend points, wire colour) and M5.4 (the inspector).*
+
 *Revision 3 (2026-11-06): **Run runs the open file**, as Thonny does (requirements Rev 7, Q19): the run's entry file in M4.5, the button's file name and its ⌄ menu with the file tree in M5.6.*
 
 *Revision 2 (2026-11-05): renamed **MicroLab**; layout and form-control rules (N-13, N-14) in the Definition of Done, M4 and M11.*
@@ -351,6 +353,14 @@ Proven without any UI.
 2. Start screen (01, minimal): new project from a board (F-01), open a `.mlab`.
 3. Workspace: board, half breadboard, resistor, LED, push button, potentiometer from the library art;
    drag from the parts panel (F-10), move (F-11), wires from pin to pin (F-13, basic).
+3b. *(Rev 4)* Build like Tinkercad: a part is dragged from the panel, or clicked and then placed with a click
+   (Esc cancels; from the keyboard: Enter picks it up, arrows move it hole by hole, Enter places it); wires with
+   **bend points** — click a pin or hole, click on the canvas for each bend (snapped to the hole grid), click a pin or
+   hole to end it (Backspace takes the last bend back, Esc cancels); a drag from point to point is still a straight
+   wire. Select a part, a wire or the breadboard: the **inspector** (screen 02b) sets the resistor's value (E12
+   stepper, quick values, colour bands), the LED's colour, the potentiometer's value, the wire's colour and the
+   breadboard's size (half / full; shrinking is refused while parts use columns 31–63). **Delete** removes the
+   selected part or wire (F-11, F-12, F-13, F-14).
 4. Editor: CodeMirror, Python, one `main.py` (F-20, basic).
 5. Run / Stop / Restart, console with `print()` (F-22, F-23); the LED glows, the button can be pressed (03).
    *(Rev 3)* The run takes an **entry file** (the open file; `main.py` while a project has only that) and runs it
@@ -364,6 +374,8 @@ Proven without any UI.
 - E2E: at 1280 × 720, 1440 × 900 and 1920 × 1080 the panels fill the window with no horizontal scroll; a
   divider dragged to a new width is still there after a restart.
 - Component: a part dropped on the breadboard snaps to holes; a wire dropped on empty space is not created.
+- *(Rev 4)* Component: a part clicked then placed with a click; by keyboard; a wire with two bends; the
+  inspector changes a resistor's value, an LED's colour, a wire's colour and the breadboard's size; Delete.
 - Unit: save → open gives the same project.
 - Python: a run with entry `led_test.py` runs it as `__main__` (not `main.py`), and it can import another
   project file; `boot.py` runs first on the Pico W and ESP32, never on the micro:bit (Q19).
@@ -380,10 +392,10 @@ Proven without any UI.
 **Goal:** building and coding as on screens 01, 02 and 02b.
 
 **Build order**
-1. Rotate, duplicate, delete, select several (F-11); undo / redo for every command (F-16).
-2. Zoom, pan, fit (F-17); full breadboard; hovering a hole lights its strip (F-12).
-3. Wire colours and bend points (F-13); pin hover card (F-15, screen 02).
-4. Inspector with resistor colour bands, LED colour … (F-14, screen 02b).
+1. Rotate, duplicate, select several (F-11; delete came in M4.3b); undo / redo for every command (F-16).
+2. Zoom, pan, fit (F-17); hovering a hole lights its strip (F-12); the full breadboard came in M4.3b.
+3. Moving and deleting a wire's bend points (F-13; making them and wire colours came in M4.3b); pin hover card (F-15, screen 02).
+4. The inspector for every part of M6 / M7 and the "Joins" line (F-14, screen 02b; the resistor, LED, potentiometer, wire and breadboard came in M4.3b).
 5. Autocomplete from each board's modules, with a short explanation (F-20, screen 02b).
 6. File tree: add / rename / delete files, `lib/`, the micro:bit's flat list and size warning (F-21).
    *(Rev 3)* Run runs the file open in the editor: the button names it (*▶ Run led_test.py*); its ⌄ menu has

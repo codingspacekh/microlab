@@ -56,7 +56,8 @@ describe('M4.3 points on the canvas', () => {
     const art = boardArt(id);
     const bb = v.breadboards.bb1!;
     expect(v.board.y + art.height).toBeLessThan(bb.y);
-    expect(Math.abs((v.board.x + art.width / 2) - (bb.x + 256))).toBeLessThanOrEqual(1);
+    expect(Math.abs((v.board.x + art.width / 2) - (bb.x + 256))).toBeLessThanOrEqual(4);
+    expect([v.board.x % 8, bb.x % 8, bb.y % 8]).toEqual([0, 0, 0]);
   });
 
   it('a saved view is used as it is', () => {

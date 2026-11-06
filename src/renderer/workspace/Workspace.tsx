@@ -1,18 +1,20 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { freeSpot, PART_KINDS, sceneOf, addPart } from '@lib/editor';
+import { PART_KINDS } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { ProjectDoc } from '@lib/project';
 import { Divider } from '../ui/Divider';
 import type { MicrolabApi } from '../app/api';
 import { BOARD_ART, BOARD_NAMES } from '../app/boards';
-import { Canvas } from './Canvas';
+import { Canvas, type Placing, type Selection } from './Canvas';
+import { Inspector } from './Inspector';
 import { PartIcon } from './drawings';
 import './workspace.css';
 
 /**
  * The Workspace (screens 02, 03): the parts panel, the circuit canvas and the code side share the width as
  * proportions — parts ~17 %, the circuit the rest, code ~34 % — each within limits; the dividers between them are
- * draggable and where they were left is a setting (N-13, M4.1). Parts come from the panel (F-10, M4.3).
+ * draggable and where they were left is a setting (N-13, M4.1). Parts come from the panel (F-10, M4.3): dragged,
+ * or clicked and placed with a click, or picked up with Enter (M4.3b); a selected thing shows the inspector.
  */
 export interface Layout {
   parts: number;
@@ -21,7 +23,6 @@ export interface Layout {
 
 export const DEFAULT_LAYOUT: Layout = { parts: 0.17, side: 0.34 };
 const LIMITS = { parts: [220, 360], side: [320, 0.5], canvas: 360 } as const;
-export const FULL = 'The breadboard is full: there is no free place for that part.';
 
 export interface WorkspaceProps {
   api: MicrolabApi;
@@ -35,8 +36,8 @@ export function Workspace({ api, width: fixed, doc, onChange }: WorkspaceProps) 
   const { ref, width } = useWidth(fixed);
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
   const [drag, setDrag] = useState<Partial<Record<keyof Layout, number>>>({});
-  const [placing, setPlacing] = useState<string | null>(null);
-  const [hint, setHint] = useState<string | null>(null);
+  const [placing, setPlacing] = useState<Placing | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -60,12 +61,6 @@ export function Workspace({ api, width: fixed, doc, onChange }: WorkspaceProps) 
 
   const project = doc.project;
   const setProject = (p: typeof project) => onChange({ ...doc, project: p });
-  const addFree = (type: string) => {
-    const legs = freeSpot(sceneOf(project), type);
-    if (!legs) { setHint(FULL); return; }
-    setHint(null);
-    setProject(addPart(project, type, legs).project);
-  };
 
   const board = project.board as BoardId;
   return (
@@ -81,23 +76,30 @@ export function Workspace({ api, width: fixed, doc, onChange }: WorkspaceProps) 
           <div className="pgroup">
             <div className="gh">Basics<span className="n">{PART_KINDS.length}</span></div>
             {PART_KINDS.map((k) => (
-              <button key={k.type} type="button" className={placing === k.type ? 'pitem drag' : 'pitem'}
-                title={`Drag ${k.name.toLowerCase()} onto the breadboard, or click to add it`}
-                onMouseDown={(e) => { if (e.button === 0) { e.preventDefault(); setPlacing(k.type); } }}
-                onClick={() => addFree(k.type)}>
+              <button key={k.type} type="button" className={placing?.type === k.type ? 'pitem drag' : 'pitem'}
+                title={`Drag ${k.name.toLowerCase()} onto the breadboard, or click it and then click where it goes`}
+                onMouseDown={(e) => {
+                  if (e.button !== 0) return;
+                  e.preventDefault();
+                  setSelection(null);   // the inspector would cover the canvas
+                  setPlacing({ type: k.type, how: 'press', start: { x: e.clientX, y: e.clientY } });
+                }}
+                onClick={(e) => { if (e.detail === 0) { setSelection(null); setPlacing({ type: k.type, how: 'keys' }); } }}>
                 <span className="pic"><PartIcon type={k.type} /></span>
                 <span className="nm">{k.name}<small>{k.detail}</small></span>
               </button>
             ))}
           </div>
-          <p className="tiny muted howto">Drag a part onto the breadboard, or click it. Drag from a pin or a hole to another to add a wire.</p>
+          <p className="tiny muted howto">Drag a part onto the breadboard, or click it and click where it goes. For a wire, drag from a pin or hole to another — or click it, click for each bend, and click where it ends.</p>
         </div>
       </section>
       <Divider label="Parts panel width" value={partsPx} min={LIMITS.parts[0]} max={partsMax}
         onChange={(v) => setDrag({ parts: v })} onCommit={commit('parts')} />
       <section className="canvas" aria-label="Circuit">
-        <Canvas project={project} onChange={setProject} placing={placing} onPlacingEnd={() => setPlacing(null)} onHint={setHint} />
-        {hint && <div className="canvas-hint" aria-live="polite">{hint}</div>}
+        <Canvas project={project} onChange={setProject} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection} />
+        {selection && (
+          <Inspector key={`${selection.kind}:${selection.id}`} project={project} selection={selection} onChange={setProject} onClose={() => setSelection(null)} />
+        )}
       </section>
       <Divider label="Code panel width" value={sidePx} min={LIMITS.side[0]} max={sideMax} edge="right"
         onChange={(v) => setDrag({ side: v })} onCommit={commit('side')} />

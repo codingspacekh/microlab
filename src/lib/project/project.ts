@@ -20,7 +20,13 @@ export const projectSchema = z.object({
     props: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])).optional(),
     legs: z.record(z.string(), point),
   })),
-  wires: z.array(z.object({ id: z.string(), a: point, b: point })),
+  wires: z.array(z.object({
+    id: z.string(), a: point, b: point,
+    /** Bend points, from a to b, in drawing units (M4.3b). */
+    via: z.array(xy).optional(),
+    /** Its colour (M4.3b); without it, black to ground, red to a supply, the others in turn. */
+    color: z.string().optional(),
+  })),
   /** Board pins pushed into breadboard holes (a board that straddles the channel). */
   plugs: z.record(z.string(), point).optional(),
   /** Supply jumpers (the ESP32 extension board's V): pin → volts. */
