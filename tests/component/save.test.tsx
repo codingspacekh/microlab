@@ -31,6 +31,8 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       setDirty: vi.fn(),
       onCloseRequest: vi.fn((cb: () => void) => { closeRequest = cb; return () => { closeRequest = undefined; }; }),
       close: vi.fn(),
+      copy: vi.fn(async () => {}),
+      openDriverPage: vi.fn(async () => {}),
     },
   } satisfies MicrolabApi;
   return { api, requestClose: () => act(() => closeRequest?.()) };

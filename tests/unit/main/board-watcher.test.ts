@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PortInfo } from '@lib/usb';
-import { BoardWatcher, volumesIn } from '../../../src/main/board-watcher';
+import { BoardWatcher, listUsbWindows, volumesIn } from '../../../src/main/board-watcher';
 
 /** M10.1 F-55, N-12: the main process looks at the USB ports about once a second and says what changed. */
 const PICO: PortInfo = { path: '/dev/tty.usbmodem14201', serialNumber: 'e661', vendorId: '2e8a', productId: '0005' };
@@ -106,5 +106,28 @@ describe('M10.1 listing the drives', () => {
     vi.useRealTimers();
     expect(await listVolumes('linux', 'no-such-user-microlab')).toEqual([]);
     expect(await listVolumes('win32', 'x')).toEqual([]);
+  });
+});
+
+describe('M10.6 R5 on Windows, the device list too (a board\'s chip with no driver)', () => {
+  const ESP_NO_DRIVER = [{ usb: '10c4:ea60', ok: false, name: 'CP2102 USB to UART Bridge Controller' }];
+
+  it('is read every third look (PowerShell is slow), and a chip with no port is told', async () => {
+    const listUsb = vi.fn(async () => ESP_NO_DRIVER);
+    const changes = vi.fn();
+    const w = new BoardWatcher({ listPorts: async () => [], listVolumes: async () => [], platform: 'win32', listUsb }, changes);
+    w.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(changes.mock.calls[0]![0].noDriver).toEqual([{ usb: '10c4:ea60', chip: 'CP210x', name: 'CP2102 USB to UART Bridge Controller' }]);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(listUsb).toHaveBeenCalledTimes(2);
+    w.stop();
+  });
+
+  it('the PowerShell command and its answer', async () => {
+    const run = vi.fn(async () => '{"InstanceId":"USB\\\\VID_1A86&PID_7523\\\\5&1","Status":"Error","FriendlyName":"USB2.0-Serial","Problem":28}');
+    expect(await listUsbWindows(run)).toEqual([{ usb: '1a86:7523', ok: false, name: 'USB2.0-Serial' }]);
+    expect(run).toHaveBeenCalledWith('powershell.exe', expect.arrayContaining(['-NoProfile', '-Command', expect.stringContaining('Get-PnpDevice -PresentOnly')]));
+    expect(await listUsbWindows(async () => { throw new Error('no powershell'); })).toEqual([]);
   });
 });

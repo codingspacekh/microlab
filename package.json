@@ -1,7 +1,7 @@
 {
   "name": "microlab",
   "productName": "MicroLab",
-  "version": "0.0.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Build breadboard circuits, write MicroPython and simulate them — micro:bit, Pico W, ESP32",
   "main": "out/main/index.js",

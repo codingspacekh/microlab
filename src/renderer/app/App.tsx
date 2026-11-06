@@ -11,11 +11,12 @@ import { StartPage } from './StartPage';
 import { Workspace } from '../workspace/Workspace';
 import { BoardChip, plugMessage } from '../board/BoardChip';
 import { BoardFiles } from '../board/BoardFiles';
+import { ConnectionHelper } from '../board/ConnectionHelper';
 import { SendToBoard, sendMessage } from '../board/SendToBoard';
 import { boardShort, useBoardConsole } from '../board/useBoardConsole';
 import type { BoardId } from '@lib/boards';
 import type { ConsoleAction, SendRequest } from '@lib/repl';
-import type { Detection, FoundBoard } from '@lib/usb';
+import { kindOf, type Detection, type FoundBoard } from '@lib/usb';
 import { useRun, type RunState, type StartRun } from './useRun';
 
 /**
@@ -195,6 +196,8 @@ export function App({ api, width, startRun }: AppProps) {
     bc.note(id, [{ kind: 'sys', text: `Running ${ENTRY} from the editor on the board — its own main.py is unchanged.\n` }]);
     await api.boards.console.do(id, { do: 'run', name: ENTRY, code: typeof code === 'string' ? code : new TextDecoder().decode(code) });
   };
+  // the connection helper (F-56), while it is open
+  const [helping, setHelping] = useState(false);
   // Board files (F-53): the board whose files are shown, while the panel is open
   const [filesOf, setFilesOf] = useState<{ id: string; name: string } | null>(null);
   const consoleDo = (a: ConsoleAction) => { if (bc.shown) void api.boards.console.do(bc.shown.id, a); };
@@ -202,11 +205,13 @@ export function App({ api, width, startRun }: AppProps) {
   const chip = open ? (
     <>
       <BoardChip detection={boards} project={open.doc.project.board as BoardId} chosen={chosen}
-        onChoose={(id) => { setChosen(id); void api.settings.set('board.chosen', id); }} onCheck={(id) => void api.boards.check(id)} />
+        onChoose={(id) => { setChosen(id); void api.settings.set('board.chosen', id); }} onCheck={(id) => void api.boards.check(id)}
+        onHelp={() => setHelping(true)} />
       <SendToBoard detection={boards} project={open.doc.project.board as BoardId} chosen={chosen} files={open.doc.files}
         entry={ENTRY} busy={sending} onSend={(id, req) => void send(id, req)}
         onRunFile={(id) => void runOnBoard(id)} onOpenConsole={(id) => void openConsole(id)}
-        onBoardFiles={(id) => { if (running) sim.stop(); setFilesOf({ id, name: nameOf(id) }); }} />
+        onBoardFiles={(id) => { if (running) sim.stop(); setFilesOf({ id, name: nameOf(id) }); }}
+        onHelp={() => setHelping(true)} />
     </>
   ) : null;
 
@@ -262,6 +267,10 @@ export function App({ api, width, startRun }: AppProps) {
           </div>
         )}
       </div>
+      {helping && open && (
+        <ConnectionHelper api={api} detection={boards} kind={kindOf(open.doc.project.board as BoardId)}
+          projectBoard={boardName(open)} chosen={chosen} onClose={() => setHelping(false)} />
+      )}
       {filesOf && open && (
         <BoardFiles api={api} id={filesOf.id} name={nameOf(filesOf.id)} doc={open.doc}
           onDoc={(doc) => setOpen((cur) => (cur ? { ...cur, doc, savedNote: undefined } : cur))}

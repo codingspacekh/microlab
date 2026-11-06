@@ -23,6 +23,6 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}): Microlab
       },
       console: { open: vi.fn(async () => ({ ok: true as const })), close: vi.fn(async () => {}), do: vi.fn(async () => {}), onOutput: vi.fn(() => () => {}) },
       onChange: vi.fn(() => () => {}) },
-    app: { setDirty: vi.fn(), onCloseRequest: vi.fn(() => () => {}), close: vi.fn() },
+    app: { setDirty: vi.fn(), onCloseRequest: vi.fn(() => () => {}), close: vi.fn(), copy: vi.fn(async () => {}), openDriverPage: vi.fn(async () => {}) },
   };
 }

@@ -24,6 +24,7 @@ export interface SendToBoardProps {
   onRunFile: (id: string) => void;
   onOpenConsole: (id: string) => void;
   onBoardFiles: (id: string) => void;
+  onHelp: () => void;
 }
 
 /** "0.6 KB"; a few bytes as bytes. */
@@ -33,7 +34,7 @@ export function size(n: number): string {
 
 const bytesOf = (v: string | Uint8Array) => (typeof v === 'string' ? new TextEncoder().encode(v).length : v.length);
 
-export function SendToBoard({ detection, project, chosen, files, busy, onSend, entry, onRunFile, onOpenConsole, onBoardFiles }: SendToBoardProps) {
+export function SendToBoard({ detection, project, chosen, files, busy, onSend, entry, onRunFile, onOpenConsole, onBoardFiles, onHelp }: SendToBoardProps) {
   const [asking, setAsking] = useState(false);
   const state = chipState(detection, project, chosen);
   const sending = busy || state.kind === 'sending';
@@ -56,7 +57,8 @@ export function SendToBoard({ detection, project, chosen, files, busy, onSend, e
       </span>
       {asking && 'board' in state && (
         <SendDialog detection={detection} project={project} first={state.board.id} files={files}
-          onCancel={() => setAsking(false)} onSend={(id, req) => { setAsking(false); onSend(id, req); }} />
+          onCancel={() => setAsking(false)} onSend={(id, req) => { setAsking(false); onSend(id, req); }}
+          onHelp={() => { setAsking(false); onHelp(); }} />
       )}
     </>
   );
@@ -69,9 +71,10 @@ interface SendDialogProps {
   files: ProjectDoc['files'];
   onCancel: () => void;
   onSend: (id: string, req: SendRequest) => void;
+  onHelp: () => void;
 }
 
-function SendDialog({ detection, project, first, files, onCancel, onSend }: SendDialogProps) {
+function SendDialog({ detection, project, first, files, onCancel, onSend, onHelp }: SendDialogProps) {
   const [id, setId] = useState(first);
   const [run, setRun] = useState(true);
   const [keep, setKeep] = useState(true);
@@ -127,7 +130,7 @@ function SendDialog({ detection, project, first, files, onCancel, onSend }: Send
         </div>
         <div className="infobox">
           <Icon name="info" />
-          <div className="small"><b>Wire the real board like the picture first.</b> Board not listed? Use a USB cable that carries data; ESP32 boards may need the CP210x or CH340 driver.</div>
+          <div className="small"><b>Wire the real board like the picture first.</b> Board not listed? Use a USB cable that carries data; ESP32 boards may need the CP210x or CH340 driver. <button type="button" className="btn sm link" onClick={onHelp}>Help connecting…</button></div>
         </div>
       </div>
     </Dialog>

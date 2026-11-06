@@ -158,3 +158,43 @@ test('M10.5 F-53 Board files: the board beside the project; a folder made and de
   await dialog.getByRole('button', { name: 'Done' }).click();
   await expect(dialog).toHaveCount(0);
 });
+
+test('M10.6 F-56 the connection helper: step by step; it follows the board as it is plugged in', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await win.getByRole('button', { name: /^Board:/ }).click();
+  await win.getByRole('dialog', { name: 'Board' }).getByRole('button', { name: /Help connecting/ }).click();
+  const helper = win.getByRole('dialog', { name: 'Help connecting a board' });
+  await expect(helper).toContainText('Is the Pico W plugged in at both ends?');
+  await helper.getByRole('button', { name: /Yes, it's plugged in/ }).click();
+  await helper.getByRole('button', { name: /No, nothing appeared/ }).click();
+  await expect(helper).toContainText('The cable only carries power');
+  await helper.getByRole('button', { name: "I've changed the cable" }).click();
+  plug('mac-pico-w');
+  // plugged in with the helper open: asked by itself, as any board plugged in
+  await expect(helper).toContainText('The Pico W is connected: MicroPython 1.29.', { timeout: 4000 });
+  // the report for the teacher: the app's own version and the real system
+  await helper.getByRole('button', { name: 'Copy report for the teacher' }).click();
+  await expect(helper.getByRole('status')).toContainText('Copied');
+  const report = await app.evaluate(({ clipboard }) => clipboard.readText());
+  const version = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
+  expect(report).toContain(`MicroLab ${version} · ${process.platform === 'darwin' ? 'macOS' : process.platform === 'win32' ? 'Windows' : 'Linux'} `);
+  expect(report).toContain('Boards on USB: Pico 2e8a:0005 on /dev/cu.usbmodem14201');
+  await helper.getByRole('button', { name: 'Close' }).first().click();
+  await expect(helper).toHaveCount(0);
+});
+
+test('M10.6 R5 an ESP32 whose USB chip has no driver (Windows\' device list, constructed): can\'t connect, which driver', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New ESP32 project' }).click();
+  const f = JSON.parse(readFileSync('tests/fixtures/usb/win-esp32-no-driver-constructed.json', 'utf8')) as { pnp: string };
+  writeFileSync(usb, JSON.stringify({ platform: 'win32', volumes: [], ports: [], pnp: f.pnp }));
+  const chip = win.getByRole('button', { name: /^Board:/ });
+  await expect(chip).toHaveAccessibleName("Board: Board found, can't connect", { timeout: 4000 });
+  await chip.click();
+  await expect(win.getByRole('dialog', { name: 'Board' })).toContainText('no driver for that chip');
+  await win.getByRole('dialog', { name: 'Board' }).getByRole('button', { name: /Help connecting/ }).click();
+  const helper = win.getByRole('dialog', { name: 'Help connecting a board' });
+  await expect(helper).toContainText('This laptop has no driver for the CP210x chip');
+  await expect(helper.getByRole('button', { name: 'Open the CP210x driver page' })).toBeVisible();
+});

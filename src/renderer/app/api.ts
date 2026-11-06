@@ -3,11 +3,12 @@ import type { BoardListing, ConsoleAction, ConsoleKind, SendRequest, SendResult 
 
 /** What the board did, or why it couldn't. */
 export type Result<T> = ({ ok: true } & T) | { ok: false; message: string };
-import type { Detection, FoundBoard } from '@lib/usb';
+import type { Detection, FoundBoard, UsbChip } from '@lib/usb';
 
 /** What the preload gives the window (src/preload/index.ts): the only way to Node (architecture §2.2). */
 export interface MicrolabApi {
-  versions: { app: string; electron: string };
+  /** The app's version; the system it runs on ("macOS 26.0"), when the app gives it. */
+  versions: { app: string; electron: string; system?: string };
   settings: {
     get(key: string): Promise<unknown>;
     set(key: string, value: unknown): Promise<void>;
@@ -51,6 +52,10 @@ export interface MicrolabApi {
     onCloseRequest(handler: () => void): () => void;
     /** Closes the window, changes or not (after the student said so). */
     close(): void;
+    /** Puts text on the clipboard (the helper's report for the teacher). */
+    copy(text: string): Promise<void>;
+    /** Opens a USB chip's official driver page in the system's browser (R5) — only those pages. */
+    openDriverPage(chip: UsbChip): Promise<void>;
   };
 }
 
@@ -82,6 +87,6 @@ export function getApi(): MicrolabApi {
       },
       console: { open: async () => ({ ok: false, message: 'A board needs the MicroLab app.' }), close: async () => {}, do: async () => {}, onOutput: () => () => {} },
       onChange: () => () => {} },
-    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close() },
+    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close(), copy: async (t) => navigator.clipboard?.writeText(t), openDriverPage: async () => {} },
   };
 }

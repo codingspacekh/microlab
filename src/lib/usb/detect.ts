@@ -40,9 +40,24 @@ export interface BoardDrive {
   volume: string;
 }
 
+/** A device on USB as Windows' device list has it (Get-PnpDevice): its IDs, whether it works, its name. */
+export interface UsbDevice {
+  usb: string;
+  ok: boolean;
+  name?: string;
+}
+
+/** A known board's USB chip that is on USB but has no serial port: its driver is missing (R5, mostly Windows). */
+export interface NoDriver {
+  usb: string;
+  chip: UsbChip;
+  name?: string;
+}
+
 export interface Detection {
   boards: FoundBoard[];
   drives: BoardDrive[];
+  noDriver?: NoDriver[];
   /** What each board (by id) said when it was asked (M10.2); none until it is asked. */
   checks?: Record<string, BoardCheck>;
   /** The boards whose console is open (M10.4), and whether each is at its >>> prompt or running something. */
@@ -68,7 +83,24 @@ const KNOWN: Record<string, { kind: BoardKind; chip?: UsbChip }> = {
 
 const DRIVES: Record<string, BoardDrive['kind']> = { 'RPI-RP2': 'pico-bootsel', MICROBIT: 'microbit' };
 
-export function detect(ports: PortInfo[], volumes: string[], platform: string): Detection {
+/** Windows' device list (`Get-PnpDevice … | ConvertTo-Json`), the USB devices in it; nothing when it can't be read. */
+export function parsePnp(json: string): UsbDevice[] {
+  let raw: unknown;
+  try { raw = JSON.parse(json); } catch { return []; }
+  const list = (Array.isArray(raw) ? raw : raw ? [raw] : []) as { InstanceId?: string; Status?: string; FriendlyName?: string | null }[];
+  const out: UsbDevice[] = [];
+  for (const d of list) {
+    const m = /^USB\\VID_([0-9A-F]{4})&PID_([0-9A-F]{4})/i.exec(d.InstanceId ?? '');
+    if (!m) continue;
+    const usb = `${m[1]}:${m[2]}`.toLowerCase();
+    if (out.some((x) => x.usb === usb)) continue;
+    out.push({ usb, ok: d.Status === 'OK', ...(d.FriendlyName ? { name: d.FriendlyName } : {}) });
+  }
+  return out;
+}
+
+/** `usb`: the device list where the system gives one (Windows), to find a board's chip with no driver. */
+export function detect(ports: PortInfo[], volumes: string[], platform: string, usb?: UsbDevice[]): Detection {
   const boards: FoundBoard[] = [];
   for (const p of ports) {
     if (!p.vendorId || !p.productId) continue;
@@ -80,7 +112,10 @@ export function detect(ports: PortInfo[], volumes: string[], platform: string): 
   }
   boards.sort((a, b) => a.port.localeCompare(b.port, 'en', { numeric: true }));
   const drives = volumes.filter((v) => DRIVES[v]).map((v) => ({ kind: DRIVES[v]!, volume: v }));
-  return { boards, drives };
+  const portUsb = new Set(ports.filter((p) => p.vendorId && p.productId).map((p) => `${p.vendorId}:${p.productId}`.toLowerCase()));
+  const noDriver = (usb ?? []).filter((d) => KNOWN[d.usb]?.chip && !portUsb.has(d.usb))
+    .map((d) => ({ usb: d.usb, chip: KNOWN[d.usb]!.chip!, ...(d.name ? { name: d.name } : {}) }));
+  return noDriver.length ? { boards, drives, noDriver } : { boards, drives };
 }
 
 /** Boards plugged in and unplugged between two looks; the same board (its id) on another port is neither. */
@@ -100,6 +135,7 @@ type On = { board: FoundBoard; others?: number };
 export type ChipState =
   | { kind: 'none' }
   | { kind: 'bootsel'; volume: string }
+  | { kind: 'no-driver'; chip: UsbChip; usb: string }
   | ({ kind: 'checking' } & On)
   | ({ kind: 'sending'; done: number; total: number; uname?: Uname; model?: ModelInfo } & On)
   | ({ kind: 'ready'; uname?: Uname; model?: ModelInfo } & On)
@@ -118,7 +154,9 @@ function fits(b: FoundBoard, check: BoardCheck | undefined, project: BoardId): b
 export function chipState(d: Detection, project: BoardId | undefined, chosen?: string): ChipState {
   if (d.boards.length === 0) {
     const bootsel = d.drives.find((x) => x.kind === 'pico-bootsel');
-    return bootsel ? { kind: 'bootsel', volume: bootsel.volume } : { kind: 'none' };
+    if (bootsel) return { kind: 'bootsel', volume: bootsel.volume };
+    const nd = d.noDriver?.[0];
+    return nd ? { kind: 'no-driver', chip: nd.chip, usb: nd.usb } : { kind: 'none' };
   }
   const checks = d.checks ?? {};
   const board = d.boards.find((b) => b.id === chosen)

@@ -29,6 +29,8 @@ export interface BoardChipProps {
   onChoose: (id: string) => void;
   /** Asks the board (by id) what it is (M10.2). */
   onCheck: (id: string) => void;
+  /** Opens the connection helper (F-56, screen 14). */
+  onHelp: () => void;
 }
 
 /** The chip's colour, its words (face and spoken), from its state. */
@@ -37,7 +39,7 @@ function look(state: ChipState, project: BoardId, count: number, consoles?: Dete
   if (state.kind === 'bootsel') {
     return { tone: 'warn', label: 'Pico, BOOTSEL mode', face: <><img src={KIND.pico.art} alt="" />Pico <span className="sub">· BOOTSEL mode</span></> };
   }
-  if (state.kind === 'cant-open') {
+  if (state.kind === 'cant-open' || state.kind === 'no-driver') {
     return { tone: 'bad', label: "Board found, can't connect", face: <><Icon name="warn" size={14} />Board found, can't connect</> };
   }
   const k = KIND[state.board.kind];
@@ -61,7 +63,7 @@ function look(state: ChipState, project: BoardId, count: number, consoles?: Dete
   return { tone, label: `${short}, ${said}${several}`, face: <><img src={k.art} alt="" />{short} <span className="sub">· {sub}</span></> };
 }
 
-export function BoardChip({ detection, project, chosen, onChoose, onCheck }: BoardChipProps) {
+export function BoardChip({ detection, project, chosen, onChoose, onCheck, onHelp }: BoardChipProps) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -93,8 +95,14 @@ export function BoardChip({ detection, project, chosen, onChoose, onCheck }: Boa
           {state.kind === 'bootsel' && (
             <p className="small">The Pico is in BOOTSEL mode: it shows a drive called <span className="mono">{state.volume}</span> and runs no program. Unplug it and plug it back in without holding the button to start it as it was.</p>
           )}
+          {state.kind === 'no-driver' && (
+            <p className="small">A board with a <b>{state.chip}</b> USB chip is plugged in, but this laptop has no driver for that chip, so it can't talk to the board. Install the {state.chip} driver, then plug the board in again.</p>
+          )}
           {'board' in state && (
             <BoardCard state={state} want={WANT[project]} checked={state.board.id in checks} onCheck={again!} />
+          )}
+          {!['ready', 'checking', 'sending'].includes(state.kind) && (
+            <button type="button" className="btn sm" onClick={() => { setOpen(false); onHelp(); }}><Icon name="info" size={14} /> Help connecting…</button>
           )}
           {detection.boards.length > 1 && (
             <RadioGroup label="Use this board" value={'board' in state ? state.board.id : undefined} onChange={onChoose}

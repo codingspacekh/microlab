@@ -1,21 +1,29 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve, sep } from 'node:path';
-import { app, BrowserWindow, dialog, ipcMain, protocol, session } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, protocol, session, shell } from 'electron';
 import { APP_SCHEME, APP_URL, isolationHeaders, resolveAppPath, responseHeaders } from './app-protocol';
 import { mkdirSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { SerialPort } from 'serialport';
 import { Boards } from './board-check';
-import { BoardWatcher, listVolumes } from './board-watcher';
+import { BoardWatcher, listUsbWindows, listVolumes } from './board-watcher';
 import { whoHolds } from './port-holder';
 import { openSerial, type SerialLink } from './serial-link';
 import { openProjectFile, saveProjectFile } from './project-files';
 import { SettingsStore } from './settings';
+import pkg from '../../package.json';
 import type { ProjectDoc } from '@lib/project';
 import { FakeBoard, type ConsoleAction, type ConsoleKind, type FakePreset, type SendRequest } from '@lib/repl';
-import type { BoardKind, Detection, FoundBoard, PortInfo } from '@lib/usb';
+import { DRIVER_PAGES, parsePnp, type BoardKind, type Detection, type FoundBoard, type PortInfo } from '@lib/usb';
+
+/** "macOS 26.0", "Windows 10.0.26100": the system, as a teacher would say it. (The version is package.json's, built
+ *  in: app.getVersion() is Electron's own when the app is started as `electron out/main/index.js`.) */
+function systemName(): string {
+  const os = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' }[process.platform as string] ?? process.platform;
+  return `${os} ${process.getSystemVersion()}`;
+}
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const rendererDir = join(here, '../renderer');
@@ -57,6 +65,8 @@ function createWindow(): void {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
+      // the version and the system, for the window (the helper's report): a sandboxed preload can't ask for them
+      additionalArguments: [`--microlab-version=${pkg.version}`, `--microlab-system=${systemName()}`],
     },
   });
   win.once('ready-to-show', () => win.show());
@@ -105,7 +115,7 @@ app.whenReady().then(() => {
   // Tests (and demos) can stand in for USB with a port-list file, rewritten to "plug" a board (tests/fixtures/usb);
   // its boards are FakeBoards, answering as its "answers" say (a preset, "silent", "busy" or "gone").
   const fake = process.env.MICROLAB_FAKE_USB;
-  type FakeUsb = { ports: PortInfo[]; volumes: string[]; platform: string; answers?: Record<string, string>; holder?: string };
+  type FakeUsb = { ports: PortInfo[]; volumes: string[]; platform: string; answers?: Record<string, string>; holder?: string; pnp?: string };
   const fromFile = async () => JSON.parse(await readFile(fake!, 'utf8')) as FakeUsb;
   const send = (now: Detection, changes: { plugged: FoundBoard[]; unplugged: FoundBoard[] }) => {
     for (const w of BrowserWindow.getAllWindows()) w.webContents.send('boards:changed', now, changes);
@@ -172,8 +182,14 @@ app.whenReady().then(() => {
   );
   const watcher = new BoardWatcher(
     fake
-      ? { listPorts: async () => (await fromFile()).ports, listVolumes: async () => (await fromFile()).volumes, platform: 'darwin' }
-      : { listPorts: () => SerialPort.list(), listVolumes: () => listVolumes(process.platform, user), platform: process.platform },
+      ? {
+          listPorts: async () => (await fromFile()).ports, listVolumes: async () => (await fromFile()).volumes, platform: 'darwin',
+          listUsb: async () => parsePnp((await fromFile()).pnp ?? ''),
+        }
+      : {
+          listPorts: () => SerialPort.list(), listVolumes: () => listVolumes(process.platform, user), platform: process.platform,
+          ...(process.platform === 'win32' ? { listUsb: () => listUsbWindows() } : {}),
+        },
     (now, changes, first) => {
       checker.forget(changes.unplugged.map((b) => b.id));
       send(boardsNow(), changes);
@@ -184,6 +200,12 @@ app.whenReady().then(() => {
   );
   watcher.start();
   ipcMain.handle('boards:get', () => boardsNow());
+  // the helper (F-56): its report to the clipboard; a USB chip's official driver page — no other page can be opened
+  ipcMain.handle('app:copy', (_e, text: string) => clipboard.writeText(String(text)));
+  ipcMain.handle('app:open-driver-page', async (_e, chip: string) => {
+    const url = (DRIVER_PAGES as Record<string, string>)[chip];
+    if (url) await shell.openExternal(url);
+  });
   ipcMain.handle('boards:check', async (_e, id: string) => {
     const b = watcher.current.boards.find((x) => x.id === id);
     if (b) await checker.check(b);
