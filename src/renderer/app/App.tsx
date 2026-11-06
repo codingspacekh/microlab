@@ -191,7 +191,7 @@ export function App({ api, width, startRun }: AppProps) {
     if (running) sim.stop();
     if (!await openConsole(id)) return;
     const code = open.doc.files[ENTRY];
-    bc.note(id, [{ kind: 'sys', text: `Running ${ENTRY} from the editor on the ${nameOf(id)} — its own main.py is unchanged.\n` }]);
+    bc.note(id, [{ kind: 'sys', text: `Running ${ENTRY} from the editor on the board — its own main.py is unchanged.\n` }]);
     await api.boards.console.do(id, { do: 'run', name: ENTRY, code: typeof code === 'string' ? code : new TextDecoder().decode(code) });
   };
   const consoleDo = (a: ConsoleAction) => { if (bc.shown) void api.boards.console.do(bc.shown.id, a); };

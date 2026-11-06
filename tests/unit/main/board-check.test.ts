@@ -299,6 +299,13 @@ describe('M10.4 F-51 the board\'s console, from the main process', () => {
     expect(r.shown()).toMatch(/MPY: soft reboot\nTraffic lights ready\n$/);
   });
 
+  it('a file run there tells which board it is: the chip learns "Pico W"', async () => {
+    const r = rig({ exec: () => ({ out: '' }) });
+    await r.c.openConsole(PICO);
+    await r.c.console('e661', { do: 'run', name: 'main.py', code: 'x = 1' });
+    expect(r.c.checks.e661).toMatchObject({ state: 'micropython', uname: { machine: 'Raspberry Pi Pico W with RP2040' } });
+  });
+
   it('a check while it is open asks nothing (the board is already talking)', async () => {
     const r = rig();
     await r.c.openConsole(PICO);

@@ -121,7 +121,7 @@ test('M10.4 F-51 the board\'s console: Send and run shows it; Stop gives >>>; ty
   await win.getByRole('button', { name: 'More ways to send' }).click();
   await win.getByRole('menuitem', { name: /Run main.py on the board/ }).click();
   await expect(win.getByText('Pico W (USB): running main.py')).toBeVisible();
-  await expect(log).toContainText('Running main.py from the editor on the Pico W');
+  await expect(log).toContainText('Running main.py from the editor on the board');
   await log.press('Control+c');
   await expect(input).toBeVisible();
 

@@ -82,6 +82,17 @@ describe('M10.4 F-51 the board\'s console', () => {
   });
 });
 
+describe('M10.4 F-55 the console learns which board it is', () => {
+  it('running a file or restarting asks os.uname() on the way (a board there before MicroLab started was never asked)', async () => {
+    const board = new FakeBoard({ preset: 'pico-w', program: {}, exec: () => ({ out: '' }) } as FakeBoardOptions);
+    const seen: string[] = [];
+    const c = new BoardConsole(board, { output: () => {}, answered: (u) => seen.push(u.machine) }, quick);
+    await c.runFile('main.py', 'x = 1');
+    await c.restart();
+    expect(seen).toEqual(['Raspberry Pi Pico W with RP2040', 'Raspberry Pi Pico W with RP2040']);
+  });
+});
+
 describe('M10.4 F-50 run the open file on the board', () => {
   it('its output as it comes, then the >>> prompt; none of the raw REPL shows', async () => {
     const s = setup({ exec: (code) => (code.startsWith('print') ? { out: 'hello from the board\r\n' } : undefined) });

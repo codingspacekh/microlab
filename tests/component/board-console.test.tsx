@@ -123,7 +123,7 @@ describe('M10.4 F-50 Rev 7 the Send menu', () => {
     s.print('>>> ');
     fireEvent.click(screen.getByRole('button', { name: 'More ways to send' }));
     fireEvent.click(screen.getByRole('menuitem', { name: /Run main.py on the board/ }));
-    const note = await within(log()).findByText(/Running main.py from the editor on the Pico W/);
+    const note = await within(log()).findByText(/Running main.py from the editor on the board/);
     expect(note.textContent!.startsWith('\n')).toBe(true);
     expect(note).toHaveClass('sys');
   });

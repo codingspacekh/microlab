@@ -1,4 +1,5 @@
-import { RawRepl, bytesText, latin1, type Link, type ReplOptions } from './raw';
+import { parseUname, type Uname } from './greeting';
+import { RawRepl, UNAME_CODE, bytesText, latin1, type Link, type ReplOptions } from './raw';
 
 /**
  * The real board's console (F-51, screen 16) over a port kept open: what the board prints as it comes — its
@@ -28,6 +29,8 @@ export type ConsoleAction =
 export interface ConsoleSink {
   output(text: string, kind: ConsoleKind): void;
   state?(s: ConsoleState): void;
+  /** Which board it is — asked on the way when a file is run or the board restarted (30 ms). */
+  answered?(u: Uname): void;
 }
 
 const PASTE_BANNER = '\npaste mode; Ctrl-C to cancel, Ctrl-D to finish\n=== ';
@@ -104,6 +107,7 @@ export class BoardConsole {
     const repl = new RawRepl(this.link, this.opts);
     try {
       await repl.enter();
+      await this.ask(repl);
       await repl.leave();
     } finally {
       repl.dispose();
@@ -125,6 +129,7 @@ export class BoardConsole {
     const repl = new RawRepl(this.link, this.opts);
     try {
       await repl.enter();
+      await this.ask(repl);
       this.reset();
       this.runningFile = true;
       this.setState({ prompt: false, running: name });
@@ -136,6 +141,13 @@ export class BoardConsole {
       this.unmute();
     }
     this.emit('>>> ', 'out');
+  }
+
+  /** At the raw prompt: which board (its os.uname()); nothing said if it can't be read. */
+  private async ask(repl: RawRepl): Promise<void> {
+    if (!this.sink.answered) return;
+    const u = parseUname((await repl.exec(UNAME_CODE).catch(() => ({ out: '' }))).out);
+    if (u) this.sink.answered(u);
   }
 
   private write(s: string): Promise<void> {

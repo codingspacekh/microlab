@@ -122,6 +122,7 @@ export class Boards {
       console: new BoardConsole(link, {
         output: (text, kind) => this.events?.output(id, text, kind),
         state: (st) => this.setConsole(id, st),
+        answered: (u) => this.set(id, answered(u), this.eraOf(id)),
       }, this.deps.repl),
     };
     s.off = link.onClose?.(() => this.endSession(id));
