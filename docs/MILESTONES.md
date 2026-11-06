@@ -514,6 +514,7 @@ connection problem says how to fix it.
 0. **Design first:** prototype screens for the board chip and its states, the connection helper, and
    Board files (F-53, F-55, F-56) — approved before their UI slices. *(Rev 5)* Drawn: screens 13 (board chip),
    13b (every state), 14 (connection helper), 14b (install MicroPython), 15 (Board files), 16 (running on the board).
+   **Approved by the teacher 2026-11-06** ("all are very well designed").
 1. Detection (`lib/usb/detect`) from recorded port lists; the port watcher; the board chip (F-55, N-12).
 2. Raw REPL over a byte stream with `FakeBoard`; the greeting check and soft reset on plug-in (Q15, R10).
 3. Send to board: changed files only, temporary name then rename (F-50, screen 08).
