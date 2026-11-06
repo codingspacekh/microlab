@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { PART_KINDS } from '@lib/editor';
+import { EMPTY_HISTORY, PART_KINDS, record, redo, undo, type History } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { ProjectDoc } from '@lib/project';
 import { Console, type BoardConsoleView } from '../console/Console';
@@ -46,16 +46,27 @@ export interface WorkspaceProps {
   onConsoleTab?: (tab: 'sim' | 'board') => void;
   /** Over the canvas while the real board runs: the simulator is stopped, the board must be wired like this. */
   banner?: ReactNode;
+  /** The circuit's undo / redo (M5.1, F-16), kept by the app per open project so it outlives a visit to Learn. */
+  history?: History;
+  onHistory?: (h: History) => void;
 }
+
+/** Edits of one value of one thing within this long are one undo step (a stepper held, a value typed). */
+const MERGE_MS = 1000;
 
 const IDLE_RUN: Pick<RunState, 'parts' | 'board'> = { parts: {}, board: { pins: {} } };
 
-export function Workspace({ api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, onConsoleTab, banner }: WorkspaceProps) {
+export function Workspace({
+  api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, onConsoleTab, banner,
+  history: kept, onHistory,
+}: WorkspaceProps) {
   const { ref, width } = useWidth(fixed);
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
   const [drag, setDrag] = useState<Partial<Record<keyof Layout, number>>>({});
   const [placing, setPlacing] = useState<Placing | null>(null);
-  const [selection, setSelection] = useState<Selection | null>(null);
+  const [selection, setSelection] = useState<Selection[]>([]);
+  const [history, setHistory] = useState<History>(() => kept ?? EMPTY_HISTORY);
+  const merging = useRef<{ key: string; at: number; n: number }>({ key: '', at: 0, n: 0 });
 
   useEffect(() => {
     let live = true;
@@ -81,11 +92,34 @@ export function Workspace({ api, width: fixed, doc, onChange, run, running, onIn
   useEffect(() => {
     if (!running) return;
     setPlacing(null);
-    setSelection(null);
+    setSelection([]);
   }, [running]);
 
   const project = doc.project;
-  const setProject = (p: typeof project) => onChange({ ...doc, project: p });
+  const keep = (h: History) => { setHistory(h); onHistory?.(h); };
+  /** Every circuit edit is one undo step; `merge` names an edit of one value, so a run of them is one step. */
+  const setProject = (p: typeof project, merge?: string) => {
+    if (p === project) return;
+    let token: string | undefined;
+    if (merge) {
+      const m = merging.current;
+      const now = Date.now();
+      if (m.key !== merge || now - m.at > MERGE_MS) merging.current = { key: merge, at: now, n: m.n + 1 };
+      else m.at = now;
+      token = `${merge}#${merging.current.n}`;
+    } else merging.current = { ...merging.current, key: '' };
+    keep(record(history, project, token));
+    onChange({ ...doc, project: p });
+  };
+  const step = (go: typeof undo) => {
+    const r = go(history, project);
+    if (!r) return;
+    keep(r.history);
+    merging.current = { ...merging.current, key: '' };
+    // what was selected may be gone now
+    setSelection((sel) => sel.filter((x) => (x.kind === 'part' ? r.project.parts : x.kind === 'wire' ? r.project.wires : r.project.breadboards).some((t) => t.id === x.id)));
+    onChange({ ...doc, project: r.project });
+  };
 
   const board = project.board as BoardId;
   return (
@@ -107,10 +141,10 @@ export function Workspace({ api, width: fixed, doc, onChange, run, running, onIn
                 onMouseDown={(e) => {
                   if (e.button !== 0 || running) return;
                   e.preventDefault();
-                  setSelection(null);   // the inspector would cover the canvas
+                  setSelection([]);   // the inspector would cover the canvas
                   setPlacing({ type: k.type, how: 'press', start: { x: e.clientX, y: e.clientY } });
                 }}
-                onClick={(e) => { if (e.detail === 0 && !running) { setSelection(null); setPlacing({ type: k.type, how: 'keys' }); } }}>
+                onClick={(e) => { if (e.detail === 0 && !running) { setSelection([]); setPlacing({ type: k.type, how: 'keys' }); } }}>
                 <span className="pic"><PartIcon type={k.type} /></span>
                 <span className="nm">{k.name}<small>{k.detail}</small></span>
               </button>
@@ -123,11 +157,12 @@ export function Workspace({ api, width: fixed, doc, onChange, run, running, onIn
       <Divider label="Parts panel width" value={partsPx} min={LIMITS.parts[0]} max={partsMax}
         onChange={(v) => setDrag({ parts: v })} onCommit={commit('parts')} />
       <section className="canvas" aria-label="Circuit">
-        <Canvas project={project} onChange={setProject} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection}
-          running={running} outputs={running || run.ended ? run : IDLE_RUN} onInput={onInput} />
+        <Canvas project={project} onChange={(p) => setProject(p)} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection}
+          running={running} outputs={running || run.ended ? run : IDLE_RUN} onInput={onInput}
+          onUndo={() => step(undo)} onRedo={() => step(redo)} canUndo={history.past.length > 0} canRedo={history.future.length > 0} />
         {banner && <div className="cbanner">{banner}</div>}
-        {selection && (
-          <Inspector key={`${selection.kind}:${selection.id}`} project={project} selection={selection} onChange={setProject} onClose={() => setSelection(null)} />
+        {selection.length === 1 && (
+          <Inspector key={`${selection[0]!.kind}:${selection[0]!.id}`} project={project} selection={selection[0]!} onChange={setProject} onClose={() => setSelection([])} />
         )}
       </section>
       <Divider label="Code panel width" value={sidePx} min={LIMITS.side[0]} max={sideMax} edge="right"

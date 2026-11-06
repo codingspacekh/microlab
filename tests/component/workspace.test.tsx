@@ -419,3 +419,151 @@ describe('M4.3 the part kinds', () => {
     expect(Object.keys(partKind('led').legs)).toEqual(['a', 'k']);
   });
 });
+
+describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', () => {
+  const tools = () => screen.getByRole('toolbar', { name: 'Circuit tools' });
+  const tool = (name: string) => within(tools()).getByRole('button', { name });
+  const hint = () => document.querySelector('.canvas-hint')?.textContent ?? '';
+  const pick = (s: ReturnType<typeof setup>, id: string, shift = false) => {
+    const g = s.svg.querySelector(`[data-part="${id}"]`)!;
+    fireEvent.mouseDown(g, { ...s.client(0, 0), shiftKey: shift });
+    fireEvent.mouseUp(s.svg, s.client(0, 0));
+  };
+  const key = (k: string, more: Partial<KeyboardEventInit> = {}) => fireEvent.keyDown(window, { key: k, ...more });
+
+  it('R turns the selected resistor upright; Undo and Redo, by key and by the toolbar', () => {
+    const s = setup();
+    place(s, /^Resistor/, 'resistor', 'bb1.a5');
+    expect(s.parts()).toEqual(['r1 bb1.a5 bb1.a8']);
+    key('r');
+    expect(s.parts()).toEqual(['r1 bb1.a6 bb1.d6']);
+    fireEvent.click(tool('Rotate'));
+    expect(s.parts()[0]).toMatch(/^r1 bb1\.(\w)(\d+) bb1\.\1(\d+)$/);   // lying down again, b left of a
+    key('z', { ctrlKey: true });
+    expect(s.parts()).toEqual(['r1 bb1.a6 bb1.d6']);
+    fireEvent.click(tool('Undo'));
+    expect(s.parts()).toEqual(['r1 bb1.a5 bb1.a8']);
+    fireEvent.click(tool('Undo'));
+    expect(s.parts()).toEqual([]);
+    expect(tool('Undo')).toBeDisabled();
+    key('y', { ctrlKey: true });
+    expect(s.parts()).toEqual(['r1 bb1.a5 bb1.a8']);
+    key('z', { metaKey: true, shiftKey: true });
+    expect(s.parts()).toEqual(['r1 bb1.a6 bb1.d6']);
+  });
+
+  it('every kind of edit undoes: a wire, a colour, a value, a delete, moving the breadboard', () => {
+    const s = setup();
+    place(s, /^Resistor/, 'resistor', 'bb1.a5');
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Inspector' })).getByRole('button', { name: '1k' }));
+    const a = s.point('bb1.c20');
+    const b = s.point('bb1.c25');
+    fireEvent.mouseDown(s.svg.querySelector('[data-point="bb1.c20"]')!, s.client(a.x, a.y));
+    fireEvent.mouseMove(s.svg, s.client(b.x, b.y));
+    fireEvent.mouseUp(s.svg, s.client(b.x, b.y));
+    expect(s.wires()).toEqual(['w1 bb1.c20 bb1.c25']);
+    key('Delete');
+    expect(s.wires()).toEqual([]);
+    for (let i = 0; i < 2; i++) fireEvent.click(tool('Undo'));
+    expect(s.wires()).toEqual([]);
+    expect(JSON.parse(s.svg.querySelector('[data-part="r1"]')!.getAttribute('data-props')!)).toEqual({ ohms: 1000 });
+    fireEvent.click(tool('Undo'));
+    expect(JSON.parse(s.svg.querySelector('[data-part="r1"]')!.getAttribute('data-props')!)).toEqual({ ohms: 220 });
+  });
+
+  it('shift-click selects a second part: no inspector, a note, Delete removes both, Undo brings both back', () => {
+    const s = setup();
+    place(s, /^Resistor/, 'resistor', 'bb1.a5');
+    place(s, /^LED/, 'led', 'bb1.c10');
+    pick(s, 'r1', true);
+    expect(s.svg.querySelectorAll('[aria-selected="true"]')).toHaveLength(2);
+    expect(screen.queryByRole('complementary', { name: 'Inspector' })).toBeNull();
+    expect(hint()).toMatch(/^2 selected/);
+    pick(s, 'led1', true);
+    expect(s.svg.querySelectorAll('[aria-selected="true"]')).toHaveLength(1);
+    pick(s, 'led1', true);
+    key('Delete');
+    expect(s.parts()).toEqual([]);
+    fireEvent.click(tool('Undo'));
+    expect(s.parts()).toEqual(['r1 bb1.a5 bb1.a8', 'led1 bb1.c10 bb1.c12']);
+  });
+
+  it('a box drawn on the empty canvas selects the parts and wires inside it, and only those', () => {
+    const s = setup();
+    place(s, /^Resistor/, 'resistor', 'bb1.a5');
+    place(s, /^LED/, 'led', 'bb1.c10');
+    place(s, /^Resistor/, 'resistor', 'bb1.a25');
+    const from = s.point('bb1.T-1');
+    const to = s.point('bb1.j14');
+    fireEvent.mouseDown(s.svg.querySelector('.bg')!, s.client(from.x - 20, from.y - 20));
+    fireEvent.mouseMove(s.svg, s.client(to.x, to.y));
+    expect(s.svg.querySelector('[data-marquee]')).not.toBeNull();
+    fireEvent.mouseUp(s.svg, s.client(to.x, to.y));
+    expect([...s.svg.querySelectorAll('[aria-selected="true"]')].map((g) => g.getAttribute('data-part'))).toEqual(['r1', 'led1']);
+  });
+
+  it('dragging one of the selected parts moves them all, hole by hole', () => {
+    const s = setup();
+    place(s, /^Resistor/, 'resistor', 'bb1.a5');
+    place(s, /^LED/, 'led', 'bb1.c10');
+    pick(s, 'r1', true);
+    const a = s.point('bb1.b1');
+    const r = { x: a.x + 4 * 16, y: 62 + 0 };   // a5's place
+    fireEvent.mouseDown(s.svg.querySelector('[data-part="r1"]')!, s.client(r.x, r.y));
+    fireEvent.mouseMove(s.svg, s.client(r.x + 32 + 2, r.y + 16 - 1));
+    fireEvent.mouseUp(s.svg, s.client(r.x + 32 + 2, r.y + 16 - 1));
+    expect(s.parts()).toEqual(['r1 bb1.b7 bb1.b10', 'led1 bb1.d12 bb1.d14']);
+    expect(s.svg.querySelectorAll('[aria-selected="true"]')).toHaveLength(2);
+  });
+
+  it('Ctrl+D (⌘D) copies the selection beside it, with its values; the copy is selected', () => {
+    const s = setup();
+    place(s, /^Resistor/, 'resistor', 'bb1.a5');
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Inspector' })).getByRole('button', { name: '4.7k' }));
+    key('d', { ctrlKey: true });
+    expect(s.parts()).toEqual(['r1 bb1.a5 bb1.a8', 'r2 bb1.a10 bb1.a13']);
+    expect(within(screen.getByRole('complementary', { name: 'Inspector' })).getByText('R2 · Resistor')).toBeInTheDocument();
+    expect(JSON.parse(s.svg.querySelector('[data-part="r2"]')!.getAttribute('data-props')!)).toEqual({ ohms: 4700 });
+    fireEvent.click(tool('Duplicate'));
+    expect(s.parts()).toHaveLength(3);
+  });
+
+  it('R while a part is carried turns it before it is placed', () => {
+    const s = setup();
+    fireEvent.mouseDown(s.item(/^Resistor/), { clientX: 5, clientY: 5, button: 0 });
+    fireEvent.mouseUp(s.item(/^Resistor/), { clientX: 5, clientY: 5, button: 0 });   // a click: now it is carried
+    key('r');
+    const a5 = s.point('bb1.a5');
+    fireEvent.mouseMove(s.svg, s.client(a5.x, a5.y + 24));
+    expect(s.svg.querySelector('[data-ghost="ok"]')).not.toBeNull();
+    fireEvent.mouseDown(s.svg, s.client(a5.x, a5.y + 24));
+    expect(s.parts()).toEqual(['r1 bb1.a5 bb1.d5']);
+  });
+
+  it('nothing selected: Rotate, Duplicate and Delete are off; a part with no room to turn says so', () => {
+    const s = setup();
+    for (const name of ['Rotate', 'Duplicate', 'Delete', 'Undo', 'Redo']) expect(tool(name)).toBeDisabled();
+    place(s, /^LED/, 'led', 'bb1.T-1');
+    expect(s.parts()).toEqual(['led1 bb1.T-1 bb1.T-3']);
+    key('r');
+    expect(hint()).toMatch(/No room to turn it/);
+    expect(s.parts()).toEqual(['led1 bb1.T-1 bb1.T-3']);
+  });
+
+  it('undo in the code editor is the editor\'s: Ctrl+Z there never takes back a part', () => {
+    const s = setup();
+    place(s, /^Resistor/, 'resistor', 'bb1.a5');
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'main.py' }), { key: 'z', ctrlKey: true });
+    expect(s.parts()).toHaveLength(1);
+  });
+
+  it('the history outlives a visit to Learn', () => {
+    const s = setup();
+    place(s, /^Resistor/, 'resistor', 'bb1.a5');
+    fireEvent.click(screen.getByRole('tab', { name: /Learn/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /Workspace/ }));
+    expect(document.querySelectorAll('[data-part]')).toHaveLength(1);   // the canvas is drawn again, s.svg is gone
+    fireEvent.click(tool('Undo'));
+    expect(document.querySelectorAll('[data-part]')).toHaveLength(0);
+  });
+});

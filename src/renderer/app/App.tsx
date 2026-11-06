@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NewProjectBoard } from '@lib/boards';
 import { newProject, type ProjectDoc } from '@lib/project';
+import type { History } from '@lib/editor';
 import { Icon, Logo } from '../ui/Icon';
 import { Dialog } from '../ui/Dialog';
 import { MenuButton } from '../ui/Menu';
@@ -117,6 +118,9 @@ export function App({ api, width, startRun }: AppProps) {
   useEffect(() => { api.app.setDirty(dirty); }, [api, dirty]);
   useEffect(() => { document.title = open ? `${open.name}${dirty ? ' •' : ''} — MicroLab` : 'MicroLab'; }, [open, dirty]);
 
+  // the circuit's undo / redo, per open project (M5.1): kept here so it outlives a visit to Learn
+  const histories = useRef(new Map<number, History>());
+
   // ⌘S / Ctrl+S save, ⇧ for Save as; ⌘O / Ctrl+O open
   const keysRef = useRef<(e: KeyboardEvent) => void>(() => {});
   keysRef.current = (e: KeyboardEvent) => {
@@ -227,6 +231,7 @@ export function App({ api, width, startRun }: AppProps) {
   const page = controls ? <ControlsPage />
     : mode !== 'workspace' ? <Later mode={mode} />
     : open ? <Workspace key={open.key} api={api} width={width} doc={open.doc} onChange={(doc) => setOpen((cur) => (cur ? { ...cur, doc, savedNote: undefined } : cur))}
+        history={histories.current.get(open.key)} onHistory={(h) => histories.current.set(open.key, h)}
         run={sim.state} running={running} onInput={sim.setInput} onClearConsole={sim.clear}
         consoleTab={bc.tab} onConsoleTab={bc.setTab}
         board={bc.shown ? {

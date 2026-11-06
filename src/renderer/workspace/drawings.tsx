@@ -1,4 +1,4 @@
-import { BREADBOARD, holeOffset, type Point } from '@lib/editor';
+import { BREADBOARD, holeOffset, turnsOf, type Point } from '@lib/editor';
 import { COLUMNS, railHole, type BreadboardSize } from '@lib/circuit';
 
 /**
@@ -117,7 +117,7 @@ const LED_COLOURS: Record<string, [string, string, string]> = {
  * bent one, the cathode (−) leg is straight and the rim is flat on its side, as on a real LED; a red "+" and a dark
  * "−" sit by the legs, and each leg says what it is on hover. The body leans down from the holes; `on` glows (M4.5).
  */
-export function Led({ a, k, colour = 'red', glow: light = 0, labels = true }: { a: Point; k: Point; colour?: string; glow?: number; labels?: boolean }) {
+export function Led({ a, k, colour = 'red', glow: light = 0, labels = true, upright = 0 }: { a: Point; k: Point; colour?: string; glow?: number; labels?: boolean; upright?: number }) {
   const [onC, offC, glow] = LED_COLOURS[colour] ?? LED_COLOURS.red!;
   const on = light > 0.01;   // brightness = current / the LED's 20 mA rating (M3.4)
   const cx = (a.x + k.x) / 2;
@@ -145,9 +145,9 @@ export function Led({ a, k, colour = 'red', glow: light = 0, labels = true }: { 
       {labels && (
         <g fontSize={9} fontWeight={800} textAnchor="middle" pointerEvents="none" fontFamily="Inter Variable, Inter, sans-serif">
           <circle cx={f(a.x - side * 9)} cy={f(a.y + 12)} r={5.2} fill="#fff" stroke="#d94545" strokeWidth={1} />
-          <text x={f(a.x - side * 9)} y={f(a.y + 15.2)} fill="#d94545">+</text>
+          <text x={f(a.x - side * 9)} y={f(a.y + 15.2)} fill="#d94545" transform={upright ? `rotate(${upright} ${f(a.x - side * 9)} ${f(a.y + 12)})` : undefined}>+</text>
           <circle cx={f(k.x + side * 9)} cy={f(k.y + 12)} r={5.2} fill="#fff" stroke="#3a3d42" strokeWidth={1} />
-          <text x={f(k.x + side * 9)} y={f(k.y + 15.2)} fill="#3a3d42">−</text>
+          <text x={f(k.x + side * 9)} y={f(k.y + 15.2)} fill="#3a3d42" transform={upright ? `rotate(${upright} ${f(k.x + side * 9)} ${f(k.y + 12)})` : undefined}>−</text>
         </g>
       )}
     </>
@@ -220,11 +220,37 @@ export interface PartLook {
 export function PartDrawing({ type, legs, props, look = {} }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown>; look?: PartLook }) {
   switch (type) {
     case 'resistor': return <Resistor a={legs.a!} b={legs.b!} ohms={Number(props?.ohms ?? 220)} />;
-    case 'led': return <Led a={legs.a!} k={legs.k!} colour={String(props?.color ?? 'red')} glow={look.glow} />;
     case 'button': return <PushButton legs={[legs['1a']!, legs['2a']!, legs['1b']!, legs['2b']!]} pressed={look.pressed} />;
-    case 'potentiometer': return <Potentiometer l={legs['1']!} w={legs['2']!} r={legs['3']!} />;
+    case 'led': case 'potentiometer': {
+      // drawn as if not turned, then turned about the legs' middle (M5.1); the LED's + and − stay upright
+      const t = partTurns(type, legs);
+      const { local, transform } = unturned(legs, t);
+      const body = type === 'led'
+        ? <Led a={local.a!} k={local.k!} colour={String(props?.color ?? 'red')} glow={look.glow} upright={-90 * t} />
+        : <Potentiometer l={local['1']!} w={local['2']!} r={local['3']!} />;
+      return t ? <g transform={transform}>{body}</g> : body;
+    }
     default: return null;
   }
+}
+
+/** Quarter turns of a placed part (0–3); 0 for a part this file doesn't know. */
+export function partTurns(type: string, legs: Record<string, Point>): number {
+  try { return turnsOf(type, legs); } catch { return 0; }
+}
+
+/** The legs turned back `t` quarters about their middle, and the transform that turns the drawing forward again. */
+function unturned(legs: Record<string, Point>, t: number): { local: Record<string, Point>; transform: string } {
+  const pts = Object.values(legs);
+  const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+  const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+  const local: Record<string, Point> = {};
+  for (const [k, p] of Object.entries(legs)) {
+    let [x, y] = [p.x - cx, p.y - cy];
+    for (let i = 0; i < t; i++) [x, y] = [y, -x];   // a quarter anticlockwise
+    local[k] = { x: f(cx + x), y: f(cy + y) };
+  }
+  return { local, transform: `rotate(${90 * t} ${f(cx)} ${f(cy)})` };
 }
 
 // ------------------------------------------------------------------ the board's own outputs (M4.5)

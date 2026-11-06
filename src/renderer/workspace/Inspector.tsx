@@ -21,7 +21,8 @@ const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({
 export interface InspectorProps {
   project: Project;
   selection: Selection;
-  onChange: (project: Project) => void;
+  /** `merge` names the value changed, so a run of changes to it is one undo step (M5.1). */
+  onChange: (project: Project, merge?: string) => void;
   onClose: () => void;
 }
 
@@ -43,7 +44,7 @@ export function Inspector({ project, selection, onChange, onClose }: InspectorPr
     const part = project.parts.find((p) => p.id === selection.id);
     if (!part) return null;
     const kind = partKind(part.type);
-    const set = (key: string, v: number | string) => onChange(setPartProp(project, part.id, key, v));
+    const set = (key: string, v: number | string) => onChange(setPartProp(project, part.id, key, v), `${part.id}.${key}`);
     icon = <PartIcon type={part.type} />;
     title = `${part.id.toUpperCase()} · ${kind.name}`;
     remove = () => deletePart(project, part.id);
@@ -100,7 +101,7 @@ export function Inspector({ project, selection, onChange, onClose }: InspectorPr
     rows = (
       <>
         <Row name="Colour">
-          <Swatches label="Wire colour" hideLabel colours={WIRE_SWATCHES} value={colour} onChange={(v) => onChange(setWireColour(project, wire.id, v))} />
+          <Swatches label="Wire colour" hideLabel colours={WIRE_SWATCHES} value={colour} onChange={(v) => onChange(setWireColour(project, wire.id, v), `${wire.id}.color`)} />
         </Row>
         <Row name="Joins"><span className="small mono">{label(wire.a)} ↔ {label(wire.b)}</span></Row>
       </>

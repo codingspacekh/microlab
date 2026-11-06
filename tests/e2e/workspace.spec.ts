@@ -100,3 +100,49 @@ test('M4.3b with the real mouse: a part clicked then placed, a wire with two ben
   await win.keyboard.press('Delete');
   await expect(win.locator('[data-wire]')).toHaveCount(0);
 });
+
+test('M5.1 with the real keyboard and mouse: R turns, shift-click, ⌘D / Ctrl+D copies, ⌘Z / Ctrl+Z undoes, redo', async () => {
+  const win = await app.firstWindow();
+  await resize(win, 1440, 900);
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const legs = (id: string) => win.locator(`[data-part="${id}"]`);
+
+  const a5 = await centre(win, '[data-point="bb1.a5"]');
+  const a8 = await centre(win, '[data-point="bb1.a8"]');
+  const item = await centre(win, '.parts .pitem:has-text("Resistor")');
+  await win.mouse.move(item.x, item.y);
+  await win.mouse.down();
+  await win.mouse.move((a5.x + a8.x) / 2 + 3, a5.y - 2, { steps: 8 });
+  await win.mouse.up();
+  await expect(legs('r1')).toHaveAttribute('data-legs', 'bb1.a5 bb1.a8');
+
+  await win.keyboard.press('r');
+  await expect(legs('r1')).toHaveAttribute('data-legs', 'bb1.a6 bb1.d6');
+  await win.keyboard.press(`${mod}+d`);
+  await expect(win.locator('[data-part]')).toHaveCount(2);
+  await expect(legs('r2')).toHaveAttribute('aria-selected', 'true');
+
+  // shift-click the first: both selected, both deleted, both back
+  const r1 = await centre(win, '[data-part="r1"] rect >> nth=0');
+  await win.keyboard.down('Shift');
+  await win.mouse.click(r1.x, r1.y);
+  await win.keyboard.up('Shift');
+  await expect(win.locator('svg.scene [aria-selected="true"]')).toHaveCount(2);
+  await win.keyboard.press('Delete');
+  await expect(win.locator('[data-part]')).toHaveCount(0);
+  await win.keyboard.press(`${mod}+z`);
+  await expect(win.locator('[data-part]')).toHaveCount(2);
+  await win.keyboard.press(`${mod}+z`);
+  await win.keyboard.press(`${mod}+z`);
+  await expect(legs('r1')).toHaveAttribute('data-legs', 'bb1.a5 bb1.a8');
+  await win.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+z' : 'Control+y');
+  await expect(legs('r1')).toHaveAttribute('data-legs', 'bb1.a6 bb1.d6');
+
+  // ⌘Z in the code editor undoes typing, never the circuit
+  await win.getByRole('textbox', { name: 'main.py' }).click();
+  await win.keyboard.insertText('# x');
+  await win.keyboard.press(`${mod}+z`);
+  await expect(legs('r1')).toHaveAttribute('data-legs', 'bb1.a6 bb1.d6');
+  await expect(win.getByRole('textbox', { name: 'main.py' })).not.toContainText('# x');
+});
