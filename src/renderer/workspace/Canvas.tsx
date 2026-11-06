@@ -6,7 +6,9 @@ import {
 } from '@lib/editor';
 import type { Project } from '@lib/project';
 import { BOARD_ART, BOARD_NAMES } from '../app/boards';
-import { Breadboard, Defs, PartDrawing, polyline, Wire } from './drawings';
+import type { PartView } from '../../sim/circuit';
+import type { BoardOutputs } from '../app/useRun';
+import { BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, polyline, Wire } from './drawings';
 
 /**
  * The circuit canvas (screens 02, 02b, 03; F-10–F-14). Everything is drawn from the project: the board's picture and
@@ -17,6 +19,8 @@ import { Breadboard, Defs, PartDrawing, polyline, Wire } from './drawings';
  *  - a wire is dragged from a free pin or hole to another (straight), or clicked: then each click on the canvas is a
  *    bend and a click on a pin or hole ends it (Backspace takes back a bend, Esc cancels);
  *  - Delete removes the selected part or wire.
+ * While a program runs (M4.5) the circuit can't be changed: LEDs glow by their current, the board's own LED and the
+ * micro:bit's display light up, and a push button is pressed by holding the mouse on it.
  * Until zoom and pan (F-17, M5) the drawing is fitted to the panel when it opens and when a breadboard changes size.
  */
 export const MESSAGES = {
@@ -49,13 +53,21 @@ export interface CanvasProps {
   onPlacing: (p: Placing | null) => void;
   selection: Selection | null;
   onSelect: (s: Selection | null) => void;
+  /** A program is running: nothing can be changed; buttons can be pressed. */
+  running?: boolean;
+  /** What the run shows: each part's state, the board's own outputs. */
+  outputs?: { parts: Record<string, PartView>; board: BoardOutputs };
+  onInput?: (name: string, value: number) => void;
 }
 
 const MOVED = 4;   // a smaller drag is a click
 const PALETTE = ['green', 'yellow', 'blue', 'orange', 'purple'];
 
-export function Canvas({ project, onChange, placing, onPlacing, selection, onSelect }: CanvasProps) {
+const NO_OUTPUTS = { parts: {}, board: { pins: {} } };
+
+export function Canvas({ project, onChange, placing, onPlacing, selection, onSelect, running = false, outputs = NO_OUTPUTS, onInput }: CanvasProps) {
   const svg = useRef<SVGSVGElement>(null);
+  const [pressed, setPressed] = useState<string | null>(null);
   const [gesture, setGesture] = useState<Gesture | null>(null);
   const [placeAt, setPlaceAt] = useState<Point | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -124,8 +136,8 @@ export function Canvas({ project, onChange, placing, onPlacing, selection, onSel
   };
 
   // The latest values, for the window's listeners.
-  const latest = useRef({ project, gesture, placing, placeAt, selection });
-  latest.current = { project, gesture, placing, placeAt, selection };
+  const latest = useRef({ project, gesture, placing, placeAt, selection, pressed });
+  latest.current = { project, gesture, placing, placeAt, selection, pressed };
 
   // Keyboard placing starts where the part would go first.
   useEffect(() => {
@@ -144,7 +156,8 @@ export function Canvas({ project, onChange, placing, onPlacing, selection, onSel
       else if (g) setGesture({ ...g, at: toWorld(e) });
     };
     const up = (e: MouseEvent) => {
-      const { project: proj, gesture: g, placing: p } = latest.current;
+      const { project: proj, gesture: g, placing: p, pressed: held } = latest.current;
+      if (held) { onInput?.(`pressed:${held}`, 0); setPressed(null); return; }
       if (p?.how === 'press') {
         if (Math.hypot(e.clientX - p.start.x, e.clientY - p.start.y) < MOVED && !inside(e)) {
           onPlacing({ type: p.type, how: 'carry' });   // a click on the panel: the part follows the mouse
@@ -184,7 +197,7 @@ export function Canvas({ project, onChange, placing, onPlacing, selection, onSel
         setGesture({ ...g, via: g.via.slice(0, -1) });
         return;
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && s && !g && !p && (s.kind === 'part' || s.kind === 'wire')) {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && s && !g && !p && !running && (s.kind === 'part' || s.kind === 'wire')) {
         e.preventDefault();
         onChange(s.kind === 'part' ? deletePart(proj, s.id) : deleteWire(proj, s.id));
         onSelect(null);
@@ -237,7 +250,7 @@ export function Canvas({ project, onChange, placing, onPlacing, selection, onSel
   };
 
   const begin = (make: (at: Point) => Gesture) => (e: ReactMouseEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || running) return;
     e.preventDefault();
     e.stopPropagation();
     setGesture(make(toWorld(e)));
@@ -246,6 +259,17 @@ export function Canvas({ project, onChange, placing, onPlacing, selection, onSel
   const used = usedPoints(shown);
   const art = boardArt(scene.boardId);
   const roles = new Map(boardData(scene.boardId).pins.map((p) => [`board.${p.id}`, p]));
+  const press = (id: string) => (e: ReactMouseEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setPressed(id);
+    onInput?.(`pressed:${id}`, 1);
+  };
+  const ledOf = (id: string) => {
+    const v = outputs.parts[id];
+    return v?.kind === 'led' ? v.brightness : 0;
+  };
   const busy = gesture ? gesture.kind === 'wire' ? 'wire' : 'moving' : placing ? 'placing' : '';
   const hint = problem ?? (placing?.how === 'carry' ? MESSAGES.carry : placing?.how === 'keys' ? MESSAGES.keys
     : gesture?.kind === 'wire' && gesture.mode === 'click' ? MESSAGES.bending : null);
@@ -257,7 +281,7 @@ export function Canvas({ project, onChange, placing, onPlacing, selection, onSel
         role="application"
         aria-label="Circuit canvas"
         tabIndex={0}
-        className={busy ? `scene busy ${busy}` : 'scene'}
+        className={['scene', busy && `busy ${busy}`, running && 'running'].filter(Boolean).join(' ')}
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
         preserveAspectRatio="xMidYMid meet"
         onMouseDownCapture={onDownCapture}
@@ -289,6 +313,7 @@ export function Canvas({ project, onChange, placing, onPlacing, selection, onSel
           height={art.height}
           onMouseDown={begin((at) => ({ kind: 'board', start: at, at }))}
         />
+        <BoardOutputsLayer boardId={scene.boardId} at={scene.view.board} pins={outputs.board.pins} display={outputs.board.display} led={ledOf('board.LED')} />
         {shown.wires.map((w) => {
           const a = pointAt(scene, w.a);
           const b = pointAt(scene, w.b);
@@ -299,13 +324,13 @@ export function Canvas({ project, onChange, placing, onPlacing, selection, onSel
           return (
             <g key={w.id} data-wire={w.id} data-ends={`${w.a} ${w.b}`} data-via={(w.via ?? []).map((p) => `${p.x},${p.y}`).join(' ')}
               data-colour={colour} className={on ? 'wirepick on' : 'wirepick'}
-              onMouseDown={(e) => { if (e.button === 0) { e.stopPropagation(); say(null); onSelect({ kind: 'wire', id: w.id }); } }}>
+              onMouseDown={(e) => { if (e.button === 0 && !running) { e.stopPropagation(); say(null); onSelect({ kind: 'wire', id: w.id }); } }}>
               <path className="hit" d={polyline(pts)} />
               <Wire points={pts} colour={colour} />
             </g>
           );
         })}
-        <g className="points">
+        <g className="points" display={running ? 'none' : undefined}>
           {allPoints(scene).filter((q) => !used.has(q.ref)).map((q) => (
             <circle key={q.ref} data-point={q.ref} className="pt" cx={q.x} cy={q.y} r={5.5}
               onMouseDown={(e) => { if (e.button === 0) onSelect(null); begin((at) => ({ kind: 'wire', from: q.ref, via: [], start: at, at, mode: 'press' }))(e); }}>
@@ -318,11 +343,14 @@ export function Canvas({ project, onChange, placing, onPlacing, selection, onSel
           if (!legs) return null;
           const moving = gesture?.kind === 'part' && gesture.id === p.id;
           const on = selection?.kind === 'part' && selection.id === p.id;
+          const glow = p.type === 'led' ? ledOf(p.id) : undefined;
           return (
             <g key={p.id} data-part={p.id} data-legs={Object.values(p.legs).join(' ')} data-props={JSON.stringify(p.props ?? {})} role="img"
-              aria-label={`${safeName(p.type)} ${p.id}`} className={moving && preview.blocked ? 'part blocked' : 'part'}
-              onMouseDown={begin((at) => ({ kind: 'part', id: p.id, start: at, at }))}>
-              <PartDrawing type={p.type} legs={legs} props={p.props} />
+              {...(glow !== undefined ? { 'data-lit': glow > 0.01 ? '1' : '0' } : {})}
+              {...(p.type === 'button' ? { 'data-pressed': pressed === p.id ? '1' : '0' } : {})}
+              aria-label={`${safeName(p.type)} ${p.id}`} className={['part', p.type, moving && preview.blocked && 'blocked'].filter(Boolean).join(' ')}
+              onMouseDown={running ? (p.type === 'button' ? press(p.id) : undefined) : begin((at) => ({ kind: 'part', id: p.id, start: at, at }))}>
+              <PartDrawing type={p.type} legs={legs} props={p.props} look={{ glow, pressed: pressed === p.id }} />
               {on && <SelectBox type={p.type} legs={Object.values(legs)} />}
             </g>
           );
@@ -335,6 +363,21 @@ export function Canvas({ project, onChange, placing, onPlacing, selection, onSel
         )}
       </svg>
       {hint && <div className={problem ? 'canvas-hint warn' : 'canvas-hint'} aria-live="polite">{hint}</div>}
+    </>
+  );
+}
+
+/** The board's own outputs where its picture has them: the Pico W's LED (its 'LED' pin), the ESP32's blue LED (a
+ *  circuit part, board.LED), the micro:bit's display. */
+function BoardOutputsLayer({ boardId, at, pins, display, led }: { boardId: Scene['boardId']; at: Point; pins: Record<string, number>; display?: string; led: number }) {
+  const art = boardArt(boardId);
+  const ledAt = art.leds?.LED;
+  const place = ([x, y]: [number, number]) => ({ x: at.x + x, y: at.y + y });
+  return (
+    <>
+      {ledAt && boardId === 'pico-w' && pins.LED === 1 && <BoardLed at={place(ledAt)} colour="green" />}
+      {ledAt && boardId !== 'pico-w' && led > 0.01 && <BoardLed at={place(ledAt)} colour="blue" />}
+      {art.display && display && <MicrobitDisplay at={art.display.map(place)} pixels={display} />}
     </>
   );
 }

@@ -67,3 +67,7 @@ button.pitem:focus-visible { box-shadow: 0 0 0 2px var(--accent-line); }
 .inspector .legs .plus { color: #d94545; } .inspector .legs .minus { color: #3a3d42; }
 .inspector .led-tip { margin: 8px 0 0; line-height: 1.45; }
 .scene .part .leg { pointer-events: stroke; }
+.parts .run-lock { margin: 10px 6px 0; padding: 8px 10px; border-radius: 8px; background: var(--run-soft, #e7f6ee); color: var(--tx-1); line-height: 1.45; }
+button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+.scene.running .part.button { cursor: pointer; }
+.scene.running .part, .scene.running .board, .scene.running .bb .body, .scene.running .pt, .scene.running .wirepick { cursor: default; }

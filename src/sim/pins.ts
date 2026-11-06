@@ -66,6 +66,8 @@ export const RP2040_RESET: PinState = { mode: 'reset', pull: 'down', out: 0 };
 
 export class PinBank {
   readonly trace: TraceEntry[] = [];
+  /** Told of every output level change, as it is traced (the window draws the Pico W's own LED, M4.5). */
+  onLevel?: (pin: string, level: number) => void;
   readonly pwmTrace: PwmEntry[] = [];
   readonly analogTrace: AnalogEntry[] = [];
   private readonly analogOut = new Map<string, number>();
@@ -299,7 +301,10 @@ export class PinBank {
     this.seen.set(pin, now);
     if (now === 0) this.falls.set(pin, (this.falls.get(pin) ?? 0) + 1);
     const s = this.get(pin);
-    if (s.mode === 'out' || s.mode === 'od') this.trace.push([this.now(), pin, now]);
+    if (s.mode === 'out' || s.mode === 'od') {
+      this.trace.push([this.now(), pin, now]);
+      this.onLevel?.(pin, now);
+    }
     const irq = this.irqs.get(pin);
     if (irq && ((now === 1 && irq.rising) || (now === 0 && irq.falling))) {
       this.pending.push({ pin, handler: irq.handler, owner: irq.owner });

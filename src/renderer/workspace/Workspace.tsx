@@ -2,7 +2,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PART_KINDS } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { ProjectDoc } from '@lib/project';
+import { Console } from '../console/Console';
 import { CodeEditor } from '../editor/CodeEditor';
+import type { RunState } from '../app/useRun';
 import { Divider } from '../ui/Divider';
 import { Icon } from '../ui/Icon';
 import type { MicrolabApi } from '../app/api';
@@ -32,9 +34,17 @@ export interface WorkspaceProps {
   width?: number;
   doc: ProjectDoc;
   onChange: (doc: ProjectDoc) => void;
+  /** The run (M4.5): its console and what the parts and the board show. */
+  run: RunState;
+  running: boolean;
+  /** A part's live input while running: 'pressed:btn1' → 1 / 0. */
+  onInput: (name: string, value: number) => void;
+  onClearConsole: () => void;
 }
 
-export function Workspace({ api, width: fixed, doc, onChange }: WorkspaceProps) {
+const IDLE_RUN: Pick<RunState, 'parts' | 'board'> = { parts: {}, board: { pins: {} } };
+
+export function Workspace({ api, width: fixed, doc, onChange, run, running, onInput, onClearConsole }: WorkspaceProps) {
   const { ref, width } = useWidth(fixed);
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
   const [drag, setDrag] = useState<Partial<Record<keyof Layout, number>>>({});
@@ -61,6 +71,13 @@ export function Workspace({ api, width: fixed, doc, onChange }: WorkspaceProps) 
   const sideMax = Math.max(LIMITS.side[0], Math.min(LIMITS.side[1] * width, width - partsPx - LIMITS.canvas));
   const partsMax = Math.max(LIMITS.parts[0], Math.min(LIMITS.parts[1], width - sidePx - LIMITS.canvas));
 
+  // a running program owns the circuit: nothing is placed, moved or selected until it stops
+  useEffect(() => {
+    if (!running) return;
+    setPlacing(null);
+    setSelection(null);
+  }, [running]);
+
   const project = doc.project;
   const setProject = (p: typeof project) => onChange({ ...doc, project: p });
 
@@ -80,25 +97,28 @@ export function Workspace({ api, width: fixed, doc, onChange }: WorkspaceProps) 
             {PART_KINDS.map((k) => (
               <button key={k.type} type="button" className={placing?.type === k.type ? 'pitem drag' : 'pitem'}
                 title={`Drag ${k.name.toLowerCase()} onto the breadboard, or click it and then click where it goes`}
+                aria-disabled={running || undefined}
                 onMouseDown={(e) => {
-                  if (e.button !== 0) return;
+                  if (e.button !== 0 || running) return;
                   e.preventDefault();
                   setSelection(null);   // the inspector would cover the canvas
                   setPlacing({ type: k.type, how: 'press', start: { x: e.clientX, y: e.clientY } });
                 }}
-                onClick={(e) => { if (e.detail === 0) { setSelection(null); setPlacing({ type: k.type, how: 'keys' }); } }}>
+                onClick={(e) => { if (e.detail === 0 && !running) { setSelection(null); setPlacing({ type: k.type, how: 'keys' }); } }}>
                 <span className="pic"><PartIcon type={k.type} /></span>
                 <span className="nm">{k.name}<small>{k.detail}</small></span>
               </button>
             ))}
           </div>
+          {running && <p className="small run-lock" role="note">Stop the program to change the circuit. While it runs, press a push button by holding the mouse on it.</p>}
           <p className="tiny muted howto">Drag a part onto the breadboard, or click it and click where it goes. For a wire, drag from a pin or hole to another — or click it, click for each bend, and click where it ends.</p>
         </div>
       </section>
       <Divider label="Parts panel width" value={partsPx} min={LIMITS.parts[0]} max={partsMax}
         onChange={(v) => setDrag({ parts: v })} onCommit={commit('parts')} />
       <section className="canvas" aria-label="Circuit">
-        <Canvas project={project} onChange={setProject} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection} />
+        <Canvas project={project} onChange={setProject} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection}
+          running={running} outputs={running || run.ended ? run : IDLE_RUN} onInput={onInput} />
         {selection && (
           <Inspector key={`${selection.kind}:${selection.id}`} project={project} selection={selection} onChange={setProject} onClose={() => setSelection(null)} />
         )}
@@ -110,6 +130,7 @@ export function Workspace({ api, width: fixed, doc, onChange }: WorkspaceProps) 
           <button type="button" role="tab" aria-selected="true"><Icon name="file" size={14} /> main.py</button>
         </div>
         <CodeEditor label="main.py" value={text(doc.files['main.py'])} onChange={(code) => onChange({ ...doc, files: { ...doc.files, 'main.py': code } })} />
+        <Console chunks={run.console} running={running} entry="main.py" onClear={onClearConsole} />
       </section>
     </div>
   );

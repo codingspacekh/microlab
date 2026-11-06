@@ -20,30 +20,38 @@ export function usedPoints(project: Project, except?: string): Set<string> {
 /** The holes a part's legs go in when its first leg is dropped near `firstLeg`; undefined if it can't go there. */
 export function snapPart(scene: Scene, type: string, firstLeg: Point, except?: string): Legs | undefined {
   const start = nearestPoint(scene, firstLeg, 12, 'breadboard');
-  return start ? legsFrom(scene, type, start, usedPoints(scene.project, except)) : undefined;
+  return start ? legsFrom(scene, type, start, usedPoints(scene.project, except), holeIndex(scene)) : undefined;
 }
 
-function legsFrom(scene: Scene, type: string, start: string, used: Set<string>): Legs | undefined {
-  const bb = start.slice(0, start.indexOf('.'));
+/** Every breadboard hole by where it is ('x,y' → 'bb1.a5'), so a footprint's legs are found at once. */
+type HoleIndex = Map<string, string>;
+const key = (x: number, y: number) => `${Math.round(x)},${Math.round(y)}`;
+
+function holeIndex(scene: Scene): HoleIndex {
+  return new Map(allPoints(scene).filter((q) => q.on === 'breadboard').map((q) => [key(q.x, q.y), q.ref]));
+}
+
+function legsFrom(scene: Scene, type: string, start: string, used: Set<string>, holes: HoleIndex): Legs | undefined {
+  const bb = start.slice(0, start.indexOf('.') + 1);
   const origin = pointAt(scene, start)!;
-  const holes = allPoints(scene).filter((q) => q.ref.startsWith(`${bb}.`));
   const legs: Legs = {};
   for (const [leg, [dx, dy]] of Object.entries(partKind(type).legs)) {
-    const hit = holes.find((q) => Math.abs(q.x - origin.x - dx) < 0.5 && Math.abs(q.y - origin.y - dy) < 0.5);
-    if (!hit || used.has(hit.ref)) return undefined;
-    legs[leg] = hit.ref;
+    const hit = holes.get(key(origin.x + dx, origin.y + dy));
+    if (!hit || !hit.startsWith(bb) || used.has(hit)) return undefined;
+    legs[leg] = hit;
   }
   return legs;
 }
 
-/** The first place, column by column from the left, where the part fits (a part clicked in the parts panel). */
+/** The first place, column by column from the left, where the part fits (a part picked up with the keyboard). */
 export function freeSpot(scene: Scene, type: string): Legs | undefined {
   const used = usedPoints(scene.project);
+  const holes = holeIndex(scene);
   const { rows } = partKind(type);
   for (const bb of scene.project.breadboards) {
     for (let c = 1; c <= COLUMNS[bb.size]; c++) {
       for (const r of rows) {
-        const legs = legsFrom(scene, type, `${bb.id}.${r}${c}`, used);
+        const legs = legsFrom(scene, type, `${bb.id}.${r}${c}`, used, holes);
         if (legs) return legs;
       }
     }

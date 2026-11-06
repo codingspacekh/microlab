@@ -211,3 +211,5 @@ h3 { font-size: 13px; font-weight: 650; }
 .fc .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .fc .states { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
 .fc .st { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--tx-3); min-width: 0; }
+.statusbar .st.running { color: var(--run); } .statusbar .st.running .dot { background: var(--run); }
+.statusbar .st.bad { color: var(--danger); }

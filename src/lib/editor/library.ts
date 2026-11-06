@@ -20,6 +20,10 @@ export interface Art {
   pitch: number;
   /** Board pins by their `number` in board.json → [x, y] on the picture. */
   pins: Record<string, [number, number]>;
+  /** The board's own LEDs by builtIn id ('LED'), where they light (M4.5). */
+  leds?: Record<string, [number, number]>;
+  /** The micro:bit's 25 display pixels, row by row. */
+  display?: [number, number][];
 }
 
 export interface PartArt {

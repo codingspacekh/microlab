@@ -33,14 +33,18 @@ test('typing in main.py: a new line after a colon is indented, the text is kept'
   expect((await win.locator('.cm-line').allTextContents()).at(-1)).toBe('    print("on"');
 });
 
-test('the editor fills the code side, below its file tab', async () => {
+test('the editor and the console below it fill the code side', async () => {
   const win = await app.firstWindow();
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setContentSize(1280, 720));
   await win.waitForFunction(() => window.innerWidth === 1280);
   await win.getByRole('button', { name: 'New Pico W project' }).click();
   const side = (await win.getByRole('region', { name: 'Code' }).boundingBox())!;
+  const tabs = (await win.getByRole('tablist', { name: 'Files' }).boundingBox())!;
   const ed = (await win.locator('.cm-editor').boundingBox())!;
+  const con = (await win.locator('.console').boundingBox())!;
   expect(Math.abs(ed.width - side.width)).toBeLessThanOrEqual(2);
-  expect(ed.y + ed.height).toBeGreaterThan(side.y + side.height - 2);
-  expect(ed.height).toBeGreaterThan(side.height - 60);
+  expect(Math.abs(ed.y - (tabs.y + tabs.height))).toBeLessThanOrEqual(2);
+  expect(Math.abs(con.y - (ed.y + ed.height))).toBeLessThanOrEqual(2);
+  expect(Math.abs(con.y + con.height - (side.y + side.height))).toBeLessThanOrEqual(2);
+  expect(ed.height).toBeGreaterThan(con.height);   // the code gets the most room
 });

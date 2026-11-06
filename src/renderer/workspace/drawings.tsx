@@ -8,7 +8,7 @@ import { COLUMNS, railHole, type BreadboardSize } from '@lib/circuit';
 const f = (v: number) => Math.round(v * 10) / 10;
 
 export function Defs() {
-  const glows: Record<string, string> = { red: '#ff4b3a', amber: '#ffb000', green: '#3ddc6a', blue: '#4d8dff', white: '#fff6d8' };
+  const glows: Record<string, string> = { red: '#ff4b3a', amber: '#ffb000', green: '#3ddc6a', blue: '#4d8dff', white: '#fff6d8', mbit: '#ff3a22' };
   return (
     <defs>
       {Object.entries(glows).map(([k, c]) => (
@@ -117,8 +117,9 @@ const LED_COLOURS: Record<string, [string, string, string]> = {
  * bent one, the cathode (−) leg is straight and the rim is flat on its side, as on a real LED; a red "+" and a dark
  * "−" sit by the legs, and each leg says what it is on hover. The body leans down from the holes; `on` glows (M4.5).
  */
-export function Led({ a, k, colour = 'red', on = false, labels = true }: { a: Point; k: Point; colour?: string; on?: boolean; labels?: boolean }) {
+export function Led({ a, k, colour = 'red', glow: light = 0, labels = true }: { a: Point; k: Point; colour?: string; glow?: number; labels?: boolean }) {
   const [onC, offC, glow] = LED_COLOURS[colour] ?? LED_COLOURS.red!;
+  const on = light > 0.01;   // brightness = current / the LED's 20 mA rating (M3.4)
   const cx = (a.x + k.x) / 2;
   const cy = a.y + 22;
   const side = Math.sign(k.x - a.x) || 1;           // which way the cathode is
@@ -137,7 +138,7 @@ export function Led({ a, k, colour = 'red', on = false, labels = true }: { a: Po
       <path className="leg cathode" d={`M${k.x},${k.y} L${f(cx + side * 4)},${f(cy - 7)}`} stroke="#a5abb2" strokeWidth={1.9} fill="none">
         <title>Cathode (−): the short leg, by the flat edge, to GND</title>
       </path>
-      {on && <circle cx={cx} cy={cy} r={34} fill={`url(#glow-${glow})`} />}
+      {on && <circle className="glow" cx={cx} cy={cy} r={34} fill={`url(#glow-${glow})`} opacity={f(Math.min(1, 0.3 + 0.7 * Math.sqrt(light)))} />}
       <path d={body} fill={on ? onC : offC} stroke="rgba(0,0,0,.28)" strokeWidth={1} />
       <line x1={f(flat)} y1={f(cy - flatY)} x2={f(flat)} y2={f(cy + flatY)} stroke="rgba(0,0,0,.45)" strokeWidth={1.6} />
       <ellipse cx={cx - 3.5} cy={cy - 4} rx={3.2} ry={2.4} fill="#fff" opacity={on ? 0.85 : 0.55} />
@@ -209,14 +210,53 @@ export function Potentiometer({ l, w, r, angle = 0 }: { l: Point; w: Point; r: P
 }
 
 /** A part from its type and the places of its legs. */
-export function PartDrawing({ type, legs, props }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown> }) {
+export interface PartLook {
+  /** An LED's brightness, 0–1, while running (M4.5). */
+  glow?: number;
+  /** A push button held down while running. */
+  pressed?: boolean;
+}
+
+export function PartDrawing({ type, legs, props, look = {} }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown>; look?: PartLook }) {
   switch (type) {
     case 'resistor': return <Resistor a={legs.a!} b={legs.b!} ohms={Number(props?.ohms ?? 220)} />;
-    case 'led': return <Led a={legs.a!} k={legs.k!} colour={String(props?.color ?? 'red')} />;
-    case 'button': return <PushButton legs={[legs['1a']!, legs['2a']!, legs['1b']!, legs['2b']!]} />;
+    case 'led': return <Led a={legs.a!} k={legs.k!} colour={String(props?.color ?? 'red')} glow={look.glow} />;
+    case 'button': return <PushButton legs={[legs['1a']!, legs['2a']!, legs['1b']!, legs['2b']!]} pressed={look.pressed} />;
     case 'potentiometer': return <Potentiometer l={legs['1']!} w={legs['2']!} r={legs['3']!} />;
     default: return null;
   }
+}
+
+// ------------------------------------------------------------------ the board's own outputs (M4.5)
+const BOARD_LED: Record<string, [string, string]> = { green: ['#8dffad', 'green'], blue: ['#8fb8ff', 'blue'] };
+
+/** The board's own LED lit (the Pico W's green, the ESP32's blue), where the board's picture has it. */
+export function BoardLed({ at, colour }: { at: Point; colour: 'green' | 'blue' }) {
+  const [fill, glow] = BOARD_LED[colour]!;
+  return (
+    <g data-board-led="1" pointerEvents="none">
+      <circle cx={at.x} cy={at.y} r={12} fill={`url(#glow-${glow})`} />
+      <rect x={at.x - 3} y={at.y - 2} width={6} height={4} rx={1} fill={fill} />
+    </g>
+  );
+}
+
+/** The micro:bit's 5 × 5 display: each pixel's brightness 0–9, row by row, at the picture's 25 places. */
+export function MicrobitDisplay({ at, pixels }: { at: Point[]; pixels: string }) {
+  return (
+    <g data-display={pixels} pointerEvents="none">
+      {at.map((p, i) => {
+        const b = Number(pixels[i] ?? 0) / 9;
+        if (b <= 0) return null;
+        return (
+          <g key={i} opacity={f(0.35 + 0.65 * b)}>
+            <circle cx={p.x} cy={p.y} r={17} fill="url(#glow-mbit)" />
+            <rect x={p.x - 3.5} y={p.y - 6} width={7} height={12} rx={1.5} fill="#ff3a22" />
+          </g>
+        );
+      })}
+    </g>
+  );
 }
 
 // ------------------------------------------------------------------ parts panel icons (design/build.py ICON_PARTS)
