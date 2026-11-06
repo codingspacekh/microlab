@@ -602,17 +602,18 @@ connection problem says how to fix it.
 |---|---|---|---|
 | Analysis Rev 1–5 | ✅ Done — Rev 5: board connection with no setup (F-55, F-56), Q18 agreed | 2026-11-05 | |
 | HTML prototype (13 screens) | ✅ Approved 2026-11-05 ("all are already good") | 2026-11-05 | |
-| Prototype Rev 6: MicroLab, fluid layout, screen 12b form controls | 📝 For the teacher's comments | | |
-| Architecture Rev 1 + this plan | 📝 For the teacher's comments | | |
+| Real-board screens 13–16 | ✅ Approved 2026-11-06 ("all are very well designed") | 2026-11-06 | |
+| Prototype Rev 6: MicroLab, fluid layout, screen 12b form controls | ✅ Agreed (M0 started on it) | 2026-11-05 | |
+| Architecture Rev 1 + this plan | ✅ Agreed ("you can start M0") | 2026-11-05 | |
 | M0 Foundations + MicroPython spike | ✅ Done — own MicroPython build (no ASYNCIFY); manual check not recorded ([acceptance](acceptance/M0.md)) | 2026-11-05 | `v0.0.0` |
-| M1 Circuit engine | 🔨 Built and green; waiting for the teacher's pin-table check and `npm run perf` on the slowest laptop ([acceptance](acceptance/M1.md)) | | |
-| M2 Simulated boards (headless) | ⏳ | | |
-| M3 Code drives the circuit | ⏳ | | |
-| M4 Walking skeleton | ⏳ | | |
+| M1 Circuit engine | ✅ Done — pin tables checked by the teacher; slowest-laptop `npm run perf` skipped by the teacher ([acceptance](acceptance/M1.md)) | 2026-11-05 | `v0.1.0` |
+| M2 Simulated boards (headless) | ✅ Done — golden recordings deferred at the merge, then made on the micro:bit V2 and Pico W 2026-11-06 (ESP32 to come) ([acceptance](acceptance/M2.md)) | 2026-11-06 | `v0.2.0` |
+| M3 Code drives the circuit | ✅ Done ([acceptance](acceptance/M3.md)) | 2026-11-06 | `v0.3.0` |
+| M4 Walking skeleton | ✅ Done — with Tinkercad-style building (3b) at the teacher's request; Blink by hand on the three boards checked by the teacher ([acceptance](acceptance/M4.md)) | 2026-11-06 | `v0.4.0` |
 | M5 Full editor | ⏳ | | |
 | M6 Parts pack 1: inputs | ⏳ | | |
 | M7 Parts pack 2: outputs & displays | ⏳ | | |
 | M8 Learn | ⏳ | | |
 | M9 Errors, faults & multimeter | ⏳ | | |
-| M10 Real boards | ⏳ | | |
+| M10 Real boards | 🔨 Next (Rev 5: before M5–M9) — screens 13–16 approved 2026-11-06 ([acceptance](acceptance/M10.md)) | | |
 | M11 Hardening & v1.0 | ⏳ | | |
