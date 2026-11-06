@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>15 Board files</title>
+{{include:head}}
+</head>
+<body>
+<!--@BOARDCHIP: <button class="boardchip ok"><span class="dot"></span>{{part:pico:bp}}Pico W <span class="sub">· MicroPython 1.29</span></button>-->
+<p class="frame-label"><b>15 · Board files</b> — the real board's files beside the project's, as on the board (F-53, §1.12): sizes, free space, which files are the same, changed or only on one side; copy either way, open read-only, delete, make a folder; a warning, and a copy kept on the laptop, before anything on the board is replaced or deleted</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas"><div class="stage">{{scene:traffic:build}}</div>{{include:ctools}}</div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+  <div class="overlay"></div>
+  <div class="dialog center" style="--dw:1000px">
+    <div class="dh"><span style="color:var(--accent)">{{i:folder:s20}}</span><h2>Board files</h2><span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+    <div class="db">
+      <div class="panes">
+        <div class="pane">
+          <div class="ph">{{i:file:s14}}<b>This project</b><span class="small muted">Traffic lights</span><span class="spacer"></span><span class="small muted">2 files · 6.2 KB</span></div>
+          <div class="tb"><button class="btn sm">Copy to the board {{i:chevr:s12}}</button></div>
+          <div class="tree">
+            <div class="r sel"><span class="nm">{{i:file:s14}}main.py</span><span class="sz">0.6 KB</span><span class="diff changed">differs</span></div>
+            <div class="r"><span class="nm">{{i:folder:s14}}lib</span><span class="sz"></span><span class="diff"></span></div>
+            <div class="r"><span class="nm in1">{{i:file:s14}}ssd1306.py</span><span class="sz">5.6 KB</span><span class="diff new">not on the board</span></div>
+          </div>
+        </div>
+        <div class="pane">
+          <div class="ph">{{part:pico:bp}}<b>On the Pico W</b><span class="spacer"></span><span class="small muted">136 KB used of 848 KB</span></div>
+          <div class="tb"><button class="btn sm">{{i:chevl:s12}} Copy to this laptop</button><button class="btn sm">Open</button><button class="btn sm">{{i:plus:s12}} Folder</button><span class="spacer"></span><button class="btn sm danger">{{i:trash:s12}} Delete</button></div>
+          <div class="tree">
+            <div class="r sel"><span class="nm">{{i:file:s14}}main.py</span><span class="sz">12.5 KB</span><span class="diff changed">differs</span></div>
+            <div class="r"><span class="nm">{{i:folder:s14}}lib</span><span class="sz">2 folders</span><span class="diff only">only on the board</span></div>
+            <div class="r"><span class="nm">{{i:folder:s14}}smarthome</span><span class="sz">4 files</span><span class="diff only">only on the board</span></div>
+            <div class="r"><span class="nm">{{i:folder:s14}}ir_rx</span><span class="sz">8 files</span><span class="diff only">only on the board</span></div>
+            <div class="r"><span class="nm">{{i:file:s14}}index.html</span><span class="sz">5.8 KB</span><span class="diff only">only on the board</span></div>
+            <div class="r"><span class="nm">{{i:file:s14}}mfrc522.py</span><span class="sz">11.2 KB</span><span class="diff only">only on the board</span></div>
+            <div class="r"><span class="nm">{{i:file:s14}}servo.py</span><span class="sz">2.0 KB</span><span class="diff only">only on the board</span></div>
+            <div class="r"><span class="nm">{{i:file:s14}}ssd1306.py</span><span class="sz">5.5 KB</span><span class="diff only">only on the board</span></div>
+            <div class="r"><span class="nm muted">… 11 more files</span><span class="sz"></span><span class="diff"></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="confirm">{{i:warn:s20}}
+        <div class="col" style="gap:4px;flex:1">
+          <b>Replace main.py on the Pico W?</b>
+          <span style="color:var(--tx-2)">The board's own <span class="mono">main.py</span> (12.5 KB) is replaced by this project's (0.6 KB). Files only on the board are left alone.</span>
+          <span class="row" style="gap:8px;margin-top:4px"><span class="check on">{{i:check:s12}}</span>Keep a copy of the board's <span class="mono">main.py</span> on this laptop (Documents/MicroLab/Board backups)</span>
+        </div>
+        <button class="btn">Cancel</button><button class="btn primary">Replace</button>
+      </div>
+    </div>
+    <div class="df"><span class="small muted">Read with MicroPython's own commands over USB — no extra software on the board</span><span class="spacer"></span><button class="btn">{{i:restart:s14}} Refresh</button><button class="btn primary">Done</button></div>
+  </div>
+</div>
+</body></html>

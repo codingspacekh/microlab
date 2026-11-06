@@ -6,7 +6,7 @@ on the ESP32 and *Heart & knob* on the micro:bit. Every wire ends on a real pin 
 """
 import math
 
-from svgparts import (P, Breadboard, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
+from svgparts import (P, f, Breadboard, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
                       microbit, oled, hcsr04, servo, HEART)
 
 W, H = 692, 820
@@ -138,6 +138,24 @@ def board_art(kind: str) -> str:
     return _svg(s, 270, 135, "8 0 376 420")
 
 
+def bootsel() -> str:
+    """The connection helper (screen 14): the Pico W, its BOOTSEL button ringed, the USB plug coming in."""
+    svg, _ = pico(60, 150)
+    yt = 150 - 7 * P
+    cy = (yt + 150) / 2
+    bx, by = 60 + 2 * P + 6, cy - 10
+    ring = (f'<circle cx="{bx}" cy="{f(by)}" r="13" fill="none" stroke="#2563d9" stroke-width="2.4"/>'
+            f'<circle cx="{bx}" cy="{f(by)}" r="19" fill="none" stroke="#2563d9" stroke-width="1.2" opacity=".45"/>'
+            f'<path d="M{bx + 14},{f(by - 14)} L{bx + 52},{f(by - 52)}" stroke="#2563d9" stroke-width="1.4"/>'
+            f'<rect x="{bx + 50}" y="{f(by - 70)}" width="112" height="22" rx="6" fill="#2563d9"/>'
+            f'<text x="{bx + 106}" y="{f(by - 55)}" font-size="11" font-weight="700" fill="#fff" text-anchor="middle" font-family="Inter">1 · hold BOOTSEL</text>')
+    plug = (f'<rect x="{60 - 16 - 14 - 46}" y="{f(cy - 9)}" width="40" height="18" rx="3" fill="#3a3d42"/>'
+            f'<path d="M{60 - 16 - 14 - 46},{f(cy)} H{60 - 16 - 14 - 96}" stroke="#3a3d42" stroke-width="6" stroke-linecap="round"/>'
+            f'<rect x="{60 - 104}" y="{f(cy + 18)}" width="104" height="22" rx="6" fill="#2563d9"/>'
+            f'<text x="{60 - 52}" y="{f(cy + 33)}" font-size="11" font-weight="700" fill="#fff" text-anchor="middle" font-family="Inter">2 · plug it in</text>')
+    return _svg(svg + ring + plug, 420, 160, "-60 0 480 182")
+
+
 def servo_hero() -> str:
     o = []
     cx, cy = 150, 150
@@ -231,7 +249,7 @@ def led_states() -> str:
     return _svg("".join(o), 280, 96, "0 -10 280 106")
 
 
-SCENES = {"ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
+SCENES = {"bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
           "servowiring": servo_wiring, "servopulses": servo_pulses, "plot": plot}
 
 

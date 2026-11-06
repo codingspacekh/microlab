@@ -6,6 +6,8 @@ How MicroLab is built, **in what order**, and **how each part is proven to work*
 - System design (processes, engine, board layer, file format): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html)
 
+*Revision 5 (2026-11-06): **Real boards next.** The teacher has a micro:bit V2 and a Pico W at hand: **M10 (Real boards) is built right after M4**, before M5–M9 (the milestones keep their numbers). Its step 0 — prototype screens 13–16 — is drawn and waiting for approval. The golden recordings deferred in M2 were made on both boards (docs/acceptance/M2.md 26–31).*
+
 *Revision 4 (2026-11-06): **Build like Tinkercad, earlier** — the teacher asked for Tinkercad's way of placing parts, wires with bend points and part values in M4, not M5: new slice **M4.3b** takes the first part of M5.1 (delete), M5.2 (the full breadboard), M5.3 (bend points, wire colour) and M5.4 (the inspector).*
 
 *Revision 3 (2026-11-06): **Run runs the open file**, as Thonny does (requirements Rev 7, Q19): the run's entry file in M4.5, the button's file name and its ⌄ menu with the file tree in M5.6.*
@@ -510,7 +512,8 @@ connection problem says how to fix it.
 
 **Build order**
 0. **Design first:** prototype screens for the board chip and its states, the connection helper, and
-   Board files (F-53, F-55, F-56) — approved before their UI slices.
+   Board files (F-53, F-55, F-56) — approved before their UI slices. *(Rev 5)* Drawn: screens 13 (board chip),
+   13b (every state), 14 (connection helper), 14b (install MicroPython), 15 (Board files), 16 (running on the board).
 1. Detection (`lib/usb/detect`) from recorded port lists; the port watcher; the board chip (F-55, N-12).
 2. Raw REPL over a byte stream with `FakeBoard`; the greeting check and soft reset on plug-in (Q15, R10).
 3. Send to board: changed files only, temporary name then rename (F-50, screen 08).

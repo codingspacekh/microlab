@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>13b Board chip states</title>
+<meta name="viewport" content="width=device-width">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="fit.js" defer></script>
+
+</head>
+<body>
+<p class="frame-label"><b>13b · Board chip: every state</b> — what the chip says, when, and what a click on it shows (F-55, F-56, §1.13); the colour says whether something is needed: none · checking · ready · busy · needs you · can't connect</p>
+<div class="frame">
+  <div class="topbar">
+  <div class="brand"><svg class="logo" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="#2563d9"/><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M11 8V4.5M17 8V4.5M11 23.5V20M17 23.5V20M8 11H4.5M8 17H4.5M20 11h3.5M20 17h3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="14" r="2.2" fill="#7fe0a8"/></svg>
+<b>Micro<span>Lab</span></b></div>
+  <div class="seg modes"><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg> Workspace</span><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M8 7h7"/></svg> Learn</span><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3"/></svg> Examples</span></div>
+  <span class="spacer"></span>
+  <span class="small muted">Design system · the board chip</span>
+</div>
+
+  <div class="statesheet">
+
+    <div class="card">
+      <h2>No board</h2>
+      <div class="bar"><button class="boardchip none"><span class="dot"></span>No board</button><button class="btn"><svg class="ico " viewBox="0 0 24 24"><path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/></svg> Send to board</button></div>
+      <p class="when">Nothing plugged in, or nothing the app knows.</p>
+      <p class="what">Click: “Plug a micro:bit, Pico W or ESP32 in with a USB cable that carries data.” <a>Help connecting…</a></p>
+    </div>
+
+    <div class="card">
+      <h2>Checking</h2>
+      <div class="bar"><button class="boardchip looking"><span class="dot"></span><svg class="bp" viewBox="0 0 32 32"><rect x="2" y="9" width="28" height="14" rx="2" fill="#2b7a4b"/><rect x="0" y="13" width="4" height="6" rx="1" fill="#c7ccd2"/><rect x="13" y="12" width="7" height="7" fill="#1c1e21"/><rect x="22" y="12" width="5" height="7" fill="#c3c8ce"/><circle cx="4.0" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="4.0" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="21.5" r=".8" fill="#d6b24c"/></svg>Pico W <span class="sub">· checking…</span></button><button class="btn disabled"><svg class="ico " viewBox="0 0 24 24"><path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/></svg> Send to board</button></div>
+      <p class="when">For up to 2 s after a board is plugged in: the app knows its USB chip and asks it for MicroPython's greeting.</p>
+      <p class="what">Nothing to do. The board's own program carries on afterwards.</p>
+    </div>
+
+    <div class="card">
+      <h2>Ready</h2>
+      <div class="bar"><button class="boardchip ok"><span class="dot"></span><svg class="bp" viewBox="0 0 32 32"><rect x="2" y="9" width="28" height="14" rx="2" fill="#2b7a4b"/><rect x="0" y="13" width="4" height="6" rx="1" fill="#c7ccd2"/><rect x="13" y="12" width="7" height="7" fill="#1c1e21"/><rect x="22" y="12" width="5" height="7" fill="#c3c8ce"/><circle cx="4.0" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="4.0" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="21.5" r=".8" fill="#d6b24c"/></svg>Pico W <span class="sub">· MicroPython 1.29</span></button><button class="btn"><svg class="ico " viewBox="0 0 24 24"><path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/></svg> Send to board</button></div>
+      <p class="when">The board answered, and it is the project's board.</p>
+      <p class="what">Click: the board's card — version, space, files; <b>Send</b>, <b>Console</b>, <b>Board files</b> (screen 13).</p>
+    </div>
+
+    <div class="card">
+      <h2>Sending · running on the board</h2>
+      <div class="bar"><button class="boardchip busy"><span class="dot"></span><svg class="bp" viewBox="0 0 32 32"><rect x="2" y="9" width="28" height="14" rx="2" fill="#2b7a4b"/><rect x="0" y="13" width="4" height="6" rx="1" fill="#c7ccd2"/><rect x="13" y="12" width="7" height="7" fill="#1c1e21"/><rect x="22" y="12" width="5" height="7" fill="#c3c8ce"/><circle cx="4.0" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="4.0" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="21.5" r=".8" fill="#d6b24c"/></svg>Pico W <span class="sub">· sending 2 of 3</span></button><button class="btn disabled"><svg class="ico " viewBox="0 0 24 24"><path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/></svg> Sending…</button></div>
+      <div class="bar"><button class="boardchip ok"><span class="dot"></span><svg class="bp" viewBox="0 0 32 32"><rect x="2" y="9" width="28" height="14" rx="2" fill="#2b7a4b"/><rect x="0" y="13" width="4" height="6" rx="1" fill="#c7ccd2"/><rect x="13" y="12" width="7" height="7" fill="#1c1e21"/><rect x="22" y="12" width="5" height="7" fill="#c3c8ce"/><circle cx="4.0" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="4.0" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="21.5" r=".8" fill="#d6b24c"/></svg>Pico W <span class="sub">· running main.py</span></button><button class="btn"><svg class="ico " viewBox="0 0 24 24"><path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/></svg> Send to board</button></div>
+      <p class="when">While files go over, then while its program runs with the console open (screen 16).</p>
+    </div>
+
+    <div class="card">
+      <h2>Wrong board</h2>
+      <div class="bar"><button class="boardchip warn"><span class="dot"></span><svg class="bp" viewBox="0 0 32 32"><rect x="2" y="8" width="28" height="16" rx="2" fill="#1e2733"/><rect x="15" y="10" width="14" height="12" rx="1" fill="#b9bfc7"/><rect x="0" y="13" width="4" height="6" rx="1" fill="#c7ccd2"/><circle cx="4.0" cy="9.5" r=".8" fill="#d6b24c"/><circle cx="4.0" cy="22.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="9.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="22.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="9.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="22.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="9.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="22.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="9.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="22.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="9.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="22.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="9.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="22.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="9.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="22.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="9.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="22.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="9.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="22.5" r=".8" fill="#d6b24c"/></svg>ESP32 <span class="sub">· project is for Pico W</span></button><button class="btn"><svg class="ico " viewBox="0 0 24 24"><path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/></svg> Send to board</button></div>
+      <p class="when">The board answered, but the project was built for another board: its pins and modules differ.</p>
+      <p class="what">Click: <b>Plug in a Pico W</b>, or <b>Change this project's board to ESP32</b> (the wiring is checked again).</p>
+    </div>
+
+    <div class="card">
+      <h2>Used by another program</h2>
+      <div class="bar"><button class="boardchip warn"><span class="dot"></span><svg class="bp" viewBox="0 0 32 32"><rect x="2" y="9" width="28" height="14" rx="2" fill="#2b7a4b"/><rect x="0" y="13" width="4" height="6" rx="1" fill="#c7ccd2"/><rect x="13" y="12" width="7" height="7" fill="#1c1e21"/><rect x="22" y="12" width="5" height="7" fill="#c3c8ce"/><circle cx="4.0" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="4.0" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="21.5" r=".8" fill="#d6b24c"/></svg>Pico W <span class="sub">· used by Thonny</span></button><button class="btn"><svg class="ico " viewBox="0 0 24 24"><path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/></svg> Send to board</button></div>
+      <p class="when">The port is there but another program holds it — named when the app can tell (Thonny, Arduino IDE, mu, another MicroLab window).</p>
+      <p class="what">Click: “Close Thonny, or press Stop/Disconnect in it.” <b>Try again</b>.</p>
+    </div>
+
+    <div class="card">
+      <h2>No MicroPython</h2>
+      <div class="bar"><button class="boardchip warn"><span class="dot"></span><svg class="bp" viewBox="0 0 32 32"><rect x="3" y="6" width="26" height="20" rx="3" fill="#1d1e21"/><rect x="11.0" y="10.0" width="1.2" height="1.8" fill="#3b2d2d"/><rect x="13.6" y="10.0" width="1.2" height="1.8" fill="#ff3a22"/><rect x="16.2" y="10.0" width="1.2" height="1.8" fill="#3b2d2d"/><rect x="18.8" y="10.0" width="1.2" height="1.8" fill="#ff3a22"/><rect x="21.4" y="10.0" width="1.2" height="1.8" fill="#3b2d2d"/><rect x="11.0" y="12.6" width="1.2" height="1.8" fill="#ff3a22"/><rect x="13.6" y="12.6" width="1.2" height="1.8" fill="#ff3a22"/><rect x="16.2" y="12.6" width="1.2" height="1.8" fill="#ff3a22"/><rect x="18.8" y="12.6" width="1.2" height="1.8" fill="#ff3a22"/><rect x="21.4" y="12.6" width="1.2" height="1.8" fill="#ff3a22"/><rect x="11.0" y="15.2" width="1.2" height="1.8" fill="#ff3a22"/><rect x="13.6" y="15.2" width="1.2" height="1.8" fill="#ff3a22"/><rect x="16.2" y="15.2" width="1.2" height="1.8" fill="#ff3a22"/><rect x="18.8" y="15.2" width="1.2" height="1.8" fill="#ff3a22"/><rect x="21.4" y="15.2" width="1.2" height="1.8" fill="#ff3a22"/><rect x="11.0" y="17.8" width="1.2" height="1.8" fill="#3b2d2d"/><rect x="13.6" y="17.8" width="1.2" height="1.8" fill="#ff3a22"/><rect x="16.2" y="17.8" width="1.2" height="1.8" fill="#ff3a22"/><rect x="18.8" y="17.8" width="1.2" height="1.8" fill="#ff3a22"/><rect x="21.4" y="17.8" width="1.2" height="1.8" fill="#3b2d2d"/><rect x="11.0" y="20.4" width="1.2" height="1.8" fill="#3b2d2d"/><rect x="13.6" y="20.4" width="1.2" height="1.8" fill="#3b2d2d"/><rect x="16.2" y="20.4" width="1.2" height="1.8" fill="#ff3a22"/><rect x="18.8" y="20.4" width="1.2" height="1.8" fill="#3b2d2d"/><rect x="21.4" y="20.4" width="1.2" height="1.8" fill="#3b2d2d"/><circle cx="7" cy="14" r="2" fill="#c9cdd2"/><circle cx="25" cy="14" r="2" fill="#c9cdd2"/><rect x="5" y="22" width="22" height="3" fill="#d6b24c"/></svg>micro:bit <span class="sub">· no MicroPython</span></button><button class="btn"><svg class="ico " viewBox="0 0 24 24"><path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/></svg> Send to board</button></div>
+      <p class="when">A micro:bit that runs a MakeCode program, an ESP32 with Arduino code, or a program that won't stop.</p>
+      <p class="what">Click: <b>Install MicroPython…</b> (screen 14b; on a micro:bit its files are copied off first).</p>
+    </div>
+
+    <div class="card">
+      <h2>Firmware mode</h2>
+      <div class="bar"><button class="boardchip warn"><span class="dot"></span><svg class="bp" viewBox="0 0 32 32"><rect x="2" y="9" width="28" height="14" rx="2" fill="#2b7a4b"/><rect x="0" y="13" width="4" height="6" rx="1" fill="#c7ccd2"/><rect x="13" y="12" width="7" height="7" fill="#1c1e21"/><rect x="22" y="12" width="5" height="7" fill="#c3c8ce"/><circle cx="4.0" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="4.0" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="6.6" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="9.2" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="11.8" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="14.4" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="17.0" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="19.6" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="22.2" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="24.8" cy="21.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="10.5" r=".8" fill="#d6b24c"/><circle cx="27.400000000000002" cy="21.5" r=".8" fill="#d6b24c"/></svg>Pico W <span class="sub">· BOOTSEL mode</span></button><button class="btn disabled"><svg class="ico " viewBox="0 0 24 24"><path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/></svg> Send to board</button></div>
+      <p class="when">The Pico was plugged in with BOOTSEL held: it shows the RPI-RP2 drive and runs no program.</p>
+      <p class="what">Click: <b>Install MicroPython 1.29…</b> (screen 14b), or “Unplug it and plug it back in without holding the button.”</p>
+    </div>
+
+    <div class="card">
+      <h2>Can't connect</h2>
+      <div class="bar"><button class="boardchip bad"><span class="dot"></span><svg class="ico s14" viewBox="0 0 24 24"><path d="M12 3.5l9 16H3zM12 10v4M12 17h.01"/></svg>Board found, can't connect</button><button class="btn"><svg class="ico " viewBox="0 0 24 24"><path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/></svg> Send to board</button></div>
+      <p class="when">A known USB chip with no port (a missing driver on Windows), a port that won't open, or a board that stopped answering.</p>
+      <p class="what">Click: <b>the connection helper</b>, at the step that failed (screen 14).</p>
+    </div>
+
+    <div class="card">
+      <h2>Two boards</h2>
+      <div class="bar"><button class="boardchip ok"><span class="dot"></span>2 boards <span class="sub">· Pico W chosen</span></button><button class="btn"><svg class="ico " viewBox="0 0 24 24"><path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/></svg> Send to board</button></div>
+      <p class="when">More than one board plugged in.</p>
+      <p class="what">Click: the list, each with its state; the one chosen last is chosen again next time.</p>
+    </div>
+
+    <div class="card">
+      <h2>Plugged in · out</h2>
+      <div class="toast" style="position:static;max-width:none"><svg class="ico " viewBox="0 0 24 24"><path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/></svg><span><b>micro:bit plugged in</b> — MicroPython 2.1.2. This project is for a Pico W.</span></div>
+      <div class="toast" style="position:static;max-width:none;background:#3a3f47"><svg class="ico " viewBox="0 0 24 24"><path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/></svg><span><b>Pico W unplugged.</b> The project is still here; plug it back in to send.</span></div>
+      <p class="when">A short message at the bottom right for 5 s; the chip changes at once.</p>
+    </div>
+
+  </div>
+</div>
+</body></html>

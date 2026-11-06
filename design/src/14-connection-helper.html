@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>14 Connection helper</title>
+{{include:head}}
+</head>
+<body>
+<!--@BOARDCHIP: <button class="boardchip none"><span class="dot"></span>No board</button>-->
+<p class="frame-label"><b>14 · Connection helper</b> — when a board doesn't connect, the helper finds what is wrong step by step and says what to do in plain words (F-56, §1.13). Here: a Pico W plugged in and nothing seen on USB — the most common case is a cable that only charges. The Pico W has no power light, so the cable test is its BOOTSEL drive</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas"><div class="stage">{{scene:traffic:build}}</div>{{include:ctools}}</div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+  <div class="overlay"></div>
+  <div class="dialog center" style="--dw:800px">
+    <div class="dh"><span style="color:var(--accent)">{{i:usb:s20}}</span><h2>Help connecting a board</h2><span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+    <div class="db helper">
+      <div>
+        <div class="tag" style="margin-bottom:6px">Pico W</div>
+        <div class="steps">
+          <div class="s ok"><span class="n">{{i:check:s12}}</span><span>Plugged in at both ends<small>you said so</small></span></div>
+          <div class="s now"><span class="n">2</span><span>The laptop sees the board<small>nothing new on USB yet</small></span></div>
+          <div class="s later"><span class="n">3</span><span>A driver, if it needs one<small>only ESP32 boards on Windows</small></span></div>
+          <div class="s later"><span class="n">4</span><span>No other program has it<small>Thonny, Arduino IDE, mu</small></span></div>
+          <div class="s later"><span class="n">5</span><span>It runs MicroPython<small>it answers with its version</small></span></div>
+        </div>
+      </div>
+      <div>
+        <p class="q">Does the laptop see the Pico W at all?</p>
+        <p class="small" style="line-height:1.55;color:var(--tx-2)">The Pico W has no power light, so test the cable like this: <b>unplug it, hold the white BOOTSEL button, plug it back in, then let go.</b></p>
+        <div class="pic">{{scene:bootsel}}</div>
+        <p class="small" style="font-weight:600">Did a drive called <span class="mono">RPI-RP2</span> appear in Finder?</p>
+        <div class="answer">
+          <button class="btn">{{i:check:s14}} Yes, RPI-RP2 appeared</button>
+          <button class="btn">{{i:x:s14}} No, nothing appeared</button>
+        </div>
+        <div class="note info">{{i:info}}<span><b>Nothing appears?</b> The cable only carries power — most phone-charging cables are like that. Try another cable, or another USB port. <b>It appears?</b> The cable is fine: the Pico W just needs MicroPython (next step), or it was busy — unplug and plug it in again without the button.</span></div>
+      </div>
+    </div>
+    <div class="df">
+      <span class="small muted">On a micro:bit: “Is the light on its back, by the USB socket, on?” · on an ESP32: “Is its red power light on?”</span>
+      <span class="spacer"></span>
+      <button class="btn">{{i:copy:s14}} Copy report for the teacher</button>
+      <button class="btn primary">{{i:restart:s14}} Check again</button>
+    </div>
+  </div>
+</div>
+</body></html>

@@ -14,6 +14,8 @@
 
 *Revision 7 (2026-11-06): **Run runs the open file, as Thonny does** (Q19). python.microbit.org only ever runs `main.py`, so trying another file means importing it from `main.py` — tedious for students. In MicroLab, Run starts a fresh board and runs the file in the editor; every other project file can still be imported. `main.py` keeps one job: it is the file a board runs **by itself when it is switched on** (F-22, F-50, §1.12).*
 
+*Revision 8 (2026-11-06): two facts from the teacher's real boards, for the connection helper and installing MicroPython (§1.13, F-52, F-56). **The Pico and Pico W have no power light** — their only LED is the program's — so the helper's cable test for a Pico is its BOOTSEL drive: hold BOOTSEL while plugging in; if `RPI-RP2` appears, the cable carries data. **macOS asks before an app may write to a removable drive** (`RPI-RP2`, `MICROBIT`): installing MicroPython says so and offers to show the file to drag across by hand.*
+
 Name: **MicroLab**.
 
 ---
@@ -457,11 +459,11 @@ Getting the computer to "see" the board is where most students get stuck: which 
 
 | What the app sees | Most likely cause | What the helper says |
 |---|---|---|
-| No new USB device after the student says it's plugged in | Charge-only cable (the most common), loose cable, dead USB port | "Is the board's light on? Yes → the cable only carries power: try another cable." Picture of each board's power LED |
+| No new USB device after the student says it's plugged in | Charge-only cable (the most common), loose cable, dead USB port | micro:bit, ESP32: "Is the board's power light on? Yes → the cable only carries power: try another cable." *(Rev 8)* Pico / Pico W, which have no power light: "Hold BOOTSEL while you plug it in — does a drive called RPI-RP2 appear? No → the cable only carries power." Picture of each board (screen 14) |
 | A known USB chip (CP210x / CH340) but no serial port | Driver missing (mostly Windows) | Offers the driver installer shipped with the app, then checks again |
 | The port exists but can't be opened | Another program has it open | Names Thonny, Arduino IDE, mu, another MicroLab window when it can; *Try again* |
 | The port opens but no MicroPython greeting | A program that won't stop, a MakeCode program, Arduino code, or no MicroPython yet | Offers to install MicroPython (F-52, Q18) or a guide; warns that installing wipes a micro:bit's files |
-| Pico in BOOTSEL | Firmware mode | Offers to install MicroPython (F-52) or explains how to restart it normally |
+| Pico in BOOTSEL | Firmware mode | Offers to install MicroPython (F-52) or explains how to restart it normally. *(Rev 8)* On macOS, says first that the system will ask to allow MicroLab to write to the RPI-RP2 drive (screen 14b) |
 | Board doesn't match the project | Wrong board picked or plugged in | As the chip's *Wrong board* state |
 | Board unplugged during a copy | Cable pulled | Says which files were copied; Send again finishes the rest (files are written under a temporary name and renamed at the end, so no half-written file is left) |
 
