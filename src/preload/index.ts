@@ -11,6 +11,14 @@ contextBridge.exposeInMainWorld('microlab', {
     open: (): Promise<unknown> => ipcRenderer.invoke('project:open'),
     save: (doc: unknown, opts: unknown): Promise<unknown> => ipcRenderer.invoke('project:save', doc, opts),
   },
+  boards: {
+    get: (): Promise<unknown> => ipcRenderer.invoke('boards:get'),
+    onChange: (handler: (now: unknown, changes: unknown) => void): (() => void) => {
+      const listener = (_e: unknown, now: unknown, changes: unknown) => handler(now, changes);
+      ipcRenderer.on('boards:changed', listener);
+      return () => { ipcRenderer.removeListener('boards:changed', listener); };
+    },
+  },
   app: {
     setDirty: (dirty: boolean): void => ipcRenderer.send('app:dirty', dirty),
     onCloseRequest: (handler: () => void): (() => void) => {

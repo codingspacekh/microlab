@@ -9,6 +9,9 @@ import { BOARD_NAMES } from './boards';
 import { ControlsPage } from './ControlsPage';
 import { StartPage } from './StartPage';
 import { Workspace } from '../workspace/Workspace';
+import { BoardChip, plugMessage } from '../board/BoardChip';
+import type { BoardId } from '@lib/boards';
+import type { Detection } from '@lib/usb';
 import { useRun, type RunState, type StartRun } from './useRun';
 
 /**
@@ -122,6 +125,31 @@ export function App({ api, width, startRun }: AppProps) {
     return () => window.removeEventListener('keydown', on);
   }, []);
 
+  // real boards on USB (F-55): what the main process sees, the one chosen last, a short message on plug and unplug
+  const [boards, setBoards] = useState<Detection>({ boards: [], drives: [] });
+  const [chosen, setChosen] = useState<string | undefined>();
+  const [plugNote, setPlugNote] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void api.boards.get().then((d) => { if (live) setBoards(d); });
+    void api.settings.get('board.chosen').then((c) => { if (live && typeof c === 'string') setChosen(c); });
+    const off = api.boards.onChange((now, changes) => {
+      setBoards(now);
+      const note = plugMessage(changes, latest.current?.doc.project.board as BoardId | undefined);
+      if (note) setPlugNote(note);
+    });
+    return () => { live = false; off(); };
+  }, [api]);
+  useEffect(() => {
+    if (!plugNote) return;
+    const t = setTimeout(() => setPlugNote(null), 5000);
+    return () => clearTimeout(t);
+  }, [plugNote]);
+  const chip = open ? (
+    <BoardChip detection={boards} project={open.doc.project.board as BoardId} chosen={chosen}
+      onChoose={(id) => { setChosen(id); void api.settings.set('board.chosen', id); }} />
+  ) : null;
+
   const actions = {
     onNewProject: () => guard(() => { sim.reset(); setOpen(null); setMode('workspace'); }),
     onOpen: () => guard(() => void openFile()),
@@ -137,10 +165,16 @@ export function App({ api, width, startRun }: AppProps) {
 
   return (
     <div className="app">
-      <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} dirty={dirty} run={runControls} {...actions} />
+      <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} dirty={dirty} run={runControls} chip={chip} {...actions} />
       {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
       {page}
       <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} />
+      {plugNote && (
+        <div className="toast" role="status" aria-live="polite">
+          <Icon name="usb" /><span>{plugNote}</span>
+          <button type="button" className="btn ghost sm icon" aria-label="Dismiss" onClick={() => setPlugNote(null)}><Icon name="x" size={14} /></button>
+        </div>
+      )}
       {ask && (
         <Dialog title={`Save your changes to “${ask.name}”?`} onCancel={() => setAsk(null)} actions={[
           { label: 'Save', primary: true, onClick: () => { const then = ask.then; setAsk(null); void save().then((ok) => ok && then()); } },
@@ -182,6 +216,8 @@ interface TopBarProps {
   onOpen: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  /** The real board's chip (F-55), beside Send to board. */
+  chip: React.ReactNode;
 }
 
 interface RunControls {
@@ -193,7 +229,7 @@ interface RunControls {
 
 const MOD = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
-function TopBar({ mode, onMode, project, dirty, run, onNewProject, onOpen, onSave, onSaveAs }: TopBarProps) {
+function TopBar({ mode, onMode, project, dirty, run, chip, onNewProject, onOpen, onSave, onSaveAs }: TopBarProps) {
   return (
     <header className="topbar">
       <div className="brand"><Logo /><b>Micro<span>Lab</span></b></div>
@@ -221,7 +257,8 @@ function TopBar({ mode, onMode, project, dirty, run, onNewProject, onOpen, onSav
           <div className="vsep" />
           <RunBox run={run} />
           <div className="vsep" />
-          <button type="button" className="btn" disabled title="Send to board (M10)"><Icon name="usb" /> Send to board</button>
+          {chip}
+          <button type="button" className="btn" disabled title="Send to board (M10.3)"><Icon name="usb" /> Send to board</button>
         </>
       ) : (
         <>

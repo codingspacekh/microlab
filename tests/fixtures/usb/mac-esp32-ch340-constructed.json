@@ -1,0 +1,8 @@
+{
+  "source": "CONSTRUCTED: an ESP32 DevKit V1 with a CH340 USB chip on macOS (path /dev/tty.wchusbserial*) — to be recorded when the ESP32 is at hand.",
+  "platform": "darwin",
+  "volumes": ["Macintosh HD"],
+  "ports": [
+    { "path": "/dev/tty.wchusbserial14230", "manufacturer": "1a86", "serialNumber": "14230", "locationId": "14230000", "vendorId": "1a86", "productId": "7523" }
+  ]
+}

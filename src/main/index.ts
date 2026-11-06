@@ -4,9 +4,13 @@ import { join } from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, protocol, session } from 'electron';
 import { APP_SCHEME, APP_URL, isolationHeaders, resolveAppPath, responseHeaders } from './app-protocol';
 import { mkdirSync } from 'node:fs';
+import { userInfo } from 'node:os';
+import { SerialPort } from 'serialport';
+import { BoardWatcher, listVolumes } from './board-watcher';
 import { openProjectFile, saveProjectFile } from './project-files';
 import { SettingsStore } from './settings';
 import type { ProjectDoc } from '@lib/project';
+import type { PortInfo } from '@lib/usb';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const rendererDir = join(here, '../renderer');
@@ -91,6 +95,20 @@ app.whenReady().then(() => {
     const path = r.filePaths[0];
     return r.canceled || !path ? { ok: false, canceled: true } : openProjectFile(path);
   });
+  // Real boards (F-55): the USB ports, looked at about once a second; every window is told what changed.
+  const user = userInfo().username;
+  // Tests (and demos) can stand in for USB with a port-list file, rewritten to "plug" a board (tests/fixtures/usb).
+  const fake = process.env.MICROLAB_FAKE_USB;
+  const fromFile = async () => JSON.parse(await readFile(fake!, 'utf8')) as { ports: PortInfo[]; volumes: string[]; platform: string };
+  const watcher = new BoardWatcher(
+    fake
+      ? { listPorts: async () => (await fromFile()).ports, listVolumes: async () => (await fromFile()).volumes, platform: 'darwin' }
+      : { listPorts: () => SerialPort.list(), listVolumes: () => listVolumes(process.platform, user), platform: process.platform },
+    (now, changes) => { for (const w of BrowserWindow.getAllWindows()) w.webContents.send('boards:changed', now, changes); },
+  );
+  watcher.start();
+  ipcMain.handle('boards:get', () => watcher.current);
+  app.on('before-quit', () => watcher.stop());
   // Nothing in the window may open other sites (N-04, N-08).
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, done) => done(false));
   createWindow();

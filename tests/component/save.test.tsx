@@ -16,6 +16,7 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       open: vi.fn(async () => ({ ok: true as const, path: '/s/Other.mlab', name: 'Other', doc: newProject('microbit-v2') })),
       save: vi.fn(save),
     },
+    boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), onChange: vi.fn(() => () => {}) },
     app: {
       setDirty: vi.fn(),
       onCloseRequest: vi.fn((cb: () => void) => { closeRequest = cb; return () => { closeRequest = undefined; }; }),
@@ -69,7 +70,8 @@ describe('M4.6 F-02 Save and Save as', () => {
     expect(f.api.project.save).toHaveBeenCalledWith(expect.objectContaining({ project: expect.objectContaining({ board: 'pico-w' }) }), { name: 'Untitled project' });
     expect(within(bar()).queryByTitle('Not saved')).toBeNull();
     expect(bar()).not.toHaveTextContent('not saved');
-    expect(f.api.app.setDirty).toHaveBeenLastCalledWith(false);
+    // the window tells the main process from an effect, run just after the screen changes: wait for it too
+    await waitFor(() => expect(f.api.app.setDirty).toHaveBeenLastCalledWith(false));
     expect(screen.getByRole('status')).toHaveTextContent('Saved “Untitled project 2.mlab”');
   });
 

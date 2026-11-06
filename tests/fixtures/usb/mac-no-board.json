@@ -1,0 +1,9 @@
+{
+  "source": "The teacher's MacBook with nothing plugged in — and, as seen 2026-11-06, with the Pico W on a cable that carried no data: no USB device at all.",
+  "platform": "darwin",
+  "volumes": ["BOOTCAMP", "Macintosh HD"],
+  "ports": [
+    { "path": "/dev/tty.BLTH" },
+    { "path": "/dev/tty.Bluetooth-Incoming-Port" }
+  ]
+}

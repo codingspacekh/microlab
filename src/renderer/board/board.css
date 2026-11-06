@@ -1,0 +1,24 @@
+/* ---------- the board chip (screens 13, 13b) ---------- */
+.chipwrap { position: relative; display: inline-flex; }
+.boardchip { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border-radius: 7px; background: var(--bg-2); border: 1px solid transparent; font: inherit; font-weight: 550; font-size: 12.5px; color: var(--tx-1); white-space: nowrap; cursor: pointer; }
+.boardchip img { height: 16px; width: auto; }
+.boardchip .sub { color: var(--tx-3); font-weight: 500; }
+.boardchip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.boardchip.ok .dot { background: var(--success); box-shadow: 0 0 0 3px rgba(25,135,84,.16); }
+.boardchip.none .dot { background: transparent; border: 1.5px solid var(--tx-3); }
+.boardchip.warn { background: var(--warn-soft); border-color: var(--warn-line); }
+.boardchip.warn .dot { background: var(--warn); }
+.boardchip.on, .boardchip:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); outline: none; }
+@media (max-width: 1500px) { .boardchip .sub { display: none; } }
+.chipcard { position: absolute; right: 0; top: calc(100% + 8px); width: 360px; padding: 14px; z-index: 40; display: flex; flex-direction: column; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-l); }
+.chipcard .hd { display: flex; gap: 12px; align-items: center; }
+.chipcard .hd .col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.chipcard .hd b { font-size: 14px; }
+.chipcard .hd .pill { align-self: flex-start; }
+.chipcard .pic { width: 86px; height: 46px; border-radius: 8px; background: var(--canvas); display: grid; place-items: center; overflow: hidden; flex: none; }
+.chipcard .pic img { max-width: 80px; max-height: 40px; }
+.chipcard .kv { display: grid; grid-template-columns: 76px 1fr; gap: 6px 10px; font-size: 12.5px; }
+.chipcard .kv > span:nth-child(odd) { color: var(--tx-3); }
+.chipcard .note { line-height: 1.5; margin: 0; }
+.toast { position: fixed; right: 16px; bottom: 40px; z-index: 90; display: flex; gap: 10px; align-items: center; padding: 10px 10px 10px 14px; border-radius: 10px; background: var(--inverse, #1f2937); color: #fff; box-shadow: var(--shadow-l); font-size: 12.5px; max-width: 460px; }
+.toast .btn { color: #c9d1db; }

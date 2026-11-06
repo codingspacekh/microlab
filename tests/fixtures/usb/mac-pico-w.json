@@ -1,0 +1,24 @@
+{
+  "source": "Recorded on the teacher's MacBook (macOS, serialport 13) with the Pico W running MicroPython v1.29.0, 2026-11-06",
+  "platform": "darwin",
+  "volumes": [
+    "BOOTCAMP",
+    "Macintosh HD"
+  ],
+  "ports": [
+    {
+      "path": "/dev/tty.BLTH"
+    },
+    {
+      "path": "/dev/tty.Bluetooth-Incoming-Port"
+    },
+    {
+      "path": "/dev/tty.usbmodem14201",
+      "manufacturer": "MicroPython",
+      "serialNumber": "e6614103e7519826",
+      "locationId": "14200000",
+      "vendorId": "2e8a",
+      "productId": "0005"
+    }
+  ]
+}
