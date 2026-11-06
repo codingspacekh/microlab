@@ -1,11 +1,17 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { NewProjectBoard } from '@lib/boards';
+import { newProject, type ProjectDoc } from '@lib/project';
 import { Divider } from '../ui/Divider';
 import { Icon, Logo } from '../ui/Icon';
+import { MenuButton } from '../ui/Menu';
 import type { MicrolabApi } from './api';
+import { BOARD_NAMES } from './boards';
 import { ControlsPage } from './ControlsPage';
+import { StartPage } from './StartPage';
 
 /**
- * The window (M4.1, screens 01–03): the top bar with the three modes, the page, the status bar. In the Workspace the
+ * The window (M4.1, screens 01–03): the top bar with the three modes, the page, the status bar. With no project open
+ * the Workspace is the Start screen (01, M4.2): a new project from a board, or a .mlab opened. In the Workspace the
  * panels share the width as proportions — parts ~17 %, the circuit the rest, code ~34 % — each within limits, and
  * the dividers between them are draggable; where they were left is a setting (N-13).
  */
@@ -19,6 +25,13 @@ export interface Layout {
 export const DEFAULT_LAYOUT: Layout = { parts: 0.17, side: 0.34 };
 const LIMITS = { parts: [220, 360], side: [320, 0.5], canvas: 360 } as const;
 
+/** The project in the window: what it is, and where it came from (no path: not saved yet). */
+export interface OpenProject {
+  doc: ProjectDoc;
+  name: string;
+  path?: string;
+}
+
 export interface AppProps {
   api: MicrolabApi;
   /** The window's width, for tests; measured in the app. */
@@ -27,11 +40,37 @@ export interface AppProps {
 
 export function App({ api, width }: AppProps) {
   const [mode, setMode] = useState<Mode>('workspace');
+  const [open, setOpen] = useState<OpenProject | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const controls = useHash() === '#controls';
+
+  const start = (board: NewProjectBoard) => {
+    setOpen({ doc: newProject(board), name: 'Untitled project' });
+    setNotice(null);
+    setMode('workspace');
+  };
+  const openFile = async () => {
+    const r = await api.project.open();
+    if (r.ok) {
+      setOpen({ doc: r.doc, name: r.name, path: r.path });
+      setNotice(null);
+      setMode('workspace');
+    } else if ('message' in r) {
+      setNotice(r.message);
+    }
+  };
+  const actions = { onNewProject: () => { setOpen(null); setMode('workspace'); }, onOpen: () => void openFile() };
+
+  const page = controls ? <ControlsPage />
+    : mode !== 'workspace' ? <Later mode={mode} />
+    : open ? <Workspace api={api} width={width} project={open} />
+    : <StartPage onNew={start} onOpen={actions.onOpen} onLearn={() => setMode('learn')} onExamples={() => setMode('examples')} />;
+
   return (
     <div className="app">
-      <TopBar mode={mode} onMode={setMode} />
-      {controls ? <ControlsPage /> : mode === 'workspace' ? <Workspace api={api} width={width} /> : <Later mode={mode} />}
+      <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} {...actions} />
+      {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
+      {page}
       <StatusBar />
     </div>
   );
@@ -54,7 +93,16 @@ const MODES: { id: Mode; label: string; icon: string }[] = [
   { id: 'examples', label: 'Examples', icon: 'bulb' },
 ];
 
-function TopBar({ mode, onMode }: { mode: Mode; onMode: (m: Mode) => void }) {
+interface TopBarProps {
+  /** The chosen mode; none on the Start screen. */
+  mode: Mode | undefined;
+  onMode: (m: Mode) => void;
+  project: OpenProject | null;
+  onNewProject: () => void;
+  onOpen: () => void;
+}
+
+function TopBar({ mode, onMode, project, onNewProject, onOpen }: TopBarProps) {
   return (
     <header className="topbar">
       <div className="brand"><Logo /><b>Micro<span>Lab</span></b></div>
@@ -65,14 +113,40 @@ function TopBar({ mode, onMode }: { mode: Mode; onMode: (m: Mode) => void }) {
           </button>
         ))}
       </div>
-      <div className="vsep" />
-      <div className="proj"><b>Untitled project</b><span>No board yet</span></div>
-      <span className="spacer" />
-      <div className="vsep" />
-      <button type="button" className="btn run" disabled title="Run (M4.5)"><Icon name="play" size={14} /> Run</button>
-      <div className="vsep" />
-      <button type="button" className="btn" disabled title="Send to board (M10)"><Icon name="usb" /> Send to board</button>
+      {project ? (
+        <>
+          <div className="vsep" />
+          <div className="proj" role="group" aria-label="Project">
+            <b>{project.name}</b><span>{BOARD_NAMES[project.doc.project.board as keyof typeof BOARD_NAMES] ?? project.doc.project.board}</span>
+          </div>
+          <MenuButton label="Project menu" items={[
+            { label: 'New project…', icon: 'plus', onSelect: onNewProject },
+            { label: 'Open a project…', icon: 'folder', onSelect: onOpen },
+          ]} />
+          <span className="spacer" />
+          <div className="vsep" />
+          <button type="button" className="btn run" disabled title="Run (M4.5)"><Icon name="play" size={14} /> Run</button>
+          <div className="vsep" />
+          <button type="button" className="btn" disabled title="Send to board (M10)"><Icon name="usb" /> Send to board</button>
+        </>
+      ) : (
+        <>
+          <span className="spacer" />
+          <button type="button" className="btn" onClick={onOpen}><Icon name="folder" size={14} /> Open a project…</button>
+        </>
+      )}
     </header>
+  );
+}
+
+/** A message for the student (a file that can't be opened), until it is dismissed. */
+function Notice({ text, onDismiss }: { text: string; onDismiss: () => void }) {
+  return (
+    <div className="notice" role="alert">
+      <Icon name="alert" />
+      <span>{text}</span>
+      <button type="button" className="btn ghost sm icon" aria-label="Dismiss" title="Dismiss" onClick={onDismiss}><Icon name="x" size={14} /></button>
+    </div>
   );
 }
 
@@ -119,7 +193,7 @@ function useWidth(fixed: number | undefined) {
   return { ref, width: fixed ?? measured };
 }
 
-function Workspace({ api, width: fixed }: { api: MicrolabApi; width?: number }) {
+function Workspace({ api, width: fixed, project }: { api: MicrolabApi; width?: number; project: OpenProject }) {
   const { ref, width } = useWidth(fixed);
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
   const [drag, setDrag] = useState<Partial<Record<keyof Layout, number>>>({});
@@ -156,6 +230,8 @@ function Workspace({ api, width: fixed }: { api: MicrolabApi; width?: number }) 
         onChange={(v) => setDrag({ side: v })} onCommit={commit('side')} />
       <section className="side" aria-label="Code" style={{ flexBasis: sidePx }}>
         <div className="head"><h3>main.py</h3></div>
+        {/* The editor comes in M4.4; until then the code is shown as it is. */}
+        <pre className="code-preview">{String(project.doc.files['main.py'] ?? '')}</pre>
       </section>
     </div>
   );

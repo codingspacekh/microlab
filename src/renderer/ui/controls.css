@@ -119,3 +119,10 @@ body.dragging { cursor: pointer; user-select: none; }
 .seg button:hover:not(.on):not(:disabled) { color: var(--tx-1); }
 .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .seg.dis { opacity: .55; }
+
+/* ---------- menu button (the project menu) ---------- */
+.menuwrap { position: relative; display: inline-flex; }
+.menuwrap .menu { left: 0; right: auto; min-width: 210px; }
+.menuwrap .menu .mi:focus { outline: none; background: var(--bg-2); }
+.menuwrap .menu .mi .ico { color: var(--tx-3); }
+.btn.on { background: var(--bg-2); }

@@ -8,3 +8,4 @@ export { Segmented, Swatches, type SegmentedProps, type SegmentOption, type Swat
 export { TextArea, TextField, type TextAreaProps, type TextFieldProps } from './TextField';
 export { Divider, type DividerProps } from './Divider';
 export { Icon, Logo } from './Icon';
+export { MenuButton, type MenuButtonProps, type MenuItem } from './Menu';

@@ -1,8 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import { app, BrowserWindow, ipcMain, protocol, session } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, protocol, session } from 'electron';
 import { APP_SCHEME, APP_URL, isolationHeaders, resolveAppPath, responseHeaders } from './app-protocol';
+import { openProjectFile } from './project-files';
 import { SettingsStore } from './settings';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -53,6 +54,13 @@ app.whenReady().then(() => {
   const settings = new SettingsStore(join(app.getPath('userData'), 'settings.json'));
   ipcMain.handle('settings:get', (_e, key: string) => settings.get(key));
   ipcMain.handle('settings:set', (_e, key: string, value: unknown) => settings.set(key, value));
+  ipcMain.handle('project:open', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const options = { title: 'Open a project', filters: [{ name: 'MicroLab project', extensions: ['mlab'] }], properties: ['openFile' as const] };
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    const path = r.filePaths[0];
+    return r.canceled || !path ? { ok: false, canceled: true } : openProjectFile(path);
+  });
   // Nothing in the window may open other sites (N-04, N-08).
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, done) => done(false));
   createWindow();
