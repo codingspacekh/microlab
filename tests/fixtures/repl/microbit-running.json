@@ -1,0 +1,341 @@
+{
+ "source": "Recorded on the teacher's micro:bit V2 (micro:bit MicroPython v2.1.2, MicroPython v1.18) with serialport 13 on macOS, 2026-11-06: its main.py (a display loop) running; interrupt, raw REPL, os.uname(), Ctrl-B, soft reset",
+ "exchange": [
+  {
+   "t": 312,
+   "app": "\r\u0003\u0003"
+  },
+  {
+   "t": 314,
+   "board": "Tra"
+  },
+  {
+   "t": 314,
+   "board": "ceback (mos"
+  },
+  {
+   "t": 316,
+   "board": "t recent call"
+  },
+  {
+   "t": 317,
+   "board": " last):\r\n  "
+  },
+  {
+   "t": 318,
+   "board": "File \"main."
+  },
+  {
+   "t": 319,
+   "board": "py\", line 6, "
+  },
+  {
+   "t": 319,
+   "board": "in <module"
+  },
+  {
+   "t": 320,
+   "board": ">\r\nKeyboardI"
+  },
+  {
+   "t": 321,
+   "board": "nterrupt: \r"
+  },
+  {
+   "t": 322,
+   "board": "\nMicroPytho"
+  },
+  {
+   "t": 323,
+   "board": "n "
+  },
+  {
+   "t": 323,
+   "board": "v1.18 on 2"
+  },
+  {
+   "t": 324,
+   "board": "0"
+  },
+  {
+   "t": 324,
+   "board": "23-10-30; m"
+  },
+  {
+   "t": 325,
+   "board": "icro:bit v2"
+  },
+  {
+   "t": 325,
+   "board": "."
+  },
+  {
+   "t": 326,
+   "board": "1.2 with n"
+  },
+  {
+   "t": 326,
+   "board": "RF"
+  },
+  {
+   "t": 327,
+   "board": "52833\r\nTyp"
+  },
+  {
+   "t": 327,
+   "board": "e"
+  },
+  {
+   "t": 328,
+   "board": " \"help()\" "
+  },
+  {
+   "t": 328,
+   "board": "fo"
+  },
+  {
+   "t": 329,
+   "board": "r more"
+  },
+  {
+   "t": 329,
+   "board": " info"
+  },
+  {
+   "t": 330,
+   "board": "rmation.\r\n>"
+  },
+  {
+   "t": 331,
+   "board": ">"
+  },
+  {
+   "t": 331,
+   "board": "> \r\n>>> \r\n"
+  },
+  {
+   "t": 332,
+   "board": ">>> "
+  },
+  {
+   "t": 413,
+   "app": "\r\u0001"
+  },
+  {
+   "t": 413,
+   "board": "\r"
+  },
+  {
+   "t": 414,
+   "board": "\n>>> \r\nraw RE"
+  },
+  {
+   "t": 415,
+   "board": "PL; CTRL-B"
+  },
+  {
+   "t": 416,
+   "board": " to exit\r"
+  },
+  {
+   "t": 416,
+   "board": "\n>"
+  },
+  {
+   "t": 418,
+   "app": "import os\nprint(os.uname())\u0004"
+  },
+  {
+   "t": 421,
+   "board": "OK"
+  },
+  {
+   "t": 424,
+   "board": "(sysn"
+  },
+  {
+   "t": 425,
+   "board": "a"
+  },
+  {
+   "t": 425,
+   "board": "me='microb"
+  },
+  {
+   "t": 425,
+   "board": "i"
+  },
+  {
+   "t": 426,
+   "board": "t', nodenam"
+  },
+  {
+   "t": 428,
+   "board": "e='microbit',"
+  },
+  {
+   "t": 428,
+   "board": " release='"
+  },
+  {
+   "t": 429,
+   "board": "2"
+  },
+  {
+   "t": 429,
+   "board": ".1.2', v"
+  },
+  {
+   "t": 429,
+   "board": "ersi"
+  },
+  {
+   "t": 430,
+   "board": "on='micro:"
+  },
+  {
+   "t": 431,
+   "board": "bit v2.1.2+06"
+  },
+  {
+   "t": 432,
+   "board": "97c6d on 2"
+  },
+  {
+   "t": 432,
+   "board": "0"
+  },
+  {
+   "t": 433,
+   "board": "23-10-30; "
+  },
+  {
+   "t": 434,
+   "board": "Mi"
+  },
+  {
+   "t": 434,
+   "board": "croPython "
+  },
+  {
+   "t": 434,
+   "board": "v"
+  },
+  {
+   "t": 435,
+   "board": "1.18 on 202"
+  },
+  {
+   "t": 436,
+   "board": "3-10-30', m"
+  },
+  {
+   "t": 436,
+   "board": "a"
+  },
+  {
+   "t": 437,
+   "board": "chine='mic"
+  },
+  {
+   "t": 437,
+   "board": "r"
+  },
+  {
+   "t": 438,
+   "board": "o:bit with "
+  },
+  {
+   "t": 438,
+   "board": "n"
+  },
+  {
+   "t": 439,
+   "board": "RF52833')\r\n"
+  },
+  {
+   "t": 440,
+   "board": "\u0004\u0004>"
+  },
+  {
+   "t": 443,
+   "app": "\u0002"
+  },
+  {
+   "t": 444,
+   "board": "\r\nMicroPyt"
+  },
+  {
+   "t": 445,
+   "board": "hon v1.18 "
+  },
+  {
+   "t": 445,
+   "board": "on"
+  },
+  {
+   "t": 446,
+   "board": " 2023-10-3"
+  },
+  {
+   "t": 448,
+   "board": "0; micro:bi"
+  },
+  {
+   "t": 448,
+   "board": "t"
+  },
+  {
+   "t": 448,
+   "board": " v2.1.2 wit"
+  },
+  {
+   "t": 448,
+   "board": "h"
+  },
+  {
+   "t": 449,
+   "board": " nRF52833\r"
+  },
+  {
+   "t": 449,
+   "board": "\nT"
+  },
+  {
+   "t": 450,
+   "board": "ype"
+  },
+  {
+   "t": 450,
+   "board": " \"help()"
+  },
+  {
+   "t": 451,
+   "board": "\" for more "
+  },
+  {
+   "t": 452,
+   "board": "information"
+  },
+  {
+   "t": 452,
+   "board": "."
+  },
+  {
+   "t": 453,
+   "board": "\r\n>>> "
+  },
+  {
+   "t": 458,
+   "app": "\u0004"
+  },
+  {
+   "t": 460,
+   "board": "\r\nMPY: sof"
+  },
+  {
+   "t": 461,
+   "board": "t reboot\r\n"
+  }
+ ]
+}

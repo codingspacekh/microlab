@@ -2,7 +2,7 @@ import { SerialPortMock } from 'serialport';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FakeBoard, latin1, type FakeBoardOptions } from '@lib/repl';
 import type { BoardCheck, FoundBoard } from '@lib/usb';
-import { Boards, checkPort, type PortDeps } from '../../../src/main/board-check';
+import { backupFolder, Boards, checkPort, type PortDeps } from '../../../src/main/board-check';
 import { whoHolds } from '../../../src/main/port-holder';
 import { openSerial } from '../../../src/main/serial-link';
 
@@ -224,5 +224,12 @@ describe('M10.3 F-50 sending, from the main process', () => {
     const c = new Boards(d, () => {});
     await Promise.all([c.send(PICO, { 'main.py': 'x' }, { run: true, keep: false }), c.check(PICO)]);
     expect(most).toBe(1);
+  });
+});
+
+describe('M10.3 the folder an old main.py is kept in', () => {
+  it('names the board and the time, with nothing Windows refuses (the micro:bit\'s colon)', () => {
+    expect(backupFolder('micro:bit', new Date(2026, 10, 6, 14, 3, 9))).toBe('micro-bit 2026-11-06 14-03-09');
+    expect(backupFolder('Pico W', new Date(2026, 0, 2, 3, 4, 5))).toBe('Pico W 2026-01-02 03-04-05');
   });
 });

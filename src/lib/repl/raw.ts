@@ -36,6 +36,8 @@ export interface ReplOptions {
 }
 
 const RAW_PROMPT = 'raw REPL; CTRL-B to exit\r\n>';
+/** Commands this long or longer go in raw-paste mode. */
+const PASTE_FROM = 64;
 /** Bytes ↔ text one char per byte, so markers are found byte for byte whatever the bytes are. */
 export const latin1 = (s: string) => Uint8Array.from(s, (c) => c.charCodeAt(0) & 0xff);
 export function bytesText(b: Uint8Array): string {
@@ -91,6 +93,31 @@ class Reader {
     }
   }
 
+  /** Exactly n bytes (raw-paste's short answers), within ms. */
+  async takeN(n: number, ms: number): Promise<string> {
+    const end = Date.now() + ms;
+    for (;;) {
+      if (this.buf.length >= n) {
+        const b = this.buf.slice(0, n);
+        this.buf = this.buf.slice(n);
+        return b;
+      }
+      if (this.closed) throw new ReplError('lost', 'The board was unplugged', this.buf);
+      const left = end - Date.now();
+      if (left <= 0) throw new ReplError('timeout', `No answer from the board (waiting for ${n} bytes)`, this.buf);
+      await new Promise<void>((r) => {
+        const t = setTimeout(r, left);
+        this.wake = () => { clearTimeout(t); r(); };
+      });
+      this.wake = undefined;
+    }
+  }
+
+  /** Whether the board has said something not yet read. */
+  get pending(): boolean {
+    return this.buf.length > 0;
+  }
+
   take(): string {
     const b = this.buf;
     this.buf = '';
@@ -104,6 +131,9 @@ export class RawRepl {
   private readonly replyMs: number;
   private readonly chunkBytes: number;
   private readonly chunkPauseMs: number;
+  /** Raw-paste mode (MicroPython 1.14+): true once the board took it, false once it didn't. */
+  private paste: boolean | undefined;
+  private window = 0;
   /** What the board printed before it gave the raw prompt (its program's last words), for a "no MicroPython" answer. */
   seen = '';
 
@@ -144,9 +174,14 @@ export class RawRepl {
     throw new ReplError('refused', 'The board did not give the raw REPL prompt', this.seen);
   }
 
-  /** Runs code at the raw prompt; its output and its error (a traceback) come back apart. */
+  /**
+   * Runs code at the raw prompt; its output and its error (a traceback) come back apart. A long command goes in
+   * raw-paste mode when the board has it — the board asks for it a window at a time, so a board whose serial input
+   * is slow (the micro:bit's) never drops a byte; short ones go as they are (as recorded on the boards).
+   */
   async exec(code: string, ms = this.replyMs): Promise<{ out: string; err: string }> {
     const bytes = new TextEncoder().encode(code);
+    if (bytes.length >= PASTE_FROM && this.paste !== false && await this.startPaste()) return this.pasteRun(bytes, ms);
     const all = new Uint8Array(bytes.length + 1);
     all.set(bytes);
     all[bytes.length] = 4;
@@ -157,9 +192,51 @@ export class RawRepl {
     await this.reader.until('OK', ms).catch((e: ReplError) => {
       throw e.reason === 'lost' ? e : new ReplError('refused', 'The board did not take the command', e.seen);
     });
+    return this.answer(ms);
+  }
+
+  private async answer(ms: number): Promise<{ out: string; err: string }> {
     const out = await this.reader.until('\x04', ms, true);
     const err = await this.reader.until('\x04>', ms, true);
     return { out: utf8Out(out), err: utf8Out(err) };
+  }
+
+  /** Asks for raw-paste mode: "R\x01" and its window, "R\x00" no; older firmware just shows the raw prompt again. */
+  private async startPaste(): Promise<boolean> {
+    await this.send('\x05A\x01');
+    const r = await this.reader.takeN(2, this.replyMs);
+    if (r === 'R\x01') {
+      const w = await this.reader.takeN(2, this.replyMs);
+      this.window = w.charCodeAt(0) | (w.charCodeAt(1) << 8);
+      this.paste = true;
+      return true;
+    }
+    this.paste = false;
+    if (r !== 'R\x00') await this.reader.until(RAW_PROMPT, this.replyMs);
+    return false;
+  }
+
+  private async pasteRun(bytes: Uint8Array, ms: number): Promise<{ out: string; err: string }> {
+    let left = this.window;
+    let i = 0;
+    while (i < bytes.length) {
+      while (left === 0 || this.reader.pending) {
+        const c = await this.reader.takeN(1, ms);
+        if (c === '\x01') left += this.window;
+        else if (c === '\x04') {
+          // the board stopped taking it (out of memory): its error follows
+          await this.send('\x04');
+          return this.answer(ms);
+        } else throw new ReplError('refused', `The board answered ${JSON.stringify(c)} in the middle of a command`);
+      }
+      const piece = bytes.subarray(i, i + left);
+      await this.write(piece);
+      i += piece.length;
+      left -= piece.length;
+    }
+    await this.send('\x04');
+    await this.reader.until('\x04', ms);
+    return this.answer(ms);
   }
 
   /** Back to the normal prompt. */

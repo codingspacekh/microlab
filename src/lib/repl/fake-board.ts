@@ -15,6 +15,9 @@ interface Preset {
   banner: string;
   /** The micro:bit: no folders, no os.rename, no hashlib. */
   flat?: boolean;
+  /** The micro:bit keeps what came with the Ctrl-C that stopped its program and answers it at the prompt; the Pico W
+   *  drops it (both recorded). */
+  keepsInput?: boolean;
 }
 
 export const PRESETS: Record<FakePreset, Preset> = {
@@ -23,11 +26,12 @@ export const PRESETS: Record<FakePreset, Preset> = {
     uname: "(sysname='rp2', nodename='rp2', release='1.29.0', version='v1.29.0 on 2026-08-24 (GNU 16.1.0 MinSizeRel)', machine='Raspberry Pi Pico W with RP2040')",
     banner: 'MicroPython v1.29.0 on 2026-08-24; Raspberry Pi Pico W with RP2040',
   },
-  // uname recorded on the teacher's micro:bit V2 (golden 07_system); the banner not recorded yet
+  // recorded on the teacher's micro:bit V2, 2026-11-06 (uname also golden 07_system)
   'microbit-v2': {
     uname: "(sysname='microbit', nodename='microbit', release='2.1.2', version='micro:bit v2.1.2+0697c6d on 2023-10-30; MicroPython v1.18 on 2023-10-30', machine='micro:bit with nRF52833')",
-    banner: 'MicroPython v2.1.2+0697c6d on 2023-10-30; micro:bit v2.1.2 with nRF52833',
+    banner: 'MicroPython v1.18 on 2023-10-30; micro:bit v2.1.2 with nRF52833',
     flat: true,
+    keepsInput: true,
   },
   // MicroPython's generic ESP32 build, in the same form (no ESP32 at hand yet)
   esp32: {
@@ -63,11 +67,19 @@ export interface FakeBoardOptions {
   pace?: number;
   /** …and goes quiet for good after this many lines. */
   stallAfter?: number;
+  /** Raw-paste mode: taken (the default, a window of 128 as the micro:bit's), refused ("R\x00"), or unknown to
+   *  older firmware (Ctrl-A just gives the raw prompt again). */
+  paste?: 'yes' | 'refused' | 'unknown';
+  /** A slow serial input (the micro:bit's, found 2026-11-06): what comes faster than it is asked for is lost — in
+   *  the plain raw REPL, all but the first 64 bytes of each write; in raw-paste mode, what goes past the window. */
+  lossy?: boolean;
   /** Answers other code sent at the raw prompt; undefined: it never finishes. */
   exec?: (code: string) => Answer;
 }
 
 const HELP = 'Type "help()" for more information.\r\n';
+/** The raw-paste window, as the teacher's micro:bit gave it. */
+const WINDOW = 128;
 const TRACEBACK = 'Traceback (most recent call last):\r\n  File "main.py", line 1, in <module>\r\nKeyboardInterrupt: \r\n';
 const oserror = (fn: string, no: string) => ({ err: `Traceback (most recent call last):\r\n  File "<stdin>", line 1, in <module>\r\n  File "<stdin>", in ${fn}\r\nOSError: [Errno ${no}]\r\n` });
 
@@ -106,8 +118,13 @@ export function parsePyCall(code: string): { name: string; args: (string | Uint8
 const hexOf = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
 
 export class FakeBoard implements Link {
-  state: 'program' | 'friendly' | 'raw';
+  state: 'program' | 'friendly' | 'raw' | 'paste';
   softReboots = 0;
+  /** Commands taken in raw-paste mode. */
+  pastes = 0;
+  private asked = '';
+  private windowLeft = 0;
+  private taken = 0;
   readonly files = new Map<string, Uint8Array>();
   readonly dirs = new Set<string>();
   private listeners = new Set<(d: Uint8Array) => void>();
@@ -184,36 +201,62 @@ export class FakeBoard implements Link {
       }
       this.say(`${this.opts.program?.stop ?? TRACEBACK}${PRESETS[this.opts.preset].banner}\r\n${HELP}>>> `);
       this.state = 'friendly';
-      return; // the rest of the chunk goes with the program
+      if (!PRESETS[this.opts.preset].keepsInput) return; // the rest of the chunk goes with the program
+      const stop = data.indexOf(3);
+      for (const b of [...data.subarray(0, stop), ...data.subarray(stop + 1)]) this.byte(b);
+      return;
     }
-    for (const b of data) this.byte(b);
+    const take = this.opts.lossy && this.state === 'raw' ? data.subarray(0, 64) : data;
+    for (const b of take) this.byte(b);
   }
 
   private byte(b: number): void {
     const p = PRESETS[this.opts.preset];
+    if (this.state === 'paste') {
+      if (b === 4) {
+        this.state = 'raw';
+        this.say('\x04');
+        this.runRaw(false);
+        return;
+      }
+      if (this.windowLeft <= 0 && this.opts.lossy) return;
+      this.raw.push(b);
+      this.windowLeft--;
+      if (++this.taken === WINDOW) {
+        this.taken = 0;
+        this.windowLeft += WINDOW;
+        this.say('\x01');
+      }
+      return;
+    }
     if (this.state === 'raw') {
+      // raw-paste asked for: Ctrl-E A Ctrl-A at the start of a command
+      const paste = this.opts.paste ?? 'yes';
+      if (paste !== 'unknown' && this.raw.length === 0 && (this.asked + String.fromCharCode(b)) === '\x05A\x01'.slice(0, this.asked.length + 1)) {
+        this.asked += String.fromCharCode(b);
+        if (this.asked.length < 3) return;
+        this.asked = '';
+        if (paste === 'refused') { this.say('R\x00'); return; }
+        this.pastes++;
+        this.state = 'paste';
+        this.windowLeft = WINDOW;
+        this.taken = 0;
+        this.say(Uint8Array.from([0x52, 1, WINDOW & 0xff, WINDOW >> 8]));   // "R\x01" and the window, as bytes
+        return;
+      }
+      this.asked = '';
+      if (b === 1) {
+        this.raw = [];
+        this.say('\r\nraw REPL; CTRL-B to exit\r\n>');
+        return;
+      }
       if (b === 2) {
         this.state = 'friendly';
         this.say(`\r\n${p.banner}\r\n${HELP}>>> `);
       } else if (b === 3) {
         this.raw = [];
       } else if (b === 4) {
-        const code = new TextDecoder().decode(Uint8Array.from(this.raw));
-        this.raw = [];
-        const call = parsePyCall(code);
-        if (call && this.unplugOn?.name === call.name && --this.unplugOn.left <= 0) {
-          this.unplugOn = undefined;
-          this.unplug();
-          return;
-        }
-        this.later(async () => {
-          const r = await this.run(code);
-          if (!r) return ['OK'];
-          if (!this.opts.pace || !call) return [`OK${r.out ?? ''}\x04${r.err ?? ''}\x04>`];
-          const parts = ['OK', ...(r.out ?? '').split(/(?<=\n)/).filter(Boolean)];
-          if (this.opts.stallAfter !== undefined && parts.length > this.opts.stallAfter) return parts.slice(0, this.opts.stallAfter);
-          return [...parts, `\x04${r.err ?? ''}\x04>`];
-        });
+        this.runRaw(true);
       } else {
         this.raw.push(b);
       }
@@ -235,6 +278,27 @@ export class FakeBoard implements Link {
         this.say(`\r\nMPY: soft reboot\r\n${p.banner}\r\n${HELP}>>> `);
       }
     }
+  }
+
+  /** Runs what came at the raw prompt; "OK" first in the plain raw REPL (raw-paste has acknowledged with Ctrl-D). */
+  private runRaw(ok: boolean): void {
+    const code = new TextDecoder().decode(Uint8Array.from(this.raw));
+    this.raw = [];
+    const call = parsePyCall(code);
+    if (call && this.unplugOn?.name === call.name && --this.unplugOn.left <= 0) {
+      this.unplugOn = undefined;
+      this.unplug();
+      return;
+    }
+    const OK = ok ? 'OK' : '';
+    this.later(async () => {
+      const r = await this.run(code);
+      if (!r) return OK ? [OK] : [];
+      if (!this.opts.pace || !call) return [`${OK}${r.out ?? ''}\x04${r.err ?? ''}\x04>`];
+      const parts = [OK, ...(r.out ?? '').split(/(?<=\n)/)].filter(Boolean);
+      if (this.opts.stallAfter !== undefined && parts.length > this.opts.stallAfter) return parts.slice(0, this.opts.stallAfter);
+      return [...parts, `\x04${r.err ?? ''}\x04>`];
+    });
   }
 
   private async run(code: string): Promise<Answer> {
@@ -312,18 +376,18 @@ export class FakeBoard implements Link {
     }
   }
 
-  private say(s: string): void {
+  private say(s: string | Uint8Array): void {
     this.later(async () => [s]);
   }
 
   /** Says the parts in turn — at once, or `pace` ms apart. */
-  private later(make: () => Promise<string[]>): void {
+  private later(make: () => Promise<(string | Uint8Array)[]>): void {
     this.queue = this.queue.then(async () => {
       const parts = await make();
       for (const [i, s] of parts.entries()) {
         await new Promise<void>((r) => setTimeout(r, i && this.opts.pace ? this.opts.pace : 0));
         if (this.gone) return;
-        const bytes = new TextEncoder().encode(s);
+        const bytes = typeof s === 'string' ? new TextEncoder().encode(s) : s;
         for (const l of this.listeners) l(bytes);
       }
     });

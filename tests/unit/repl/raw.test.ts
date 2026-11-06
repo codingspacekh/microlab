@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FakeBoard, RawRepl, ReplError, UNAME_CODE, checkBoard } from '@lib/repl';
+import { FakeBoard, RawRepl, ReplError, UNAME_CODE, checkBoard, type FakeBoardOptions } from '@lib/repl';
 import { appWrites, boardText, latin1, loadRecording, replay, text } from './replay';
 
 /**
@@ -22,6 +22,13 @@ describe('M10.2 Q15 checking a board, against the recordings', () => {
     });
   });
 
+  it('microbit-running: the same bytes as recorded; the board is a micro:bit V2', async () => {
+    const link = replay(loadRecording('microbit-running'));
+    const answer = await checkBoard(link, { pauseMs: 0 });
+    expect(link.mismatch).toBeUndefined();
+    expect(answer).toEqual({ kind: 'micropython', uname: expect.objectContaining({ release: '2.1.2', machine: 'micro:bit with nRF52833' }) });
+  });
+
   it('the check ends with a soft reset at the normal prompt, so the board\'s own main.py runs again (R10)', () => {
     const writes = appWrites(loadRecording('pico-w-running'));
     expect(writes.slice(-2)).toEqual(['\x02', '\x04']);
@@ -33,9 +40,10 @@ describe('M10.2 FakeBoard answers as the real board does', () => {
   it.each([
     ['pico-w-idle', {}],
     ['pico-w-running', { program: { stop: 'stopping\r\n', output: "Joining 'CHAMPIONCODERS' ...\r\n" } }],
+    ['microbit-running', { preset: 'microbit-v2', program: { stop: 'Traceback (most recent call last):\r\n  File "main.py", line 6, in <module>\r\nKeyboardInterrupt: \r\n' } }],
   ] as const)('%s: the same app bytes give the same board bytes, up to the soft reboot', async (name, options) => {
     const r = loadRecording(name);
-    const board = new FakeBoard({ preset: 'pico-w', ...options });
+    const board = new FakeBoard({ preset: 'pico-w', ...options } as FakeBoardOptions);
     let got = '';
     board.onData((d) => { got += text(d); });
     for (const w of appWrites(r)) { await board.write(latin1(w)); await board.settled(); }
@@ -120,5 +128,41 @@ describe('M10.2 R10 the soft reset', () => {
     const write = board.write.bind(board);
     board.write = async (d) => (d.length === 1 && d[0] === 4 ? undefined : write(d));
     await expect(repl.softReset()).resolves.toBeUndefined();
+  });
+});
+
+describe('M10.3 raw-paste mode (found on the teacher\'s micro:bit: bytes of a long command were lost)', () => {
+  const long = `x = '${'a'.repeat(3000)}'\nprint(len(x))`;
+  const echo = (code: string) => (code.startsWith('x = ') ? { out: `${code.length - 20}\r\n` } : undefined);
+
+  it('a long command goes in raw-paste mode, a window at a time: a board that drops what comes too fast gets it whole', async () => {
+    const board = new FakeBoard({ preset: 'microbit-v2', lossy: true, exec: echo });
+    const repl = new RawRepl(board, quick);
+    await repl.enter();
+    expect((await repl.exec(long)).out).toBe('3000\r\n');
+    expect((await repl.exec(long)).out).toBe('3000\r\n');
+  });
+
+  it('without raw-paste the same board loses bytes — which is why it is used', async () => {
+    const board = new FakeBoard({ preset: 'microbit-v2', lossy: true, paste: 'refused', exec: echo });
+    const repl = new RawRepl(board, quick);
+    await repl.enter();
+    await expect(repl.exec(long)).rejects.toThrow();
+  });
+
+  it.each(['refused', 'unknown'] as const)('firmware that %s raw-paste: the plain raw REPL, from then on', async (paste) => {
+    const board = new FakeBoard({ preset: 'pico-w', paste, exec: echo });
+    const repl = new RawRepl(board, quick);
+    await repl.enter();
+    expect((await repl.exec(long)).out).toBe('3000\r\n');
+    expect((await repl.exec(long)).out).toBe('3000\r\n');
+  });
+
+  it('short commands stay plain (as recorded on the boards)', async () => {
+    const board = new FakeBoard({ preset: 'pico-w', lossy: true });
+    const repl = new RawRepl(board, quick);
+    await repl.enter();
+    expect((await repl.exec(UNAME_CODE)).out).toMatch(/Pico W/);
+    expect(board.pastes).toBe(0);
   });
 });

@@ -7,7 +7,7 @@ import { mkdirSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { SerialPort } from 'serialport';
-import { Boards } from './board-check';
+import { backupFolder, Boards } from './board-check';
 import { BoardWatcher, listVolumes } from './board-watcher';
 import { whoHolds } from './port-holder';
 import { openSerial, type SerialLink } from './serial-link';
@@ -126,10 +126,8 @@ app.whenReady().then(() => {
   };
   // Send to board keeps the board's old main.py (F-50, screen 08): Documents/MicroLab/Board backups/<board> <time>/
   const keepOld = async (board: string, path: string, data: Uint8Array): Promise<string> => {
-    const t = new Date();
-    const stamp = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')} ${String(t.getHours()).padStart(2, '0')}-${String(t.getMinutes()).padStart(2, '0')}-${String(t.getSeconds()).padStart(2, '0')}`;
     // (with fake USB — the tests — in the test's own folder, never the user's Documents)
-    const dir = join(app.getPath(fake ? 'userData' : 'documents'), 'MicroLab', 'Board backups', `${board} ${stamp}`);
+    const dir = join(app.getPath(fake ? 'userData' : 'documents'), 'MicroLab', 'Board backups', backupFolder(board, new Date()));
     await mkdir(join(dir, path, '..'), { recursive: true });
     await writeFile(join(dir, path), data);
     return dir;

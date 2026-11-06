@@ -16,6 +16,14 @@ export interface PortDeps {
   repl?: ReplOptions;
 }
 
+/** The folder a board's old files are kept in: "micro-bit 2026-11-06 14-03-39" — no character Windows or macOS
+ *  refuses in a name (the micro:bit's colon). */
+export function backupFolder(board: string, t: Date): string {
+  const two = (n: number) => String(n).padStart(2, '0');
+  const stamp = `${t.getFullYear()}-${two(t.getMonth() + 1)}-${two(t.getDate())} ${two(t.getHours())}-${two(t.getMinutes())}-${two(t.getSeconds())}`;
+  return `${board.replace(/[\\/:*?"<>|]/g, '-')} ${stamp}`;
+}
+
 type Opened = { link: SerialLink } | { failed: BoardCheck };
 
 async function openPort(board: FoundBoard, deps: PortDeps): Promise<Opened> {
