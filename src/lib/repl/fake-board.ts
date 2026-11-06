@@ -59,6 +59,10 @@ export interface FakeBoardOptions {
   files?: Record<string, Uint8Array>;
   /** A flaky cable: every piece of a file arrives with its last byte changed. */
   corrupt?: boolean;
+  /** A slow board: a helper's answer comes a line at a time, this many ms apart (a real Pico W reads ~13 KB/s). */
+  pace?: number;
+  /** …and goes quiet for good after this many lines. */
+  stallAfter?: number;
   /** Answers other code sent at the raw prompt; undefined: it never finishes. */
   exec?: (code: string) => Answer;
 }
@@ -204,7 +208,11 @@ export class FakeBoard implements Link {
         }
         this.later(async () => {
           const r = await this.run(code);
-          return r ? `OK${r.out ?? ''}\x04${r.err ?? ''}\x04>` : 'OK';
+          if (!r) return ['OK'];
+          if (!this.opts.pace || !call) return [`OK${r.out ?? ''}\x04${r.err ?? ''}\x04>`];
+          const parts = ['OK', ...(r.out ?? '').split(/(?<=\n)/).filter(Boolean)];
+          if (this.opts.stallAfter !== undefined && parts.length > this.opts.stallAfter) return parts.slice(0, this.opts.stallAfter);
+          return [...parts, `\x04${r.err ?? ''}\x04>`];
         });
       } else {
         this.raw.push(b);
@@ -305,16 +313,19 @@ export class FakeBoard implements Link {
   }
 
   private say(s: string): void {
-    this.later(async () => s);
+    this.later(async () => [s]);
   }
 
-  private later(make: () => Promise<string>): void {
+  /** Says the parts in turn — at once, or `pace` ms apart. */
+  private later(make: () => Promise<string[]>): void {
     this.queue = this.queue.then(async () => {
-      const s = await make();
-      await new Promise<void>((r) => setTimeout(r, 0));
-      if (this.gone) return;
-      const bytes = new TextEncoder().encode(s);
-      for (const l of this.listeners) l(bytes);
+      const parts = await make();
+      for (const [i, s] of parts.entries()) {
+        await new Promise<void>((r) => setTimeout(r, i && this.opts.pace ? this.opts.pace : 0));
+        if (this.gone) return;
+        const bytes = new TextEncoder().encode(s);
+        for (const l of this.listeners) l(bytes);
+      }
     });
   }
 }

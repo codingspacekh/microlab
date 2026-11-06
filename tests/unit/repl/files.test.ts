@@ -6,7 +6,7 @@ import { FakeBoard, ReplError, parsePyCall, pyBytes, sendFiles, type FakeBoardOp
  * checksum), folders made as needed, each under a temporary name and renamed once it is checked, so a cable pulled
  * mid-copy never leaves half a file; the board's other files are left alone; then the board restarts and runs main.py.
  */
-const quick = { pauseMs: 0, replyMs: 200, chunkPauseMs: 0 };
+const quick = { pauseMs: 0, replyMs: 200, chunkPauseMs: 0, fileMs: 200 };
 const enc = (s: string) => new TextEncoder().encode(s);
 const dec = (b: Uint8Array | undefined) => (b ? new TextDecoder().decode(b) : undefined);
 
@@ -136,5 +136,20 @@ describe('M10.3 F-21 on the micro:bit (no folders, no os.rename, no hashlib)', (
     expect((e as ReplError).message).toMatch(/micro:bit has no folders.*lib\/x\.py/);
     expect(dec(b.files.get('main.py'))).toBe('old');
     expect(b.softReboots).toBe(1);   // its program given back
+  });
+});
+
+describe('M10.3 a big file, read slowly (found on the teacher\'s Pico W: its 12.5 KB main.py took 971 ms to read back)', () => {
+  it('an answer that keeps coming is waited for, however long it takes in all', async () => {
+    const keepOld = vi.fn(async () => {});
+    const b = board({ 'main.py': '# the teacher\'s project\n'.repeat(520) }, { pace: 15 });
+    const r = await sendFiles(b, { 'main.py': 'new' }, { ...quick, replyMs: 100, fileMs: 100, keepOld });
+    expect(r.kept).toEqual(['main.py']);
+    expect(keepOld).toHaveBeenCalledWith('main.py', enc('# the teacher\'s project\n'.repeat(520)));
+  });
+
+  it('a board that goes quiet in the middle of an answer still times out', async () => {
+    const b = board({ 'main.py': 'x'.repeat(2000) }, { pace: 15, stallAfter: 3 });
+    await expect(sendFiles(b, { 'main.py': 'new' }, { ...quick, replyMs: 100, fileMs: 100, keepOld: async () => {} })).rejects.toMatchObject({ reason: 'timeout' });
   });
 });

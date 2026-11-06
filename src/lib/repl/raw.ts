@@ -51,10 +51,12 @@ class Reader {
   private buf = '';
   private wake: (() => void) | undefined;
   private closed = false;
+  private heard = 0;
 
   constructor(link: Link) {
     link.onData((d) => {
       this.buf += bytesText(d);
+      this.heard = Date.now();
       this.wake?.();
     });
     link.onClose?.(() => {
@@ -63,10 +65,15 @@ class Reader {
     });
   }
 
-  /** Everything up to the marker (the marker itself is taken too); a timeout keeps the text for the error. */
-  async until(marker: string, ms: number): Promise<string> {
-    const end = Date.now() + ms;
+  /**
+   * Everything up to the marker (the marker itself is taken too); a timeout keeps the text for the error.
+   * `quiet`: ms is how long the board may stay silent, not how long the whole answer may take — a long answer that
+   * keeps coming (a file read back) is waited for. Not for a program's own output, which may never end.
+   */
+  async until(marker: string, ms: number, quiet = false): Promise<string> {
+    let end = Date.now() + ms;
     for (;;) {
+      if (quiet) end = Math.max(end, this.heard + ms);
       const i = this.buf.indexOf(marker);
       if (i >= 0) {
         const before = this.buf.slice(0, i);
@@ -150,8 +157,8 @@ export class RawRepl {
     await this.reader.until('OK', ms).catch((e: ReplError) => {
       throw e.reason === 'lost' ? e : new ReplError('refused', 'The board did not take the command', e.seen);
     });
-    const out = await this.reader.until('\x04', ms);
-    const err = await this.reader.until('\x04>', ms);
+    const out = await this.reader.until('\x04', ms, true);
+    const err = await this.reader.until('\x04>', ms, true);
     return { out: utf8Out(out), err: utf8Out(err) };
   }
 

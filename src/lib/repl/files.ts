@@ -19,6 +19,12 @@ def _mlls(d):
    _mlls(p)
   else:
    print('F',s[6],p)
+try:
+ from binascii import hexlify as _mlhy
+except ImportError:
+ _mlhy=None
+def _mlhex(b):
+ return _mlhy(b).decode() if _mlhy else ''.join('%02x'%x for x in b)
 def _mlh(p):
  try:
   import hashlib
@@ -33,14 +39,14 @@ def _mlh(p):
    break
   h.update(b)
  f.close()
- print(''.join('%02x'%x for x in h.digest()))
+ print(_mlhex(h.digest()))
 def _mlr(p):
  f=open(p,'rb')
  while 1:
-  b=f.read(128)
+  b=f.read(256)
   if not b:
    break
-  print(''.join('%02x'%x for x in b))
+  print(_mlhex(b))
  f.close()
 def _mlo(p):
  global _mlf
@@ -105,14 +111,16 @@ export async function sha256(b: Uint8Array): Promise<string> {
 
 /** One session with a board's files: helpers loaded, each call checked for an error. */
 export class BoardFiles {
-  constructor(private readonly repl: RawRepl) {}
+  /** `quietMs`: how long the board may stay silent on a file command (a checksum of a big file prints nothing until
+   *  it is done); a long answer that keeps coming is always waited for. */
+  constructor(private readonly repl: RawRepl, private readonly quietMs = 5000) {}
 
   async load(): Promise<void> {
     await this.call(PRELUDE);
   }
 
   private async call(code: string): Promise<string> {
-    const { out, err } = await this.repl.exec(code);
+    const { out, err } = await this.repl.exec(code, this.quietMs);
     if (err) throw new ReplError('refused', `The board answered with an error: ${lines(err).at(-1) ?? err}`);
     return out;
   }
@@ -179,6 +187,8 @@ export interface SendOptions extends ReplOptions {
   /** Given the board's old main.py before it is replaced, to keep a copy on the laptop. */
   keepOld?: (path: string, data: Uint8Array) => Promise<void>;
   onProgress?: (p: SendProgress) => void;
+  /** How long the board may stay silent on a file command (default 5 s). */
+  fileMs?: number;
 }
 
 /** What the app asks of Send to board, and what came of it (main process → window). */
@@ -224,7 +234,7 @@ export async function sendFiles(link: Link, project: Record<string, string | Uin
         throw new ReplError('refused', `The micro:bit has no folders: ${nested.join(', ')} can't go on it. Move ${nested.length > 1 ? 'them' : 'it'} next to main.py.`);
       }
     }
-    const files = new BoardFiles(repl);
+    const files = new BoardFiles(repl, opts.fileMs);
     await files.load();
     const board = await files.list();
     for (const left of [...board.files.keys()].filter((p) => p.endsWith(PART))) await files.remove(left);

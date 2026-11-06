@@ -21,6 +21,9 @@ const calls = [
   "_mlr('a.bin')",
   "_mlrm('not-there.py')",
   "_mlls('')",
+  // the way without binascii (a board that has none): the same hex
+  '_mlhy=None',
+  "_mlr('a.bin')",
 ];
 
 async function run(board: 'pico-w' | 'microbit-v2', files: Record<string, string>) {
@@ -40,6 +43,7 @@ describe('M10.3 Q15 the board helpers on MicroPython', () => {
     expect(out).toContain('D lib');
     expect(out).toContain('F 6 lib/x.py');
     expect(out.some((l) => l.includes('mlab-part'))).toBe(false);
+    expect(out.at(-1)).toBe('686900275cff');
   }, 20_000);
 
   it('as the micro:bit (no os.rename): put in place by copying, the part file gone', async () => {
