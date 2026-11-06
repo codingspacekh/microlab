@@ -172,8 +172,9 @@ export function Canvas({ project, onChange, placing, onPlacing, selection, onSel
     };
     const key = (e: KeyboardEvent) => {
       const { project: proj, gesture: g, placing: p, selection: s } = latest.current;
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      // keys typed in a field or the code editor are theirs
+      const t = e.target as Element | null;
+      if (t?.closest?.('input, textarea, [contenteditable="true"], [contenteditable=""], .cm-editor')) return;
       if (e.key === 'Escape') {
         if (p) { endPlacing(); say(null); } else if (g) { setGesture(null); say(null); } else if (s) onSelect(null);
         return;
@@ -340,7 +341,7 @@ export function Canvas({ project, onChange, placing, onPlacing, selection, onSel
 
 /** The dashed box around a selected part (screen 02b), around its legs and its body. */
 const PAD: Record<string, [number, number, number, number]> = {
-  resistor: [10, 12, 10, 12], led: [12, 8, 12, 40], button: [26, 26, 26, 26], potentiometer: [28, 54, 28, 10],
+  resistor: [10, 12, 10, 12], led: [20, 8, 20, 40], button: [26, 26, 26, 26], potentiometer: [28, 54, 28, 10],
 };
 function SelectBox({ type, legs }: { type: string; legs: Point[] }) {
   const [l, t, r, b] = PAD[type] ?? [12, 12, 12, 12];

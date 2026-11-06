@@ -2,7 +2,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PART_KINDS } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { ProjectDoc } from '@lib/project';
+import { CodeEditor } from '../editor/CodeEditor';
 import { Divider } from '../ui/Divider';
+import { Icon } from '../ui/Icon';
 import type { MicrolabApi } from '../app/api';
 import { BOARD_ART, BOARD_NAMES } from '../app/boards';
 import { Canvas, type Placing, type Selection } from './Canvas';
@@ -104,12 +106,18 @@ export function Workspace({ api, width: fixed, doc, onChange }: WorkspaceProps) 
       <Divider label="Code panel width" value={sidePx} min={LIMITS.side[0]} max={sideMax} edge="right"
         onChange={(v) => setDrag({ side: v })} onCommit={commit('side')} />
       <section className="side" aria-label="Code" style={{ flexBasis: sidePx }}>
-        <div className="head"><h3>main.py</h3></div>
-        {/* The editor comes in M4.4; until then the code is shown as it is. */}
-        <pre className="code-preview">{String(doc.files['main.py'] ?? '')}</pre>
+        <div className="ftabs" role="tablist" aria-label="Files">
+          <button type="button" role="tab" aria-selected="true"><Icon name="file" size={14} /> main.py</button>
+        </div>
+        <CodeEditor label="main.py" value={text(doc.files['main.py'])} onChange={(code) => onChange({ ...doc, files: { ...doc.files, 'main.py': code } })} />
       </section>
     </div>
   );
+}
+
+/** A file's text; a file that isn't text (bytes) is shown empty until the file tree can say so (M5). */
+function text(file: string | Uint8Array | undefined): string {
+  return typeof file === 'string' ? file : '';
 }
 
 /** px from a proportion of the width, within [min, max]; max may itself be a proportion. */

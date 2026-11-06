@@ -193,8 +193,6 @@ h3 { font-size: 13px; font-weight: 650; }
 .notice span { flex: 1; color: var(--tx-1); }
 .notice .btn { color: var(--tx-2); }
 
-/* ---------- the code until the editor (M4.4) ---------- */
-.code-preview { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 4px 14px 14px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: var(--tx-1); white-space: pre; }
 
 /* ---------- pages not built yet ---------- */
 .later { flex: 1; display: grid; place-content: center; gap: 6px; text-align: center; }

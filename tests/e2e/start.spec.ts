@@ -32,6 +32,7 @@ async function chooseFile(path: string | null) {
 
 test('at 1280, 1440 and 1920 wide the start screen fills the window: no horizontal scroll, no empty band', async () => {
   const win = await app.firstWindow();
+  await win.getByRole('heading', { name: 'Start a new project' }).waitFor();
   for (const [w, h] of [[1280, 720], [1440, 900], [1920, 1080]] as const) {
     await resize(win, w, h);
     const m = await win.evaluate(() => {

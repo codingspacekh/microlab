@@ -328,6 +328,17 @@ describe('M4.3b the inspector (screen 02b) and Delete', () => {
     expect(within(inspector()).getByLabelText('Colour bands for 1.2k Ω')).toBeInTheDocument();
   });
 
+  it('an LED shows which leg is which: + anode, − cathode, on the canvas and in the inspector', () => {
+    const s = setup();
+    place(s, /^LED/, 'led', 'bb1.c10');
+    const led = s.svg.querySelector('[data-part="led1"]')!;
+    expect(led.querySelector('.leg.anode title')!.textContent).toMatch(/^Anode \(\+\)/);
+    expect(led.querySelector('.leg.cathode title')!.textContent).toMatch(/^Cathode \(−\).*flat edge.*GND/);
+    expect([...led.querySelectorAll('text')].map((t) => t.textContent)).toEqual(['+', '−']);
+    expect(within(inspector()).getByText(/anode/).textContent).toMatch(/\+ anode c10/);
+    expect(within(inspector()).getByText(/cathode/, { selector: 'span' }).textContent).toMatch(/− cathode c12/);
+  });
+
   it('an LED\'s colour, a potentiometer\'s value', () => {
     const s = setup();
     place(s, /^LED/, 'led', 'bb1.a1');

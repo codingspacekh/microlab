@@ -43,7 +43,7 @@ describe('M4.2 the Start screen', () => {
     expect(screen.getByRole('tab', { name: 'Workspace' })).toHaveAttribute('aria-selected', 'true');
     expect(within(projectBar()).getByText('Untitled project')).toBeInTheDocument();
     expect(within(projectBar()).getByText(board)).toBeInTheDocument();
-    expect(within(screen.getByRole('region', { name: 'Code' })).getByText(code, { exact: false })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Code' }).textContent).toContain(code);
   });
 
   it('F-02 “Open a project…” opens the chosen file in the workspace, named as the file', async () => {

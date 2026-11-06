@@ -112,19 +112,43 @@ const LED_COLOURS: Record<string, [string, string, string]> = {
   green: ['#22b14c', '#a9dcb7', 'green'], blue: ['#2f6fe0', '#b3c8f2', 'blue'], white: ['#f4f4ee', '#e7e7e0', 'white'],
 };
 
-/** 5 mm LED: anode in a, cathode in k, the body leaning down from the holes; `on` glows (M4.5). */
-export function Led({ a, k, colour = 'red', on = false }: { a: Point; k: Point; colour?: string; on?: boolean }) {
+/**
+ * 5 mm LED, so a student can see which leg is which (the teacher's request, M4.4): the anode (+) leg is the long,
+ * bent one, the cathode (−) leg is straight and the rim is flat on its side, as on a real LED; a red "+" and a dark
+ * "−" sit by the legs, and each leg says what it is on hover. The body leans down from the holes; `on` glows (M4.5).
+ */
+export function Led({ a, k, colour = 'red', on = false, labels = true }: { a: Point; k: Point; colour?: string; on?: boolean; labels?: boolean }) {
   const [onC, offC, glow] = LED_COLOURS[colour] ?? LED_COLOURS.red!;
   const cx = (a.x + k.x) / 2;
   const cy = a.y + 22;
+  const side = Math.sign(k.x - a.x) || 1;           // which way the cathode is
+  const r = 10.5;
+  const flat = cx + side * r * 0.78;                 // the rim's flat edge, on the cathode's side
+  const flatY = Math.sqrt(r * r - (r * 0.78) ** 2);
+  // the body: a circle with its cathode side cut flat
+  const body = `M${f(flat)},${f(cy - flatY)} A${r} ${r} 0 1 ${side > 0 ? 0 : 1} ${f(flat)},${f(cy + flatY)} Z`;
+  // anode: down, a kink outwards, then in to the body; cathode: straight in
+  const kink = { x: a.x - side * 5, y: a.y + 9 };
   return (
     <>
-      <path d={`M${a.x},${a.y} L${f(cx - 4)},${f(cy - 7)}`} stroke="#a5abb2" strokeWidth={1.7} fill="none" />
-      <path d={`M${k.x},${k.y} L${f(cx + 4)},${f(cy - 7)}`} stroke="#a5abb2" strokeWidth={1.7} fill="none" />
+      <path className="leg anode" d={`M${a.x},${a.y} L${f(kink.x)},${f(kink.y)} L${f(cx - side * 4)},${f(cy - 7)}`} stroke="#a5abb2" strokeWidth={1.9} fill="none" strokeLinejoin="round">
+        <title>Anode (+): the long leg, to the positive side</title>
+      </path>
+      <path className="leg cathode" d={`M${k.x},${k.y} L${f(cx + side * 4)},${f(cy - 7)}`} stroke="#a5abb2" strokeWidth={1.9} fill="none">
+        <title>Cathode (−): the short leg, by the flat edge, to GND</title>
+      </path>
       {on && <circle cx={cx} cy={cy} r={34} fill={`url(#glow-${glow})`} />}
-      <circle cx={cx} cy={cy} r={10.5} fill={on ? onC : offC} stroke="rgba(0,0,0,.18)" />
-      <path d={`M${f(cx + 7.4)},${f(cy - 7.4)} A10.5 10.5 0 0 1 ${f(cx + 7.4)},${f(cy + 7.4)}`} stroke="rgba(0,0,0,.22)" strokeWidth={2.2} fill="none" />
+      <path d={body} fill={on ? onC : offC} stroke="rgba(0,0,0,.28)" strokeWidth={1} />
+      <line x1={f(flat)} y1={f(cy - flatY)} x2={f(flat)} y2={f(cy + flatY)} stroke="rgba(0,0,0,.45)" strokeWidth={1.6} />
       <ellipse cx={cx - 3.5} cy={cy - 4} rx={3.2} ry={2.4} fill="#fff" opacity={on ? 0.85 : 0.55} />
+      {labels && (
+        <g fontSize={9} fontWeight={800} textAnchor="middle" pointerEvents="none" fontFamily="Inter Variable, Inter, sans-serif">
+          <circle cx={f(a.x - side * 9)} cy={f(a.y + 12)} r={5.2} fill="#fff" stroke="#d94545" strokeWidth={1} />
+          <text x={f(a.x - side * 9)} y={f(a.y + 15.2)} fill="#d94545">+</text>
+          <circle cx={f(k.x + side * 9)} cy={f(k.y + 12)} r={5.2} fill="#fff" stroke="#3a3d42" strokeWidth={1} />
+          <text x={f(k.x + side * 9)} y={f(k.y + 15.2)} fill="#3a3d42">−</text>
+        </g>
+      )}
     </>
   );
 }

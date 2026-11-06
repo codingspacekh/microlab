@@ -74,7 +74,19 @@ export function Inspector({ project, selection, onChange, onClose }: InspectorPr
               options={POTS.map((v) => ({ value: String(v), label: `${formatValue(v)}Ω` }))} />
           </Row>
         )}
-        <Row name="Legs in"><span className="small mono">{Object.values(part.legs).map(label).join(', ')}</span></Row>
+        {part.type === 'led' ? (
+          <Row name="Legs in">
+            <span className="small legs">
+              <span><b className="plus">+</b> anode <span className="mono">{label(part.legs.a!)}</span></span>
+              <span><b className="minus">−</b> cathode <span className="mono">{label(part.legs.k!)}</span></span>
+            </span>
+          </Row>
+        ) : (
+          <Row name="Legs in"><span className="small mono">{Object.values(part.legs).map(label).join(', ')}</span></Row>
+        )}
+        {part.type === 'led' && (
+          <p className="tiny muted led-tip">The long leg (+) goes towards the pin or 3.3 V, the short leg (−) by the flat edge towards GND. Turned round, an LED doesn't light.</p>
+        )}
       </>
     );
   } else if (selection.kind === 'wire') {

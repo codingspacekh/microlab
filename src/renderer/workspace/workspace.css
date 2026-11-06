@@ -62,3 +62,8 @@ button.pitem:focus-visible { box-shadow: 0 0 0 2px var(--accent-line); }
 .bands i { width: 16px; height: 14px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
 .inspector .actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
 .inspector-error { color: var(--danger); margin: 6px 0 0 92px; }
+.inspector .legs { display: flex; flex-direction: column; gap: 3px; }
+.inspector .legs b { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; border: 1px solid; font-size: 11px; margin-right: 4px; background: #fff; }
+.inspector .legs .plus { color: #d94545; } .inspector .legs .minus { color: #3a3d42; }
+.inspector .led-tip { margin: 8px 0 0; line-height: 1.45; }
+.scene .part .leg { pointer-events: stroke; }
