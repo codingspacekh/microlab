@@ -610,10 +610,10 @@ connection problem says how to fix it.
 | M2 Simulated boards (headless) | ✅ Done — golden recordings deferred at the merge, then made on the micro:bit V2 and Pico W 2026-11-06 (ESP32 to come) ([acceptance](acceptance/M2.md)) | 2026-11-06 | `v0.2.0` |
 | M3 Code drives the circuit | ✅ Done ([acceptance](acceptance/M3.md)) | 2026-11-06 | `v0.3.0` |
 | M4 Walking skeleton | ✅ Done — with Tinkercad-style building (3b) at the teacher's request; Blink by hand on the three boards checked by the teacher ([acceptance](acceptance/M4.md)) | 2026-11-06 | `v0.4.0` |
-| M5 Full editor | ⏳ | | |
+| M5 Full editor | 🔨 Next | | |
 | M6 Parts pack 1: inputs | ⏳ | | |
 | M7 Parts pack 2: outputs & displays | ⏳ | | |
 | M8 Learn | ⏳ | | |
 | M9 Errors, faults & multimeter | ⏳ | | |
-| M10 Real boards | 🔨 Next (Rev 5: before M5–M9) — screens 13–16 approved 2026-11-06 ([acceptance](acceptance/M10.md)) | | |
+| M10 Real boards | ✅ Merged — all seven slices, tried on the teacher's micro:bit V2 and Pico W; **open gate items** (Windows 11, an ESP32, a charge-only cable, the firmware copy from an installed MicroLab; the examples with `lib/` after M8) to be done later, by the teacher's decision ([acceptance](acceptance/M10.md)) | 2026-11-06 (partly) | `v0.10.0` |
 | M11 Hardening & v1.0 | ⏳ | | |
