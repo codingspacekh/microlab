@@ -12,6 +12,8 @@
 
 *Revision 6 (2026-11-05): the app is renamed **MicroLab**, project files `.mlab` (Q10). **Layout and form controls** (lessons from the gradebook): every screen fills the window's width at any size, with nothing fixed-size for its own sake (N-13), and every form control — fields, dropdowns, checkboxes, radio buttons, switches, sliders, steppers, pickers — is the app's own, styled in every state, never the browser's default (N-14). The prototype's screens are now fluid and the design system shows the full set of controls.*
 
+*Revision 7 (2026-11-06): **Run runs the open file, as Thonny does** (Q19). python.microbit.org only ever runs `main.py`, so trying another file means importing it from `main.py` — tedious for students. In MicroLab, Run starts a fresh board and runs the file in the editor; every other project file can still be imported. `main.py` keeps one job: it is the file a board runs **by itself when it is switched on** (F-22, F-50, §1.12).*
+
 Name: **MicroLab**.
 
 ---
@@ -147,7 +149,7 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 |---|---|---|
 | F-20 | Code editor: Python colours, line numbers, auto-indent, the board's modules in autocomplete (e.g. `machine.Pin(` shows its arguments) | M |
 | F-21 | More than one file per project (`main.py` plus modules such as `ssd1306.py`). *(Rev 4)* A project is a **folder tree that mirrors the board**: `main.py`, `lib/` for libraries, `www/` for web pages; any text file (`.py`, `.html`, `.css`, `.js`, `.json`, `.txt`). The simulated MicroPython sees the same files, so `import ssd1306` and `open('www/index.html')` work as on the board. On the micro:bit there are no folders: files sit next to `main.py`, and the app warns when the project is near the micro:bit's small space (§1.12) | S |
-| F-22 | **Run / Stop / Restart** the simulation; Stop always works, even in `while True:` with no sleep | M |
+| F-22 | **Run / Stop / Restart** the simulation; Stop always works, even in `while True:` with no sleep. *(Rev 7)* **Run runs the file open in the editor**, as Thonny does (Q19): a fresh board, its start-up file (`boot.py` on the Pico W and ESP32 — the micro:bit has none), then the open file as `__main__`; the other files can be imported. The button names the file (*▶ Run led_test.py*); its ⌄ menu has *Run main.py (as when the board is switched on)*. When the open file isn't Python, Run runs the last Python file run, or `main.py` | M |
 | F-23 | Console: `print()` output, `input()`, and the REPL after the program ends | M |
 | F-24 | Errors: the line is highlighted, the real MicroPython message is shown, and a short student-friendly explanation beside it (e.g. *"NameError: name 'pin' isn't defined" → Python is case-sensitive: you named it `Pin`*) | M |
 | F-25 | Code snippets for each part ("Insert example code for this servo on GP15") | S |
@@ -181,7 +183,7 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 ### Real boards
 | ID | Requirement | P |
 |---|---|---|
-| F-50 | **Send to board**: copy the project's files to a real board over USB and run them (as Thonny / `mpremote` do). *(Rev 4)* The whole folder tree, only the files that changed (compared by size and checksum); folders made as needed; files on the board that aren't in the project are left alone unless the student ticks *Remove other files* | S |
+| F-50 | **Send to board**: copy the project's files to a real board over USB and run them (as Thonny / `mpremote` do). *(Rev 4)* The whole folder tree, only the files that changed (compared by size and checksum); folders made as needed; files on the board that aren't in the project are left alone unless the student ticks *Remove other files*. *(Rev 7)* On its own a board always starts `main.py`, which the app says when it sends; *Run this file on the board* runs the open file there without making it `main.py`, as Thonny does (Q19) | S |
 | F-51 | Console of the real board (print output, errors, REPL) | S |
 | F-52 | Install MicroPython firmware on a new board. *(Rev 5)* **micro:bit and Pico: S** — the firmware ships with the app (offline) and is copied to the drive the board shows (`.hex` to `MICROBIT`, `.uf2` to `RPI-RP2`), the micro:bit's files are copied back afterwards; **ESP32: C** — the helper links to a guide (Q18) | S / C |
 | F-53 | *(Rev 4)* **Board files** panel: the real board's files and folders with sizes and free space; open a file read-only, copy files to and from the laptop, delete, make a folder; a warning before anything on the board is deleted or replaced | S |
@@ -330,6 +332,7 @@ The **content is the largest piece of work** in the project (about 30 parts × 3
 | Q17 | *(Rev 5)* Can the app show that a board is connected, with no setup? | **Yes** — F-55, F-56, §1.13. The board is recognised by its USB IDs, then asked for its MicroPython version |
 | Q18 | *(Rev 5)* Install MicroPython from inside the app (F-52)? | **Yes for the micro:bit and Pico** (S): one file copied to the board's drive, firmware shipped with the app. **ESP32 stays C** (needs `esptool-js`); the helper links to a guide |
 | Q16 | *(Rev 4)* IoT web pages and Wi-Fi in v1? | **Later phase** (F-80–F-82). v1 keeps the folder tree and `www/` files ready for it |
+| Q19 | *(Rev 7)* Can Run run any file, as in Thonny, not only `main.py` as on python.microbit.org? | **Yes** (F-22, F-50, §1.12). It is how the boards themselves work: on a soft reset into the raw REPL (what Thonny uses), the Pico W and ESP32 run `boot.py` but not `main.py`, and the micro:bit runs neither (it has no `boot.py`); Thonny then sends the file in the editor, which runs as `__main__`. `main.py` only runs by itself on a normal start (checked in the firmware: `ports/rp2/main.c`, `ports/esp32/main.c`, micro:bit `codal_port/main.c`). A helper file can carry its own test code under `if __name__ == "__main__":` |
 | Q14 | *(Rev 3)* Rust instead of TypeScript, since the app "is like a compiler"? | **TypeScript + Electron.** We don't write a compiler: MicroPython's own compiler and VM (C) run as the official WebAssembly build, already near native speed. What we write — the board hardware layer, the circuit solver (~30 nets: microseconds per solve), the editor UI — needs no Rust speed, and the hardware layer has to talk to MicroPython's JavaScript bridge anyway. Rust would add a second language and test setup for one maintainer; Tauri would use a different browser engine per OS (sound, rendering, SharedArrayBuffer to check); a native Rust UI has no code editor as good as CodeMirror. Electron is the same choice as EasyMedia. **Safeguard:** the circuit engine stays pure behind one interface (`solve(netlist) → voltages, currents`) with a performance test in M1 (a 40-part circuit solves in ≤ 1 ms); if real laptops ever miss it, only the solver is rewritten in Rust → WebAssembly, against the same tests (§1.11, R9) |
 
 ### Still open (sensible defaults are used in the design)
@@ -420,6 +423,8 @@ Traffic lights.mlab
 ```
 
 **Talking to the board (Q15).** Over the USB serial port: Ctrl-C stops the running program, Ctrl-A enters the raw REPL, the app sends a short Python command, Ctrl-D runs it, and the answer comes back as text. Files are written in small chunks with a checksum after each file. The same channel gives the board's console (F-51) and the Board files panel (F-53). The protocol is written once as a pure, tested module (a fake board answers in the tests); only the serial port itself is in Electron.
+
+**Which file runs** *(Rev 7, Q19)*. Run in MicroLab runs the file open in the editor, after a fresh start of the board, as Thonny does; the other files are there to import. A real board **on its own** (switched on, or reset) runs `main.py` — on the Pico W and ESP32 after `boot.py`; the micro:bit has no `boot.py`. So a student can try `led_test.py` with one click, and makes it the board's program by putting it in `main.py` (or importing it from there).
 
 **micro:bit.** Its files are kept to the flat list and its ~20 KB; the app warns when a project will not fit. Flashing a new MicroPython `.hex` (F-52) wipes the micro:bit's files, so the app copies the project's files back afterwards.
 

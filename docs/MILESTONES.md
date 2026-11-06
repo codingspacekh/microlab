@@ -6,6 +6,8 @@ How MicroLab is built, **in what order**, and **how each part is proven to work*
 - System design (processes, engine, board layer, file format): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html)
 
+*Revision 3 (2026-11-06): **Run runs the open file**, as Thonny does (requirements Rev 7, Q19): the run's entry file in M4.5, the button's file name and its ⌄ menu with the file tree in M5.6.*
+
 *Revision 2 (2026-11-05): renamed **MicroLab**; layout and form-control rules (N-13, N-14) in the Definition of Done, M4 and M11.*
 
 *Revision 1 (2026-11-05): first plan, for the teacher's comments. No code is written before it is agreed.*
@@ -351,6 +353,8 @@ Proven without any UI.
    drag from the parts panel (F-10), move (F-11), wires from pin to pin (F-13, basic).
 4. Editor: CodeMirror, Python, one `main.py` (F-20, basic).
 5. Run / Stop / Restart, console with `print()` (F-22, F-23); the LED glows, the button can be pressed (03).
+   *(Rev 3)* The run takes an **entry file** (the open file; `main.py` while a project has only that) and runs it
+   as `__main__`; `boot.py` first on the Pico W and ESP32 only — the micro:bit has none (Q19).
 6. Save / open `.mlab` format 1 (F-02); a teacher's starter file is just a saved project (F-60).
 
 **Tests first**
@@ -361,6 +365,8 @@ Proven without any UI.
   divider dragged to a new width is still there after a restart.
 - Component: a part dropped on the breadboard snaps to holes; a wire dropped on empty space is not created.
 - Unit: save → open gives the same project.
+- Python: a run with entry `led_test.py` runs it as `__main__` (not `main.py`), and it can import another
+  project file; `boot.py` runs first on the Pico W and ESP32, never on the micro:bit (Q19).
 - E2E: build *Blink* on the Pico W from a new project, run it, the LED blinks; the same on micro:bit and ESP32.
 
 **Exit gate**
@@ -380,12 +386,16 @@ Proven without any UI.
 4. Inspector with resistor colour bands, LED colour … (F-14, screen 02b).
 5. Autocomplete from each board's modules, with a short explanation (F-20, screen 02b).
 6. File tree: add / rename / delete files, `lib/`, the micro:bit's flat list and size warning (F-21).
+   *(Rev 3)* Run runs the file open in the editor: the button names it (*▶ Run led_test.py*); its ⌄ menu has
+   *Run main.py (as when the board is switched on)*; a non-Python file runs the last Python file run, or `main.py` (F-22, Q19).
 7. Autosave and crash recovery (F-03); recent projects and the full Start screen (F-05, screen 01).
 
 **Tests first**
 - Every command: do then undo gives back the same project (one test over all commands).
 - Autocomplete on the Pico shows `machine.Pin(id, mode=-1, pull=-1, …)`; the micro:bit shows `pin0…`.
 - Making a folder in a micro:bit project is refused with a message.
+- Component: with `led_test.py` open, Run says *Run led_test.py* and starts it; *Run main.py* from its menu
+  starts `main.py`; with `index.html` open, Run runs the last Python file run (Q19).
 - E2E: the app is killed while editing; on restart the project is offered back.
 
 **Exit gate**
