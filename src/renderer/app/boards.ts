@@ -3,6 +3,7 @@ import esp32Ext from '../../../library/boards/esp32-devkit-v1-ext/board.json';
 import esp32 from '../../../library/boards/esp32-devkit-v1/board.json';
 import microbit from '../../../library/boards/microbit-v2/board.json';
 import pico from '../../../library/boards/pico-w/board.json';
+import esp32ExtArt from '../../../library/boards/esp32-devkit-v1-ext/art.svg?url';
 import esp32Art from '../../../library/boards/esp32-devkit-v1/art.svg?url';
 import microbitArt from '../../../library/boards/microbit-v2/art.svg?url';
 import picoArt from '../../../library/boards/pico-w/art.svg?url';
@@ -13,6 +14,14 @@ export const BOARD_NAMES: Record<BoardId, string> = {
   'pico-w': pico.name,
   'esp32-devkit-v1': esp32.name,
   'esp32-devkit-v1-ext': esp32Ext.name,
+};
+
+/** Each board's picture (library/boards/<id>/art.svg), drawn on the canvas where the project's view puts it. */
+export const BOARD_ART: Record<BoardId, string> = {
+  'microbit-v2': microbitArt,
+  'pico-w': picoArt,
+  'esp32-devkit-v1': esp32Art,
+  'esp32-devkit-v1-ext': esp32ExtArt,
 };
 
 /** The start screen's board cards (screen 01). */

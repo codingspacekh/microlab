@@ -1,0 +1,38 @@
+/* ---------- the workspace's canvas (screens 02, 03) ---------- */
+.canvas .scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; user-select: none; }
+.scene .pt { fill: transparent; cursor: crosshair; }
+.scene .pt:hover { fill: rgba(31, 157, 85, .22); stroke: #1f9d55; stroke-width: 1.4; }
+.scene .part { cursor: grab; }
+.scene .part.blocked { opacity: .45; }
+.scene .board, .scene .bb .body { cursor: move; }
+.scene.busy, .scene.busy * { cursor: grabbing; }
+.scene.busy.wire, .scene.busy.wire * { cursor: crosshair; }
+.scene.busy .pt:hover { fill: rgba(31, 157, 85, .32); }
+.scene .ghost { opacity: .75; }
+.scene .ghost.blocked { opacity: .35; }
+.canvas-hint { position: absolute; left: 14px; bottom: 14px; max-width: calc(100% - 28px); padding: 8px 12px; border-radius: 9px; background: var(--panel); border: 1px solid var(--warn-line, var(--line)); box-shadow: var(--shadow-l, 0 4px 12px rgba(16,24,40,.12)); font-size: 12.5px; color: var(--tx-1); }
+
+/* ---------- the parts panel ---------- */
+.parts { border-right: 0; }
+.parts .head { padding: 12px 12px 8px; display: flex; flex-direction: column; gap: 8px; }
+.boardrow { display: flex; align-items: center; gap: 9px; padding: 6px 8px; background: var(--bg); border-radius: 9px; min-width: 0; }
+.boardrow .pic { width: 34px; height: 30px; display: grid; place-items: center; flex: none; }
+.boardrow .pic img { max-width: 100%; max-height: 100%; }
+.boardrow > div { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.boardrow b { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.parts .list { flex: 1; min-height: 0; overflow: auto; padding: 0 8px 10px; }
+.pgroup { margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+.pgroup > .gh { display: flex; align-items: center; gap: 6px; padding: 6px; font-size: 11px; font-weight: 650; color: var(--tx-3); text-transform: uppercase; letter-spacing: .05em; }
+.pgroup > .gh .n { margin-left: auto; font-weight: 500; letter-spacing: 0; }
+button.pitem { width: 100%; text-align: left; background: none; border: 0; cursor: grab; font: inherit; }
+button.pitem:hover, button.pitem:focus-visible { background: var(--bg-2); outline: none; }
+button.pitem:focus-visible { box-shadow: 0 0 0 2px var(--accent-line); }
+.pitem .pic svg { width: 26px; height: 26px; }
+.parts .howto { padding: 12px 6px 0; line-height: 1.5; }
+.pitem { display: flex; align-items: center; gap: 9px; padding: 4px 6px; border-radius: 7px; color: var(--tx-1); font-size: 12.5px; }
+.pitem .pic { width: 30px; height: 30px; border-radius: 6px; background: var(--bg); display: grid; place-items: center; flex: none; }
+.pitem .pic svg { width: 26px; height: 26px; }
+.pitem .nm { flex: 1; line-height: 1.2; } .pitem .nm small { display: block; color: var(--tx-3); font-size: 11px; }
+.pitem .lrn { color: var(--tx-3); opacity: 0; }
+.pitem.hover { background: var(--bg-2); } .pitem.hover .lrn { opacity: 1; color: var(--accent); }
+.pitem.drag { background: var(--accent-soft); outline: 1.5px dashed var(--accent-line); }

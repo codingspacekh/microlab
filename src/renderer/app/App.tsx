@@ -1,13 +1,13 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { NewProjectBoard } from '@lib/boards';
 import { newProject, type ProjectDoc } from '@lib/project';
-import { Divider } from '../ui/Divider';
 import { Icon, Logo } from '../ui/Icon';
 import { MenuButton } from '../ui/Menu';
 import type { MicrolabApi } from './api';
 import { BOARD_NAMES } from './boards';
 import { ControlsPage } from './ControlsPage';
 import { StartPage } from './StartPage';
+import { Workspace } from '../workspace/Workspace';
 
 /**
  * The window (M4.1, screens 01–03): the top bar with the three modes, the page, the status bar. With no project open
@@ -17,20 +17,16 @@ import { StartPage } from './StartPage';
  */
 type Mode = 'workspace' | 'learn' | 'examples';
 
-export interface Layout {
-  parts: number;
-  side: number;
-}
-
-export const DEFAULT_LAYOUT: Layout = { parts: 0.17, side: 0.34 };
-const LIMITS = { parts: [220, 360], side: [320, 0.5], canvas: 360 } as const;
-
 /** The project in the window: what it is, and where it came from (no path: not saved yet). */
 export interface OpenProject {
   doc: ProjectDoc;
   name: string;
   path?: string;
+  /** A new one each time a project is opened: the workspace starts afresh (its fitted view, its gestures). */
+  key: number;
 }
+
+let opened = 0;
 
 export interface AppProps {
   api: MicrolabApi;
@@ -45,14 +41,14 @@ export function App({ api, width }: AppProps) {
   const controls = useHash() === '#controls';
 
   const start = (board: NewProjectBoard) => {
-    setOpen({ doc: newProject(board), name: 'Untitled project' });
+    setOpen({ doc: newProject(board), name: 'Untitled project', key: ++opened });
     setNotice(null);
     setMode('workspace');
   };
   const openFile = async () => {
     const r = await api.project.open();
     if (r.ok) {
-      setOpen({ doc: r.doc, name: r.name, path: r.path });
+      setOpen({ doc: r.doc, name: r.name, path: r.path, key: ++opened });
       setNotice(null);
       setMode('workspace');
     } else if ('message' in r) {
@@ -63,7 +59,7 @@ export function App({ api, width }: AppProps) {
 
   const page = controls ? <ControlsPage />
     : mode !== 'workspace' ? <Later mode={mode} />
-    : open ? <Workspace api={api} width={width} project={open} />
+    : open ? <Workspace key={open.key} api={api} width={width} doc={open.doc} onChange={(doc) => setOpen({ ...open, doc })} />
     : <StartPage onNew={start} onOpen={actions.onOpen} onLearn={() => setMode('learn')} onExamples={() => setMode('examples')} />;
 
   return (
@@ -71,7 +67,7 @@ export function App({ api, width }: AppProps) {
       <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} {...actions} />
       {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
       {page}
-      <StatusBar />
+      <StatusBar project={open && mode === 'workspace' ? open : null} />
     </div>
   );
 }
@@ -150,11 +146,13 @@ function Notice({ text, onDismiss }: { text: string; onDismiss: () => void }) {
   );
 }
 
-function StatusBar() {
+function StatusBar({ project }: { project: OpenProject | null }) {
+  const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
+  const p = project?.doc.project;
   return (
     <footer className="statusbar" role="status">
       <span>Ready</span>
-      <span className="r">MicroLab</span>
+      <span className="r">{p ? `${BOARD_NAMES[p.board as keyof typeof BOARD_NAMES] ?? p.board} + ${count(p.parts.length, 'part')} · ${count(p.wires.length, 'wire')}` : 'MicroLab'}</span>
     </footer>
   );
 }
@@ -165,74 +163,5 @@ function Later({ mode }: { mode: Mode }) {
       <h1>{mode === 'learn' ? 'Learn' : 'Examples'}</h1>
       <p className="muted">{mode === 'learn' ? 'The part and board pages come in M8.' : 'The examples page comes in M5.'}</p>
     </main>
-  );
-}
-
-/** px from a proportion of the width, within [min, max]; max may itself be a proportion. */
-function px(fraction: number, total: number, [min, max]: readonly [number, number]): number {
-  const hi = max <= 1 ? max * total : max;
-  return Math.round(Math.min(hi, Math.max(min, fraction * total)));
-}
-
-function useWidth(fixed: number | undefined) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [measured, setMeasured] = useState(() => fixed ?? window.innerWidth);
-  useLayoutEffect(() => {
-    if (fixed !== undefined || !ref.current) return;
-    const el = ref.current;
-    const update = () => setMeasured(el.getBoundingClientRect().width || window.innerWidth);
-    update();
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : undefined;
-    ro?.observe(el);
-    window.addEventListener('resize', update);
-    return () => {
-      ro?.disconnect();
-      window.removeEventListener('resize', update);
-    };
-  }, [fixed]);
-  return { ref, width: fixed ?? measured };
-}
-
-function Workspace({ api, width: fixed, project }: { api: MicrolabApi; width?: number; project: OpenProject }) {
-  const { ref, width } = useWidth(fixed);
-  const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
-  const [drag, setDrag] = useState<Partial<Record<keyof Layout, number>>>({});
-
-  useEffect(() => {
-    let live = true;
-    void api.settings.get('layout').then((saved) => {
-      const s = saved as Partial<Layout> | undefined;
-      if (live && s && typeof s.parts === 'number' && typeof s.side === 'number') setLayout({ parts: s.parts, side: s.side });
-    });
-    return () => { live = false; };
-  }, [api]);
-
-  const partsPx = drag.parts ?? px(layout.parts, width, LIMITS.parts);
-  const sidePx = drag.side ?? px(layout.side, width, LIMITS.side);
-  const commit = (key: keyof Layout) => (value: number) => {
-    const next = { ...layout, [key]: value / width };
-    setLayout(next);
-    setDrag({});
-    void api.settings.set('layout', next);
-  };
-  const sideMax = Math.max(LIMITS.side[0], Math.min(LIMITS.side[1] * width, width - partsPx - LIMITS.canvas));
-  const partsMax = Math.max(LIMITS.parts[0], Math.min(LIMITS.parts[1], width - sidePx - LIMITS.canvas));
-
-  return (
-    <div className="ws" ref={ref}>
-      <section className="parts" aria-label="Parts" style={{ flexBasis: partsPx }}>
-        <div className="head"><h3>Parts</h3></div>
-      </section>
-      <Divider label="Parts panel width" value={partsPx} min={LIMITS.parts[0]} max={partsMax}
-        onChange={(v) => setDrag({ parts: v })} onCommit={commit('parts')} />
-      <section className="canvas" aria-label="Circuit" />
-      <Divider label="Code panel width" value={sidePx} min={LIMITS.side[0]} max={sideMax} edge="right"
-        onChange={(v) => setDrag({ side: v })} onCommit={commit('side')} />
-      <section className="side" aria-label="Code" style={{ flexBasis: sidePx }}>
-        <div className="head"><h3>main.py</h3></div>
-        {/* The editor comes in M4.4; until then the code is shown as it is. */}
-        <pre className="code-preview">{String(project.doc.files['main.py'] ?? '')}</pre>
-      </section>
-    </div>
   );
 }
