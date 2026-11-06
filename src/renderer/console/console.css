@@ -1,0 +1,9 @@
+/* ---------- the console (screen 03) ---------- */
+.console { flex: 0 0 clamp(150px, 32%, 380px); display: flex; flex-direction: column; border-top: 1px solid var(--line); min-height: 0; background: var(--panel); }
+.chead { height: 34px; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.chead .ctab { padding: 0 10px; height: 34px; display: inline-flex; align-items: center; gap: 6px; color: var(--tx-2); font-weight: 550; font-size: 12.5px; border-bottom: 2px solid transparent; }
+.chead .ctab.on { color: var(--tx-1); border-bottom-color: var(--accent); }
+.cbody { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px; font-family: var(--mono); font-size: 12px; line-height: 18px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--tx-1); }
+.cbody .sys { color: var(--tx-3); } .cbody .err { color: var(--danger); }
+.prompt { display: flex; gap: 8px; align-items: center; padding: 6px 12px 8px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--tx-3); flex: none; }
+.prompt b { color: var(--accent); display: inline-flex; } .prompt b.live { color: var(--run); }

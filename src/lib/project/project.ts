@@ -7,6 +7,7 @@ import type { CircuitSpec } from '../circuit';
  * (project.json + files/); the .mlab zip, view, notes and migrations come with M4 (format.ts, migrate.ts).
  */
 const point = z.string().min(1);
+const xy = z.object({ x: z.number(), y: z.number() });
 
 export const projectSchema = z.object({
   format: z.literal(1),
@@ -19,11 +20,20 @@ export const projectSchema = z.object({
     props: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])).optional(),
     legs: z.record(z.string(), point),
   })),
-  wires: z.array(z.object({ id: z.string(), a: point, b: point })),
+  wires: z.array(z.object({
+    id: z.string(), a: point, b: point,
+    /** Bend points, from a to b, in drawing units (M4.3b). */
+    via: z.array(xy).optional(),
+    /** Its colour (M4.3b); without it, black to ground, red to a supply, the others in turn. */
+    color: z.string().optional(),
+  })),
   /** Board pins pushed into breadboard holes (a board that straddles the channel). */
   plugs: z.record(z.string(), point).optional(),
   /** Supply jumpers (the ESP32 extension board's V): pin → volts. */
   jumpers: z.record(z.string(), z.number()).optional(),
+  /** Where the board and each breadboard are on the canvas (M4.3), in drawing units (16 = 0.1 in); parts and wires
+   *  are placed by their holes and pins. A project without it gets the default layout (lib/editor). */
+  view: z.object({ board: xy, breadboards: z.record(z.string(), xy) }).optional(),
 });
 
 export type Project = z.infer<typeof projectSchema>;

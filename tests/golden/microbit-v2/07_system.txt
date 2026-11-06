@@ -1,0 +1,10 @@
+uname (sysname='microbit', nodename='microbit', release='2.1.2', version='micro:bit v2.1.2+0697c6d on 2023-10-30; MicroPython v1.18 on 2023-10-30', machine='micro:bit with nRF52833')
+mkdir False
+append ValueError: illegal mode
+utime (<module 'utime'>, False)
+scan []
+write OSError: [Errno 19] ENODEV
+scale (128, 5.0)
+temp type <class 'int'>
+buttons (False, False, 0)
+objects (<MicroBitButton>, <MicroBitDisplay>, <MicroBitAccelerometer>, <MicroBitI2C>)

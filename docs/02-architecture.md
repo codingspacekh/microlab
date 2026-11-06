@@ -1,5 +1,7 @@
 # 2. Architecture
 
+*Revision 3 (2026-11-06): **Run runs the open file** (requirements Rev 7, Q19): the run starts from the file chosen in the editor, not always `main.py` (§2.3).*
+
 *Revision 2 (2026-11-05): renamed **MicroLab** (`.mlab` files); layout and form-control rules (N-13, N-14) in §2.1, §2.8, §2.10.*
 
 *Revision 1 (2026-11-05): first architecture, for the teacher's comments. It follows requirements Rev 5
@@ -71,9 +73,10 @@ raises a clear "not simulated in MicroLab" error, as N-01 asks).
 ## 2.3 How a run works
 
 ```
-Run ─► renderer: wiring check (F-18) → netlist → postMessage(start{board, netlist, files})
+Run ─► renderer: wiring check (F-18) → netlist → postMessage(start{board, netlist, files, entry})
      ─► worker: fresh MicroPython · files written to its file system (F-21) · board modules on the path
-             · run boot.py then main.py
+             · run boot.py (Pico W, ESP32; the micro:bit has none) then the entry file as __main__
+               (entry = the file open in the editor; main.py when the board is "switched on", Q19)
 Python  Pin(15, Pin.OUT).value(1)
      ─► python/rp2/machine.py ─► _ream.pin_write(15, 1) ─► engine: drive net → solve → behaviours → faults
      ◄─ part states batched to the window (≤ 60/s) · a fault (burnt LED, short) stops the run with its message

@@ -1,0 +1,10 @@
+types (<MicroBitTouchPin>, <MicroBitAnalogDigitalPin>, <MicroBitDigitalPin>, <MicroBitTouchOnlyPin>, <MicroBitDigitalPin>)
+display mode ValueError: Pin 3 in display mode
+button mode ValueError: Pin 5 in button mode
+i2c mode ValueError: Pin 19 in i2c mode
+modes ('write_digital', 'display', 'button', 'i2c')
+button read 1
+pull (0, 0, 1, 2)
+value 2 ValueError: value must be 0 or 1
+analog 1024 ValueError: value must be between 0 and 1023
+period 20000

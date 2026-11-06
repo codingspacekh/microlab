@@ -6,6 +6,12 @@ How MicroLab is built, **in what order**, and **how each part is proven to work*
 - System design (processes, engine, board layer, file format): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html)
 
+*Revision 5 (2026-11-06): **Real boards next.** The teacher has a micro:bit V2 and a Pico W at hand: **M10 (Real boards) is built right after M4**, before M5–M9 (the milestones keep their numbers). Its step 0 — prototype screens 13–16 — is drawn and waiting for approval. The golden recordings deferred in M2 were made on both boards (docs/acceptance/M2.md 26–31).*
+
+*Revision 4 (2026-11-06): **Build like Tinkercad, earlier** — the teacher asked for Tinkercad's way of placing parts, wires with bend points and part values in M4, not M5: new slice **M4.3b** takes the first part of M5.1 (delete), M5.2 (the full breadboard), M5.3 (bend points, wire colour) and M5.4 (the inspector).*
+
+*Revision 3 (2026-11-06): **Run runs the open file**, as Thonny does (requirements Rev 7, Q19): the run's entry file in M4.5, the button's file name and its ⌄ menu with the file tree in M5.6.*
+
 *Revision 2 (2026-11-05): renamed **MicroLab**; layout and form-control rules (N-13, N-14) in the Definition of Done, M4 and M11.*
 
 *Revision 1 (2026-11-05): first plan, for the teacher's comments. No code is written before it is agreed.*
@@ -349,8 +355,18 @@ Proven without any UI.
 2. Start screen (01, minimal): new project from a board (F-01), open a `.mlab`.
 3. Workspace: board, half breadboard, resistor, LED, push button, potentiometer from the library art;
    drag from the parts panel (F-10), move (F-11), wires from pin to pin (F-13, basic).
+3b. *(Rev 4)* Build like Tinkercad: a part is dragged from the panel, or clicked and then placed with a click
+   (Esc cancels; from the keyboard: Enter picks it up, arrows move it hole by hole, Enter places it); wires with
+   **bend points** — click a pin or hole, click on the canvas for each bend (snapped to the hole grid), click a pin or
+   hole to end it (Backspace takes the last bend back, Esc cancels); a drag from point to point is still a straight
+   wire. Select a part, a wire or the breadboard: the **inspector** (screen 02b) sets the resistor's value (E12
+   stepper, quick values, colour bands), the LED's colour, the potentiometer's value, the wire's colour and the
+   breadboard's size (half / full; shrinking is refused while parts use columns 31–63). **Delete** removes the
+   selected part or wire (F-11, F-12, F-13, F-14).
 4. Editor: CodeMirror, Python, one `main.py` (F-20, basic).
 5. Run / Stop / Restart, console with `print()` (F-22, F-23); the LED glows, the button can be pressed (03).
+   *(Rev 3)* The run takes an **entry file** (the open file; `main.py` while a project has only that) and runs it
+   as `__main__`; `boot.py` first on the Pico W and ESP32 only — the micro:bit has none (Q19).
 6. Save / open `.mlab` format 1 (F-02); a teacher's starter file is just a saved project (F-60).
 
 **Tests first**
@@ -360,7 +376,11 @@ Proven without any UI.
 - E2E: at 1280 × 720, 1440 × 900 and 1920 × 1080 the panels fill the window with no horizontal scroll; a
   divider dragged to a new width is still there after a restart.
 - Component: a part dropped on the breadboard snaps to holes; a wire dropped on empty space is not created.
+- *(Rev 4)* Component: a part clicked then placed with a click; by keyboard; a wire with two bends; the
+  inspector changes a resistor's value, an LED's colour, a wire's colour and the breadboard's size; Delete.
 - Unit: save → open gives the same project.
+- Python: a run with entry `led_test.py` runs it as `__main__` (not `main.py`), and it can import another
+  project file; `boot.py` runs first on the Pico W and ESP32, never on the micro:bit (Q19).
 - E2E: build *Blink* on the Pico W from a new project, run it, the LED blinks; the same on micro:bit and ESP32.
 
 **Exit gate**
@@ -374,18 +394,22 @@ Proven without any UI.
 **Goal:** building and coding as on screens 01, 02 and 02b.
 
 **Build order**
-1. Rotate, duplicate, delete, select several (F-11); undo / redo for every command (F-16).
-2. Zoom, pan, fit (F-17); full breadboard; hovering a hole lights its strip (F-12).
-3. Wire colours and bend points (F-13); pin hover card (F-15, screen 02).
-4. Inspector with resistor colour bands, LED colour … (F-14, screen 02b).
+1. Rotate, duplicate, select several (F-11; delete came in M4.3b); undo / redo for every command (F-16).
+2. Zoom, pan, fit (F-17); hovering a hole lights its strip (F-12); the full breadboard came in M4.3b.
+3. Moving and deleting a wire's bend points (F-13; making them and wire colours came in M4.3b); pin hover card (F-15, screen 02).
+4. The inspector for every part of M6 / M7 and the "Joins" line (F-14, screen 02b; the resistor, LED, potentiometer, wire and breadboard came in M4.3b).
 5. Autocomplete from each board's modules, with a short explanation (F-20, screen 02b).
 6. File tree: add / rename / delete files, `lib/`, the micro:bit's flat list and size warning (F-21).
+   *(Rev 3)* Run runs the file open in the editor: the button names it (*▶ Run led_test.py*); its ⌄ menu has
+   *Run main.py (as when the board is switched on)*; a non-Python file runs the last Python file run, or `main.py` (F-22, Q19).
 7. Autosave and crash recovery (F-03); recent projects and the full Start screen (F-05, screen 01).
 
 **Tests first**
 - Every command: do then undo gives back the same project (one test over all commands).
 - Autocomplete on the Pico shows `machine.Pin(id, mode=-1, pull=-1, …)`; the micro:bit shows `pin0…`.
 - Making a folder in a micro:bit project is refused with a message.
+- Component: with `led_test.py` open, Run says *Run led_test.py* and starts it; *Run main.py* from its menu
+  starts `main.py`; with `index.html` open, Run runs the last Python file run (Q19).
 - E2E: the app is killed while editing; on restart the project is offered back.
 
 **Exit gate**
@@ -488,7 +512,9 @@ connection problem says how to fix it.
 
 **Build order**
 0. **Design first:** prototype screens for the board chip and its states, the connection helper, and
-   Board files (F-53, F-55, F-56) — approved before their UI slices.
+   Board files (F-53, F-55, F-56) — approved before their UI slices. *(Rev 5)* Drawn: screens 13 (board chip),
+   13b (every state), 14 (connection helper), 14b (install MicroPython), 15 (Board files), 16 (running on the board).
+   **Approved by the teacher 2026-11-06** ("all are very well designed").
 1. Detection (`lib/usb/detect`) from recorded port lists; the port watcher; the board chip (F-55, N-12).
 2. Raw REPL over a byte stream with `FakeBoard`; the greeting check and soft reset on plug-in (Q15, R10).
 3. Send to board: changed files only, temporary name then rename (F-50, screen 08).
@@ -576,17 +602,18 @@ connection problem says how to fix it.
 |---|---|---|---|
 | Analysis Rev 1–5 | ✅ Done — Rev 5: board connection with no setup (F-55, F-56), Q18 agreed | 2026-11-05 | |
 | HTML prototype (13 screens) | ✅ Approved 2026-11-05 ("all are already good") | 2026-11-05 | |
-| Prototype Rev 6: MicroLab, fluid layout, screen 12b form controls | 📝 For the teacher's comments | | |
-| Architecture Rev 1 + this plan | 📝 For the teacher's comments | | |
+| Real-board screens 13–16 | ✅ Approved 2026-11-06 ("all are very well designed") | 2026-11-06 | |
+| Prototype Rev 6: MicroLab, fluid layout, screen 12b form controls | ✅ Agreed (M0 started on it) | 2026-11-05 | |
+| Architecture Rev 1 + this plan | ✅ Agreed ("you can start M0") | 2026-11-05 | |
 | M0 Foundations + MicroPython spike | ✅ Done — own MicroPython build (no ASYNCIFY); manual check not recorded ([acceptance](acceptance/M0.md)) | 2026-11-05 | `v0.0.0` |
-| M1 Circuit engine | 🔨 Built and green; waiting for the teacher's pin-table check and `npm run perf` on the slowest laptop ([acceptance](acceptance/M1.md)) | | |
-| M2 Simulated boards (headless) | ⏳ | | |
-| M3 Code drives the circuit | ⏳ | | |
-| M4 Walking skeleton | ⏳ | | |
+| M1 Circuit engine | ✅ Done — pin tables checked by the teacher; slowest-laptop `npm run perf` skipped by the teacher ([acceptance](acceptance/M1.md)) | 2026-11-05 | `v0.1.0` |
+| M2 Simulated boards (headless) | ✅ Done — golden recordings deferred at the merge, then made on the micro:bit V2 and Pico W 2026-11-06 (ESP32 to come) ([acceptance](acceptance/M2.md)) | 2026-11-06 | `v0.2.0` |
+| M3 Code drives the circuit | ✅ Done ([acceptance](acceptance/M3.md)) | 2026-11-06 | `v0.3.0` |
+| M4 Walking skeleton | ✅ Done — with Tinkercad-style building (3b) at the teacher's request; Blink by hand on the three boards checked by the teacher ([acceptance](acceptance/M4.md)) | 2026-11-06 | `v0.4.0` |
 | M5 Full editor | ⏳ | | |
 | M6 Parts pack 1: inputs | ⏳ | | |
 | M7 Parts pack 2: outputs & displays | ⏳ | | |
 | M8 Learn | ⏳ | | |
 | M9 Errors, faults & multimeter | ⏳ | | |
-| M10 Real boards | ⏳ | | |
+| M10 Real boards | 🔨 Next (Rev 5: before M5–M9) — screens 13–16 approved 2026-11-06 ([acceptance](acceptance/M10.md)) | | |
 | M11 Hardening & v1.0 | ⏳ | | |

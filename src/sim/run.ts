@@ -59,11 +59,12 @@ const ESP32_RESET: PinState = { mode: 'in', pull: 'none', out: 0 };
  *  board (library/boards/microbit-v2/board.json). */
 const MICROBIT_RESET: PinState = { mode: 'reset', pull: 'down', out: 0 };
 export const BOARDS = {
-  'pico-w': { python: 'rp2', reset: RP2040_RESET, pulledUp: [] },
+  // GP23 and GP24 (WL_ON, WL_D: the Wi-Fi chip's) start with no pull on a real Pico W; 25 and 29 pulled down (2026-11-06)
+  'pico-w': { python: 'rp2', reset: RP2040_RESET, pulledUp: [], noPull: ['23', '24'] },
   'esp32-devkit-v1': { python: 'esp32', reset: ESP32_RESET, pulledUp: [] },
   'esp32-devkit-v1-ext': { python: 'esp32', reset: ESP32_RESET, pulledUp: [] },
   'microbit-v2': { python: 'microbit', reset: MICROBIT_RESET, pulledUp: ['5', '11', '19', '20'] },
-} as const satisfies Record<string, { python: string; reset: PinState; pulledUp: readonly string[] }>;
+} as const satisfies Record<string, { python: string; reset: PinState; pulledUp: readonly string[]; noPull?: readonly string[] }>;
 export type SimBoard = keyof typeof BOARDS;
 
 export interface RunOptions {
@@ -91,6 +92,13 @@ export interface RunOptions {
   onParts?: (entry: PartTraceEntry) => void;
   /** Stop the run, quietly, when the clock reaches this (µs): the acceptance suite's `seconds` (M3.6). */
   maxUs?: number;
+  /** The file Run runs (M4.5, requirements Rev 7, Q19): the one open in the editor; main.py when the board is
+   *  "switched on". After boot.py on boards that have one — the micro:bit doesn't. */
+  entry?: string;
+  /** Each output level change, as it happens (the window draws the board's own LED). */
+  onPin?: (pin: string, level: number) => void;
+  /** Each new frame of the micro:bit's display: 25 brightnesses 0–9, row by row. */
+  onDisplay?: (pixels: string) => void;
 }
 
 /** The sim's own Python (src/python/common) and the boards' (src/python/<folder>), written to a folder the
@@ -105,11 +113,13 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const clock = options.clock ?? new RealClock();
   const now = () => clock.nowUs();
   const spec = options.board ? BOARDS[options.board] : undefined;
-  const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []), options.control);
+  const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []), options.control,
+    new Set<string>(spec && 'noPull' in spec ? spec.noPull : []));
   const circuit = options.circuit ? new CircuitHost(options.circuit, pins, now, options.partInputs, options.control) : undefined;
   const timeUp = () => options.maxUs !== undefined && clock.nowUs() >= options.maxUs;
   const quiet = () => circuit?.damage !== undefined || timeUp();
   const stop = stopper(mp, options.control, quiet);
+  pins.onLevel = options.onPin;
   if (circuit) {
     pins.attach(circuit);
     circuit.onChange = options.onParts;
@@ -143,7 +153,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
       `_sim.setup('${PROJECT_DIR}', ${JSON.stringify(hidden)}, ${JSON.stringify(boardModules)})`,
       '__sim = _sim',
       'del _sim',
-      "__sim.run(['boot.py', 'main.py'], globals())",   // run() drops __sim from the program's namespace
+      `__sim.run(${JSON.stringify(startFiles(options))}, globals())`,   // run() drops __sim from the program's namespace
     ].join('\n'));
     last = String(sim.last);
   } catch (e) {
@@ -160,6 +170,13 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const withText = (f: Fault) => ({ ...f, message: describeFault(f) });
   return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, bus, parts: circuit?.partTrace ?? [],
     faults: [...(circuit?.seen.values() ?? [])].map(withText), ...(damage ? { fault: withText(damage) } : {}), ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
+}
+
+/** What a run starts: boot.py (not on the micro:bit, which has none — its firmware runs main.py only), then the
+ *  entry file (Q19; checked in ports/rp2/main.c, ports/esp32/main.c and the micro:bit's codal_port/main.c). */
+function startFiles(options: RunOptions): string[] {
+  const entry = options.entry ?? 'main.py';
+  return options.board === 'microbit-v2' ? [entry] : ['boot.py', entry];
 }
 
 /** The `_ream` bridge (architecture §2.4): the board-neutral calls the board modules make into the sim. */
@@ -240,7 +257,10 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     touched: (pin: string): boolean => { clock.ticksUs(); return pins.touched(pin); },
     pin_falls: (pin: string): number => pins.takeFalls(pin),
     display_frame: (pixels: string) => {
-      if (display.at(-1)?.[1] !== pixels && !(display.length === 0 && pixels === '0'.repeat(25))) display.push([clock.nowUs(), pixels]);
+      if (display.at(-1)?.[1] !== pixels && !(display.length === 0 && pixels === '0'.repeat(25))) {
+        display.push([clock.nowUs(), pixels]);
+        options.onDisplay?.(pixels);
+      }
     },
     light: (): number => options.lightLevel ?? 128,
     /** Several changes at one moment (a note switches on, then gets its pitch) are one change. */

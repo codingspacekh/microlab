@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>14b Install MicroPython</title>
+{{include:head}}
+</head>
+<body>
+<!--@BOARDCHIP: <button class="boardchip warn"><span class="dot"></span>{{part:pico:bp}}Pico W <span class="sub">· BOOTSEL mode</span></button>-->
+<!--@SENDBTN: <button class="btn disabled">{{i:usb}} Send to board</button>-->
+<p class="frame-label"><b>14b · Install MicroPython</b> — a board with no MicroPython, or a Pico in BOOTSEL mode: the app installs the firmware it ships with, offline (F-52, Q18; micro:bit and Pico — the ESP32 gets a guide). The Pico keeps its files; a micro:bit's are copied off first and back after. macOS asks once before an app may write to the board's drive</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas"><div class="stage">{{scene:traffic:build}}</div>{{include:ctools}}</div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+  <div class="overlay"></div>
+  <div class="dialog center" style="--dw:640px">
+    <div class="dh"><span style="color:var(--accent)">{{i:cpu:s20}}</span><h2>Install MicroPython on the Pico W</h2><span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+    <div class="db">
+      <p class="small" style="line-height:1.55;color:var(--tx-2)">The Pico W is in BOOTSEL mode: it shows a drive called <span class="mono">RPI-RP2</span> and runs no program. MicroLab puts MicroPython on it — the same version the simulator copies, shipped with the app, so no internet is needed.</p>
+      <div class="opt on" style="margin-top:14px"><span class="radio on"></span><span style="width:34px;height:34px;display:grid;place-items:center;background:#fff;border-radius:8px">{{part:pico:bp}}</span><div class="col" style="gap:1px;flex:1"><b>MicroPython v1.29.0 for the Pico W</b><span class="small muted mono">RPI_PICO_W-20260824-v1.29.0.uf2 · 1.8 MB</span></div><span class="pill ok">same as the simulator</span></div>
+
+      <div class="tag" style="margin-top:18px">Installing</div>
+      <div class="steps" style="margin-top:6px">
+        <div class="s ok"><span class="n">{{i:check:s12}}</span><span>Copy MicroPython to <span class="mono">RPI-RP2</span><small>1.8 MB — done</small></span></div>
+        <div class="s now"><span class="n">2</span><span style="flex:1">The Pico W restarts with it<small>the drive goes away by itself — that's expected</small><div class="prog" style="margin-top:6px"><i style="width:65%"></i></div></span></div>
+        <div class="s later"><span class="n">3</span><span>It answers: MicroPython v1.29.0<small>then the chip says “Pico W · MicroPython 1.29”</small></span></div>
+      </div>
+
+      <div class="note warn">{{i:warn}}<span><b>macOS may ask:</b> “MicroLab would like to access files on a removable volume.” Choose <b>Allow</b> — MicroLab only writes the firmware file. (Without it, drag the file onto RPI-RP2 yourself: <a>Show the file</a>.)</span></div>
+      <div class="note info">{{i:info}}<span><b>The Pico W's files stay.</b> Updating MicroPython doesn't touch them. <b>On a micro:bit</b> it does: installing wipes its files, so MicroLab copies them to this laptop first and puts them back after.</span></div>
+    </div>
+    <div class="df"><span class="small muted row" style="gap:6px">{{i:clock:s14}} About 20 seconds</span><span class="spacer"></span><button class="btn">Cancel</button><button class="btn primary disabled">{{i:cpu:s14}} Installing…</button></div>
+  </div>
+</div>
+</body></html>

@@ -31,7 +31,7 @@ describe('M2.6 micro:bit pins', () => {
 
   it('read_digital is allowed on a button pin (pulled up on the board); get_mode tells the mode', async () => {
     const r = await run('print(pin5.read_digital(), pin5.get_mode(), pin0.get_mode(), pin3.get_mode())\npin0.write_digital(1)\nprint(pin0.get_mode())\npin0.read_analog()\nprint(pin0.get_mode())\n');
-    expect(r.output).toBe('1 button unused display\nwrite_digital\nunused\n');
+    expect(r.output).toBe('1 button write_digital display\nwrite_digital\nunused\n');   // pin0: write_digital from power-on, on a real V2
   });
 
   it('read_analog is 0–1023 of 3.3 V', async () => {

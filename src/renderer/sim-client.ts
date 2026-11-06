@@ -1,0 +1,93 @@
+import type { BoardId } from '@lib/boards';
+import { boardData } from '@lib/editor';
+import { toCircuit, type Project, type ProjectDoc } from '@lib/project';
+import type { PartView } from '../sim/circuit';
+import { Control } from '../sim/control';
+import type { RunResult, SimBoard } from '../sim/run';
+import type { StartMessage, WorkerMessage } from '../sim/worker-core';
+
+/**
+ * The window's side of a run (architecture §2.2, §2.3; F-22): a fresh simulation worker per run, started with the
+ * board, the project's files, its circuit and the file to run; the shared Control buffer for Stop and live inputs
+ * (a button pressed); the worker's messages passed on. Stop asks through the buffer; a program that still runs
+ * 300 ms later has its worker ended (N-03).
+ */
+export interface WorkerLike {
+  postMessage(m: StartMessage): void;
+  terminate(): void;
+  onmessage: ((e: MessageEvent<WorkerMessage>) => void) | null;
+  onerror: ((e: ErrorEvent) => void) | null;
+}
+
+export interface RunEvents {
+  onOutput: (text: string) => void;
+  onParts: (states: Record<string, PartView>) => void;
+  onBoard: (outputs: { pins: Record<string, number>; display?: string }) => void;
+  onEnd: (result: RunResult) => void;
+}
+
+export interface RunHandle {
+  stop(): void;
+  setInput(name: string, value: number): void;
+}
+
+export const STOP_GRACE_MS = 300;
+
+/** The live inputs of the circuit's parts: a push button is pressed or not, a knob has a position (0–1). */
+export function inputSlots(project: Project): string[] {
+  return project.parts.flatMap((p) => (p.type === 'button' ? [`pressed:${p.id}`] : p.type === 'potentiometer' ? [`position:${p.id}`] : []));
+}
+
+const newWorker = (): WorkerLike => new Worker(new URL('../sim/worker.ts', import.meta.url), { type: 'module' }) as unknown as WorkerLike;
+
+export function startRun(req: { doc: ProjectDoc; entry: string }, events: RunEvents, makeWorker: () => WorkerLike = newWorker): RunHandle {
+  const { project, files } = req.doc;
+  const inputs = inputSlots(project);
+  const control = new Control(inputs);
+  const worker = makeWorker();
+  let ended = false;
+  let killer: ReturnType<typeof setTimeout> | undefined;
+
+  const end = (result: RunResult) => {
+    if (ended) return;
+    ended = true;
+    clearTimeout(killer);
+    worker.terminate();
+    events.onEnd(result);
+  };
+
+  worker.onmessage = (e) => {
+    const m = e.data;
+    if (ended) return;
+    if (m.type === 'output') events.onOutput(m.text);
+    else if (m.type === 'parts') events.onParts(m.states);
+    else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}) });
+    else end(m.result);
+  };
+  worker.onerror = (e) => end({ ...emptyResult('error'), error: { type: 'Error', message: `The simulator couldn't start: ${e.message}` } });
+
+  worker.postMessage({
+    type: 'start',
+    board: project.board as SimBoard,
+    files,
+    entry: req.entry,
+    control: control.buffer,
+    inputs,
+    circuit: toCircuit(project, boardData(project.board as BoardId)),
+  });
+
+  return {
+    stop() {
+      if (ended) return;
+      control.stop();
+      killer ??= setTimeout(() => end(emptyResult('stopped')), STOP_GRACE_MS);
+    },
+    setInput(name, value) {
+      if (!ended) control.setInput(name, value);
+    },
+  };
+}
+
+function emptyResult(ended: RunResult['ended']): RunResult {
+  return { output: '', trace: [], pwm: [], analog: [], display: [], sound: [], bus: [], parts: [], faults: [], ended };
+}

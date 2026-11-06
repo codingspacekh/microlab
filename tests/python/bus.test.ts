@@ -15,7 +15,7 @@ const run = async (board: SimBoard, main: string, inputs: InputChange[] = []) =>
 describe('M2.7 I2C with nothing on the bus', () => {
   it('Pico W: the default bus, scan finds nothing; a write is "EIO" (hardware I2C), as rp2 reports a NACK', async () => {
     const r = await run('pico-w', 'from machine import I2C\ni2c = I2C(0)\nprint(i2c, i2c.scan())\ni2c.writeto(0x3C, b"\\x00")\n');
-    expect(r.output.split('\n')[0]).toBe('I2C(0, freq=400000, scl=5, sda=4, timeout=50000) []');
+    expect(r.output.split('\n')[0]).toBe('I2C(0, freq=399361, scl=5, sda=4, timeout=50000) []');   // 125 MHz / 313, as a real Pico W reports
     expect(r.error).toMatchObject({ type: 'OSError', message: '[Errno 5] EIO', line: 4 });
     expect(r.bus.map(([, e]) => e)).toContain('i2c sda=4 scl=5 write 3c 00 nack');
   });
@@ -25,7 +25,7 @@ describe('M2.7 I2C with nothing on the bus', () => {
     expect(r.error).toMatchObject({ type: 'OSError', message: '[Errno 19] ENODEV', line: 3 });
     expect((await run('pico-w', 'from machine import I2C, Pin\nI2C(0, scl=Pin(4), sda=Pin(5))\n')).error).toMatchObject({ type: 'ValueError', message: 'bad SCL pin' });
     expect((await run('pico-w', 'from machine import I2C\nI2C(2)\n')).error).toMatchObject({ type: 'ValueError', message: "I2C(2) doesn't exist" });
-    expect((await run('pico-w', 'from machine import I2C\nprint(I2C(1))\n')).output).toBe('I2C(1, freq=400000, scl=7, sda=6, timeout=50000)\n');
+    expect((await run('pico-w', 'from machine import I2C\nprint(I2C(1))\n')).output).toBe('I2C(1, freq=399361, scl=7, sda=6, timeout=50000)\n');
   });
 
   it('ESP32: I2C(0) on 18/19, a NACK is "ENODEV"', async () => {

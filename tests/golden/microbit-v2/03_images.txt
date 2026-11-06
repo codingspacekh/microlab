@@ -1,0 +1,24 @@
+heart Image('09090:99999:99999:09990:00900:')
+Image(
+    '09090:'
+    '99999:'
+    '99999:'
+    '09990:'
+    '00900:'
+)
+clocks 12
+dim Image('05050:55555:55555:05550:00500:')
+div Image('03030:33333:33333:03330:00300:')
+add Image('95:00:')
+sub Image('40:00:')
+shift Image('20:40:')
+crop Image('2:4:')
+invert Image('90:09:')
+buffer Image('49:')
+bad char ValueError: unexpected character in Image definition
+size ValueError: image data is incorrect size
+too large ValueError: index too large
+negative ValueError: index cannot be negative
+immutable TypeError: image cannot be modified (try copying first)
+not str TypeError: Image(s) takes a string
+sizes ValueError: images must be the same size

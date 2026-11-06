@@ -42,6 +42,32 @@ describe('M2.8 the worker\'s run: output batched to ≤ 60 a second, then the en
     expect(posts.at(-1)).toMatchObject({ type: 'end' });
   });
 
+  it('M4.5: the entry file is run; pin levels and display frames are batched, the latest of each', async () => {
+    const control = new Control();
+    const posts: WorkerMessage[] = [];
+    let t = 0;
+    await handleStart({
+      type: 'start', board: 'pico-w', control: control.buffer, inputs: [], entry: 'blink.py',
+      files: { 'main.py': 'print("not me")\n', 'blink.py': 'from machine import Pin\nled = Pin("LED", Pin.OUT)\nfor i in range(101):\n    led.toggle()\nprint("done")\n' },
+    }, (m) => posts.push(m), await nodeLoader(), () => (t += 1));
+    expect(posts.filter((m) => m.type === 'output').map((m) => (m as { text: string }).text).join('')).toBe('done\n');
+    const boards = posts.filter((m) => m.type === 'board') as { pins: Record<string, number> }[];
+    expect(boards.length).toBeGreaterThan(1);
+    expect(boards.length).toBeLessThan(101 / 4);
+    expect(boards.at(-1)!.pins.LED).toBe(1);   // toggled 101 times: on
+  });
+
+  it('M4.5: the micro:bit\'s display frames reach the window', async () => {
+    const control = new Control();
+    const posts: WorkerMessage[] = [];
+    await handleStart({
+      type: 'start', board: 'microbit-v2', control: control.buffer, inputs: [],
+      files: { 'main.py': 'from microbit import *\ndisplay.show(Image.HEART)\nsleep(50)\n' },
+    }, (m) => posts.push(m), await nodeLoader());
+    const frames = posts.filter((m) => m.type === 'board' && (m as { display?: string }).display) as { display: string }[];
+    expect(frames.at(-1)!.display).toBe('0909099999999990999000900');
+  });
+
   it('Control: input slots by name; an unknown one is an error', () => {
     const c = new Control(['level:14', 'volts:26']);
     c.setInput('volts:26', 1.2);

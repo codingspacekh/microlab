@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>16 Running on the board</title>
+{{include:head}}
+</head>
+<body>
+<!--@BOARDCHIP: <button class="boardchip ok"><span class="dot"></span>{{part:pico:bp}}Pico W <span class="sub">· running main.py</span></button>-->
+<!--@SENDBTN: <span class="sendsplit"><button class="btn">{{i:usb}} Send to board</button><button class="btn on" title="More ways to send">{{i:chevd:s14}}</button></span>-->
+<!--@CTABS: <a>{{i:term:s14}} Simulator</a><a class="on board"><span class="dot"></span> Pico W (USB)</a><a>{{i:plot:s14}} Plotter</a>-->
+<!--@CONSOLE: <div class="cbody"><span class="sent">✓ Sent to the Pico W: main.py (0.6 KB). lib/ssd1306.py was the same — not copied.</span>
+<span class="sys">The Pico W restarted. On its own it always starts main.py — now it runs this project.</span>
+MicroPython v1.29.0 on 2026-08-24; Raspberry Pi Pico W with RP2040
+Traffic lights ready
+Button pressed: stopping traffic
+Button pressed: stopping traffic
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>main.py runs on the board — <span class="kbd">Ctrl</span>+<span class="kbd">C</span> stops it and opens its REPL (&gt;&gt;&gt;)</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Pico W (USB): running main.py</span>-->
+<!--@STATUS_R: <span class="muted">Simulator stopped</span>-->
+<p class="frame-label"><b>16 · Running on the real board</b> — Send copies the changed files and the board runs them (F-50); its console and REPL come into the app in their own tab (F-51); <i>Run this file on the board</i> runs the open file there without making it main.py, as Thonny does (Rev 7, Q19); the student is reminded to wire the real board like the picture</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas"><div class="stage">{{scene:traffic:build}}</div>
+      <div class="cbanner"><div class="row" style="gap:10px;padding:9px 12px;border-radius:9px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-m);font-size:12.5px;flex:1">{{i:usb:s14}}<span><b>Running on the real Pico W.</b> The simulator is stopped — the real board must be wired like this picture. <a>Print the wiring list</a></span><span class="spacer"></span><button class="btn sm">{{i:stop:s14}} Stop the board</button></div></div>
+      {{include:ctools}}</div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+  <div class="float menu static sendmenu" style="position:absolute">
+    <div class="mi"><span>{{i:send:s14}}</span><span><b>Send to board and run</b><small>Copies the files that changed. The board runs <span class="mono">main.py</span> now, and every time it starts.</small></span></div>
+    <div class="mi"><span>{{i:play:s14}}</span><span><b>Run main.py on the board</b> <span class="kbd">open file</span><small>Runs the file in the editor there now, without saving it as <span class="mono">main.py</span> — as Thonny does. The board's own program is unchanged.</small></span></div>
+    <div class="mi"><span>{{i:folder:s14}}</span><span><b>Board files…</b><small>See and copy the board's files (screen 15).</small></span></div>
+  </div>
+</div>
+</body></html>

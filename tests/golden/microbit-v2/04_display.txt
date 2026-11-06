@@ -1,0 +1,8 @@
+show Hi 80
+scroll I 120
+clocks 122
+pixels (9, 0)
+bounds ValueError: index out of bounds
+brightness ValueError: brightness out of bounds
+off (False, 'unused')
+on 'display'

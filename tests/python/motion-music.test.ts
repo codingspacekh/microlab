@@ -74,7 +74,9 @@ describe('M2.6c music', () => {
     expect(r.output).toBe('TypeError: expecting a str for note\nafter\n');
   });
 
-  it('a pitch too high for the mixer: "invalid pitch"', async () => {
-    expect((await run('music.pitch(2000000)\n')).error).toMatchObject({ type: 'ValueError', message: 'invalid pitch' });
+  it('any pitch is taken: the V2\'s audio mixer accepts every period (a real micro:bit, golden 06_music, 2026-11-06)', async () => {
+    const r = await run('print(music.pitch(2000000))\n');
+    expect(r.error).toBeUndefined();
+    expect(r.output).toBe('None\n');
   });
 });

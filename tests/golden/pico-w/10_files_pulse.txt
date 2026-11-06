@@ -1,0 +1,2 @@
+missing OSError: [Errno 2] ENOENT
+pulse (-2, -1)

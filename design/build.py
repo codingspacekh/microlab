@@ -417,6 +417,9 @@ def build_page(text: str) -> str:
     variables.setdefault("COUNTS", "Pico W + 8 parts · 10 wires")
     variables.setdefault("STATUS_R", '<span class="row" style="gap:5px;color:var(--success)">{{i:check:s12}} Wiring check: no problems</span>')
     variables.setdefault("RUNTIME", "00:07")
+    # real boards (M10 design): the board chip is new — the approved screens before 13 have none
+    variables.setdefault("BOARDCHIP", "")
+    variables.setdefault("SENDBTN", '<button class="btn">{{i:usb}} Send to board</button>')
     html_ = render(VAR_DEF.sub("", text))
     for _ in range(3):  # a variable's value can use other variables and tags
         html_ = VAR_USE.sub(lambda m: render(variables.get(m.group(1), "")), html_)

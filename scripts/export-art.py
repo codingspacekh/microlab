@@ -34,7 +34,13 @@ def bbox(svg: str, points):
     return min(xs) - MARGIN, min(ys) - MARGIN, max(xs) + MARGIN, max(ys) + MARGIN
 
 
-def write(kind: str, ident: str, svg: str, points: dict, key: str) -> None:
+def glows(svg: str, name: str):
+    """Where a drawing puts its glows (`url(#glow-<name>)`), in order: the board's own LED, the display's pixels."""
+    return [(float(x), float(y)) for x, y in re.findall(rf'<circle cx="([-\d.]+)" cy="([-\d.]+)" r="[\d.]+" fill="url\(#glow-{name}\)"', svg)]
+
+
+def write(kind: str, ident: str, svg: str, points: dict, key: str, extra=None) -> None:
+    """`extra`: {name: point or [points]} in the drawing's units, written relative like the pins (outputs, M4.5)."""
     x0, y0, x1, y1 = bbox(svg, points.values())
     w, h = x1 - x0, y1 - y0
     folder = ROOT / "library" / kind / ident
@@ -43,13 +49,18 @@ def write(kind: str, ident: str, svg: str, points: dict, key: str) -> None:
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{s.f(x0)} {s.f(y0)} {s.f(w)} {s.f(h)}" '
         f'width="{s.f(w)}" height="{s.f(h)}">{s.defs()}{svg}</svg>\n')
     rel = {str(k): [round(x - x0, 2), round(y - y0, 2)] for k, (x, y) in points.items()}
-    (folder / "art.json").write_text(json.dumps({"width": round(w, 2), "height": round(h, 2), "pitch": s.P, key: rel}, indent=2) + "\n")
+    data = {"width": round(w, 2), "height": round(h, 2), "pitch": s.P, key: rel}
+    for name, value in (extra or {}).items():
+        move = lambda p: [round(p[0] - x0, 2), round(p[1] - y0, 2)]
+        data[name] = {k: move(v) for k, v in value.items()} if isinstance(value, dict) else [move(p) for p in value]
+    (folder / "art.json").write_text(json.dumps(data, indent=2) + "\n")
     print(f"library/{kind}/{ident}: {len(rel)} {key}, {w:.0f} × {h:.0f}")
 
 
 def boards() -> None:
     svg, pins = s.pico(200, 400)                       # keys: physical pin number
-    write("boards", "pico-w", svg, pins, "pins")
+    lit, _ = s.pico(200, 400, led_on=True)
+    write("boards", "pico-w", svg, pins, "pins", {"leds": {"LED": glows(lit, "green")[0]}})
 
     svg, pins = s.esp32(200, 400)                      # keys: 'T:label' (1–15, EN at the right end), 'B:label' (16–30)
     numbered = {}
@@ -57,13 +68,16 @@ def boards() -> None:
         numbered[15 - i] = pins["T:" + name]
     for i, name in enumerate(s.ESP_B):
         numbered[30 - i] = pins["B:" + name]
-    write("boards", "esp32-devkit-v1", svg, numbered, "pins")
+    lit, _ = s.esp32(200, 400, led_on=True)
+    write("boards", "esp32-devkit-v1", svg, numbered, "pins", {"leds": {"LED": glows(lit, "blue")[0]}})
 
     svg, pins = s.esp32_ext(200, 400)                  # keys: pin number (G-V-S triples, see board.json)
-    write("boards", "esp32-devkit-v1-ext", svg, pins, "pins")
+    lit, _ = s.esp32_ext(200, 400, led_on=True)
+    write("boards", "esp32-devkit-v1-ext", svg, pins, "pins", {"leds": {"LED": glows(lit, "blue")[0]}})
 
     svg, pins = s.microbit(200, 600)                   # keys: pin id (GND@3); 1–13 top row, 14–26 bottom, 27–30 I²C
-    write("boards", "microbit-v2", svg, {n: pins[pid] for n, pid, _ in s.mbit_pins()}, "pins")
+    lit, _ = s.microbit(200, 600, image=["11111"] * 5)  # the 25 pixels, row by row
+    write("boards", "microbit-v2", svg, {n: pins[pid] for n, pid, _ in s.mbit_pins()}, "pins", {"display": glows(lit, "mbit")})
 
 
 def parts() -> None:

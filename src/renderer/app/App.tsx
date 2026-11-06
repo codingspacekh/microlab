@@ -1,0 +1,306 @@
+import { useEffect, useRef, useState } from 'react';
+import type { NewProjectBoard } from '@lib/boards';
+import { newProject, type ProjectDoc } from '@lib/project';
+import { Icon, Logo } from '../ui/Icon';
+import { Dialog } from '../ui/Dialog';
+import { MenuButton } from '../ui/Menu';
+import type { MicrolabApi } from './api';
+import { BOARD_NAMES } from './boards';
+import { ControlsPage } from './ControlsPage';
+import { StartPage } from './StartPage';
+import { Workspace } from '../workspace/Workspace';
+import { useRun, type RunState, type StartRun } from './useRun';
+
+/**
+ * The window (M4.1, screens 01–03): the top bar with the three modes, the page, the status bar. With no project open
+ * the Workspace is the Start screen (01, M4.2): a new project from a board, or a .mlab opened. In the Workspace the
+ * panels share the width as proportions — parts ~17 %, the circuit the rest, code ~34 % — each within limits, and
+ * the dividers between them are draggable; where they were left is a setting (N-13).
+ */
+type Mode = 'workspace' | 'learn' | 'examples';
+
+/** The project in the window: what it is, and where it came from (no path: not saved yet). */
+export interface OpenProject {
+  doc: ProjectDoc;
+  name: string;
+  path?: string;
+  /** A new one each time a project is opened: the workspace starts afresh (its fitted view, its gestures). */
+  key: number;
+  /** The project as it was last saved or opened: anything else is an unsaved change (M4.6). */
+  saved: ProjectDoc;
+  /** "Saved “Blink.mlab”", until the next change. */
+  savedNote?: string;
+}
+
+let opened = 0;
+
+export interface AppProps {
+  api: MicrolabApi;
+  /** The window's width, for tests; measured in the app. */
+  width?: number;
+  /** Starts a run; tests give a fake one (the real one starts the simulation worker). */
+  startRun?: StartRun;
+}
+
+/** The file Run runs (requirements Rev 7, Q19): the open file — main.py while a project has only that (M5.6). */
+const ENTRY = 'main.py';
+
+export function App({ api, width, startRun }: AppProps) {
+  const [mode, setMode] = useState<Mode>('workspace');
+  const [open, setOpen] = useState<OpenProject | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const controls = useHash() === '#controls';
+  const sim = useRun(startRun);
+  const latest = useRef(open);
+  latest.current = open;
+  const boardName = (o: OpenProject) => BOARD_NAMES[o.doc.project.board as keyof typeof BOARD_NAMES] ?? o.doc.project.board;
+  const running = sim.state.status !== 'idle';
+  const runControls: RunControls = {
+    state: sim.state,
+    onRun: () => { if (open) sim.run(open.doc, ENTRY, boardName(open)); },
+    onStop: sim.stop,
+    onRestart: () => sim.restart(() => latest.current!.doc),
+  };
+
+  const dirty = !!open && open.doc !== open.saved;
+  const [ask, setAsk] = useState<{ name: string; then: () => void } | null>(null);
+
+  const show = (o: Omit<OpenProject, 'key' | 'saved'>) => {
+    sim.reset();
+    setOpen({ ...o, key: ++opened, saved: o.doc });
+    setNotice(null);
+    setMode('workspace');
+  };
+  const start = (board: NewProjectBoard) => show({ doc: newProject(board), name: 'Untitled project' });
+  const openFile = async () => {
+    const r = await api.project.open();
+    if (r.ok) show({ doc: r.doc, name: r.name, path: r.path });
+    else if ('message' in r) setNotice(r.message);
+  };
+
+  /** Save (to its file, or asking where when it has none or `asNew`); true when it was saved. */
+  const save = async (asNew = false): Promise<boolean> => {
+    const o = latest.current;
+    if (!o) return false;
+    const doc = o.doc;
+    const r = await api.project.save(doc, asNew || !o.path ? { name: o.name } : { path: o.path, name: o.name });
+    if (!r.ok) {
+      if ('message' in r) setNotice(r.message);
+      return false;
+    }
+    setNotice(null);
+    const file = r.path.split(/[\\/]/).pop()!;
+    setOpen((cur) => (cur && cur.key === o.key ? { ...cur, path: r.path, name: r.name, saved: doc, savedNote: `Saved “${file}”` } : cur));
+    return true;
+  };
+
+  /** Before the project is closed: if it has changes, ask; then go on. */
+  const guard = (then: () => void) => {
+    const o = latest.current;
+    if (!o || o.doc === o.saved) { then(); return; }
+    setAsk({ name: o.name, then });
+  };
+
+  // the main process asks before the window closes with changes (M4.6)
+  const guardRef = useRef(guard);
+  guardRef.current = guard;
+  useEffect(() => api.app.onCloseRequest(() => guardRef.current(() => api.app.close())), [api]);
+  useEffect(() => { api.app.setDirty(dirty); }, [api, dirty]);
+  useEffect(() => { document.title = open ? `${open.name}${dirty ? ' •' : ''} — MicroLab` : 'MicroLab'; }, [open, dirty]);
+
+  // ⌘S / Ctrl+S save, ⇧ for Save as; ⌘O / Ctrl+O open
+  const keysRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  keysRef.current = (e: KeyboardEvent) => {
+    if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === 's' && latest.current) { e.preventDefault(); void save(e.shiftKey); }
+    else if (k === 'o') { e.preventDefault(); guard(() => void openFile()); }
+  };
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => keysRef.current(e);
+    window.addEventListener('keydown', on);
+    return () => window.removeEventListener('keydown', on);
+  }, []);
+
+  const actions = {
+    onNewProject: () => guard(() => { sim.reset(); setOpen(null); setMode('workspace'); }),
+    onOpen: () => guard(() => void openFile()),
+    onSave: () => void save(),
+    onSaveAs: () => void save(true),
+  };
+
+  const page = controls ? <ControlsPage />
+    : mode !== 'workspace' ? <Later mode={mode} />
+    : open ? <Workspace key={open.key} api={api} width={width} doc={open.doc} onChange={(doc) => setOpen((cur) => (cur ? { ...cur, doc, savedNote: undefined } : cur))}
+        run={sim.state} running={running} onInput={sim.setInput} onClearConsole={sim.clear} />
+    : <StartPage onNew={start} onOpen={actions.onOpen} onLearn={() => setMode('learn')} onExamples={() => setMode('examples')} />;
+
+  return (
+    <div className="app">
+      <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} dirty={dirty} run={runControls} {...actions} />
+      {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
+      {page}
+      <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} />
+      {ask && (
+        <Dialog title={`Save your changes to “${ask.name}”?`} onCancel={() => setAsk(null)} actions={[
+          { label: 'Save', primary: true, onClick: () => { const then = ask.then; setAsk(null); void save().then((ok) => ok && then()); } },
+          { label: "Don't save", danger: true, onClick: () => { const then = ask.then; setAsk(null); then(); } },
+          { label: 'Cancel', onClick: () => setAsk(null) },
+        ]}>
+          Your changes will be lost if you don't save them.
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+/** The page's #hash: #controls opens the design system's controls page (screen 12b). */
+function useHash() {
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const update = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', update);
+    return () => window.removeEventListener('hashchange', update);
+  }, []);
+  return hash;
+}
+
+const MODES: { id: Mode; label: string; icon: string }[] = [
+  { id: 'workspace', label: 'Workspace', icon: 'grid' },
+  { id: 'learn', label: 'Learn', icon: 'book' },
+  { id: 'examples', label: 'Examples', icon: 'bulb' },
+];
+
+interface TopBarProps {
+  /** The chosen mode; none on the Start screen. */
+  mode: Mode | undefined;
+  onMode: (m: Mode) => void;
+  project: OpenProject | null;
+  dirty: boolean;
+  run: RunControls;
+  onNewProject: () => void;
+  onOpen: () => void;
+  onSave: () => void;
+  onSaveAs: () => void;
+}
+
+interface RunControls {
+  state: RunState;
+  onRun: () => void;
+  onStop: () => void;
+  onRestart: () => void;
+}
+
+const MOD = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+';
+
+function TopBar({ mode, onMode, project, dirty, run, onNewProject, onOpen, onSave, onSaveAs }: TopBarProps) {
+  return (
+    <header className="topbar">
+      <div className="brand"><Logo /><b>Micro<span>Lab</span></b></div>
+      <div className="seg modes" role="tablist" aria-label="Mode">
+        {MODES.map((m) => (
+          <button key={m.id} type="button" role="tab" aria-selected={mode === m.id} className={mode === m.id ? 'on' : ''} onClick={() => onMode(m.id)}>
+            <Icon name={m.icon} size={14} /> {m.label}
+          </button>
+        ))}
+      </div>
+      {project ? (
+        <>
+          <div className="vsep" />
+          <div className="proj" role="group" aria-label="Project">
+            <b>{project.name}{dirty && <span className="unsaved" title="Not saved" />}</b>
+            <span>{BOARD_NAMES[project.doc.project.board as keyof typeof BOARD_NAMES] ?? project.doc.project.board}{project.path ? '' : ' · not saved'}</span>
+          </div>
+          <MenuButton label="Project menu" items={[
+            { label: 'New project…', icon: 'plus', onSelect: onNewProject },
+            { label: 'Open a project…', icon: 'folder', hint: `${MOD}O`, keys: 'Meta+O Control+O', onSelect: onOpen },
+            { label: 'Save', icon: 'file', hint: `${MOD}S`, keys: 'Meta+S Control+S', onSelect: onSave },
+            { label: 'Save as…', icon: 'copy', hint: MOD === '⌘' ? '⇧⌘S' : 'Ctrl+Shift+S', keys: 'Shift+Meta+S Shift+Control+S', onSelect: onSaveAs },
+          ]} />
+          <span className="spacer" />
+          <div className="vsep" />
+          <RunBox run={run} />
+          <div className="vsep" />
+          <button type="button" className="btn" disabled title="Send to board (M10)"><Icon name="usb" /> Send to board</button>
+        </>
+      ) : (
+        <>
+          <span className="spacer" />
+          <button type="button" className="btn" onClick={onOpen}><Icon name="folder" size={14} /> Open a project…</button>
+        </>
+      )}
+    </header>
+  );
+}
+
+/** Run, or — while running — how long it has run, Stop and Restart (screen 03, F-22). */
+function RunBox({ run }: { run: RunControls }) {
+  const { status, startedAt } = run.state;
+  const seconds = useSeconds(status !== 'idle' ? startedAt : undefined);
+  if (status === 'idle') {
+    return (
+      <div className="runbox">
+        <button type="button" className="btn run" onClick={run.onRun} title="Run main.py"><Icon name="play" size={14} /> Run</button>
+        <button type="button" className="btn icon" disabled title="Stop" aria-label="Stop"><Icon name="stop" size={14} /></button>
+      </div>
+    );
+  }
+  return (
+    <div className="runbox">
+      <span className="timer" role="timer" aria-label="Running for"><span className="dot" />Running {clock(seconds)}</span>
+      <button type="button" className="btn stop" onClick={run.onStop} disabled={status === 'stopping'}><Icon name="stop" size={14} /> Stop</button>
+      <button type="button" className="btn icon" onClick={run.onRestart} disabled={status === 'stopping'} title="Restart" aria-label="Restart"><Icon name="restart" /></button>
+    </div>
+  );
+}
+
+/** Whole seconds since `from`, ticking. */
+function useSeconds(from: number | undefined) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (from === undefined) return;
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, [from]);
+  return from === undefined ? 0 : Math.max(0, Math.floor((now - from) / 1000));
+}
+
+const clock = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+/** A message for the student (a file that can't be opened), until it is dismissed. */
+function Notice({ text, onDismiss }: { text: string; onDismiss: () => void }) {
+  return (
+    <div className="notice" role="alert">
+      <Icon name="alert" />
+      <span>{text}</span>
+      <button type="button" className="btn ghost sm icon" aria-label="Dismiss" title="Dismiss" onClick={onDismiss}><Icon name="x" size={14} /></button>
+    </div>
+  );
+}
+
+function StatusBar({ project, run }: { project: OpenProject | null; run: RunState }) {
+  const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
+  const p = project?.doc.project;
+  const e = run.ended;
+  const left = run.status === 'running' ? <span className="st running"><span className="dot" />Running at real speed</span>
+    : run.status === 'stopping' ? <span className="st">Stopping…</span>
+    : e?.ended === 'error' ? <span className="st bad">Stopped: an error{e.error?.line ? ` on line ${e.error.line}` : ''}</span>
+    : e?.ended === 'fault' ? <span className="st bad">Stopped: the circuit was damaged</span>
+    : project?.savedNote ? <span className="st saved">{project.savedNote}</span>
+    : <span>Ready</span>;
+  return (
+    <footer className="statusbar" role="status">
+      {left}
+      <span className="r">{p ? `${BOARD_NAMES[p.board as keyof typeof BOARD_NAMES] ?? p.board} + ${count(p.parts.length, 'part')} · ${count(p.wires.length, 'wire')}` : 'MicroLab'}</span>
+    </footer>
+  );
+}
+
+function Later({ mode }: { mode: Mode }) {
+  return (
+    <main className="later">
+      <h1>{mode === 'learn' ? 'Learn' : 'Examples'}</h1>
+      <p className="muted">{mode === 'learn' ? 'The part and board pages come in M8.' : 'The examples page comes in M5.'}</p>
+    </main>
+  );
+}

@@ -1,0 +1,13 @@
+i2c I2C(0, freq=399361, scl=5, sda=4, timeout=50000)
+i2c1 I2C(1, freq=399361, scl=7, sda=6, timeout=50000)
+scan []
+write OSError: [Errno 5] EIO
+mem OSError: [Errno 5] EIO
+soft OSError: [Errno 19] ENODEV
+bad scl ValueError: bad SCL pin
+I2C(2) ValueError: I2C(2) doesn't exist
+spi SPI(0, baudrate=1000000, polarity=0, phase=0, bits=8, sck=18, mosi=19, miso=16)
+spi read b'\x00\x00'
+uart write 2
+uart read None
+UART(2) ValueError: UART(2) doesn't exist

@@ -12,14 +12,16 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
+  // unsaved changes would make the window ask before it closes (M4.6): end it without asking
+  await app?.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach((w) => w.destroy())).catch(() => {});
   await app?.close();
   rmSync(home, { recursive: true, force: true });
 });
 
-test('the built app opens a window titled MicroLab', async () => {
+test('the built app opens a window titled MicroLab, on the Start screen (M4.2)', async () => {
   const win = await app.firstWindow();
   await expect(win).toHaveTitle('MicroLab');
-  await expect(win.getByRole('heading', { name: 'MicroLab' })).toBeVisible();
+  await expect(win.getByRole('heading', { name: 'Start a new project' })).toBeVisible();
 });
 
 test('the window is cross-origin isolated, so the simulation worker can share memory (architecture §2.2)', async () => {
