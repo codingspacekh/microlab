@@ -3,7 +3,7 @@ import type { BoardId } from '@lib/boards';
 import type { ProjectDoc } from '@lib/project';
 import { boardFits, modelOf, versionText, type SendRequest, type SendResult } from '@lib/repl';
 import { chipState, kindOf, type Detection, type FoundBoard } from '@lib/usb';
-import { Checkbox, Dialog, Icon, RadioGroup } from '../ui';
+import { Checkbox, Dialog, Icon, MenuButton, RadioGroup } from '../ui';
 import { KIND, WANT } from './BoardChip';
 
 /**
@@ -19,6 +19,10 @@ export interface SendToBoardProps {
   /** A send under way (from the click until its result). */
   busy: boolean;
   onSend: (id: string, req: SendRequest) => void;
+  /** The file Run runs (the open file). */
+  entry: string;
+  onRunFile: (id: string) => void;
+  onOpenConsole: (id: string) => void;
 }
 
 /** "0.6 KB"; a few bytes as bytes. */
@@ -28,7 +32,7 @@ export function size(n: number): string {
 
 const bytesOf = (v: string | Uint8Array) => (typeof v === 'string' ? new TextEncoder().encode(v).length : v.length);
 
-export function SendToBoard({ detection, project, chosen, files, busy, onSend }: SendToBoardProps) {
+export function SendToBoard({ detection, project, chosen, files, busy, onSend, entry, onRunFile, onOpenConsole }: SendToBoardProps) {
   const [asking, setAsking] = useState(false);
   const state = chipState(detection, project, chosen);
   const sending = busy || state.kind === 'sending';
@@ -38,9 +42,16 @@ export function SendToBoard({ detection, project, chosen, files, busy, onSend }:
     : undefined;
   return (
     <>
-      <button type="button" className="btn" disabled={!!why || sending} title={why} onClick={() => setAsking(true)}>
-        <Icon name="usb" /> {sending ? 'Sending…' : 'Send to board'}
-      </button>
+      <span className="sendsplit">
+        <button type="button" className="btn" disabled={!!why || sending} title={why} onClick={() => setAsking(true)}>
+          <Icon name="usb" /> {sending ? 'Sending…' : 'Send to board'}
+        </button>
+        <MenuButton label="More ways to send" className="split" alignRight disabled={!!why || sending} items={[
+          { label: 'Send to board and run…', icon: 'send', description: 'Copies the files that changed. The board runs main.py now, and every time it starts.', onSelect: () => setAsking(true) },
+          { label: `Run ${entry} on the board`, icon: 'play', description: `Runs the file in the editor there now, without saving it as main.py — as Thonny does. The board's own program is unchanged.`, onSelect: () => { if ('board' in state) onRunFile(state.board.id); } },
+          { label: "Open the board's console", icon: 'term', description: 'Shows what the board prints; Ctrl+C stops its program and gives its >>> prompt.', onSelect: () => { if ('board' in state) onOpenConsole(state.board.id); } },
+        ]} />
+      </span>
       {asking && 'board' in state && (
         <SendDialog detection={detection} project={project} first={state.board.id} files={files}
           onCancel={() => setAsking(false)} onSend={(id, req) => { setAsking(false); onSend(id, req); }} />

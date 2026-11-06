@@ -220,6 +220,7 @@ export interface SendReport {
 export async function sendFiles(link: Link, project: Record<string, string | Uint8Array>, opts: SendOptions = {}): Promise<SendReport> {
   const repl = new RawRepl(link, opts);
   await repl.enter().catch((e: ReplError) => {
+    repl.dispose();
     throw e.reason === 'refused' ? new ReplError('no-micropython', "The board didn't answer as MicroPython does", e.seen) : e;
   });
   let failed: unknown;
@@ -275,7 +276,11 @@ export async function sendFiles(link: Link, project: Record<string, string | Uin
       await repl.leave();
       if (opts.run !== false) await repl.softReset();
     };
-    if (!failed) await back();
-    else if (!(failed instanceof ReplError && failed.reason === 'lost')) await back().catch(() => {});
+    try {
+      if (!failed) await back();
+      else if (!(failed instanceof ReplError && failed.reason === 'lost')) await back().catch(() => {});
+    } finally {
+      repl.dispose();
+    }
   }
 }

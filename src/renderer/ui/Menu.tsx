@@ -15,6 +15,8 @@ export interface MenuItem {
   /** The shortcut for screen readers (aria-keyshortcuts: "Meta+S Control+S"). */
   keys?: string;
   disabled?: boolean;
+  /** Under the label, quieter: what it does (screen 16's Send menu). */
+  description?: string;
   onSelect: () => void;
 }
 
@@ -24,9 +26,12 @@ export interface MenuButtonProps {
   icon?: string;
   items: MenuItem[];
   className?: string;
+  /** Opens under the button's right edge, leftwards (at the right of the top bar). */
+  alignRight?: boolean;
+  disabled?: boolean;
 }
 
-export function MenuButton({ label, icon = 'chevd', items, className }: MenuButtonProps) {
+export function MenuButton({ label, icon = 'chevd', items, className, alignRight, disabled }: MenuButtonProps) {
   const [open, setOpen] = useState(false);
   const [hl, setHl] = useState(0);
   const wrap = useRef<HTMLDivElement>(null);
@@ -91,13 +96,14 @@ export function MenuButton({ label, icon = 'chevd', items, className }: MenuButt
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
+        disabled={disabled}
         onClick={() => (open ? close(false) : show(first()))}
         onKeyDown={onButtonKey}
       >
         <Icon name={icon} size={14} />
       </button>
       {open && (
-        <ul className="menu" role="menu" aria-label={label} onKeyDown={onMenuKey}>
+        <ul className={cls('menu', alignRight && 'right', items.some((x) => x.description) && 'described')} role="menu" aria-label={label} onKeyDown={onMenuKey}>
           {items.map((it, i) => (
             <li
               key={it.label}
@@ -111,7 +117,7 @@ export function MenuButton({ label, icon = 'chevd', items, className }: MenuButt
               onClick={() => choose(i)}
             >
               {it.icon && <Icon name={it.icon} size={14} />}
-              {it.label}
+              {it.description ? <span className="tx"><b>{it.label}</b><span className="dsc">{it.description}</span></span> : it.label}
               {it.hint && <small aria-hidden="true">{it.hint}</small>}
             </li>
           ))}

@@ -15,6 +15,16 @@ contextBridge.exposeInMainWorld('microlab', {
     get: (): Promise<unknown> => ipcRenderer.invoke('boards:get'),
     check: (id: string): Promise<void> => ipcRenderer.invoke('boards:check', id),
     send: (id: string, files: unknown, req: unknown): Promise<unknown> => ipcRenderer.invoke('boards:send', id, files, req),
+    console: {
+      open: (id: string): Promise<unknown> => ipcRenderer.invoke('boards:console-open', id),
+      close: (id: string): Promise<void> => ipcRenderer.invoke('boards:console-close', id),
+      do: (id: string, action: unknown): Promise<void> => ipcRenderer.invoke('boards:console-do', id, action),
+      onOutput: (handler: (id: string, chunks: unknown) => void): (() => void) => {
+        const listener = (_e: unknown, id: string, chunks: unknown) => handler(id, chunks);
+        ipcRenderer.on('boards:console', listener);
+        return () => { ipcRenderer.removeListener('boards:console', listener); };
+      },
+    },
     onChange: (handler: (now: unknown, changes: unknown) => void): (() => void) => {
       const listener = (_e: unknown, now: unknown, changes: unknown) => handler(now, changes);
       ipcRenderer.on('boards:changed', listener);

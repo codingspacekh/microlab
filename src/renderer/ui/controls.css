@@ -125,6 +125,13 @@ body.dragging { cursor: pointer; user-select: none; }
 .menuwrap .menu { left: 0; right: auto; min-width: 210px; }
 .menuwrap .menu .mi:focus { outline: none; background: var(--bg-2); }
 .menuwrap .menu .mi .ico { color: var(--tx-3); }
+.menuwrap .menu.right { left: auto; right: 0; }
+.menu.described { width: 340px; }
+.menu.described .mi { height: auto; padding: 8px 10px; align-items: flex-start; white-space: normal; }
+.menu.described .mi .ico { margin-top: 2px; flex: none; }
+.menu .mi .tx { display: flex; flex-direction: column; gap: 2px; }
+.menu .mi .tx b { font-weight: 600; }
+.menu .mi .dsc { color: var(--tx-3); font-size: 11.5px; line-height: 1.4; }
 .btn.on { background: var(--bg-2); }
 
 /* ---------- dialog (screen 08) ---------- */

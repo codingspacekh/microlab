@@ -48,3 +48,10 @@
 .sendbox .infobox b { color: var(--tx-1); }
 .dialog .dicon { color: var(--accent); display: inline-flex; }
 .dialog .dnote { gap: 6px; align-items: center; }
+/* ---------- the split Send button (screen 16) ---------- */
+.sendsplit { display: inline-flex; align-items: stretch; }
+.sendsplit > .btn { border-radius: 8px 0 0 8px; }
+.sendsplit .menuwrap { display: inline-flex; }
+.sendsplit .menuwrap > .split { height: auto; width: 30px; padding: 0; justify-content: center; border: 1px solid var(--line); border-left: 0; border-radius: 0 8px 8px 0; background: var(--panel); }
+.sendsplit .menuwrap > .split:disabled { opacity: .5; }
+.sendsplit .menuwrap .menu { top: calc(100% + 6px); }

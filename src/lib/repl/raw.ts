@@ -54,17 +54,48 @@ class Reader {
   private wake: (() => void) | undefined;
   private closed = false;
   private heard = 0;
+  private readonly offs: (() => void)[] = [];
 
   constructor(link: Link) {
-    link.onData((d) => {
+    this.offs.push(link.onData((d) => {
       this.buf += bytesText(d);
       this.heard = Date.now();
       this.wake?.();
-    });
-    link.onClose?.(() => {
+    }));
+    const off = link.onClose?.(() => {
       this.closed = true;
       this.wake?.();
     });
+    if (off) this.offs.push(off);
+  }
+
+  /** Stops listening (a console keeps the port open across many commands). */
+  dispose(): void {
+    for (const off of this.offs.splice(0)) off();
+  }
+
+  /** Passes everything up to the marker on as it comes, with no time limit — a program's output (it ends when the
+   *  program does, or is stopped). A possible start of the marker is held back until it is sure. */
+  async pipe(marker: string, on: (text: string) => void): Promise<void> {
+    for (;;) {
+      const i = this.buf.indexOf(marker);
+      if (i >= 0) {
+        if (i) on(this.buf.slice(0, i));
+        this.buf = this.buf.slice(i + marker.length);
+        return;
+      }
+      let keep = 0;
+      for (let k = Math.min(marker.length - 1, this.buf.length); k > 0; k--) {
+        if (marker.startsWith(this.buf.slice(-k))) { keep = k; break; }
+      }
+      if (this.buf.length > keep) {
+        on(this.buf.slice(0, this.buf.length - keep));
+        this.buf = this.buf.slice(this.buf.length - keep);
+      }
+      if (this.closed) throw new ReplError('lost', 'The board was unplugged', this.buf);
+      await new Promise<void>((r) => { this.wake = r; });
+      this.wake = undefined;
+    }
   }
 
   /**
@@ -180,6 +211,40 @@ export class RawRepl {
    * is slow (the micro:bit's) never drops a byte; short ones go as they are (as recorded on the boards).
    */
   async exec(code: string, ms = this.replyMs): Promise<{ out: string; err: string }> {
+    // taken whole, or stopped in the middle (raw-paste, out of memory): either way its answer follows
+    await this.sendCode(code, ms);
+    return this.answer(ms);
+  }
+
+  /**
+   * Runs code and passes its output and its error on as they come, for as long as it runs (a student's file on the
+   * board, F-50); Ctrl-C (interrupt) ends it with a KeyboardInterrupt in its error.
+   */
+  async execStream(code: string, onOut: (text: string) => void, onErr: (text: string) => void): Promise<void> {
+    await this.sendCode(code, this.replyMs);
+    const utf8 = (on: (t: string) => void) => {
+      const d = new TextDecoder();
+      return { on: (t: string) => { const x = d.decode(latin1(t), { stream: true }); if (x) on(x); }, end: () => { const x = d.decode(); if (x) on(x); } };
+    };
+    const out = utf8(onOut);
+    await this.reader.pipe('\x04', out.on);
+    out.end();
+    const err = utf8(onErr);
+    await this.reader.pipe('\x04>', err.on);
+    err.end();
+  }
+
+  /** Stop at once (Ctrl-C): a running command ends with a KeyboardInterrupt. */
+  interrupt(): Promise<void> {
+    return this.send('\x03');
+  }
+
+  dispose(): void {
+    this.reader.dispose();
+  }
+
+  /** Sends a command; true when the board took all of it (false: it stopped in the middle, its error follows). */
+  private async sendCode(code: string, ms: number): Promise<boolean> {
     const bytes = new TextEncoder().encode(code);
     if (bytes.length >= PASTE_FROM && this.paste !== false && await this.startPaste()) return this.pasteRun(bytes, ms);
     const all = new Uint8Array(bytes.length + 1);
@@ -192,7 +257,7 @@ export class RawRepl {
     await this.reader.until('OK', ms).catch((e: ReplError) => {
       throw e.reason === 'lost' ? e : new ReplError('refused', 'The board did not take the command', e.seen);
     });
-    return this.answer(ms);
+    return true;
   }
 
   private async answer(ms: number): Promise<{ out: string; err: string }> {
@@ -216,7 +281,7 @@ export class RawRepl {
     return false;
   }
 
-  private async pasteRun(bytes: Uint8Array, ms: number): Promise<{ out: string; err: string }> {
+  private async pasteRun(bytes: Uint8Array, ms: number): Promise<boolean> {
     let left = this.window;
     let i = 0;
     while (i < bytes.length) {
@@ -224,9 +289,8 @@ export class RawRepl {
         const c = await this.reader.takeN(1, ms);
         if (c === '\x01') left += this.window;
         else if (c === '\x04') {
-          // the board stopped taking it (out of memory): its error follows
           await this.send('\x04');
-          return this.answer(ms);
+          return false;
         } else throw new ReplError('refused', `The board answered ${JSON.stringify(c)} in the middle of a command`);
       }
       const piece = bytes.subarray(i, i + left);
@@ -236,7 +300,7 @@ export class RawRepl {
     }
     await this.send('\x04');
     await this.reader.until('\x04', ms);
-    return this.answer(ms);
+    return true;
   }
 
   /** Back to the normal prompt. */
@@ -269,6 +333,7 @@ export async function checkBoard(link: Link, opts: ReplOptions = {}): Promise<Bo
   try {
     await repl.enter();
   } catch (e) {
+    repl.dispose();
     if (e instanceof ReplError && e.reason === 'refused') return { kind: 'no-micropython', seen: utf8Out(repl.seen) };
     throw e;
   }
@@ -278,6 +343,7 @@ export async function checkBoard(link: Link, opts: ReplOptions = {}): Promise<Bo
   } finally {
     await repl.leave();
     await repl.softReset();
+    repl.dispose();
   }
   return uname ? { kind: 'micropython', uname } : { kind: 'micropython' };
 }

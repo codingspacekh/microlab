@@ -89,9 +89,42 @@ test('M10.3 F-50 Send to board: the files go, the board runs them; sent again, n
   const dialog = win.getByRole('dialog', { name: 'Send to a real board' });
   await expect(dialog.getByRole('radio', { name: 'Raspberry Pi Pico W' })).toHaveAttribute('aria-checked', 'true');
   await dialog.getByRole('button', { name: 'Send and run' }).click();
-  await expect(win.getByText(/^Sent to the Pico W: main\.py \([\d.]+ KB\)\.$/)).toBeVisible({ timeout: 3000 });
-  await expect(win.getByText('The Pico W restarted. On its own it always starts main.py — now it runs this project.')).toBeVisible();
+  await expect(win.locator('.toasts').getByText(/^Sent to the Pico W: main\.py \([\d.]+ KB\)\.$/)).toBeVisible({ timeout: 3000 });
+  await expect(win.locator('.toasts').getByText('The Pico W restarted. On its own it always starts main.py — now it runs this project.')).toBeVisible();
   await win.getByRole('button', { name: 'Send to board' }).click();
   await win.getByRole('dialog', { name: 'Send to a real board' }).getByRole('button', { name: 'Send and run' }).click();
-  await expect(win.getByText('Nothing to copy: main.py was already on the Pico W as it is.')).toBeVisible({ timeout: 3000 });
+  await expect(win.locator('.toasts').getByText('Nothing to copy: main.py was already on the Pico W as it is.')).toBeVisible({ timeout: 3000 });
+});
+
+test('M10.4 F-51 the board\'s console: Send and run shows it; Stop gives >>>; typed; a file run there; let go', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  plug('mac-pico-w');
+  const chip = win.getByRole('button', { name: /^Board:/ });
+  await expect(chip).toHaveAccessibleName('Board: Pico W, ready, MicroPython 1.29', { timeout: 2000 });
+  await win.getByRole('button', { name: 'Send to board' }).click();
+  await win.getByRole('dialog', { name: 'Send to a real board' }).getByRole('button', { name: 'Send and run' }).click();
+  const log = win.getByRole('log', { name: 'Console of the Pico W' });
+  await expect(win.getByRole('tab', { name: /Pico W \(USB\)/ })).toHaveAttribute('aria-selected', 'true', { timeout: 3000 });
+  await expect(log).toContainText('✓ Sent to the Pico W: main.py');
+  await expect(log).toContainText('MPY: soft reboot');
+  await expect(chip).toHaveAccessibleName('Board: Pico W, running main.py');
+  await expect(win.getByText('Pico W (USB): running main.py')).toBeVisible();
+
+  await win.getByRole('button', { name: 'Stop the board', exact: true }).click();
+  await expect(log).toContainText('KeyboardInterrupt');
+  const input = win.getByRole('textbox', { name: 'Python for the board' });
+  await input.fill('6*7');
+  await input.press('Enter');
+  await expect(log).toContainText(/6\*7\s+42\s+>>>/);
+
+  await win.getByRole('button', { name: 'More ways to send' }).click();
+  await win.getByRole('menuitem', { name: /Run main.py on the board/ }).click();
+  await expect(win.getByText('Pico W (USB): running main.py')).toBeVisible();
+  await expect(log).toContainText('Running main.py from the editor on the Pico W');
+  await log.press('Control+c');
+  await expect(input).toBeVisible();
+
+  await win.getByRole('button', { name: 'Let go of the board' }).click();
+  await expect(win.getByRole('button', { name: 'Open the console' })).toBeVisible();
 });

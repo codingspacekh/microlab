@@ -1,5 +1,5 @@
 import type { OpenResult, ProjectDoc, SaveResult } from '@lib/project';
-import type { SendRequest, SendResult } from '@lib/repl';
+import type { ConsoleAction, ConsoleKind, SendRequest, SendResult } from '@lib/repl';
 import type { Detection, FoundBoard } from '@lib/usb';
 
 /** What the preload gives the window (src/preload/index.ts): the only way to Node (architecture §2.2). */
@@ -22,6 +22,14 @@ export interface MicrolabApi {
     check(id: string): Promise<void>;
     /** Sends the project's files to the board (F-50): only those that changed; then it restarts and runs main.py. */
     send(id: string, files: ProjectDoc['files'], req: SendRequest): Promise<SendResult>;
+    /** The board's console (F-51): opened, the port stays open (Thonny can't use the board) until closed. */
+    console: {
+      open(id: string): Promise<{ ok: true } | { ok: false; message: string }>;
+      close(id: string): Promise<void>;
+      do(id: string, action: ConsoleAction): Promise<void>;
+      /** What a board prints, as it comes (at most every 40 ms). */
+      onOutput(handler: (id: string, chunks: { text: string; kind: ConsoleKind }[]) => void): () => void;
+    };
     onChange(handler: (now: Detection, changes: { plugged: FoundBoard[]; unplugged: FoundBoard[] }) => void): () => void;
   };
   app: {
@@ -51,7 +59,9 @@ export function getApi(): MicrolabApi {
       open: async () => ({ ok: false, message: 'Opening a file needs the MicroLab app.' }),
       save: async () => ({ ok: false, message: 'Saving a file needs the MicroLab app.' }),
     },
-    boards: { get: async () => ({ boards: [], drives: [] }), check: async () => {}, send: async () => ({ ok: false, message: 'Sending to a board needs the MicroLab app.' }), onChange: () => () => {} },
+    boards: { get: async () => ({ boards: [], drives: [] }), check: async () => {}, send: async () => ({ ok: false, message: 'Sending to a board needs the MicroLab app.' }),
+      console: { open: async () => ({ ok: false, message: 'A board needs the MicroLab app.' }), close: async () => {}, do: async () => {}, onOutput: () => () => {} },
+      onChange: () => () => {} },
     app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close() },
   };
 }

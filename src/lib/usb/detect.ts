@@ -1,4 +1,5 @@
 import type { BoardId } from '../boards';
+import type { ConsoleState } from '../repl/console';
 import { boardFits, modelOf, type ModelInfo, type Uname } from '../repl/greeting';
 
 /**
@@ -44,6 +45,8 @@ export interface Detection {
   drives: BoardDrive[];
   /** What each board (by id) said when it was asked (M10.2); none until it is asked. */
   checks?: Record<string, BoardCheck>;
+  /** The boards whose console is open (M10.4), and whether each is at its >>> prompt or running something. */
+  consoles?: Record<string, ConsoleState>;
 }
 
 /** The answer to asking a board (F-55, R10): its MicroPython and name, or why it couldn't be asked. */

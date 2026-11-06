@@ -32,7 +32,7 @@ export interface BoardChipProps {
 }
 
 /** The chip's colour, its words (face and spoken), from its state. */
-function look(state: ChipState, project: BoardId, count: number): { tone: string; label: string; face: React.ReactNode } {
+function look(state: ChipState, project: BoardId, count: number, consoles?: Detection['consoles']): { tone: string; label: string; face: React.ReactNode } {
   if (state.kind === 'none') return { tone: 'none', label: 'No board', face: <>No board</> };
   if (state.kind === 'bootsel') {
     return { tone: 'warn', label: 'Pico, BOOTSEL mode', face: <><img src={KIND.pico.art} alt="" />Pico <span className="sub">· BOOTSEL mode</span></> };
@@ -51,6 +51,8 @@ function look(state: ChipState, project: BoardId, count: number): { tone: string
       case 'no-micropython': return ['warn', 'no MicroPython', 'no MicroPython'];
       case 'wrong': return ['warn', `project is for ${WANT[project]}`, `project is for ${WANT[project]}`];
       default: {
+        const con = consoles?.[state.board.id];
+        if (con && !con.prompt) { const r = `running ${con.running ?? 'main.py'}`; return ['ok', r, r]; }
         const v = state.uname ? shortVersion(state.uname) : undefined;
         return ['ok', v ? `ready, ${v}` : 'ready', v ?? (count > 1 ? `${count} boards` : 'on USB')];
       }
@@ -72,7 +74,7 @@ export function BoardChip({ detection, project, chosen, onChoose, onCheck }: Boa
     return () => document.removeEventListener('mousedown', down);
   }, [open]);
 
-  const { tone, label, face } = look(state, project, detection.boards.length);
+  const { tone, label, face } = look(state, project, detection.boards.length, detection.consoles);
   const checks = detection.checks ?? {};
   const again = 'board' in state ? () => onCheck(state.board.id) : undefined;
 

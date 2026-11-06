@@ -73,7 +73,8 @@ export interface FakeBoardOptions {
   /** A slow serial input (the micro:bit's, found 2026-11-06): what comes faster than it is asked for is lost — in
    *  the plain raw REPL, all but the first 64 bytes of each write; in raw-paste mode, what goes past the window. */
   lossy?: boolean;
-  /** Answers other code sent at the raw prompt; undefined: it never finishes. */
+  /** Answers other code sent at the raw prompt, a line typed at >>> or a block pasted (Ctrl-E); undefined: it never
+   *  finishes (Ctrl-C stops it). */
   exec?: (code: string) => Answer;
 }
 
@@ -118,11 +119,13 @@ export function parsePyCall(code: string): { name: string; args: (string | Uint8
 const hexOf = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
 
 export class FakeBoard implements Link {
-  state: 'program' | 'friendly' | 'raw' | 'paste';
+  state: 'program' | 'friendly' | 'raw' | 'paste' | 'pasting';
   softReboots = 0;
   /** Commands taken in raw-paste mode. */
   pastes = 0;
   private asked = '';
+  private line = '';
+  private hung = false;
   private windowLeft = 0;
   private taken = 0;
   readonly files = new Map<string, Uint8Array>();
@@ -181,6 +184,11 @@ export class FakeBoard implements Link {
     this.state = this.opts.program ? 'program' : 'friendly';
     this.raw = [];
     this.open = undefined;
+  }
+
+  /** The running program (or a command) prints this. */
+  emit(text: string): void {
+    this.say(text);
   }
 
   /** Resolves when everything the board has to say has been said. */
@@ -255,6 +263,10 @@ export class FakeBoard implements Link {
         this.say(`\r\n${p.banner}\r\n${HELP}>>> `);
       } else if (b === 3) {
         this.raw = [];
+        if (this.hung) {
+          this.hung = false;
+          this.say('\x04Traceback (most recent call last):\r\n  File "<stdin>", line 1, in <module>\r\nKeyboardInterrupt: \r\n\x04>');
+        }
       } else if (b === 4) {
         this.runRaw(true);
       } else {
@@ -262,9 +274,37 @@ export class FakeBoard implements Link {
       }
       return;
     }
-    // the normal prompt
-    if (b === 13 || b === 3) this.say('\r\n>>> ');
-    else if (b === 1) {
+    if (this.state === 'pasting') {
+      if (b === 3) { this.state = 'friendly'; this.line = ''; this.say('\r\n>>> '); return; }
+      if (b === 4) {
+        const code = this.line;
+        this.line = '';
+        this.state = 'friendly';
+        this.answerLine(code, '\r\n');
+        return;
+      }
+      // the line break and the next "=== " come in pieces, as on the teacher's micro:bit
+      if (b === 13) { this.line += '\n'; this.say('\r\n='); this.say('== '); return; }
+      this.line += String.fromCharCode(b);
+      this.say(String.fromCharCode(b));
+      return;
+    }
+    // the normal prompt: what is typed is echoed; Enter runs the line; Ctrl-E pastes a block
+    if (b === 13 && this.line) {
+      const code = this.line;
+      this.line = '';
+      this.answerLine(code, '\r\n');
+    } else if (b === 13 || b === 3) {
+      this.line = '';
+      this.say('\r\n>>> ');
+    } else if (b === 5) {
+      this.state = 'pasting';
+      this.line = '';
+      this.say('\r\npaste mode; Ctrl-C to cancel, Ctrl-D to finish\r\n=== ');
+    } else if (b >= 32 || b === 9) {
+      this.line += String.fromCharCode(b);
+      this.say(String.fromCharCode(b));
+    } else if (b === 1) {
       this.state = 'raw';
       this.raw = [];
       this.say('\r\nraw REPL; CTRL-B to exit\r\n>');
@@ -280,6 +320,14 @@ export class FakeBoard implements Link {
     }
   }
 
+  /** A line typed at >>> or a pasted block: what it prints, then the prompt (errors print there too). */
+  private answerLine(code: string, before: string): void {
+    this.later(async () => {
+      const r = this.opts.exec?.(code.replace(/\n$/, '')) ?? { err: `Traceback (most recent call last):\r\n  File "<stdin>", line 1, in <module>\r\nNameError: name '${code.split(/\W/)[0]}' isn't defined\r\n` };
+      return [`${before}${r.out ?? ''}${r.err ?? ''}>>> `];
+    });
+  }
+
   /** Runs what came at the raw prompt; "OK" first in the plain raw REPL (raw-paste has acknowledged with Ctrl-D). */
   private runRaw(ok: boolean): void {
     const code = new TextDecoder().decode(Uint8Array.from(this.raw));
@@ -293,7 +341,7 @@ export class FakeBoard implements Link {
     const OK = ok ? 'OK' : '';
     this.later(async () => {
       const r = await this.run(code);
-      if (!r) return OK ? [OK] : [];
+      if (!r) { this.hung = true; return OK ? [OK] : []; }
       if (!this.opts.pace || !call) return [`${OK}${r.out ?? ''}\x04${r.err ?? ''}\x04>`];
       const parts = [OK, ...(r.out ?? '').split(/(?<=\n)/)].filter(Boolean);
       if (this.opts.stallAfter !== undefined && parts.length > this.opts.stallAfter) return parts.slice(0, this.opts.stallAfter);

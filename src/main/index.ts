@@ -14,7 +14,7 @@ import { openSerial, type SerialLink } from './serial-link';
 import { openProjectFile, saveProjectFile } from './project-files';
 import { SettingsStore } from './settings';
 import type { ProjectDoc } from '@lib/project';
-import { FakeBoard, type FakePreset, type SendRequest } from '@lib/repl';
+import { FakeBoard, type ConsoleAction, type ConsoleKind, type FakePreset, type SendRequest } from '@lib/repl';
 import type { BoardKind, Detection, FoundBoard, PortInfo } from '@lib/usb';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -110,7 +110,35 @@ app.whenReady().then(() => {
   const send = (now: Detection, changes: { plugged: FoundBoard[]; unplugged: FoundBoard[] }) => {
     for (const w of BrowserWindow.getAllWindows()) w.webContents.send('boards:changed', now, changes);
   };
-  const boardsNow = (): Detection => ({ ...watcher.current, checks: checker.checks });
+  const boardsNow = (): Detection => ({ ...watcher.current, checks: checker.checks, consoles: checker.consoles });
+  // a board's console output, gathered and sent at most every 40 ms (a program printing in a loop can't flood the window)
+  let pending: Record<string, { text: string; kind: ConsoleKind }[]> = {};
+  let flush: ReturnType<typeof setTimeout> | undefined;
+  const consoleOut = (id: string, text: string, kind: ConsoleKind) => {
+    const list = (pending[id] ??= []);
+    const last = list.at(-1);
+    if (last && last.kind === kind) last.text += text;
+    else list.push({ text, kind });
+    flush ??= setTimeout(() => {
+      const out = pending;
+      pending = {};
+      flush = undefined;
+      for (const w of BrowserWindow.getAllWindows()) for (const [bid, chunks] of Object.entries(out)) w.webContents.send('boards:console', bid, chunks);
+    }, 40);
+  };
+  /** The little Python a fake board answers (e2e): print("…"), a sum, and a loop that runs until stopped. */
+  const fakeExec = (code: string) => {
+    if (/while True/.test(code)) return undefined;
+    let out = '';
+    for (const line of code.split('\n')) {
+      const p = /^\s*print\((['"])(.*)\1\)\s*$/.exec(line);
+      const sum = /^\s*(\d+)\s*([-+*])\s*(\d+)\s*$/.exec(line);
+      if (p) out += `${p[2]}\r\n`;
+      else if (sum) out += `${sum[2] === '+' ? +sum[1]! + +sum[3]! : sum[2] === '-' ? +sum[1]! - +sum[3]! : +sum[1]! * +sum[3]!}\r\n`;
+      else if (line.trim() && !/^\s*(#|from |import )/.test(line)) return { out, err: `Traceback (most recent call last):\r\n  File "<stdin>", line 1, in <module>\r\nNameError: the fake board runs only print() and sums\r\n` };
+    }
+    return { out };
+  };
   const fakes = new Map<string, FakeBoard>();   // a fake board keeps its files between opens, as a real one
   const fakeOpen = async (port: string): Promise<SerialLink> => {
     const answer = (await fromFile()).answers?.[port];
@@ -119,7 +147,7 @@ app.whenReady().then(() => {
     const kind = watcher.current.boards.find((b) => b.port === port)?.kind;
     const preset = (answer && answer !== 'silent' ? answer : ({ pico: 'pico-w', microbit: 'microbit-v2', esp32: 'esp32' } satisfies Record<BoardKind, FakePreset>)[kind ?? 'pico']) as FakePreset;
     const key = `${port} ${preset} ${answer ?? ''}`;
-    const b = fakes.get(key) ?? new FakeBoard({ preset, program: {}, silent: answer === 'silent' });
+    const b = fakes.get(key) ?? new FakeBoard({ preset, program: {}, silent: answer === 'silent', exec: fakeExec });
     fakes.set(key, b);
     b.replug();
     return { write: (d) => b.write(d), onData: (l) => b.onData(l), onClose: (l) => b.onClose(l), close: async () => {} };
@@ -137,6 +165,7 @@ app.whenReady().then(() => {
       ? { open: fakeOpen, whoHolds: async () => (await fromFile()).holder, keepOld }
       : { open: (port) => openSerial(port), whoHolds: (port) => whoHolds(port, process.platform), keepOld },
     () => send(boardsNow(), { plugged: [], unplugged: [] }),
+    { output: consoleOut, sessions: () => send(boardsNow(), { plugged: [], unplugged: [] }) },
   );
   const watcher = new BoardWatcher(
     fake
@@ -156,6 +185,13 @@ app.whenReady().then(() => {
     const b = watcher.current.boards.find((x) => x.id === id);
     if (b) await checker.check(b);
   });
+  const boardBy = (id: string) => watcher.current.boards.find((x) => x.id === id);
+  ipcMain.handle('boards:console-open', async (_e, id: string) => {
+    const b = boardBy(id);
+    return b ? checker.openConsole(b) : { ok: false, message: 'The board is no longer plugged in.' };
+  });
+  ipcMain.handle('boards:console-close', (_e, id: string) => checker.closeConsole(id));
+  ipcMain.handle('boards:console-do', (_e, id: string, a: ConsoleAction) => checker.console(id, a));
   ipcMain.handle('boards:send', async (_e, id: string, files: Record<string, string | Uint8Array>, req: SendRequest) => {
     const b = watcher.current.boards.find((x) => x.id === id);
     return b ? checker.send(b, files, req) : { ok: false, message: 'The board is no longer plugged in.' };

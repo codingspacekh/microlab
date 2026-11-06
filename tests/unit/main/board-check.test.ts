@@ -233,3 +233,141 @@ describe('M10.3 the folder an old main.py is kept in', () => {
     expect(backupFolder('Pico W', new Date(2026, 0, 2, 3, 4, 5))).toBe('Pico W 2026-01-02 03-04-05');
   });
 });
+
+describe('M10.4 F-51 the board\'s console, from the main process', () => {
+  const enc = (t: string) => new TextEncoder().encode(t);
+  function rig(opts: Partial<FakeBoardOptions> = {}) {
+    const b = new FakeBoard({ preset: 'pico-w', program: { output: 'Traffic lights ready\r\n' }, ...opts } as FakeBoardOptions);
+    const { d, closed } = deps(b);
+    const said: string[] = [];
+    const ids = new Set<string>();
+    const sessions: Record<string, unknown>[] = [];
+    const c = new Boards(d, () => {}, { output: (id, text) => { ids.add(id); said.push(text); }, sessions: (s) => sessions.push(s) });
+    const settle = async () => { await b.settled(); await new Promise((r) => setTimeout(r, 5)); };
+    return { b, d, closed, c, said, ids, sessions, settle, shown: () => said.join('') };
+  }
+
+  it('opened: the port stays open and what the board prints comes as it comes; closed: let go', async () => {
+    const r = rig();
+    expect(await r.c.openConsole(PICO)).toEqual({ ok: true });
+    r.b.emit('tick\r\n');
+    await r.settle();
+    expect(r.shown()).toBe('tick\n');
+    expect([...r.ids]).toEqual(['e661']);
+    expect(r.closed).not.toHaveBeenCalled();
+    await r.c.closeConsole('e661');
+    expect(r.closed).toHaveBeenCalledOnce();
+    expect(r.sessions.at(-1)).toEqual({});
+  });
+
+  it('Send and run opens it: the board restarts into main.py there, and the port stays open', async () => {
+    const r = rig();
+    const s = await r.c.send(PICO, { 'main.py': 'print("x")' }, { run: true, keep: false });
+    expect(s.ok).toBe(true);
+    await r.settle();
+    expect(r.shown()).toBe('\nMPY: soft reboot\nTraffic lights ready\n');
+    expect(r.closed).not.toHaveBeenCalled();
+    expect(r.sessions.at(-1)).toEqual({ e661: { prompt: false, running: 'main.py' } });
+  });
+
+  it('a send while it is open uses the open port; none of the copying shows in it', async () => {
+    const r = rig();
+    await r.c.openConsole(PICO);
+    await r.c.send(PICO, { 'main.py': 'print("x")', 'lib/a.py': 'a = 1' }, { run: true, keep: false });
+    await r.settle();
+    expect(r.d.open).toHaveBeenCalledOnce();
+    expect(r.shown()).not.toMatch(/raw REPL|_ml|OK/);
+    expect(r.shown()).toMatch(/MPY: soft reboot/);
+    expect(new TextDecoder().decode(r.b.files.get('lib/a.py'))).toBe('a = 1');
+  });
+
+  it('typed, stopped, restarted, a file run — and Stop gets through while that file runs', async () => {
+    const r = rig({ exec: (code: string) => (code === '1+1' ? { out: '2\r\n' } : undefined) });
+    await r.c.openConsole(PICO);
+    await r.c.console('e661', { do: 'interrupt' });
+    await r.c.console('e661', { do: 'type', text: '1+1' });
+    await r.settle();
+    expect(r.shown()).toMatch(/1\+1\n2\n>>> $/);
+    const run = r.c.console('e661', { do: 'run', name: 'main.py', code: 'while True: pass' });
+    await vi.waitFor(() => expect(r.sessions.at(-1)).toEqual({ e661: { prompt: false, running: 'main.py' } }));
+    await r.c.console('e661', { do: 'interrupt' });
+    await run;
+    await r.settle();
+    expect(r.shown()).toMatch(/KeyboardInterrupt: \n>>> $/);
+    await r.c.console('e661', { do: 'restart' });
+    await r.settle();
+    expect(r.shown()).toMatch(/MPY: soft reboot\nTraffic lights ready\n$/);
+  });
+
+  it('a check while it is open asks nothing (the board is already talking)', async () => {
+    const r = rig();
+    await r.c.openConsole(PICO);
+    await r.c.check(PICO);
+    expect(r.d.open).toHaveBeenCalledOnce();
+  });
+
+  it('unplugged: the session ends and is told', async () => {
+    const r = rig();
+    await r.c.openConsole(PICO);
+    r.b.unplug();
+    expect(r.sessions.at(-1)).toEqual({});
+  });
+
+  it('a port another program holds: not opened, and why', async () => {
+    const c = new Boards(deps(new Error('Cannot lock port'), 'Thonny').d, () => {}, { output: () => {}, sessions: () => {} });
+    expect(await c.openConsole(PICO)).toEqual({ ok: false, message: expect.stringMatching(/used by Thonny/) });
+    expect(enc('x')).toBeDefined();
+  });
+});
+
+describe('M10.4 a file run on the board holds the port', () => {
+  it('a send while main.py runs as a file stops it first, then sends', async () => {
+    const b = new FakeBoard({ preset: 'pico-w', exec: () => undefined } as FakeBoardOptions);
+    const c = new Boards(deps(b).d, () => {}, { output: () => {}, sessions: () => {} });
+    await c.openConsole(PICO);
+    void c.console('e661', { do: 'run', name: 'main.py', code: 'while True: pass' });
+    await vi.waitFor(() => expect(c.consoles.e661).toEqual({ prompt: false, running: 'main.py' }));
+    const r = await c.send(PICO, { 'main.py': 'print(1)' }, { run: false, keep: false });
+    expect(r.ok).toBe(true);
+  });
+});
+
+describe('M10.4 the console\'s rarer ways', () => {
+  const rig = (b: FakeBoard) => {
+    const { d, closed } = deps(b);
+    return { d, closed, c: new Boards(d, () => {}, { output: () => {}, sessions: () => {} }) };
+  };
+
+  it('opened twice: one port; a console action or close with none open does nothing', async () => {
+    const r = rig(new FakeBoard({ preset: 'pico-w' }));
+    await r.c.openConsole(PICO);
+    expect(await r.c.openConsole(PICO)).toEqual({ ok: true });
+    expect(r.d.open).toHaveBeenCalledOnce();
+    await expect(r.c.console('nope', { do: 'interrupt' })).resolves.toBeUndefined();
+    await expect(r.c.closeConsole('nope')).resolves.toBeUndefined();
+  });
+
+  it('closed while a file runs there: the file is stopped first, then the port let go', async () => {
+    const b = new FakeBoard({ preset: 'pico-w', exec: () => undefined });
+    const r = rig(b);
+    await r.c.openConsole(PICO);
+    const run = r.c.console('e661', { do: 'run', name: 'main.py', code: 'while True: pass' });
+    await vi.waitFor(() => expect(r.c.consoles.e661).toEqual({ prompt: false, running: 'main.py' }));
+    await r.c.closeConsole('e661');
+    await run;
+    expect(r.closed).toHaveBeenCalledOnce();
+    expect(r.c.consoles).toEqual({});
+  });
+
+  it('a port that won\'t open for another reason: why, in the board\'s own words', async () => {
+    const c = new Boards(deps(new Error('Opening COM7: The semaphore timeout period has expired.')).d, () => {}, { output: () => {}, sessions: () => {} });
+    expect(await c.openConsole(PICO)).toEqual({ ok: false, message: "MicroLab can't talk to the board: Opening COM7: The semaphore timeout period has expired." });
+  });
+
+  it('unplugged (forgotten by the watcher) with its console open: the session ends', async () => {
+    const r = rig(new FakeBoard({ preset: 'pico-w' }));
+    await r.c.openConsole(PICO);
+    r.c.forget(['e661']);
+    expect(r.c.consoles).toEqual({});
+  });
+});

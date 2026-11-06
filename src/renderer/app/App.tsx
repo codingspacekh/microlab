@@ -11,8 +11,9 @@ import { StartPage } from './StartPage';
 import { Workspace } from '../workspace/Workspace';
 import { BoardChip, plugMessage } from '../board/BoardChip';
 import { SendToBoard, sendMessage } from '../board/SendToBoard';
+import { boardShort, useBoardConsole } from '../board/useBoardConsole';
 import type { BoardId } from '@lib/boards';
-import type { SendRequest } from '@lib/repl';
+import type { ConsoleAction, SendRequest } from '@lib/repl';
 import type { Detection, FoundBoard } from '@lib/usb';
 import { useRun, type RunState, type StartRun } from './useRun';
 
@@ -156,25 +157,52 @@ export function App({ api, width, startRun }: AppProps) {
     const t = setTimeout(() => setSent(null), 10_000);
     return () => clearTimeout(t);
   }, [sent]);
+  const bc = useBoardConsole(api, boards);
+  const nameOf = (id: string) => { const b = boards.boards.find((x) => x.id === id); return b ? boardShort(b, boards) : 'board'; };
   const send = async (id: string, req: SendRequest) => {
     if (!open) return;
     setNotice(null);
     setSent(null);
     setSending(true);
+    // the real board runs it now: the simulator stops (screen 16)
+    if (req.run && running) sim.stop();
     try {
       const r = await api.boards.send(id, open.doc.files, req);
-      if (r.ok) setSent(sendMessage(r, req));
-      else setNotice(r.message);
+      if (r.ok) {
+        const lines = sendMessage(r, req);
+        setSent(lines);
+        bc.note(id, [{ kind: 'sent', text: `${lines[0]}\n` }, ...lines.slice(1).map((l) => ({ kind: 'sys' as const, text: `${l}\n` }))]);
+      } else setNotice(r.message);
     } finally {
       setSending(false);
     }
   };
+  /** Opens the board's console (the port held): its tab shows; false (and why) if it can't be opened. */
+  const openConsole = async (id: string) => {
+    setNotice(null);
+    bc.show(id, nameOf(id));
+    const r = await api.boards.console.open(id);
+    if (!r.ok) setNotice(r.message);
+    return r.ok;
+  };
+  /** Run this file on the board (F-50 Rev 7): it runs there now, not saved as main.py — as Thonny does. */
+  const runOnBoard = async (id: string) => {
+    if (!open) return;
+    if (running) sim.stop();
+    if (!await openConsole(id)) return;
+    const code = open.doc.files[ENTRY];
+    bc.note(id, [{ kind: 'sys', text: `Running ${ENTRY} from the editor on the ${nameOf(id)} — its own main.py is unchanged.\n` }]);
+    await api.boards.console.do(id, { do: 'run', name: ENTRY, code: typeof code === 'string' ? code : new TextDecoder().decode(code) });
+  };
+  const consoleDo = (a: ConsoleAction) => { if (bc.shown) void api.boards.console.do(bc.shown.id, a); };
+  const boardRuns = bc.shown && bc.state && !bc.state.prompt ? `${bc.shown.name} (USB): running ${bc.state.running ?? 'main.py'}` : undefined;
   const chip = open ? (
     <>
       <BoardChip detection={boards} project={open.doc.project.board as BoardId} chosen={chosen}
         onChoose={(id) => { setChosen(id); void api.settings.set('board.chosen', id); }} onCheck={(id) => void api.boards.check(id)} />
       <SendToBoard detection={boards} project={open.doc.project.board as BoardId} chosen={chosen} files={open.doc.files}
-        busy={sending} onSend={(id, req) => void send(id, req)} />
+        entry={ENTRY} busy={sending} onSend={(id, req) => void send(id, req)}
+        onRunFile={(id) => void runOnBoard(id)} onOpenConsole={(id) => void openConsole(id)} />
     </>
   ) : null;
 
@@ -188,7 +216,25 @@ export function App({ api, width, startRun }: AppProps) {
   const page = controls ? <ControlsPage />
     : mode !== 'workspace' ? <Later mode={mode} />
     : open ? <Workspace key={open.key} api={api} width={width} doc={open.doc} onChange={(doc) => setOpen((cur) => (cur ? { ...cur, doc, savedNote: undefined } : cur))}
-        run={sim.state} running={running} onInput={sim.setInput} onClearConsole={sim.clear} />
+        run={sim.state} running={running} onInput={sim.setInput} onClearConsole={sim.clear}
+        consoleTab={bc.tab} onConsoleTab={bc.setTab}
+        board={bc.shown ? {
+          label: `${bc.shown.name} (USB)`, name: bc.shown.name, chunks: bc.chunks, ...(bc.state ? { state: bc.state } : {}),
+          onType: (text) => consoleDo({ do: 'type', text }),
+          onStop: () => consoleDo({ do: 'interrupt' }),
+          onRestart: () => consoleDo({ do: 'restart' }),
+          onOpen: () => { if (bc.there) void openConsole(bc.shown!.id); else setNotice(`The ${bc.shown!.name} is not plugged in.`); },
+          onClose: () => void api.boards.console.close(bc.shown!.id),
+          onClear: bc.clear,
+        } : undefined}
+        banner={boardRuns ? (
+          <>
+            <Icon name="usb" size={14} />
+            <span><b>Running on the real {bc.shown!.name}.</b> The simulator is stopped — the real board must be wired like this picture.</span>
+            <span className="spacer" />
+            <button type="button" className="btn sm" onClick={() => consoleDo({ do: 'interrupt' })}><Icon name="stop" size={14} /> Stop the board</button>
+          </>
+        ) : undefined} />
     : <StartPage onNew={start} onOpen={actions.onOpen} onLearn={() => setMode('learn')} onExamples={() => setMode('examples')} />;
 
   return (
@@ -196,7 +242,7 @@ export function App({ api, width, startRun }: AppProps) {
       <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} dirty={dirty} run={runControls} chip={chip} {...actions} />
       {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
       {page}
-      <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} />
+      <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} board={boardRuns} />
       <div className="toasts">
         {sent && (
           <div className="toast sent" role="status" aria-live="polite">
@@ -351,7 +397,7 @@ function Notice({ text, onDismiss }: { text: string; onDismiss: () => void }) {
   );
 }
 
-function StatusBar({ project, run }: { project: OpenProject | null; run: RunState }) {
+function StatusBar({ project, run, board }: { project: OpenProject | null; run: RunState; board?: string }) {
   const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
   const p = project?.doc.project;
   const e = run.ended;
@@ -359,6 +405,7 @@ function StatusBar({ project, run }: { project: OpenProject | null; run: RunStat
     : run.status === 'stopping' ? <span className="st">Stopping…</span>
     : e?.ended === 'error' ? <span className="st bad">Stopped: an error{e.error?.line ? ` on line ${e.error.line}` : ''}</span>
     : e?.ended === 'fault' ? <span className="st bad">Stopped: the circuit was damaged</span>
+    : board ? <span className="st running"><span className="dot" />{board}</span>
     : project?.savedNote ? <span className="st saved">{project.savedNote}</span>
     : <span>Ready</span>;
   return (
