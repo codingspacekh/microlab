@@ -10,8 +10,10 @@ import { Icon } from './Icon';
 export interface MenuItem {
   label: string;
   icon?: string;
-  /** On the right, quieter: a shortcut. */
+  /** On the right, quieter: a shortcut, as shown ("⌘S"). */
   hint?: string;
+  /** The shortcut for screen readers (aria-keyshortcuts: "Meta+S Control+S"). */
+  keys?: string;
   disabled?: boolean;
   onSelect: () => void;
 }
@@ -103,13 +105,14 @@ export function MenuButton({ label, icon = 'chevd', items, className }: MenuButt
               role="menuitem"
               tabIndex={-1}
               aria-disabled={it.disabled || undefined}
+              aria-keyshortcuts={it.keys}
               className={cls('mi', i === hl && 'hl', it.disabled && 'dis')}
               onMouseMove={() => enabled(i) && i !== hl && setHl(i)}
               onClick={() => choose(i)}
             >
               {it.icon && <Icon name={it.icon} size={14} />}
               {it.label}
-              {it.hint && <small>{it.hint}</small>}
+              {it.hint && <small aria-hidden="true">{it.hint}</small>}
             </li>
           ))}
         </ul>

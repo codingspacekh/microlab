@@ -1,19 +1,11 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { legsCentre, partKind } from '@lib/editor';
 import { App } from '../../src/renderer/app/App';
-import type { MicrolabApi } from '../../src/renderer/app/api';
+import { fakeApi } from './fake-api';
 
 /** M4.3 the workspace (screens 02, 03): the board and breadboard drawn, parts dragged in (F-10), moved (F-11),
  *  wires from pin to pin (F-13, basic). In jsdom the canvas has no screen matrix: client = world − viewBox corner. */
-function fakeApi(): MicrolabApi {
-  const stored: Record<string, unknown> = {};
-  return {
-    versions: { app: '0.4.0', electron: '0' },
-    settings: { get: async (k) => stored[k], set: async (k, v) => { stored[k] = v; } },
-    project: { open: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
-  };
-}
 
 function setup(board = 'New Pico W project') {
   render(<App api={fakeApi()} width={1440} />);

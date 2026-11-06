@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { App } from '../../src/renderer/app/App';
 import type { MicrolabApi } from '../../src/renderer/app/api';
 import { CodeEditor } from '../../src/renderer/editor/CodeEditor';
+import { fakeApi } from './fake-api';
 
 /** M4.4 F-20 (basic): main.py in a CodeMirror editor with Python — as on screens 02 and 03. */
 const viewOf = (el: HTMLElement) => EditorView.findFromDOM(el.closest('.cm-editor') as HTMLElement)!;
@@ -49,14 +50,7 @@ describe('M4.4 the code editor', () => {
 });
 
 describe('M4.4 main.py in the workspace', () => {
-  const api = (): MicrolabApi => {
-    const stored: Record<string, unknown> = {};
-    return {
-      versions: { app: '0.4.0', electron: '0' },
-      settings: { get: async (k) => stored[k], set: async (k, v) => { stored[k] = v; } },
-      project: { open: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
-    };
-  };
+  const api = (): MicrolabApi => fakeApi();
 
   it('the code side has a main.py tab and the starter program in the editor', () => {
     render(<App api={api()} width={1440} />);

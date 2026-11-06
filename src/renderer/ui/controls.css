@@ -126,3 +126,11 @@ body.dragging { cursor: pointer; user-select: none; }
 .menuwrap .menu .mi:focus { outline: none; background: var(--bg-2); }
 .menuwrap .menu .mi .ico { color: var(--tx-3); }
 .btn.on { background: var(--bg-2); }
+
+/* ---------- dialog (screen 08) ---------- */
+.overlay { position: fixed; inset: 0; z-index: 100; background: var(--overlay, rgba(15, 23, 42, .38)); }
+.dialog { position: absolute; background: var(--panel); border-radius: 14px; box-shadow: var(--shadow-l); }
+.dialog.center { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(var(--dw, 460px), calc(100% - 64px)); }
+.dialog .dh { padding: 18px 20px 6px; display: flex; align-items: center; gap: 10px; }
+.dialog .db { padding: 8px 20px 16px; color: var(--tx-2); line-height: 1.5; font-size: 13px; }
+.dialog .df { padding: 12px 20px; border-top: 1px solid var(--line); display: flex; gap: 8px; align-items: center; background: var(--bg); border-radius: 0 0 14px 14px; }

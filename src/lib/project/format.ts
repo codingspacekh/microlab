@@ -21,6 +21,12 @@ export type OpenResult =
   | { ok: false; message: string }
   | { ok: false; canceled: true };
 
+/** What saving a file gives the window. */
+export type SaveResult =
+  | { ok: true; path: string; name: string }
+  | { ok: false; message: string }
+  | { ok: false; canceled: true };
+
 export class MlabError extends Error {
   /** The message after the file's name: “photo.mlab” isn't a MicroLab project … */
   readonly reason: string;

@@ -9,3 +9,4 @@ export { TextArea, TextField, type TextAreaProps, type TextFieldProps } from './
 export { Divider, type DividerProps } from './Divider';
 export { Icon, Logo } from './Icon';
 export { MenuButton, type MenuButtonProps, type MenuItem } from './Menu';
+export { Dialog, type DialogAction, type DialogProps } from './Dialog';

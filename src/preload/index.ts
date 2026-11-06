@@ -9,5 +9,15 @@ contextBridge.exposeInMainWorld('microlab', {
   },
   project: {
     open: (): Promise<unknown> => ipcRenderer.invoke('project:open'),
+    save: (doc: unknown, opts: unknown): Promise<unknown> => ipcRenderer.invoke('project:save', doc, opts),
+  },
+  app: {
+    setDirty: (dirty: boolean): void => ipcRenderer.send('app:dirty', dirty),
+    onCloseRequest: (handler: () => void): (() => void) => {
+      const listener = () => handler();
+      ipcRenderer.on('app:close-request', listener);
+      return () => { ipcRenderer.removeListener('app:close-request', listener); };
+    },
+    close: (): Promise<void> => ipcRenderer.invoke('app:close'),
   },
 });

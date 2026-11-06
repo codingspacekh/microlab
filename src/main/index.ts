@@ -3,8 +3,10 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, protocol, session } from 'electron';
 import { APP_SCHEME, APP_URL, isolationHeaders, resolveAppPath, responseHeaders } from './app-protocol';
-import { openProjectFile } from './project-files';
+import { mkdirSync } from 'node:fs';
+import { openProjectFile, saveProjectFile } from './project-files';
 import { SettingsStore } from './settings';
+import type { ProjectDoc } from '@lib/project';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const rendererDir = join(here, '../renderer');
@@ -28,6 +30,10 @@ function serveAppFiles(): void {
   });
 }
 
+/** Windows with unsaved changes, and windows the student agreed to close anyway (by webContents id). */
+const dirty = new Map<number, boolean>();
+const closing = new Set<number>();
+
 function createWindow(): void {
   const win = new BrowserWindow({
     title: 'MicroLab',
@@ -45,6 +51,12 @@ function createWindow(): void {
     },
   });
   win.once('ready-to-show', () => win.show());
+  // unsaved changes: the window asks the student first (M4.6), then closes itself through app:close
+  win.on('close', (e) => {
+    if (!dirty.get(win.webContents.id) || closing.has(win.webContents.id)) return;
+    e.preventDefault();
+    win.webContents.send('app:close-request');
+  });
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   void win.loadURL(devUrl ?? APP_URL);
 }
@@ -54,6 +66,24 @@ app.whenReady().then(() => {
   const settings = new SettingsStore(join(app.getPath('userData'), 'settings.json'));
   ipcMain.handle('settings:get', (_e, key: string) => settings.get(key));
   ipcMain.handle('settings:set', (_e, key: string, value: unknown) => settings.set(key, value));
+  ipcMain.on('app:dirty', (e, value: boolean) => { dirty.set(e.sender.id, value); });
+  ipcMain.handle('app:close', (e) => {
+    closing.add(e.sender.id);
+    BrowserWindow.fromWebContents(e.sender)?.close();
+  });
+  ipcMain.handle('project:save', async (e, doc: ProjectDoc, opts: { path?: string; name: string }) => {
+    let path = opts.path;
+    if (!path) {
+      const folder = join(app.getPath('documents'), 'MicroLab');
+      mkdirSync(folder, { recursive: true });
+      const win = BrowserWindow.fromWebContents(e.sender);
+      const options = { title: 'Save the project', defaultPath: join(folder, `${opts.name}.mlab`), filters: [{ name: 'MicroLab project', extensions: ['mlab'] }] };
+      const r = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+      if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+      path = r.filePath;
+    }
+    return saveProjectFile(path, doc);
+  });
   ipcMain.handle('project:open', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const options = { title: 'Open a project', filters: [{ name: 'MicroLab project', extensions: ['mlab'] }], properties: ['openFile' as const] };

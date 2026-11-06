@@ -6,6 +6,7 @@ import { App } from '../../src/renderer/app/App';
 import type { MicrolabApi } from '../../src/renderer/app/api';
 import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
+import { fakeApi } from './fake-api';
 
 /** M4.5 F-22, F-23 (screen 03): Run, Stop, Restart, the console, LEDs glowing and buttons pressed while running.
  *  The simulation is a fake here (the real worker runs in the e2e tests): the test says what the worker says. */
@@ -22,12 +23,7 @@ function fakeSim() {
 }
 
 function api(): MicrolabApi {
-  const stored: Record<string, unknown> = {};
-  return {
-    versions: { app: '0.4.0', electron: '0' },
-    settings: { get: async (k) => stored[k], set: async (k, v) => { stored[k] = v; } },
-    project: { open: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
-  };
+  return fakeApi();
 }
 
 function setup(board = 'New Pico W project') {

@@ -14,6 +14,8 @@ test.beforeEach(async () => {
 });
 
 test.afterEach(async () => {
+  // unsaved changes would make the window ask before it closes (M4.6): end it without asking
+  await app?.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach((w) => w.destroy())).catch(() => {});
   await app?.close();
   rmSync(home, { recursive: true, force: true });
 });

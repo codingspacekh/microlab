@@ -2,17 +2,11 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { newProject, type OpenResult } from '@lib/project';
 import { App } from '../../src/renderer/app/App';
-import type { MicrolabApi } from '../../src/renderer/app/api';
+import { fakeApi as sharedApi } from './fake-api';
 
 /** M4.2 the Start screen (01, minimal): a new project from a board (F-01), open a .mlab (F-02). */
 function fakeApi(open: () => Promise<OpenResult> = async () => ({ ok: false, canceled: true })) {
-  const stored: Record<string, unknown> = {};
-  const api: MicrolabApi = {
-    versions: { app: '0.4.0', electron: '0' },
-    settings: { get: async (key) => stored[key], set: async (key, value) => { stored[key] = value; } },
-    project: { open: vi.fn(open) },
-  };
-  return api;
+  return sharedApi({ open: vi.fn(open) });
 }
 
 const projectBar = () => screen.getByRole('group', { name: 'Project' });
@@ -42,7 +36,7 @@ describe('M4.2 the Start screen', () => {
     expect(screen.getByRole('region', { name: 'Circuit' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Workspace' })).toHaveAttribute('aria-selected', 'true');
     expect(within(projectBar()).getByText('Untitled project')).toBeInTheDocument();
-    expect(within(projectBar()).getByText(board)).toBeInTheDocument();
+    expect(projectBar()).toHaveTextContent(`${board} · not saved`);
     expect(screen.getByRole('region', { name: 'Code' }).textContent).toContain(code);
   });
 
@@ -53,7 +47,7 @@ describe('M4.2 the Start screen', () => {
     await screen.findByRole('region', { name: 'Circuit' });
     expect(api.project.open).toHaveBeenCalledOnce();
     expect(within(projectBar()).getByText('Night light')).toBeInTheDocument();
-    expect(within(projectBar()).getByText('ESP32 DevKit V1 (30 pins)')).toBeInTheDocument();
+    expect(projectBar()).toHaveTextContent('ESP32 DevKit V1 (30 pins)');
   });
 
   it('a file that can\'t be opened: its message is shown, and the start screen stays', async () => {
@@ -120,10 +114,10 @@ describe('M4.2 the project menu in the workspace', () => {
     expect(items[0]).toHaveFocus();
     fireEvent.keyDown(items[0]!, { key: 'ArrowDown' });
     expect(items[1]).toHaveFocus();
-    fireEvent.keyDown(items[1]!, { key: 'ArrowDown' });
-    expect(items[0]).toHaveFocus();
-    fireEvent.keyDown(items[0]!, { key: 'End' });
+    fireEvent.keyDown(items[1]!, { key: 'End' });
     expect(items[items.length - 1]).toHaveFocus();
+    fireEvent.keyDown(items[items.length - 1]!, { key: 'ArrowDown' });
+    expect(items[0]).toHaveFocus();   // round to the first
     fireEvent.keyDown(items[0]!, { key: 'Escape' });
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(button).toHaveFocus();

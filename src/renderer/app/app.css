@@ -213,3 +213,4 @@ h3 { font-size: 13px; font-weight: 650; }
 .fc .st { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--tx-3); min-width: 0; }
 .statusbar .st.running { color: var(--run); } .statusbar .st.running .dot { background: var(--run); }
 .statusbar .st.bad { color: var(--danger); }
+.statusbar .st.saved { color: var(--success); }
