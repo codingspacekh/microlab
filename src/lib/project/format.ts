@@ -41,6 +41,9 @@ const PROJECT_JSON = 'project.json';
 const FILES = 'files/';
 const TEXT = /\.(py|txt|html?|css|js|mjs|json|md|csv|xml|svg|cfg|ini|toml)$/i;
 
+/** A project file kept as text (shown in the editor) or as bytes, by its name. */
+export const isTextFile = (path: string) => TEXT.test(path);
+
 export function writeMlab(doc: ProjectDoc): Uint8Array {
   const entries: Zippable = { [PROJECT_JSON]: strToU8(`${JSON.stringify(doc.project, null, 2)}\n`) };
   for (const [path, contents] of Object.entries(doc.files)) {

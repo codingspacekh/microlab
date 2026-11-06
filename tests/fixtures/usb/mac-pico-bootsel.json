@@ -1,0 +1,9 @@
+{
+  "source": "The teacher's Pico W in BOOTSEL mode on the MacBook, 2026-11-06 (machine.bootloader()): no serial port, the RPI-RP2 drive mounted.",
+  "platform": "darwin",
+  "volumes": ["BOOTCAMP", "Macintosh HD", "RPI-RP2"],
+  "ports": [
+    { "path": "/dev/tty.BLTH" },
+    { "path": "/dev/tty.Bluetooth-Incoming-Port" }
+  ]
+}

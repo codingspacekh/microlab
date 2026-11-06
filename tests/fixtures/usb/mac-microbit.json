@@ -1,0 +1,10 @@
+{
+  "source": "The teacher's micro:bit V2 on the same MacBook, 2026-11-06: rebuilt from mpremote's port list (same fields as serialport: port, serial number, 0d28:0204, 'Arm', 'BBC micro:bit CMSIS-DAP'); the MICROBIT drive is always there. Re-record with serialport when the micro:bit is plugged in again.",
+  "platform": "darwin",
+  "volumes": ["BOOTCAMP", "Macintosh HD", "MICROBIT"],
+  "ports": [
+    { "path": "/dev/tty.BLTH" },
+    { "path": "/dev/tty.Bluetooth-Incoming-Port" },
+    { "path": "/dev/tty.usbmodem14202", "manufacturer": "Arm", "serialNumber": "9906360200052820e706ba99b3769484000000006e052820", "locationId": "14200000", "vendorId": "0d28", "productId": "0204" }
+  ]
+}

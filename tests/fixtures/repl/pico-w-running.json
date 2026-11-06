@@ -1,0 +1,93 @@
+{
+ "source": "Recorded on the teacher's Pico W (MicroPython v1.29.0, their own main.py) with serialport 13 on macOS, 2026-11-06: its main.py running (it catches Ctrl-C and prints \"stopping\"); the same check",
+ "exchange": [
+  {
+   "t": 306,
+   "app": "\r\u0003\u0003"
+  },
+  {
+   "t": 308,
+   "board": "stopping\r\n"
+  },
+  {
+   "t": 308,
+   "board": "MicroPython v1.29.0 on 2026-08-24; Raspberry Pi Pico W with RP2040\r\nType \"help()\" for more information.\r\n>>> "
+  },
+  {
+   "t": 407,
+   "app": "\r\u0001"
+  },
+  {
+   "t": 407,
+   "board": "\r\n"
+  },
+  {
+   "t": 407,
+   "board": ">>> \r\nraw REPL; CTRL-B to exit\r\n>"
+  },
+  {
+   "t": 413,
+   "app": "import os\nprint(os.uname())\u0004"
+  },
+  {
+   "t": 414,
+   "board": "OK"
+  },
+  {
+   "t": 428,
+   "board": "("
+  },
+  {
+   "t": 430,
+   "board": "sysname='rp2', nodename='rp2', release='1.29.0', version='v1.29."
+  },
+  {
+   "t": 430,
+   "board": "0 on 2026-08-24 (GNU 16.1.0 MinSizeRel)', machine='Raspberry Pi Pico W with RP2040')\r\n\u0004\u0004>"
+  },
+  {
+   "t": 435,
+   "app": "\u0002"
+  },
+  {
+   "t": 436,
+   "board": "\r\n"
+  },
+  {
+   "t": 436,
+   "board": "MicroPython v1.29.0 on 2026-08-24; Raspberry Pi Pico W with RP2040\r\nType \"help()\" for more information.\r\n>>> "
+  },
+  {
+   "t": 441,
+   "app": "\u0004"
+  },
+  {
+   "t": 441,
+   "board": "\r\n"
+  },
+  {
+   "t": 446,
+   "board": "MPY: soft reboot\r\n"
+  },
+  {
+   "t": 739,
+   "board": "Joining 'CHAMPIONCODERS' ..."
+  },
+  {
+   "t": 741,
+   "board": "\r\n"
+  },
+  {
+   "t": 765,
+   "board": "   status: connecting\r\n"
+  },
+  {
+   "t": 1670,
+   "board": "   status:"
+  },
+  {
+   "t": 1670,
+   "board": " network not found - check the name, and that it is 2.4GHz\r\n"
+  }
+ ]
+}

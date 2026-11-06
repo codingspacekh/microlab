@@ -1,0 +1,10 @@
+{
+  "source": "CONSTRUCTED from serialport's documented Windows output (upper-case IDs, COM ports, pnpId) — a Pico W and an ESP32 DevKit V1 with a CP2102; to be replaced by a list recorded on Windows 11 in M10's manual matrix.",
+  "platform": "win32",
+  "volumes": [],
+  "ports": [
+    { "path": "COM1", "manufacturer": "(Standard port types)", "pnpId": "ACPI\\PNP0501\\0" },
+    { "path": "COM5", "manufacturer": "Microsoft", "serialNumber": "E6614103E7519826", "pnpId": "USB\\VID_2E8A&PID_0005&MI_00\\6&2C2E7E6A&0&0000", "vendorId": "2E8A", "productId": "0005", "friendlyName": "USB Serial Device (COM5)" },
+    { "path": "COM7", "manufacturer": "Silicon Labs", "serialNumber": "0001", "pnpId": "USB\\VID_10C4&PID_EA60\\0001", "vendorId": "10C4", "productId": "EA60", "friendlyName": "Silicon Labs CP210x USB to UART Bridge (COM7)" }
+  ]
+}

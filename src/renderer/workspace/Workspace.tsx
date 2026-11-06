@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { PART_KINDS } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { ProjectDoc } from '@lib/project';
-import { Console } from '../console/Console';
+import { Console, type BoardConsoleView } from '../console/Console';
 import { CodeEditor } from '../editor/CodeEditor';
 import type { RunState } from '../app/useRun';
 import { Divider } from '../ui/Divider';
@@ -40,11 +40,17 @@ export interface WorkspaceProps {
   /** A part's live input while running: 'pressed:btn1' → 1 / 0. */
   onInput: (name: string, value: number) => void;
   onClearConsole: () => void;
+  /** The real board's console (M10.4, screen 16), its tab chosen or not. */
+  board?: BoardConsoleView;
+  consoleTab?: 'sim' | 'board';
+  onConsoleTab?: (tab: 'sim' | 'board') => void;
+  /** Over the canvas while the real board runs: the simulator is stopped, the board must be wired like this. */
+  banner?: ReactNode;
 }
 
 const IDLE_RUN: Pick<RunState, 'parts' | 'board'> = { parts: {}, board: { pins: {} } };
 
-export function Workspace({ api, width: fixed, doc, onChange, run, running, onInput, onClearConsole }: WorkspaceProps) {
+export function Workspace({ api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, onConsoleTab, banner }: WorkspaceProps) {
   const { ref, width } = useWidth(fixed);
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
   const [drag, setDrag] = useState<Partial<Record<keyof Layout, number>>>({});
@@ -119,6 +125,7 @@ export function Workspace({ api, width: fixed, doc, onChange, run, running, onIn
       <section className="canvas" aria-label="Circuit">
         <Canvas project={project} onChange={setProject} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection}
           running={running} outputs={running || run.ended ? run : IDLE_RUN} onInput={onInput} />
+        {banner && <div className="cbanner">{banner}</div>}
         {selection && (
           <Inspector key={`${selection.kind}:${selection.id}`} project={project} selection={selection} onChange={setProject} onClose={() => setSelection(null)} />
         )}
@@ -130,7 +137,7 @@ export function Workspace({ api, width: fixed, doc, onChange, run, running, onIn
           <button type="button" role="tab" aria-selected="true"><Icon name="file" size={14} /> main.py</button>
         </div>
         <CodeEditor label="main.py" value={text(doc.files['main.py'])} onChange={(code) => onChange({ ...doc, files: { ...doc.files, 'main.py': code } })} />
-        <Console chunks={run.console} running={running} entry="main.py" onClear={onClearConsole} />
+        <Console chunks={run.console} running={running} entry="main.py" onClear={onClearConsole} board={realBoard} tab={consoleTab} onTab={onConsoleTab} />
       </section>
     </div>
   );

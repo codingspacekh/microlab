@@ -1,0 +1,10 @@
+{
+  "source": "CONSTRUCTED from Windows' documented Get-PnpDevice output (ConvertTo-Json) — an ESP32 DevKit V1 with a CP2102 and no driver installed (Status Error, Problem 28 = CM_PROB_FAILED_INSTALL), beside a Pico W that needs none; to be replaced by a list recorded on a clean Windows 11 in M10's manual matrix.",
+  "platform": "win32",
+  "volumes": [],
+  "ports": [
+    { "path": "COM1", "manufacturer": "(Standard port types)", "pnpId": "ACPI\\PNP0501\\0" },
+    { "path": "COM5", "manufacturer": "Microsoft", "serialNumber": "E6614103E7519826", "pnpId": "USB\\VID_2E8A&PID_0005&MI_00\\6&2C2E7E6A&0&0000", "vendorId": "2E8A", "productId": "0005", "friendlyName": "USB Serial Device (COM5)" }
+  ],
+  "pnp": "[{\"InstanceId\":\"USB\\\\VID_2E8A&PID_0005&MI_00\\\\6&2C2E7E6A&0&0000\",\"Status\":\"OK\",\"Class\":\"Ports\",\"FriendlyName\":\"USB Serial Device (COM5)\",\"Problem\":0},{\"InstanceId\":\"USB\\\\VID_10C4&PID_EA60\\\\0001\",\"Status\":\"Error\",\"Class\":null,\"FriendlyName\":\"CP2102 USB to UART Bridge Controller\",\"Problem\":28},{\"InstanceId\":\"USB\\\\ROOT_HUB30\\\\4&1A2B3C&0&0\",\"Status\":\"OK\",\"Class\":\"USB\",\"FriendlyName\":\"USB Root Hub (USB 3.0)\",\"Problem\":0}]"
+}
