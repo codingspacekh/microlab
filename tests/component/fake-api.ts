@@ -13,6 +13,9 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}): Microlab
       ...project,
     },
     boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(async () => {}), send: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+      install: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+      cancelInstall: vi.fn(async () => {}),
+      onInstallStep: vi.fn(() => () => {}),
       files: {
         list: vi.fn(async () => ({ ok: false as const, message: 'no' })),
         read: vi.fn(async () => ({ ok: false as const, message: 'no' })),
@@ -23,6 +26,6 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}): Microlab
       },
       console: { open: vi.fn(async () => ({ ok: true as const })), close: vi.fn(async () => {}), do: vi.fn(async () => {}), onOutput: vi.fn(() => () => {}) },
       onChange: vi.fn(() => () => {}) },
-    app: { setDirty: vi.fn(), onCloseRequest: vi.fn(() => () => {}), close: vi.fn(), copy: vi.fn(async () => {}), openDriverPage: vi.fn(async () => {}) },
+    app: { setDirty: vi.fn(), onCloseRequest: vi.fn(() => () => {}), close: vi.fn(), copy: vi.fn(async () => {}), openDriverPage: vi.fn(async () => {}), showFirmware: vi.fn(async () => {}) },
   };
 }

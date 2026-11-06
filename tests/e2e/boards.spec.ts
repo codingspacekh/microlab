@@ -1,4 +1,4 @@
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
@@ -197,4 +197,27 @@ test('M10.6 R5 an ESP32 whose USB chip has no driver (Windows\' device list, con
   const helper = win.getByRole('dialog', { name: 'Help connecting a board' });
   await expect(helper).toContainText('This laptop has no driver for the CP210x chip');
   await expect(helper.getByRole('button', { name: 'Open the CP210x driver page' })).toBeVisible();
+});
+
+test('M10.7 F-52 installing MicroPython on a Pico W in BOOTSEL: the .uf2 copied to its drive; it comes back answering', async () => {
+  const win = await app.firstWindow();
+  // the fake RPI-RP2 drive: a folder beside the fake port list
+  const drive = join(home, 'volumes', 'RPI-RP2');
+  mkdirSync(drive, { recursive: true });
+  plug('mac-pico-bootsel');
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  const chip = win.getByRole('button', { name: /^Board:/ });
+  await expect(chip).toHaveAccessibleName('Board: Pico, BOOTSEL mode', { timeout: 2000 });
+  await chip.click();
+  await win.getByRole('dialog', { name: 'Board' }).getByRole('button', { name: /Install MicroPython 1.29/ }).click();
+  const dialog = win.getByRole('dialog', { name: 'Install MicroPython on the Pico W' });
+  await dialog.getByRole('button', { name: 'Install' }).click();
+
+  const uf2 = join(drive, 'RPI_PICO_W-20260824-v1.29.0.uf2');
+  await expect.poll(() => existsSync(uf2) && statSync(uf2).size, { timeout: 5000 }).toBe(1811456);
+  // the Pico takes it and restarts: the drive goes, the board comes back with MicroPython
+  plug('mac-pico-w');
+  await expect(dialog).toContainText('MicroPython 1.29.0 is on the Pico W.', { timeout: 6000 });
+  await expect(chip).toHaveAccessibleName('Board: Pico W, ready, MicroPython 1.29');
+  await dialog.getByRole('button', { name: 'Close' }).click();
 });

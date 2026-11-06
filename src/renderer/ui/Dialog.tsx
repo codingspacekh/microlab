@@ -12,6 +12,7 @@ export interface DialogAction {
   /** The main choice: drawn as such, and it has the focus first. */
   primary?: boolean;
   danger?: boolean;
+  disabled?: boolean;
 }
 
 export interface DialogProps {
@@ -63,7 +64,7 @@ export function Dialog({ title, children, actions, onCancel, role = 'alertdialog
           {note && <span className="small muted row dnote">{note}</span>}
           <span className="spacer" />
           {actions.map((a, i) => (
-            <button key={a.label} ref={i === main ? first : undefined} type="button" className={cls('btn', a.primary && 'primary', a.danger && 'danger')} onClick={a.onClick}>
+            <button key={a.label} ref={i === main ? first : undefined} type="button" className={cls('btn', a.primary && 'primary', a.danger && 'danger')} disabled={a.disabled} onClick={a.onClick}>
               {a.label}
             </button>
           ))}

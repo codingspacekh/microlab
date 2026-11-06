@@ -7,7 +7,9 @@ import { mkdirSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { SerialPort } from 'serialport';
-import { Boards } from './board-check';
+import { backupFolder, Boards } from './board-check';
+import { copyToDrive, drivePath, listVolumesWindows } from './drives';
+import { installMicroPython, type Firmware } from './firmware';
 import { BoardWatcher, listUsbWindows, listVolumes } from './board-watcher';
 import { whoHolds } from './port-holder';
 import { openSerial, type SerialLink } from './serial-link';
@@ -112,13 +114,22 @@ app.whenReady().then(() => {
   });
   // Real boards (F-55): the USB ports, looked at about once a second; every window is told what changed.
   const user = userInfo().username;
+  // Windows' drives come from PowerShell (slow): read at most every 3 s
+  let winVol: { at: number; list: Promise<{ name: string; path: string }[]> } | undefined;
+  const winVolumes = () => {
+    if (!winVol || Date.now() - winVol.at > 3000) winVol = { at: Date.now(), list: listVolumesWindows() };
+    return winVol.list;
+  };
   // Tests (and demos) can stand in for USB with a port-list file, rewritten to "plug" a board (tests/fixtures/usb);
   // its boards are FakeBoards, answering as its "answers" say (a preset, "silent", "busy" or "gone").
   const fake = process.env.MICROLAB_FAKE_USB;
   type FakeUsb = { ports: PortInfo[]; volumes: string[]; platform: string; answers?: Record<string, string>; holder?: string; pnp?: string };
   const fromFile = async () => JSON.parse(await readFile(fake!, 'utf8')) as FakeUsb;
+  // anything waiting for USB to change (installing MicroPython: the drive going, the board coming back)
+  const waiters = new Set<() => void>();
   const send = (now: Detection, changes: { plugged: FoundBoard[]; unplugged: FoundBoard[] }) => {
     for (const w of BrowserWindow.getAllWindows()) w.webContents.send('boards:changed', now, changes);
+    for (const w of [...waiters]) w();
   };
   const boardsNow = (): Detection => ({ ...watcher.current, checks: checker.checks, consoles: checker.consoles });
   // a board's console output, gathered and sent at most every 40 ms (a program printing in a loop can't flood the window)
@@ -187,7 +198,8 @@ app.whenReady().then(() => {
           listUsb: async () => parsePnp((await fromFile()).pnp ?? ''),
         }
       : {
-          listPorts: () => SerialPort.list(), listVolumes: () => listVolumes(process.platform, user), platform: process.platform,
+          listPorts: () => SerialPort.list(), platform: process.platform,
+          listVolumes: async () => (process.platform === 'win32' ? (await winVolumes()).map((v) => v.name) : listVolumes(process.platform, user)),
           ...(process.platform === 'win32' ? { listUsb: () => listUsbWindows() } : {}),
         },
     (now, changes, first) => {
@@ -200,6 +212,51 @@ app.whenReady().then(() => {
   );
   watcher.start();
   ipcMain.handle('boards:get', () => boardsNow());
+
+  // Installing MicroPython (F-52, screen 14b): the firmware shipped in library/firmware, copied to the board's drive
+  const firmwareDir = process.env.MICROLAB_FIRMWARE_DIR ?? join(here, '../../library/firmware');
+  const firmwareOf = async (kind: 'pico' | 'microbit'): Promise<Firmware> => {
+    const all = JSON.parse(await readFile(join(firmwareDir, 'firmware.json'), 'utf8')) as Record<string, { file: string; size: number; drive: string; version: string }>;
+    const f = all[kind === 'pico' ? 'pico-w' : 'microbit-v2']!;
+    return { file: join(firmwareDir, f.file), name: f.file, size: f.size, drive: f.drive, version: f.version };
+  };
+  const waitFor = <T,>(pick: (d: Detection) => T | undefined, ms: number, signal?: AbortSignal) => new Promise<T>((ok, fail) => {
+    const done = () => { waiters.delete(look); clearTimeout(timer); clearInterval(poll); signal?.removeEventListener('abort', stop); };
+    const look = () => { const v = pick(boardsNow()); if (v !== undefined) { done(); ok(v); } };
+    const stop = () => { done(); fail(new Error('aborted')); };
+    const timer = setTimeout(() => { done(); fail(new Error('timed out')); }, ms);
+    const poll = setInterval(look, 250);
+    signal?.addEventListener('abort', stop);
+    waiters.add(look);
+    look();
+  });
+  let installing: AbortController | undefined;
+  ipcMain.handle('boards:install', async (e, kind: 'pico' | 'microbit') => {
+    installing?.abort();
+    const ac = new AbortController();
+    installing = ac;
+    const fw = await firmwareOf(kind);
+    const keepFolder = backupFolder('micro-bit', new Date());
+    const res = await installMicroPython(kind, fw, {
+      now: boardsNow,
+      waitFor,
+      drivePath: (name) => (fake ? Promise.resolve(join(dirname(fake), 'volumes', name)) : drivePath(name, process.platform, user, winVolumes)),
+      copy: copyToDrive,
+      bootloader: (b) => checker.bootloader(b),
+      check: (b) => checker.check(b),
+      readAll: (b) => checker.readAll(b),
+      keep: async (files) => { let dir = ''; for (const [p, data] of Object.entries(files)) dir = await keepOld(keepFolder, p, data); return dir; },
+      restore: async (b, files) => {
+        const r = await checker.copyToBoard(b, files, false);
+        if (!r.ok) throw new Error(r.message);
+        return r.sent.length + r.same.length;
+      },
+    }, (step) => e.sender.send('boards:install-step', step), ac.signal);
+    if (installing === ac) installing = undefined;
+    return res;
+  });
+  ipcMain.handle('boards:install-cancel', () => installing?.abort());
+  ipcMain.handle('app:show-firmware', async (_e, kind: 'pico' | 'microbit') => shell.showItemInFolder((await firmwareOf(kind)).file));
   // the helper (F-56): its report to the clipboard; a USB chip's official driver page — no other page can be opened
   ipcMain.handle('app:copy', (_e, text: string) => clipboard.writeText(String(text)));
   ipcMain.handle('app:open-driver-page', async (_e, chip: string) => {

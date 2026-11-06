@@ -3,7 +3,7 @@ import type { BoardListing, ConsoleAction, ConsoleKind, SendRequest, SendResult 
 
 /** What the board did, or why it couldn't. */
 export type Result<T> = ({ ok: true } & T) | { ok: false; message: string };
-import type { Detection, FoundBoard, UsbChip } from '@lib/usb';
+import type { Detection, FoundBoard, InstallResult, InstallStep, UsbChip } from '@lib/usb';
 
 /** What the preload gives the window (src/preload/index.ts): the only way to Node (architecture §2.2). */
 export interface MicrolabApi {
@@ -26,6 +26,10 @@ export interface MicrolabApi {
     check(id: string): Promise<void>;
     /** Sends the project's files to the board (F-50): only those that changed; then it restarts and runs main.py. */
     send(id: string, files: ProjectDoc['files'], req: SendRequest): Promise<SendResult>;
+    /** Installs MicroPython from the firmware shipped with the app (F-52, screen 14b); its steps come as it goes. */
+    install(kind: 'pico' | 'microbit'): Promise<InstallResult>;
+    cancelInstall(): Promise<void>;
+    onInstallStep(handler: (step: InstallStep) => void): () => void;
     /** The board's files (F-53, screen 15); its program waits while they are looked at, until done. */
     files: {
       list(id: string, project: ProjectDoc['files']): Promise<Result<{ listing: BoardListing; board: string }>>;
@@ -56,6 +60,8 @@ export interface MicrolabApi {
     copy(text: string): Promise<void>;
     /** Opens a USB chip's official driver page in the system's browser (R5) — only those pages. */
     openDriverPage(chip: UsbChip): Promise<void>;
+    /** Shows a firmware file in Finder / File Explorer, to drag onto the board's drive by hand. */
+    showFirmware(kind: 'pico' | 'microbit'): Promise<void>;
   };
 }
 
@@ -77,6 +83,9 @@ export function getApi(): MicrolabApi {
       save: async () => ({ ok: false, message: 'Saving a file needs the MicroLab app.' }),
     },
     boards: { get: async () => ({ boards: [], drives: [] }), check: async () => {}, send: async () => ({ ok: false, message: 'Sending to a board needs the MicroLab app.' }),
+      install: async () => ({ ok: false, message: 'Installing MicroPython needs the MicroLab app.' }),
+      cancelInstall: async () => {},
+      onInstallStep: () => () => {},
       files: {
         list: async () => ({ ok: false, message: 'A board needs the MicroLab app.' }),
         read: async () => ({ ok: false, message: 'A board needs the MicroLab app.' }),
@@ -87,6 +96,6 @@ export function getApi(): MicrolabApi {
       },
       console: { open: async () => ({ ok: false, message: 'A board needs the MicroLab app.' }), close: async () => {}, do: async () => {}, onOutput: () => () => {} },
       onChange: () => () => {} },
-    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close(), copy: async (t) => navigator.clipboard?.writeText(t), openDriverPage: async () => {} },
+    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close(), copy: async (t) => navigator.clipboard?.writeText(t), openDriverPage: async () => {}, showFirmware: async () => {} },
   };
 }

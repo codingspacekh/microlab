@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { chipState, detect, parsePnp, type PortInfo } from '@lib/usb';
+import { chipState, detect, parsePnp, parseVolumes, type PortInfo } from '@lib/usb';
 
 /**
  * M10.6 F-56, R5: an ESP32's USB chip with no driver (mostly on Windows) is on USB but never becomes a serial port —
@@ -34,5 +34,14 @@ describe('M10.6 R5 a USB chip with no driver', () => {
 
   it('without a device list (macOS, Linux) nothing is said about drivers', () => {
     expect(detect(f.ports, [], 'darwin').noDriver).toBeUndefined();
+  });
+});
+
+describe('M10.7 Windows\' drives (a Pico in BOOTSEL shows RPI-RP2 there too)', () => {
+  it('Get-Volume\'s list: each lettered drive\'s name and where it is (CONSTRUCTED from the documented output)', () => {
+    const json = '[{"DriveLetter":"C","FileSystemLabel":"Windows"},{"DriveLetter":"E","FileSystemLabel":"RPI-RP2"},{"DriveLetter":null,"FileSystemLabel":"Recovery"}]';
+    expect(parseVolumes(json)).toEqual([{ name: 'Windows', path: 'C:\\' }, { name: 'RPI-RP2', path: 'E:\\' }]);
+    expect(parseVolumes('{"DriveLetter":"F","FileSystemLabel":"MICROBIT"}')).toEqual([{ name: 'MICROBIT', path: 'F:\\' }]);
+    expect(parseVolumes('')).toEqual([]);
   });
 });

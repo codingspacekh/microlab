@@ -479,3 +479,27 @@ describe('M10.5 Board files: when it can\'t be done', () => {
     expect(b.softReboots).toBe(0);
   });
 });
+
+describe('M10.7 F-52 the board side of installing', () => {
+  const enc = (t: string) => new TextEncoder().encode(t);
+
+  it('a Pico running MicroPython is asked to restart into BOOTSEL (machine.bootloader()): its port goes', async () => {
+    const b = new FakeBoard({ preset: 'pico-w', program: {} } as FakeBoardOptions);
+    const c = new Boards({ ...deps(b).d, repl: { pauseMs: 0, replyMs: 100 } }, () => {});
+    await c.bootloader(PICO);
+    expect(b.bootloaded).toBe(true);
+  });
+
+  it('all of a micro:bit\'s files, read to keep them', async () => {
+    const b = new FakeBoard({ preset: 'microbit-v2', files: { 'main.py': enc('# mine'), 'data.txt': enc('42') } } as FakeBoardOptions);
+    const c = new Boards(deps(b).d, () => {});
+    const all = await c.readAll({ ...PICO, kind: 'microbit' });
+    expect(Object.keys(all).sort()).toEqual(['data.txt', 'main.py']);
+    expect(new TextDecoder().decode(all['main.py'])).toBe('# mine');
+  });
+
+  it('a board that can\'t be read: an error, not an empty list (installing would lose its files)', async () => {
+    const c = new Boards(deps(new Error('Cannot lock port'), 'Thonny').d, () => {});
+    await expect(c.readAll(PICO)).rejects.toThrow(/used by Thonny/);
+  });
+});

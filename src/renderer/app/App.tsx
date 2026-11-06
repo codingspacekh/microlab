@@ -12,6 +12,7 @@ import { Workspace } from '../workspace/Workspace';
 import { BoardChip, plugMessage } from '../board/BoardChip';
 import { BoardFiles } from '../board/BoardFiles';
 import { ConnectionHelper } from '../board/ConnectionHelper';
+import { InstallMicroPython } from '../board/InstallMicroPython';
 import { SendToBoard, sendMessage } from '../board/SendToBoard';
 import { boardShort, useBoardConsole } from '../board/useBoardConsole';
 import type { BoardId } from '@lib/boards';
@@ -196,8 +197,9 @@ export function App({ api, width, startRun }: AppProps) {
     bc.note(id, [{ kind: 'sys', text: `Running ${ENTRY} from the editor on the board — its own main.py is unchanged.\n` }]);
     await api.boards.console.do(id, { do: 'run', name: ENTRY, code: typeof code === 'string' ? code : new TextDecoder().decode(code) });
   };
-  // the connection helper (F-56), while it is open
+  // the connection helper (F-56), installing MicroPython (F-52): while open
   const [helping, setHelping] = useState(false);
+  const [installing, setInstalling] = useState<'pico' | 'microbit' | null>(null);
   // Board files (F-53): the board whose files are shown, while the panel is open
   const [filesOf, setFilesOf] = useState<{ id: string; name: string } | null>(null);
   const consoleDo = (a: ConsoleAction) => { if (bc.shown) void api.boards.console.do(bc.shown.id, a); };
@@ -206,7 +208,7 @@ export function App({ api, width, startRun }: AppProps) {
     <>
       <BoardChip detection={boards} project={open.doc.project.board as BoardId} chosen={chosen}
         onChoose={(id) => { setChosen(id); void api.settings.set('board.chosen', id); }} onCheck={(id) => void api.boards.check(id)}
-        onHelp={() => setHelping(true)} />
+        onHelp={() => setHelping(true)} onInstall={setInstalling} />
       <SendToBoard detection={boards} project={open.doc.project.board as BoardId} chosen={chosen} files={open.doc.files}
         entry={ENTRY} busy={sending} onSend={(id, req) => void send(id, req)}
         onRunFile={(id) => void runOnBoard(id)} onOpenConsole={(id) => void openConsole(id)}
@@ -269,7 +271,11 @@ export function App({ api, width, startRun }: AppProps) {
       </div>
       {helping && open && (
         <ConnectionHelper api={api} detection={boards} kind={kindOf(open.doc.project.board as BoardId)}
-          projectBoard={boardName(open)} chosen={chosen} onClose={() => setHelping(false)} />
+          projectBoard={boardName(open)} chosen={chosen} onClose={() => setHelping(false)}
+          onInstall={(k) => { setHelping(false); setInstalling(k); }} />
+      )}
+      {installing && (
+        <InstallMicroPython api={api} kind={installing} detection={boards} onClose={() => setInstalling(null)} />
       )}
       {filesOf && open && (
         <BoardFiles api={api} id={filesOf.id} name={nameOf(filesOf.id)} doc={open.doc}

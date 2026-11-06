@@ -17,6 +17,9 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       save: vi.fn(save),
     },
     boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(async () => {}), send: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+      install: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+      cancelInstall: vi.fn(async () => {}),
+      onInstallStep: vi.fn(() => () => {}),
       files: {
         list: vi.fn(async () => ({ ok: false as const, message: 'no' })),
         read: vi.fn(async () => ({ ok: false as const, message: 'no' })),
@@ -33,6 +36,7 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       close: vi.fn(),
       copy: vi.fn(async () => {}),
       openDriverPage: vi.fn(async () => {}),
+      showFirmware: vi.fn(async () => {}),
     },
   } satisfies MicrolabApi;
   return { api, requestClose: () => act(() => closeRequest?.()) };

@@ -31,6 +31,8 @@ export interface BoardChipProps {
   onCheck: (id: string) => void;
   /** Opens the connection helper (F-56, screen 14). */
   onHelp: () => void;
+  /** Installs MicroPython on a Pico or a micro:bit (F-52, screen 14b). */
+  onInstall: (kind: 'pico' | 'microbit') => void;
 }
 
 /** The chip's colour, its words (face and spoken), from its state. */
@@ -63,7 +65,7 @@ function look(state: ChipState, project: BoardId, count: number, consoles?: Dete
   return { tone, label: `${short}, ${said}${several}`, face: <><img src={k.art} alt="" />{short} <span className="sub">· {sub}</span></> };
 }
 
-export function BoardChip({ detection, project, chosen, onChoose, onCheck, onHelp }: BoardChipProps) {
+export function BoardChip({ detection, project, chosen, onChoose, onCheck, onHelp, onInstall }: BoardChipProps) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -100,6 +102,12 @@ export function BoardChip({ detection, project, chosen, onChoose, onCheck, onHel
           )}
           {'board' in state && (
             <BoardCard state={state} want={WANT[project]} checked={state.board.id in checks} onCheck={again!} />
+          )}
+          {state.kind === 'bootsel' && (
+            <button type="button" className="btn sm primary" onClick={() => { setOpen(false); onInstall('pico'); }}><Icon name="cpu" size={14} /> Install MicroPython 1.29…</button>
+          )}
+          {state.kind === 'no-micropython' && state.board.kind !== 'esp32' && (
+            <button type="button" className="btn sm primary" onClick={() => { setOpen(false); onInstall(state.board.kind as 'pico' | 'microbit'); }}><Icon name="cpu" size={14} /> Install MicroPython…</button>
           )}
           {!['ready', 'checking', 'sending'].includes(state.kind) && (
             <button type="button" className="btn sm" onClick={() => { setOpen(false); onHelp(); }}><Icon name="info" size={14} /> Help connecting…</button>

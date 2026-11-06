@@ -68,6 +68,8 @@ const busyMessage = (f: BoardCheck) => (f.state === 'busy'
   ? `The board is used by ${f.by ?? 'another program'}. Close ${f.by ?? 'it'}, or press Stop/Disconnect in it, then try again.`
   : `MicroLab can't talk to the board: ${(f as { message: string }).message}`);
 
+export const BOOTLOADER_CODE = 'import machine\nmachine.bootloader()';
+
 const KIND_SHORT = { pico: 'Pico', microbit: 'micro:bit', esp32: 'ESP32' } as const;
 
 /** A failure, in the student's words. */
@@ -385,6 +387,35 @@ export class Boards {
       await f.mkdir(path);
       return {};
     });
+  }
+
+  /** A Pico running MicroPython restarts into BOOTSEL (F-52): no button to hold. Its port goes as it does. */
+  async bootloader(board: FoundBoard): Promise<void> {
+    await this.queue(board.id, async () => {
+      this.endSession(board.id);
+      await this.withPort(board, async (link) => {
+        const repl = new RawRepl(link, this.deps.repl);
+        try {
+          await repl.enter();
+          await repl.exec(BOOTLOADER_CODE, 500).catch(() => {});   // no answer: it has gone
+        } finally {
+          repl.dispose();
+        }
+      });
+    });
+  }
+
+  /** Every file on a board, to keep them before installing wipes them (F-52); throws if they can't be read. */
+  async readAll(board: FoundBoard): Promise<Record<string, Uint8Array>> {
+    const r = await this.onBoard(board, async (f) => {
+      await f.load();
+      const all = await f.list();
+      const files: Record<string, Uint8Array> = {};
+      for (const p of [...all.files.keys()].sort()) files[p] = await f.read(p);
+      return { files };
+    });
+    if (!r.ok) throw new Error(r.message);
+    return r.files;
   }
 
   /** The Board files panel closed: the board's program runs again (unless its console is open — it is the student's). */

@@ -99,6 +99,14 @@ export function parsePnp(json: string): UsbDevice[] {
   return out;
 }
 
+/** Windows' lettered drives (`Get-Volume … | ConvertTo-Json`): each one's name and where it is ("E:\\"). */
+export function parseVolumes(json: string): { name: string; path: string }[] {
+  let raw: unknown;
+  try { raw = JSON.parse(json); } catch { return []; }
+  const list = (Array.isArray(raw) ? raw : raw ? [raw] : []) as { DriveLetter?: string | null; FileSystemLabel?: string | null }[];
+  return list.filter((v) => v.DriveLetter && v.FileSystemLabel).map((v) => ({ name: v.FileSystemLabel!, path: `${v.DriveLetter}:\\` }));
+}
+
 /** `usb`: the device list where the system gives one (Windows), to find a board's chip with no driver. */
 export function detect(ports: PortInfo[], volumes: string[], platform: string, usb?: UsbDevice[]): Detection {
   const boards: FoundBoard[] = [];

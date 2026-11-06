@@ -18,6 +18,8 @@ export interface ConnectionHelperProps {
   projectBoard: string;
   chosen?: string;
   onClose: () => void;
+  /** Installs MicroPython (F-52). */
+  onInstall: (kind: 'pico' | 'microbit') => void;
 }
 
 const ART: Record<BoardKind, string> = { pico: BOARD_ART['pico-w'], microbit: BOARD_ART['microbit-v2'], esp32: BOARD_ART['esp32-devkit-v1'] };
@@ -28,7 +30,7 @@ const LIGHT: Record<BoardKind, string> = {
   esp32: 'its red power light, by the USB socket',
 };
 
-export function ConnectionHelper({ api, detection, kind: first, projectBoard, chosen, onClose }: ConnectionHelperProps) {
+export function ConnectionHelper({ api, detection, kind: first, projectBoard, chosen, onClose, onInstall }: ConnectionHelperProps) {
   const [kind, setKind] = useState<BoardKind>(first);
   const [answers, setAnswers] = useState<HelperAnswers>({});
   const [copied, setCopied] = useState(false);
@@ -71,7 +73,8 @@ export function ConnectionHelper({ api, detection, kind: first, projectBoard, ch
         </div>
         <div className="hright">
           <Advice ask={v.ask} kind={kind} name={name} onAnswer={answer} onKind={(k) => { setKind(k); setAnswers({}); }}
-            onCheck={(id) => void api.boards.check(id)} onDriver={(chip) => void api.app.openDriverPage(chip)} onReset={() => setAnswers({})} onClose={onClose} />
+            onCheck={(id) => void api.boards.check(id)} onDriver={(chip) => void api.app.openDriverPage(chip)} onReset={() => setAnswers({})} onClose={onClose}
+            onInstall={() => { if (kind !== 'esp32') onInstall(kind); }} />
         </div>
       </div>
     </Dialog>
@@ -88,10 +91,11 @@ interface AdviceProps {
   onDriver: (chip: 'CP210x' | 'CH340' | 'CH9102') => void;
   onReset: () => void;
   onClose: () => void;
+  onInstall: () => void;
 }
 
 /** What the current step asks, or says to do. */
-function Advice({ ask, kind, name, onAnswer, onKind, onCheck, onDriver, onReset, onClose }: AdviceProps) {
+function Advice({ ask, kind, name, onAnswer, onKind, onCheck, onDriver, onReset, onClose, onInstall }: AdviceProps) {
   const q = (text: string) => <p className="q">{text}</p>;
   const buttons = (...b: ReactNode[]) => <div className="answer">{b}</div>;
   const note = (tone: 'info' | 'bad' | 'ok', body: ReactNode) => (
@@ -127,7 +131,8 @@ function Advice({ ask, kind, name, onAnswer, onKind, onCheck, onDriver, onReset,
         {buttons(<button key="r" type="button" className="btn" onClick={onReset}>Try again</button>)}</>;
     case 'bootsel-mode':
       return <>{q(`The cable is fine — the ${name} is in BOOTSEL mode`)}
-        {note('info', <>Like this it runs no program. <b>Unplug it and plug it back in without holding the button.</b> If it still isn't found, it needs MicroPython: Thonny can install it (Tools › Options › Interpreter › <i>Install or update MicroPython</i>).</>)}</>;
+        {note('info', <>Like this it runs no program. <b>Unplug it and plug it back in without holding the button</b> — or, if it has no MicroPython yet, install it now.</>)}
+        {buttons(<button key="i" type="button" className="btn primary" onClick={onInstall}><Icon name="cpu" size={14} /> Install MicroPython…</button>)}</>;
     case 'wrong-board':
       return <>{q(`A ${HELPED[ask.found]} is plugged in, not a ${name}`)}
         <p className="small">Plug in the {name}, or get help with the {HELPED[ask.found]}.</p>
@@ -154,10 +159,13 @@ function Advice({ ask, kind, name, onAnswer, onKind, onCheck, onDriver, onReset,
     case 'no-micropython':
       return <>{q(`The ${name} didn't answer as MicroPython does`)}
         {note('bad', <>It may be running a MakeCode or Arduino program, or a program that doesn't stop when asked. Press its reset button and try again.</>)}
-        <p className="small">{kind === 'microbit'
-          ? <>To put MicroPython on it, drag a MicroPython <span className="mono">.hex</span> (from python.microbit.org) onto its MICROBIT drive — this wipes the files on it.</>
-          : <>Thonny can install MicroPython on it (Tools › Options › Interpreter › <i>Install or update MicroPython</i>).</>}</p>
-        {buttons(<button key="t" type="button" className="btn" onClick={() => onCheck(ask.id)}>Try again</button>)}</>;
+        {kind === 'esp32'
+          ? <p className="small">An ESP32 gets MicroPython with a flashing tool: Thonny can do it (Tools › Options › Interpreter › <i>Install or update MicroPython</i>, then choose <i>esptool</i>).</p>
+          : <p className="small">MicroLab can install MicroPython on it{kind === 'microbit' ? ' — it copies the files on it to this laptop first and puts them back' : ''}.</p>}
+        {buttons(
+          <button key="t" type="button" className="btn" onClick={() => onCheck(ask.id)}>Try again</button>,
+          ...(kind === 'esp32' ? [] : [<button key="i" type="button" className="btn primary" onClick={onInstall}><Icon name="cpu" size={14} /> Install MicroPython…</button>]),
+        )}</>;
     case 'ok':
       return <>{q(`The ${name} is connected: ${ask.version}.`)}
         {note('ok', <>Everything works. Use <b>Send to board</b> to put this project on it.</>)}

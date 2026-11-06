@@ -18,6 +18,13 @@ contextBridge.exposeInMainWorld('microlab', {
     get: (): Promise<unknown> => ipcRenderer.invoke('boards:get'),
     check: (id: string): Promise<void> => ipcRenderer.invoke('boards:check', id),
     send: (id: string, files: unknown, req: unknown): Promise<unknown> => ipcRenderer.invoke('boards:send', id, files, req),
+    install: (kind: string): Promise<unknown> => ipcRenderer.invoke('boards:install', kind),
+    cancelInstall: (): Promise<void> => ipcRenderer.invoke('boards:install-cancel'),
+    onInstallStep: (handler: (step: unknown) => void): (() => void) => {
+      const listener = (_e: unknown, step: unknown) => handler(step);
+      ipcRenderer.on('boards:install-step', listener);
+      return () => { ipcRenderer.removeListener('boards:install-step', listener); };
+    },
     files: {
       list: (id: string, project: unknown): Promise<unknown> => ipcRenderer.invoke('boards:files-list', id, project),
       read: (id: string, paths: string[]): Promise<unknown> => ipcRenderer.invoke('boards:files-read', id, paths),
@@ -52,5 +59,6 @@ contextBridge.exposeInMainWorld('microlab', {
     close: (): Promise<void> => ipcRenderer.invoke('app:close'),
     copy: (text: string): Promise<void> => ipcRenderer.invoke('app:copy', text),
     openDriverPage: (chip: string): Promise<void> => ipcRenderer.invoke('app:open-driver-page', chip),
+    showFirmware: (kind: string): Promise<void> => ipcRenderer.invoke('app:show-firmware', kind),
   },
 });

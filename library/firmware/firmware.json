@@ -1,0 +1,23 @@
+{
+  "about": "The MicroPython firmware MicroLab installs on a board (F-52, Q18), offline: the same versions the simulator copies. Downloaded 2026-11-06 from the official sources below; the checksums are of these files.",
+  "pico-w": {
+    "file": "RPI_PICO_W-20260824-v1.29.0.uf2",
+    "version": "v1.29.0",
+    "banner": "MicroPython v1.29.0 on 2026-08-24; Raspberry Pi Pico W with RP2040",
+    "size": 1811456,
+    "sha256": "f918c0a082c6daf53e27998b7f990ba5f065db2e298b21a34024532a20786794",
+    "drive": "RPI-RP2",
+    "source": "https://micropython.org/resources/firmware/RPI_PICO_W-20260824-v1.29.0.uf2",
+    "licence": "MIT (MicroPython, https://github.com/micropython/micropython/blob/master/LICENSE) — the build also holds the pico-sdk (BSD-3-Clause) and Infineon's cyw43-driver (its own licence) — to be checked with the other bundled licences in M11 (N-11)"
+  },
+  "microbit-v2": {
+    "file": "micropython-microbit-v2.1.2.hex",
+    "version": "v2.1.2",
+    "banner": "MicroPython v1.18 on 2023-10-30; micro:bit v2.1.2 with nRF52833",
+    "size": 1239726,
+    "sha256": "66fae07b71777e9e3a6b5122a27930b24cc0be5002ab9a67e92494c54a1645ef",
+    "drive": "MICROBIT",
+    "source": "https://github.com/microbit-foundation/micropython-microbit-v2/releases/download/v2.1.2/micropython-microbit-v2.1.2.hex",
+    "licence": "MIT (micropython-microbit-v2, https://github.com/microbit-foundation/micropython-microbit-v2/blob/master/LICENSE) — built on MicroPython (MIT) and CODAL (MIT)"
+  }
+}

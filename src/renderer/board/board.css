@@ -116,3 +116,25 @@
 .helper .note.bad { background: var(--danger-soft); color: var(--danger-ink); } .helper .note.bad > .ico { color: var(--danger); }
 .helper .note.ok { background: var(--success-soft, #e8f5ee); } .helper .note.ok > .ico { color: var(--success); }
 .sendbox .infobox .btn.link { display: inline; height: auto; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
+/* ---------- installing MicroPython (screen 14b) ---------- */
+.install { display: flex; flex-direction: column; gap: 12px; }
+.install > p { margin: 0; line-height: 1.55; color: var(--tx-2); }
+.install .fwcard { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.install .fwcard .pic { width: 64px; height: 40px; display: grid; place-items: center; background: var(--canvas); border-radius: 8px; flex: none; }
+.install .fwcard .pic img { max-width: 56px; max-height: 34px; }
+.install .fwcard .col { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.install .isteps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.install .isteps li { display: flex; gap: 10px; align-items: flex-start; padding: 7px 10px; border-radius: 8px; font-size: 12.5px; color: var(--tx-2); opacity: .7; }
+.install .isteps li b { font-weight: 600; color: var(--tx-1); }
+.install .isteps li small { display: block; color: var(--tx-3); font-size: 11.5px; margin-top: 1px; }
+.install .isteps li .n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; flex: none; font-size: 11px; font-weight: 700; background: var(--bg-2); color: var(--tx-3); }
+.install .isteps li.is-ok, .install .isteps li.is-now, .install .isteps li.is-skip { opacity: 1; }
+.install .isteps li.is-ok .n { background: var(--success-soft, #e8f5ee); color: var(--success); }
+.install .isteps li.is-now { background: var(--accent-soft); } .install .isteps li.is-now .n { background: var(--accent); color: #fff; }
+.install .note { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 9px; background: var(--bg); font-size: 12.5px; line-height: 1.5; color: var(--tx-2); }
+.install .note > .ico { flex: none; margin-top: 1px; }
+.install .note b { color: var(--tx-1); }
+.install .note.info > .ico { color: var(--accent); }
+.install .note.warn { background: var(--warn-soft); } .install .note.warn > .ico { color: var(--warn); }
+.install .note.bad { background: var(--danger-soft); color: var(--danger-ink); } .install .note.bad > .ico { color: var(--danger); }
+.install .note.ok { background: var(--success-soft, #e8f5ee); } .install .note.ok > .ico { color: var(--success); }

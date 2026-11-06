@@ -125,6 +125,8 @@ export class FakeBoard implements Link {
   softReboots = 0;
   /** Commands taken in raw-paste mode. */
   pastes = 0;
+  /** Asked to restart into its bootloader (a Pico's BOOTSEL: machine.bootloader()). */
+  bootloaded = false;
   private asked = '';
   private line = '';
   private hung = false;
@@ -354,6 +356,12 @@ export class FakeBoard implements Link {
   private async run(code: string): Promise<Answer> {
     if (code === UNAME_CODE) return { out: `${PRESETS[this.opts.preset].uname}\r\n` };
     if (code === PRELUDE) return {};
+    if (/machine\.bootloader\(\)/.test(code)) {
+      // it restarts into BOOTSEL at once: its serial port goes (the RPI-RP2 drive comes instead)
+      this.bootloaded = true;
+      setTimeout(() => this.unplug(), 0);
+      return undefined;
+    }
     const call = parsePyCall(code);
     if (call) return this.helper(call.name, call.args);
     if (this.opts.exec) return this.opts.exec(code);

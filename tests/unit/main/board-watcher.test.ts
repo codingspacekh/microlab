@@ -131,3 +131,19 @@ describe('M10.6 R5 on Windows, the device list too (a board\'s chip with no driv
     expect(await listUsbWindows(async () => { throw new Error('no powershell'); })).toEqual([]);
   });
 });
+
+describe('M10.6 a device list that fails', () => {
+  it('keeps the last one: a slow or failing PowerShell changes nothing', async () => {
+    let fail = false;
+    const listUsb = vi.fn(async () => { if (fail) throw new Error('powershell'); return [{ usb: '10c4:ea60', ok: false }]; });
+    const changes = vi.fn();
+    const w = new BoardWatcher({ listPorts: async () => [], listVolumes: async () => [], platform: 'win32', listUsb }, changes);
+    w.start();
+    await vi.advanceTimersByTimeAsync(0);
+    fail = true;
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(changes).toHaveBeenCalledTimes(1);
+    expect(w.current.noDriver).toHaveLength(1);
+    w.stop();
+  });
+});
