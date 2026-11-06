@@ -11,9 +11,12 @@ import { parseUname, type Uname } from './greeting';
 export interface Link {
   write(data: Uint8Array): Promise<void>;
   onData(listener: (data: Uint8Array) => void): () => void;
+  /** Told when the link goes away (the cable pulled): a wait for an answer ends at once. */
+  onClose?(listener: () => void): () => void;
 }
 
-export type ReplErrorReason = 'timeout' | 'lost' | 'refused';
+/** timeout: no answer in time; lost: unplugged; refused: it answered no; no-micropython: no raw prompt at all. */
+export type ReplErrorReason = 'timeout' | 'lost' | 'refused' | 'no-micropython';
 
 export class ReplError extends Error {
   constructor(readonly reason: ReplErrorReason, message: string, readonly seen = '') {
@@ -27,6 +30,9 @@ export interface ReplOptions {
   pauseMs?: number;
   /** How long an answer may take. */
   replyMs?: number;
+  /** Long commands go in pieces of this many bytes, with a pause between (an ESP32's serial input is small). */
+  chunkBytes?: number;
+  chunkPauseMs?: number;
 }
 
 const RAW_PROMPT = 'raw REPL; CTRL-B to exit\r\n>';
@@ -44,10 +50,15 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 class Reader {
   private buf = '';
   private wake: (() => void) | undefined;
+  private closed = false;
 
   constructor(link: Link) {
     link.onData((d) => {
       this.buf += bytesText(d);
+      this.wake?.();
+    });
+    link.onClose?.(() => {
+      this.closed = true;
       this.wake?.();
     });
   }
@@ -62,6 +73,7 @@ class Reader {
         this.buf = this.buf.slice(i + marker.length);
         return before;
       }
+      if (this.closed) throw new ReplError('lost', 'The board was unplugged', this.buf);
       const left = end - Date.now();
       if (left <= 0) throw new ReplError('timeout', `No answer from the board (waiting for ${JSON.stringify(marker)})`, this.buf);
       await new Promise<void>((r) => {
@@ -83,6 +95,8 @@ export class RawRepl {
   private readonly reader: Reader;
   private readonly pauseMs: number;
   private readonly replyMs: number;
+  private readonly chunkBytes: number;
+  private readonly chunkPauseMs: number;
   /** What the board printed before it gave the raw prompt (its program's last words), for a "no MicroPython" answer. */
   seen = '';
 
@@ -90,6 +104,8 @@ export class RawRepl {
     this.reader = new Reader(link);
     this.pauseMs = opts.pauseMs ?? 100;
     this.replyMs = opts.replyMs ?? 1000;
+    this.chunkBytes = opts.chunkBytes ?? 256;
+    this.chunkPauseMs = opts.chunkPauseMs ?? 5;
   }
 
   private send(s: string): Promise<void> {
@@ -127,8 +143,13 @@ export class RawRepl {
     const all = new Uint8Array(bytes.length + 1);
     all.set(bytes);
     all[bytes.length] = 4;
-    await this.write(all);
-    await this.reader.until('OK', ms).catch((e: ReplError) => { throw new ReplError('refused', 'The board did not take the command', e.seen); });
+    for (let i = 0; i < all.length; i += this.chunkBytes) {
+      if (i && this.chunkPauseMs) await wait(this.chunkPauseMs);
+      await this.write(all.subarray(i, i + this.chunkBytes));
+    }
+    await this.reader.until('OK', ms).catch((e: ReplError) => {
+      throw e.reason === 'lost' ? e : new ReplError('refused', 'The board did not take the command', e.seen);
+    });
     const out = await this.reader.until('\x04', ms);
     const err = await this.reader.until('\x04>', ms);
     return { out: utf8Out(out), err: utf8Out(err) };

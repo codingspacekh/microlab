@@ -50,6 +50,7 @@ export interface Detection {
 export type BoardCheck =
   | { state: 'checking' }
   | { state: 'micropython'; uname?: Uname }
+  | { state: 'sending'; done: number; total: number; uname?: Uname }
   | { state: 'no-micropython'; seen: string }
   | { state: 'busy'; by?: string }
   | { state: 'cant-open'; message: string };
@@ -97,6 +98,7 @@ export type ChipState =
   | { kind: 'none' }
   | { kind: 'bootsel'; volume: string }
   | ({ kind: 'checking' } & On)
+  | ({ kind: 'sending'; done: number; total: number; uname?: Uname; model?: ModelInfo } & On)
   | ({ kind: 'ready'; uname?: Uname; model?: ModelInfo } & On)
   | ({ kind: 'wrong'; want: BoardKind; uname?: Uname; model?: ModelInfo } & On)
   | ({ kind: 'busy'; by?: string } & On)
@@ -105,7 +107,7 @@ export type ChipState =
 
 /** Whether a board fits the project: by its answer once it gave one, else by its USB IDs. */
 function fits(b: FoundBoard, check: BoardCheck | undefined, project: BoardId): boolean {
-  if (check?.state === 'micropython' && check.uname) return boardFits(modelOf(check.uname).model, project);
+  if ((check?.state === 'micropython' || check?.state === 'sending') && check.uname) return boardFits(modelOf(check.uname).model, project);
   return b.kind === kindOf(project);
 }
 
@@ -123,6 +125,9 @@ export function chipState(d: Detection, project: BoardId | undefined, chosen?: s
   const on = { board, ...(d.boards.length > 1 ? { others: d.boards.length - 1 } : {}) };
   const check = checks[board.id];
   if (check?.state === 'checking') return { kind: 'checking', ...on };
+  if (check?.state === 'sending') {
+    return { kind: 'sending', ...on, done: check.done, total: check.total, ...(check.uname ? { uname: check.uname, model: modelOf(check.uname) } : {}) };
+  }
   if (check?.state === 'busy') return { kind: 'busy', ...on, ...(check.by ? { by: check.by } : {}) };
   if (check?.state === 'no-micropython') return { kind: 'no-micropython', ...on };
   if (check?.state === 'cant-open') return { kind: 'cant-open', ...on, message: check.message };

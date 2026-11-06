@@ -11,6 +11,8 @@
 .boardchip.looking .dot { background: transparent; border: 1.5px dashed var(--accent); }
 .boardchip.bad { background: var(--danger-soft); border-color: var(--danger-line); color: var(--danger-ink); }
 .boardchip.bad .dot { background: var(--danger); }
+.boardchip.busy { background: var(--accent-soft); border-color: var(--accent-line); }
+.boardchip.busy .dot { background: var(--accent); }
 .boardchip.on, .boardchip:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); outline: none; }
 @media (max-width: 1500px) { .boardchip .sub { display: none; } }
 .chipcard { position: absolute; right: 0; top: calc(100% + 8px); width: 360px; padding: 14px; z-index: 40; display: flex; flex-direction: column; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-l); }
@@ -26,5 +28,23 @@
 .chipcard .say { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; background: var(--bg-2); }
 .chipcard .say p { margin: 0; line-height: 1.5; }
 .chipcard .note { line-height: 1.5; margin: 0; }
-.toast { position: fixed; right: 16px; bottom: 40px; z-index: 90; display: flex; gap: 10px; align-items: center; padding: 10px 10px 10px 14px; border-radius: 10px; background: var(--inverse, #1f2937); color: #fff; box-shadow: var(--shadow-l); font-size: 12.5px; max-width: 460px; }
+.toasts { position: fixed; right: 16px; bottom: 40px; z-index: 90; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; pointer-events: none; }
+.toast { pointer-events: auto; display: flex; gap: 10px; align-items: center; padding: 10px 10px 10px 14px; border-radius: 10px; background: var(--inverse, #1f2937); color: #fff; box-shadow: var(--shadow-l); font-size: 12.5px; max-width: 460px; }
 .toast .btn { color: #c9d1db; }
+.toast .lines { display: flex; flex-direction: column; gap: 3px; line-height: 1.45; }
+.toast.sent > .ico { color: #7fe0a8; flex: none; align-self: flex-start; margin-top: 2px; }
+/* ---------- Send to board (screen 08) ---------- */
+.sendbox { display: flex; flex-direction: column; gap: 14px; }
+.sendbox > p { margin: 0; }
+.sendbox .radios .crow .tx > span { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.sendbox .filetable { max-height: 180px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.sendbox .filetable table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.sendbox .filetable th { text-align: left; font-weight: 600; color: var(--tx-3); padding: 7px 10px; background: var(--bg); position: sticky; top: 0; }
+.sendbox .filetable td { padding: 7px 10px; border-top: 1px solid var(--line); color: var(--tx-1); }
+.sendbox .filetable .num { text-align: right; white-space: nowrap; }
+.sendbox .col { display: flex; flex-direction: column; gap: 4px; }
+.sendbox .infobox { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 9px; background: var(--bg); }
+.sendbox .infobox > .ico { color: var(--accent); flex: none; }
+.sendbox .infobox b { color: var(--tx-1); }
+.dialog .dicon { color: var(--accent); display: inline-flex; }
+.dialog .dnote { gap: 6px; align-items: center; }

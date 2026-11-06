@@ -77,3 +77,21 @@ test('M10.2 R10 a board there before MicroLab started is not interrupted; its ca
   await win.getByRole('dialog', { name: 'Board' }).getByRole('button', { name: 'Check the board' }).click();
   await expect(chip).toHaveAccessibleName('Board: Pico W, ready, MicroPython 1.29', { timeout: 2000 });
 });
+
+test('M10.3 F-50 Send to board: the files go, the board runs them; sent again, nothing changed is copied', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  plug('mac-pico-w');
+  const chip = win.getByRole('button', { name: /^Board:/ });
+  await expect(chip).toHaveAccessibleName('Board: Pico W, ready, MicroPython 1.29', { timeout: 2000 });
+  const send = win.getByRole('button', { name: 'Send to board' });
+  await send.click();
+  const dialog = win.getByRole('dialog', { name: 'Send to a real board' });
+  await expect(dialog.getByRole('radio', { name: 'Raspberry Pi Pico W' })).toHaveAttribute('aria-checked', 'true');
+  await dialog.getByRole('button', { name: 'Send and run' }).click();
+  await expect(win.getByText(/^Sent to the Pico W: main\.py \([\d.]+ KB\)\.$/)).toBeVisible({ timeout: 3000 });
+  await expect(win.getByText('The Pico W restarted. On its own it always starts main.py — now it runs this project.')).toBeVisible();
+  await win.getByRole('button', { name: 'Send to board' }).click();
+  await win.getByRole('dialog', { name: 'Send to a real board' }).getByRole('button', { name: 'Send and run' }).click();
+  await expect(win.getByText('Nothing to copy: main.py was already on the Pico W as it is.')).toBeVisible({ timeout: 3000 });
+});

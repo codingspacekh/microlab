@@ -10,7 +10,9 @@ import { ControlsPage } from './ControlsPage';
 import { StartPage } from './StartPage';
 import { Workspace } from '../workspace/Workspace';
 import { BoardChip, plugMessage } from '../board/BoardChip';
+import { SendToBoard, sendMessage } from '../board/SendToBoard';
 import type { BoardId } from '@lib/boards';
+import type { SendRequest } from '@lib/repl';
 import type { Detection, FoundBoard } from '@lib/usb';
 import { useRun, type RunState, type StartRun } from './useRun';
 
@@ -146,9 +148,34 @@ export function App({ api, width, startRun }: AppProps) {
     const t = setTimeout(() => setPlugged(null), 5000);
     return () => clearTimeout(t);
   }, [plugNote]);
+  // Send to board (F-50): the result's lines for 10 s, or what went wrong until dismissed
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!sent) return;
+    const t = setTimeout(() => setSent(null), 10_000);
+    return () => clearTimeout(t);
+  }, [sent]);
+  const send = async (id: string, req: SendRequest) => {
+    if (!open) return;
+    setNotice(null);
+    setSent(null);
+    setSending(true);
+    try {
+      const r = await api.boards.send(id, open.doc.files, req);
+      if (r.ok) setSent(sendMessage(r, req));
+      else setNotice(r.message);
+    } finally {
+      setSending(false);
+    }
+  };
   const chip = open ? (
-    <BoardChip detection={boards} project={open.doc.project.board as BoardId} chosen={chosen}
-      onChoose={(id) => { setChosen(id); void api.settings.set('board.chosen', id); }} onCheck={(id) => void api.boards.check(id)} />
+    <>
+      <BoardChip detection={boards} project={open.doc.project.board as BoardId} chosen={chosen}
+        onChoose={(id) => { setChosen(id); void api.settings.set('board.chosen', id); }} onCheck={(id) => void api.boards.check(id)} />
+      <SendToBoard detection={boards} project={open.doc.project.board as BoardId} chosen={chosen} files={open.doc.files}
+        busy={sending} onSend={(id, req) => void send(id, req)} />
+    </>
   ) : null;
 
   const actions = {
@@ -170,12 +197,21 @@ export function App({ api, width, startRun }: AppProps) {
       {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
       {page}
       <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} />
-      {plugNote && (
-        <div className="toast" role="status" aria-live="polite">
-          <Icon name="usb" /><span>{plugNote}</span>
-          <button type="button" className="btn ghost sm icon" aria-label="Dismiss" onClick={() => setPlugged(null)}><Icon name="x" size={14} /></button>
-        </div>
-      )}
+      <div className="toasts">
+        {sent && (
+          <div className="toast sent" role="status" aria-live="polite">
+            <Icon name="check" />
+            <span className="lines">{sent.map((l) => <span key={l}>{l}</span>)}</span>
+            <button type="button" className="btn ghost sm icon" aria-label="Dismiss" onClick={() => setSent(null)}><Icon name="x" size={14} /></button>
+          </div>
+        )}
+        {plugNote && (
+          <div className="toast" role="status" aria-live="polite">
+            <Icon name="usb" /><span>{plugNote}</span>
+            <button type="button" className="btn ghost sm icon" aria-label="Dismiss" onClick={() => setPlugged(null)}><Icon name="x" size={14} /></button>
+          </div>
+        )}
+      </div>
       {ask && (
         <Dialog title={`Save your changes to “${ask.name}”?`} onCancel={() => setAsk(null)} actions={[
           { label: 'Save', primary: true, onClick: () => { const then = ask.then; setAsk(null); void save().then((ok) => ok && then()); } },
@@ -217,7 +253,7 @@ interface TopBarProps {
   onOpen: () => void;
   onSave: () => void;
   onSaveAs: () => void;
-  /** The real board's chip (F-55), beside Send to board. */
+  /** The real board's chip (F-55) and Send to board (F-50). */
   chip: React.ReactNode;
 }
 
@@ -259,7 +295,6 @@ function TopBar({ mode, onMode, project, dirty, run, chip, onNewProject, onOpen,
           <RunBox run={run} />
           <div className="vsep" />
           {chip}
-          <button type="button" className="btn" disabled title="Send to board (M10.3)"><Icon name="usb" /> Send to board</button>
         </>
       ) : (
         <>

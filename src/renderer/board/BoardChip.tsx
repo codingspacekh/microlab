@@ -46,6 +46,7 @@ function look(state: ChipState, project: BoardId, count: number): { tone: string
   const [tone, said, sub] = (() => {
     switch (state.kind) {
       case 'checking': return ['looking', 'checking…', 'checking…'];
+      case 'sending': { const n = `sending ${Math.min(state.done + 1, state.total)} of ${state.total}`; return ['busy', n, n]; }
       case 'busy': { const by = `used by ${state.by ?? 'another program'}`; return ['warn', by, by]; }
       case 'no-micropython': return ['warn', 'no MicroPython', 'no MicroPython'];
       case 'wrong': return ['warn', `project is for ${WANT[project]}`, `project is for ${WANT[project]}`];
@@ -119,6 +120,7 @@ function BoardCard({ state, want, checked, onCheck }: { state: OnBoard; want: st
   const pill = state.kind === 'ready' ? <span className="pill ok"><Icon name="check" size={12} /> matches this project</span>
     : state.kind === 'wrong' ? <span className="pill warn">this project is for a {want}</span>
     : state.kind === 'checking' ? <span className="pill">checking…</span>
+    : state.kind === 'sending' ? <span className="pill">sending {Math.min(state.done + 1, state.total)} of {state.total}…</span>
     : <span className="pill warn">can't be used now</span>;
   const tryAgain = <button type="button" className="btn sm" onClick={onCheck}>Try again</button>;
   return (

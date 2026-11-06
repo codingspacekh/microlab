@@ -4,16 +4,17 @@ import { join } from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, protocol, session } from 'electron';
 import { APP_SCHEME, APP_URL, isolationHeaders, resolveAppPath, responseHeaders } from './app-protocol';
 import { mkdirSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { SerialPort } from 'serialport';
-import { BoardChecker } from './board-check';
+import { Boards } from './board-check';
 import { BoardWatcher, listVolumes } from './board-watcher';
 import { whoHolds } from './port-holder';
 import { openSerial, type SerialLink } from './serial-link';
 import { openProjectFile, saveProjectFile } from './project-files';
 import { SettingsStore } from './settings';
 import type { ProjectDoc } from '@lib/project';
-import { FakeBoard, type FakePreset } from '@lib/repl';
+import { FakeBoard, type FakePreset, type SendRequest } from '@lib/repl';
 import type { BoardKind, Detection, FoundBoard, PortInfo } from '@lib/usb';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -110,19 +111,33 @@ app.whenReady().then(() => {
     for (const w of BrowserWindow.getAllWindows()) w.webContents.send('boards:changed', now, changes);
   };
   const boardsNow = (): Detection => ({ ...watcher.current, checks: checker.checks });
+  const fakes = new Map<string, FakeBoard>();   // a fake board keeps its files between opens, as a real one
   const fakeOpen = async (port: string): Promise<SerialLink> => {
     const answer = (await fromFile()).answers?.[port];
     if (answer === 'busy') throw new Error('Error Resource temporarily unavailable Cannot lock port');
     if (answer === 'gone') throw new Error(`Error: No such file or directory, cannot open ${port}`);
     const kind = watcher.current.boards.find((b) => b.port === port)?.kind;
     const preset = (answer && answer !== 'silent' ? answer : ({ pico: 'pico-w', microbit: 'microbit-v2', esp32: 'esp32' } satisfies Record<BoardKind, FakePreset>)[kind ?? 'pico']) as FakePreset;
-    const b = new FakeBoard({ preset, program: {}, silent: answer === 'silent' });
-    return { write: (d) => b.write(d), onData: (l) => b.onData(l), close: async () => {} };
+    const key = `${port} ${preset} ${answer ?? ''}`;
+    const b = fakes.get(key) ?? new FakeBoard({ preset, program: {}, silent: answer === 'silent' });
+    fakes.set(key, b);
+    b.replug();
+    return { write: (d) => b.write(d), onData: (l) => b.onData(l), onClose: (l) => b.onClose(l), close: async () => {} };
   };
-  const checker = new BoardChecker(
+  // Send to board keeps the board's old main.py (F-50, screen 08): Documents/MicroLab/Board backups/<board> <time>/
+  const keepOld = async (board: string, path: string, data: Uint8Array): Promise<string> => {
+    const t = new Date();
+    const stamp = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')} ${String(t.getHours()).padStart(2, '0')}-${String(t.getMinutes()).padStart(2, '0')}-${String(t.getSeconds()).padStart(2, '0')}`;
+    // (with fake USB — the tests — in the test's own folder, never the user's Documents)
+    const dir = join(app.getPath(fake ? 'userData' : 'documents'), 'MicroLab', 'Board backups', `${board} ${stamp}`);
+    await mkdir(join(dir, path, '..'), { recursive: true });
+    await writeFile(join(dir, path), data);
+    return dir;
+  };
+  const checker = new Boards(
     fake
-      ? { open: fakeOpen, whoHolds: async () => (await fromFile()).holder }
-      : { open: (port) => openSerial(port), whoHolds: (port) => whoHolds(port, process.platform) },
+      ? { open: fakeOpen, whoHolds: async () => (await fromFile()).holder, keepOld }
+      : { open: (port) => openSerial(port), whoHolds: (port) => whoHolds(port, process.platform), keepOld },
     () => send(boardsNow(), { plugged: [], unplugged: [] }),
   );
   const watcher = new BoardWatcher(
@@ -142,6 +157,10 @@ app.whenReady().then(() => {
   ipcMain.handle('boards:check', async (_e, id: string) => {
     const b = watcher.current.boards.find((x) => x.id === id);
     if (b) await checker.check(b);
+  });
+  ipcMain.handle('boards:send', async (_e, id: string, files: Record<string, string | Uint8Array>, req: SendRequest) => {
+    const b = watcher.current.boards.find((x) => x.id === id);
+    return b ? checker.send(b, files, req) : { ok: false, message: 'The board is no longer plugged in.' };
   });
   app.on('before-quit', () => watcher.stop());
   // Nothing in the window may open other sites (N-04, N-08).

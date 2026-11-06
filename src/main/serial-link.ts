@@ -18,7 +18,9 @@ interface PortLike {
   drain(cb: (err: Error | null) => void): void;
   close(cb: (err: Error | null) => void): void;
   on(event: 'data', l: (d: Buffer) => void): unknown;
+  on(event: 'close', l: () => void): unknown;
   off(event: 'data', l: (d: Buffer) => void): unknown;
+  off(event: 'close', l: () => void): unknown;
 }
 
 type MakePort = (opts: { path: string; baudRate: number; autoOpen: false }) => PortLike;
@@ -41,6 +43,11 @@ export async function openSerial(path: string, make: MakePort = real): Promise<S
       const l = (d: Buffer) => listener(new Uint8Array(d.buffer, d.byteOffset, d.length));
       port.on('data', l);
       return () => { port.off('data', l); };
+    },
+    // the port closes by itself when the board is unplugged: a wait for an answer ends at once
+    onClose: (listener) => {
+      port.on('close', listener);
+      return () => { port.off('close', listener); };
     },
     close: () => new Promise<void>((ok) => {
       if (!port.isOpen) { ok(); return; }

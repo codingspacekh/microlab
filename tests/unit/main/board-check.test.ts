@@ -2,7 +2,7 @@ import { SerialPortMock } from 'serialport';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FakeBoard, latin1, type FakeBoardOptions } from '@lib/repl';
 import type { BoardCheck, FoundBoard } from '@lib/usb';
-import { BoardChecker, checkPort, type PortDeps } from '../../../src/main/board-check';
+import { Boards, checkPort, type PortDeps } from '../../../src/main/board-check';
 import { whoHolds } from '../../../src/main/port-holder';
 import { openSerial } from '../../../src/main/serial-link';
 
@@ -10,13 +10,14 @@ import { openSerial } from '../../../src/main/serial-link';
 const PICO: FoundBoard = { id: 'e661', kind: 'pico', port: '/dev/cu.usbmodem14201', usb: '2e8a:0005' };
 const quick = { pauseMs: 0, replyMs: 60 };
 
-function deps(board: FakeBoardOptions | Error, holder?: string) {
+function deps(board: FakeBoardOptions | Error | FakeBoard, holder?: string) {
   const closed = vi.fn(async () => {});
   const d: PortDeps = {
     open: vi.fn(async () => {
       if (board instanceof Error) throw board;
-      const b = new FakeBoard(board);
-      return { write: (x: Uint8Array) => b.write(x), onData: (l: (x: Uint8Array) => void) => b.onData(l), close: closed };
+      const b = board instanceof FakeBoard ? board : new FakeBoard(board);
+      if (board instanceof FakeBoard) b.replug();
+      return { write: (x: Uint8Array) => b.write(x), onData: (l: (x: Uint8Array) => void) => b.onData(l), onClose: (l: () => void) => b.onClose(l), close: closed };
     }),
     whoHolds: vi.fn(async () => holder),
     repl: quick,
@@ -55,7 +56,7 @@ describe('M10.2 checking the board on a port', () => {
 describe('M10.2 the checker keeps what each board said', () => {
   it('checking first, then the answer; every change is told', async () => {
     const seen: Record<string, BoardCheck>[] = [];
-    const c = new BoardChecker(deps({ preset: 'pico-w' }).d, (checks) => seen.push({ ...checks }));
+    const c = new Boards(deps({ preset: 'pico-w' }).d, (checks) => seen.push({ ...checks }));
     await c.check(PICO);
     expect(seen.map((s) => s.e661?.state)).toEqual(['checking', 'micropython']);
     expect(c.checks.e661?.state).toBe('micropython');
@@ -63,13 +64,13 @@ describe('M10.2 the checker keeps what each board said', () => {
 
   it('asked twice at once: the port is opened once', async () => {
     const { d } = deps({ preset: 'pico-w' });
-    const c = new BoardChecker(d, () => {});
+    const c = new Boards(d, () => {});
     await Promise.all([c.check(PICO), c.check(PICO)]);
     expect(d.open).toHaveBeenCalledOnce();
   });
 
   it('unplugged while being asked: its answer is dropped', async () => {
-    const c = new BoardChecker(deps({ preset: 'pico-w' }).d, () => {});
+    const c = new Boards(deps({ preset: 'pico-w' }).d, () => {});
     const p = c.check(PICO);
     c.forget(['e661']);
     await p;
@@ -107,8 +108,11 @@ describe('M10.2 the serial port as a link', () => {
     link.onData((d) => got.push(Buffer.from(d).toString('latin1')));
     port!.port!.emitData('raw REPL; CTRL-B to exit\r\n>');
     await vi.waitFor(() => expect(got.join('')).toBe('raw REPL; CTRL-B to exit\r\n>'));
+    const gone = vi.fn();
+    link.onClose!(gone);
     await link.close();
     expect(port!.isOpen).toBe(false);
+    expect(gone).toHaveBeenCalled();
     await expect(link.write(latin1('x'))).rejects.toThrow();
   });
 
@@ -136,7 +140,7 @@ describe('M10.2 the rarer ways', () => {
 
   it('forgetting a board never asked changes nothing', () => {
     const told = vi.fn();
-    new BoardChecker(deps({ preset: 'pico-w' }).d, told).forget(['nope']);
+    new Boards(deps({ preset: 'pico-w' }).d, told).forget(['nope']);
     expect(told).not.toHaveBeenCalled();
   });
 
@@ -159,5 +163,66 @@ describe('M10.2 the rarer ways', () => {
     const l = await openSerial('/x', make());
     await l.close();
     await expect(l.close()).resolves.toBeUndefined();
+  });
+});
+
+describe('M10.3 F-50 sending, from the main process', () => {
+  const enc = (t: string) => new TextEncoder().encode(t);
+  const W = { preset: 'pico-w' as const, program: {}, files: { 'main.py': enc('# theirs\n'), 'lib/a.py': enc('a = 1\n') } };
+
+  it('"sending 1 of 2" as it goes, then the board\'s answer; what was sent, what was the same', async () => {
+    const seen: string[] = [];
+    const b = new FakeBoard(W);
+    const c = new Boards(deps(b).d, (checks) => {
+      const x = checks.e661;
+      if (x) seen.push(x.state === 'sending' ? `sending ${x.done}/${x.total}` : x.state);
+    });
+    const r = await c.send(PICO, { 'main.py': 'print(1)\n', 'lib/a.py': 'a = 1\n' }, { run: true, keep: false });
+    expect(r).toEqual({ ok: true, board: 'Pico W', sent: [{ path: 'main.py', size: 9 }], same: ['lib/a.py'], kept: [] });
+    expect(seen).toEqual(['sending 0/2', 'sending 0/2', 'sending 0/2', 'sending 1/2', 'sending 2/2', 'micropython']);
+    expect(c.checks.e661).toMatchObject({ state: 'micropython', uname: { machine: 'Raspberry Pi Pico W with RP2040' } });
+  });
+
+  it('the board\'s old main.py is kept on the laptop when asked, and where is told', async () => {
+    const { d } = deps(new FakeBoard(W));
+    d.keepOld = vi.fn(async () => '/Users/t/Documents/MicroLab/Board backups/Pico W 2026-11-06 13-40');
+    const r = await new Boards(d, () => {}).send(PICO, { 'main.py': 'new' }, { run: true, keep: true });
+    expect(d.keepOld).toHaveBeenCalledWith('Pico W', 'main.py', enc('# theirs\n'));
+    expect(r).toMatchObject({ ok: true, kept: ['main.py'], keptIn: '/Users/t/Documents/MicroLab/Board backups/Pico W 2026-11-06 13-40' });
+  });
+
+  it.each([
+    [new Error('Error Resource temporarily unavailable Cannot lock port'), /used by Thonny\. Close Thonny, or press Stop\/Disconnect in it, then send again/, 'busy'],
+    [{ preset: 'pico-w' as const, silent: true }, /didn't answer as MicroPython does/, 'no-micropython'],
+    [{ preset: 'microbit-v2' as const }, /micro:bit has no folders/, 'micropython'],
+  ])('a send that can\'t be done says why (%#)', async (board, message, state) => {
+    const c = new Boards(deps(board, 'Thonny').d, () => {});
+    const r = await c.send(PICO, { 'main.py': 'm', 'lib/x.py': 'x' }, { run: true, keep: false });
+    expect(r).toEqual({ ok: false, message: expect.stringMatching(message) });
+    expect(c.checks.e661?.state).toBe(state);
+  });
+
+  it('unplugged while sending: its files are as they were; plug it back in and send again', async () => {
+    const b = new FakeBoard(W);
+    b.unplugAt('_mlc', 1);
+    const c = new Boards(deps(b).d, () => {});
+    const r = await c.send(PICO, { 'main.py': 'new' }, { run: true, keep: false });
+    expect(r).toEqual({ ok: false, message: expect.stringMatching(/unplugged while sending.*send again/) });
+    expect(new TextDecoder().decode(b.files.get('main.py'))).toBe('# theirs\n');
+  });
+
+  it('a check asked while sending waits for the send: the port is never opened twice at once', async () => {
+    const { d } = deps(new FakeBoard(W));
+    let open = 0;
+    let most = 0;
+    const inner = d.open;
+    d.open = async (p) => {
+      open++; most = Math.max(most, open);
+      const l = await inner(p);
+      return { ...l, close: async () => { open--; } };
+    };
+    const c = new Boards(d, () => {});
+    await Promise.all([c.send(PICO, { 'main.py': 'x' }, { run: true, keep: false }), c.check(PICO)]);
+    expect(most).toBe(1);
   });
 });
