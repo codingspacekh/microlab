@@ -7,7 +7,8 @@ on the ESP32 and *Heart & knob* on the micro:bit. Every wire ends on a real pin 
 import math
 
 from svgparts import (P, f, Breadboard, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
-                      microbit, oled, hcsr04, servo, HEART, slide_switch, ldr, rgb_led, battery)
+                      microbit, oled, hcsr04, servo, HEART, slide_switch, ldr, rgb_led, battery,
+                      pir, line_sensor, soil_sensor, temp_sensor)
 
 W, H = 692, 820
 
@@ -153,6 +154,41 @@ def mood_lamp() -> str:
     o.append(wire([bb.xy(23, "j"), bb.xy(23, "B-")], "black"))
     o.append(wire([bb.xy(1, "T-"), bb.xy(1, "B-")], "black"))
     o.append(cursor(376, 380, "hand"))
+    return _svg("".join(o))
+
+
+def greenhouse() -> str:
+    """Pico W running (M6.3 design): a TMP36, a PIR on VBUS seeing motion (held), an IR line sensor over the black
+    line and a capacitive soil sensor, each standing in row f, wired from the free holes below; the Pico W below the
+    breadboard so its top-row pins come straight up. B+ is 3V3, B− GND."""
+    bb = Breadboard(120, 150)
+    o = [bb.svg(rail_labels={"B-": ("GND", "#3a3d42"), "B+": ("3V3", "#de3b3b")})]
+    o.append(temp_sensor(bb.xy(2, "f"), bb.xy(3, "f"), bb.xy(4, "f")))
+    o.append(pir(bb.xy(7, "f"), bb.xy(8, "f"), bb.xy(9, "f"), motion=True))
+    o.append(line_sensor(bb.xy(12, "f"), bb.xy(13, "f"), bb.xy(14, "f"), over_line=True))
+    o.append(soil_sensor(bb.xy(19, "f"), bb.xy(20, "f"), bb.xy(21, "f"), moisture=0.35))
+    psvg, pins = pico(140, 640)
+    o.append(psvg)
+    # the rails: 3V3 and GND from the Pico W
+    o.append(wire([pins[36], (pins[36][0], 492), (bb.xy(1, "B+")[0], 492), bb.xy(1, "B+")], "red"))
+    o.append(wire([pins[38], (pins[38][0], 500), (bb.xy(2, "B-")[0], 500), bb.xy(2, "B-")], "black"))
+    # TMP36: +Vs, GND from the rails, Vout to GP26
+    o.append(wire([bb.xy(2, "j"), bb.xy(2, "B+")], "red"))
+    o.append(wire([bb.xy(4, "j"), bb.xy(4, "B-")], "black"))
+    o.append(wire([pins[31], (pins[31][0], 478), (bb.xy(3, "i")[0] - 0, 478), bb.xy(3, "i")], "yellow"))
+    # PIR: VCC from VBUS (5 V), OUT to GP22, GND
+    o.append(wire([pins[40], (pins[40][0], 470), (bb.xy(7, "j")[0], 470), bb.xy(7, "j")], "orange"))
+    o.append(wire([pins[29], (pins[29][0], 462), (bb.xy(8, "i")[0], 462), bb.xy(8, "i")], "green"))
+    o.append(wire([bb.xy(9, "j"), bb.xy(9, "B-")], "black"))
+    # line sensor: OUT to GP21, GND, VCC 3V3
+    o.append(wire([pins[27], (pins[27][0], 486), (bb.xy(12, "i")[0], 486), bb.xy(12, "i")], "blue"))
+    o.append(wire([bb.xy(13, "j"), bb.xy(13, "B-")], "black"))
+    o.append(wire([bb.xy(14, "j"), bb.xy(14, "B+")], "red"))
+    # soil: AOUT to GP27, VCC 3V3, GND
+    o.append(wire([pins[32], (pins[32][0], 454), (bb.xy(19, "i")[0], 454), bb.xy(19, "i")], "purple"))
+    o.append(wire([bb.xy(20, "j"), bb.xy(20, "B+")], "red"))
+    o.append(wire([bb.xy(21, "j"), bb.xy(21, "B-")], "black"))
+    o.append(cursor(bb.xy(8, "f")[0] + 4, bb.xy(8, "f")[1] - 64, "hand"))
     return _svg("".join(o))
 
 
@@ -313,7 +349,7 @@ def led_states() -> str:
     return _svg("".join(o), 280, 96, "0 -10 280 106")
 
 
-SCENES = {"moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
+SCENES = {"greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
           "servowiring": servo_wiring, "servopulses": servo_pulses, "plot": plot}
 
 

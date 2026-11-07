@@ -322,6 +322,97 @@ def battery(plus, minus, kind: str = "4xAA") -> str:
     return "".join(o) + "</g>"
 
 
+def _header(pins, labels, y_body):
+    """A module's 3-pin header: the black plastic strip above the holes, the pins down into them, their names."""
+    xs = [x for x, _ in pins]
+    y = pins[0][1]
+    o = [f'<rect x="{f(min(xs) - 7)}" y="{f(y - 14)}" width="{f(max(xs) - min(xs) + 14)}" height="7" rx="1" fill="#26282c"/>']
+    for (x, yy), lab in zip(pins, labels):
+        o.append(f'<line x1="{x}" y1="{yy}" x2="{x}" y2="{f(y - 7)}" stroke="#c7ccd2" stroke-width="1.8"/>'
+                 f'<line x1="{x}" y1="{f(y - 14)}" x2="{x}" y2="{f(y_body)}" stroke="#c7ccd2" stroke-width="1.8"/>')
+    for (x, _), lab in zip(pins, labels):
+        o.append(f'<text x="{x}" y="{f(y - 18)}" font-size="5.5" font-weight="700" fill="#e9edf2" text-anchor="middle" font-family="Inter">{lab}</text>')
+    return "".join(o)
+
+
+def pir(vcc, out, gnd, motion: bool = False) -> str:
+    """HC-SR501 PIR motion sensor standing in the breadboard: pins VCC, OUT, GND in a row, its green board above them
+    with the white Fresnel dome; while it sees motion, waves round the dome. Drawn smaller than real (32 × 24 mm)."""
+    cx, y = out[0], out[1]
+    w, h = 84, 74
+    top = y - 16 - h
+    o = ['<g class="pir">']
+    if motion:
+        for r, op in ((40, .5), (50, .32), (60, .18)):
+            o.append(f'<path d="M{f(cx - r * .8)},{f(top + 30 - r * .55)} A{r} {r} 0 0 1 {f(cx + r * .8)},{f(top + 30 - r * .55)}" stroke="#e8590c" stroke-width="2" fill="none" opacity="{op}"/>')
+    o.append(f'<rect x="{f(cx - w / 2)}" y="{f(top)}" width="{w}" height="{h}" rx="4" fill="#2f7d3f" stroke="#1f5a2b" filter="url(#lift)"/>')
+    o.append(f'<circle cx="{f(cx)}" cy="{f(top + 32)}" r="27" fill="#f4f4f1" stroke="#d3d3cc"/>')
+    for r in (20, 13, 6):
+        o.append(f'<circle cx="{f(cx)}" cy="{f(top + 32)}" r="{r}" fill="none" stroke="#e2e2db" stroke-width="1.2"/>')
+    o.append(f'<ellipse cx="{f(cx - 9)}" cy="{f(top + 22)}" rx="7" ry="4" fill="#fff" opacity=".8"/>')
+    o.append(_header([vcc, out, gnd], ("VCC", "OUT", "GND"), top + h))
+    return "".join(o) + "</g>"
+
+
+def line_sensor(out, gnd, vcc, over_line: bool = False) -> str:
+    """TCRT5000 IR line sensor module standing in the breadboard: pins OUT, GND, VCC; its blue board above with the
+    blue trimmer, the power LED and the signal LED (lit over white: OUT low), the TCRT5000 at the far end looking at
+    the surface — drawn as a strip, white, or with the black line under it."""
+    cx, y = gnd[0], gnd[1]
+    w, h = 50, 84
+    top = y - 16 - h
+    o = ['<g class="line-sensor">']
+    o.append(f'<rect x="{f(cx - 30)}" y="{f(top - 22)}" width="60" height="16" rx="3" fill="#fbfbf8" stroke="#cfcfc6"/>')
+    if over_line:
+        o.append(f'<rect x="{f(cx - 30)}" y="{f(top - 19)}" width="60" height="10" fill="#1b1c1f"/>')
+    o.append(f'<rect x="{f(cx - w / 2)}" y="{f(top)}" width="{w}" height="{h}" rx="3" fill="#2457a6" stroke="#173c78" filter="url(#lift)"/>')
+    o.append(f'<rect x="{f(cx - 14)}" y="{f(top + 4)}" width="28" height="14" rx="2" fill="#1c1e21"/>'
+             f'<circle cx="{f(cx - 6.5)}" cy="{f(top + 11)}" r="4.2" fill="#3a63c9"/><circle cx="{f(cx + 6.5)}" cy="{f(top + 11)}" r="4.2" fill="#121314"/>')
+    o.append(f'<rect x="{f(cx - 9)}" y="{f(top + 30)}" width="18" height="18" rx="2" fill="#2f74d8" stroke="#1d4f9e"/>'
+             f'<circle cx="{f(cx)}" cy="{f(top + 39)}" r="5" fill="#e9ebee"/><line x1="{f(cx - 3)}" y1="{f(top + 39)}" x2="{f(cx + 3)}" y2="{f(top + 39)}" stroke="#6b7280" stroke-width="1.4"/>')
+    o.append(f'<rect x="{f(cx - 16)}" y="{f(top + 56)}" width="7" height="4" rx="1" fill="#ff5a4a"/>'
+             f'<rect x="{f(cx + 9)}" y="{f(top + 56)}" width="7" height="4" rx="1" fill="{"#3a3d42" if over_line else "#34d058"}"/>')
+    if not over_line:
+        o.append(f'<circle cx="{f(cx + 12.5)}" cy="{f(top + 58)}" r="7" fill="url(#glow-green)"/>')
+    o.append(f'<circle cx="{f(cx - 12.5)}" cy="{f(top + 58)}" r="7" fill="url(#glow-red)" opacity=".7"/>')
+    o.append(_header([out, gnd, vcc], ("OUT", "GND", "VCC"), top + h))
+    return "".join(o) + "</g>"
+
+
+def soil_sensor(aout, vcc, gnd, moisture: float = 0.35) -> str:
+    """Capacitive soil moisture sensor v1.2 standing in the breadboard: pins AOUT, VCC, GND; its long black board above
+    with the probe end in a pot of soil, as wet as `moisture` (0 dry – 1 in water)."""
+    cx, y = vcc[0], vcc[1]
+    w, h = 46, 130
+    top = y - 16 - h
+    o = ['<g class="soil">']
+    o.append(f'<rect x="{f(cx - w / 2)}" y="{f(top)}" width="{w}" height="{h}" rx="4" fill="#1d1f22" stroke="#0e0f11" filter="url(#lift)"/>')
+    o.append(f'<path d="M{f(cx - w / 2)},{f(top + 70)} h{w} M{f(cx - 18)},{f(top + 70)} v-60 l18,-8 l18,8 v60" stroke="#e8d49a" stroke-width="1.2" fill="none" opacity=".6"/>')
+    o.append(f'<rect x="{f(cx - 11)}" y="{f(top + 82)}" width="22" height="12" rx="1.5" fill="#2b2e33"/><rect x="{f(cx - 5)}" y="{f(top + 100)}" width="10" height="7" rx="1" fill="#2b2e33"/>')
+    # the pot of soil round the probe's end
+    r = int(0x8a + (0x4a - 0x8a) * moisture); g = int(0x5b + (0x2f - 0x5b) * moisture); b = int(0x34 + (0x1c - 0x34) * moisture)
+    o.append(f'<path d="M{f(cx - 34)},{f(top + 14)} h68 l-6,48 h-56 z" fill="#{r:02x}{g:02x}{b:02x}" opacity=".93"/>'
+             f'<path d="M{f(cx - 36)},{f(top + 10)} h72 v6 h-72 z" fill="#b5651d"/>')
+    for i in range(int(round(moisture * 4))):
+        dx = (-20, 14, -6, 22)[i]
+        o.append(f'<path d="M{f(cx + dx)},{f(top + 26 + i * 8)} q3,5 0,7 q-3,-2 0,-7z" fill="#7fb4ff" opacity=".9"/>')
+    o.append(_header([aout, vcc, gnd], ("AOUT", "VCC", "GND"), top + h))
+    return "".join(o) + "</g>"
+
+
+def temp_sensor(vs, vout, gnd, kind: str = "TMP36") -> str:
+    """TMP36 or LM35 in a TO-92 package, its flat face towards you: legs +Vs, Vout, GND; the body above them."""
+    cx, y = vout[0], vout[1]
+    o = ['<g class="temp">']
+    for x, yy in (vs, vout, gnd):
+        o.append(f'<line x1="{x}" y1="{yy}" x2="{f(cx + (x - cx) * .45)}" y2="{f(y - 18)}" stroke="#a5abb2" stroke-width="1.7"/>')
+    o.append(f'<path d="M{f(cx - 13)},{f(y - 18)} v-20 a13 9 0 0 1 26 0 v20 z" fill="#1f2125" stroke="#0e0f11" filter="url(#lift)"/>'
+             f'<text x="{f(cx)}" y="{f(y - 26)}" font-size="5.5" font-weight="700" fill="#cfd3d8" text-anchor="middle" font-family="JetBrains Mono">{kind}</text>')
+    for x, lab in zip((vs[0], vout[0], gnd[0]), ("+Vs", "Vout", "GND")):
+        o.append(f'<text x="{x}" y="{f(y + 11)}" font-size="5" font-weight="700" fill="#6b7280" text-anchor="middle" font-family="Inter">{lab}</text>')
+    return "".join(o) + "</g>"
+
+
 def usb_plug(x, y) -> str:
     """A micro-USB cable plugged into the socket whose left end is at (x, y) (the GPIO board's 5V in): the plug's
     metal end in the socket, its grey body and the cable going left."""
@@ -704,7 +795,7 @@ ICON_PARTS = {
     "dht": '<rect x="9" y="4" width="14" height="20" rx="2" fill="#3f8fe0"/>' + "".join(f'<rect x="{11 + c * 3.5}" y="{7 + r * 3.5}" width="2" height="2" fill="#1f5ea8"/>' for c in range(3) for r in range(4)) + '<path d="M12,24 v5 M15,24 v5 M18,24 v5 M21,24 v5" stroke="#a5abb2" stroke-width="1.3"/>',
     "pir": '<rect x="5" y="17" width="22" height="9" rx="2" fill="#2f8f4f"/><path d="M8,18 a8,8 0 0 1 16,0Z" fill="#f2f3f5" stroke="#c9d0d8"/>',
     "line": '<rect x="10" y="3" width="12" height="26" rx="2" fill="#2b5fa8"/><circle cx="16" cy="23" r="3" fill="#2d3136"/><circle cx="16" cy="16" r="2.5" fill="#d6d9de"/>',
-    "soil": '<rect x="9" y="3" width="14" height="9" rx="2" fill="#2f8f4f"/><path d="M11,12 v15 l2,2 2,-2 v-15 M17,12 v15 l2,2 2,-2 v-15" fill="#d6b24c"/>',
+    "soil": '<path d="M11,3 h10 v20 l-5,6 l-5,-6 z" fill="#1d1f22"/><path d="M13,8 h6 M13,12 h6" stroke="#e8d49a" stroke-width="1" opacity=".6"/>',
     "tmp36": '<path d="M10,6 h12 v10 a6,3 0 0 1 -12,0Z" fill="#2d3136"/><path d="M12,18 v11 M16,19 v11 M20,18 v11" stroke="#a5abb2" stroke-width="1.4"/>',
     "servo": '<rect x="4" y="11" width="22" height="12" rx="2" fill="#3a8ae0"/><rect x="1" y="14" width="4" height="6" rx="1" fill="#2f76c9"/><rect x="25" y="14" width="4" height="6" rx="1" fill="#2f76c9"/><path d="M8,17 L10,5 L12,17Z" fill="#f4f4f4" stroke="#b9bec5" stroke-width=".8"/><circle cx="10" cy="17" r="2" fill="#fff" stroke="#b9bec5" stroke-width=".8"/>',
     "motor": '<rect x="4" y="9" width="18" height="14" rx="3" fill="#f1c232"/><rect x="22" y="12" width="5" height="8" rx="1" fill="#c9cdd2"/><circle cx="12" cy="16" r="3" fill="#d4a417"/>',

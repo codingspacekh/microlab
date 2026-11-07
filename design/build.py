@@ -76,6 +76,8 @@ ICONS = {
     "tilt": '<path d="M5 15l7-11 7 11zM3 20h18"/>',
     "shake": '<path d="M8 4h8v16H8zM4 8v8M20 8v8M2 10v4M22 10v4"/>',
     "sun": '<path d="M12 8a4 4 0 1 0 0 8a4 4 0 0 0 0-8M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>',
+    "drop": '<path d="M12 3s-6 6.6-6 11a6 6 0 0 0 12 0c0-4.4-6-11-6-11z"/>',
+    "sliders": '<path d="M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4"/>',
     "therm": '<path d="M10 14V5a2 2 0 0 1 4 0v9a4 4 0 1 1-4 0zM12 9v7"/>',
     "mic": '<path d="M9 5a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0zM6 11a6 6 0 0 0 12 0M12 17v4"/>',
     "sound": '<path d="M4 9h4l5-4v14l-5-4H4zM16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/>',
@@ -134,6 +136,21 @@ while True:
     blue.value(on and dark)             # red + blue: purple
     green.value(on and not dark)
     print(light.read_u16())
+    time.sleep(0.5)''',
+    "greenhouse": '''from machine import Pin, ADC
+import time
+
+pir = Pin(22, Pin.IN)     # HC-SR501 on VBUS (5 V)
+line = Pin(21, Pin.IN)    # 0 over white, 1 over the line
+soil = ADC(27)            # dry 2.4 V … wet 0.9 V
+temp = ADC(26)            # TMP36: 0.5 V + 10 mV per °C
+
+while True:
+    c = (temp.read_u16() * 3.3 / 65535 - 0.5) * 100
+    dry = soil.read_u16() > 30000
+    print(round(c), 'C', 'dry' if dry else 'wet',
+          'motion' if pir.value() else '-',
+          'line' if line.value() else 'white')
     time.sleep(0.5)''',
     "traffic_typing": '''from machine import Pin
 import time
