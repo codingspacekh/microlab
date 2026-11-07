@@ -21,7 +21,8 @@
     "pins": "node scripts/print-pins.mjs",
     "art": "python3 scripts/export-art.py",
     "perf": "vitest run --project perf --reporter=verbose --silent=false",
-    "golden": "node scripts/record-golden.mjs"
+    "golden": "node scripts/record-golden.mjs",
+    "examples": "node scripts/pack-examples.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",
