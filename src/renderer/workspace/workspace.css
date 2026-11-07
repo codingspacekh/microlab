@@ -135,6 +135,7 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .inputs .sec + .sec { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
 .inputs .sh { display: flex; align-items: center; gap: 5px; }
 .inputs .sh .spacer { flex: 1; }
+.inputs .slider + .slider { margin-top: 8px; }
 .inputs p b { color: var(--tx-1); }
 .canvas .part-tip, .canvas .usb-tip { background: var(--inverse); color: var(--on-inverse); max-width: 240px; }
 .canvas .part-tip .dies { margin-top: 4px; font-family: var(--mono); font-size: 11.5px; line-height: 1.55; }

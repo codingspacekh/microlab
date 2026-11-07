@@ -45,10 +45,11 @@ function setup() {
 }
 
 describe('M6.3 the sensors in the editor (screen 18)', () => {
-  it('the parts panel has a Sensors group: PIR, line sensor, soil moisture, temperature', () => {
+  it('the parts panel has a Sensors group: the modules of screen 19, then PIR, line sensor, soil moisture, temperature', () => {
     const s = setup();
     const group = within(s.panel).getByRole('group', { name: 'Sensors' });
     expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'Ultrasonic HC-SR04distance · 5 V', 'DHT11 / DHT22temperature, humidity', 'MPU6050 motionaccelerometer · I²C',
       'PIR motionHC-SR501 · 5 V', 'Line sensor (IR)TCRT5000', 'Soil moisturecapacitive', 'TemperatureTMP36 · LM35',
     ]);
     expect(within(within(s.panel).getByRole('group', { name: 'Basics' })).getAllByRole('button')).toHaveLength(9);

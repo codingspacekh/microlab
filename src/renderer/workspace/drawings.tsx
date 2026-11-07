@@ -504,6 +504,93 @@ export function TempSensor({ vs, vout, gnd, kind = 'TMP36', upright = 0 }: { vs:
   );
 }
 
+/** DHT11 (blue) or DHT22 (white) on its 3-pin module (M6.4, screen 19): pins VCC, DATA, GND; the grilled case above. */
+export function Dht({ vcc, data, gnd, kind = 'DHT11', upright = 0 }: { vcc: Point; data: Point; gnd: Point; kind?: string; upright?: number }) {
+  const cx = data.x;
+  const top = data.y - 16 - 72;
+  const blue = kind === 'DHT11';
+  return (
+    <>
+      <rect x={cx - 26} y={top + 46} width={52} height={26} rx={3} fill="#2457a6" stroke="#173c78" filter="url(#lift)" />
+      <rect x={cx - 19} y={top} width={38} height={52} rx={3} fill={blue ? '#3f8fe0' : '#f4f4f1'} stroke="#9aa1a9" filter="url(#lift)" />
+      <path fill={blue ? '#1f5ea8' : '#c9cdd2'} d={[0, 1, 2, 3].flatMap((c) => [0, 1, 2, 3, 4, 5].map((r) => `M${cx - 14 + c * 8},${top + 5 + r * 7}h4v4h-4z`)).join('')} />
+      <text x={cx} y={top + 64} fontSize={6} fontWeight={700} fill="#e3eef9" textAnchor="middle" fontFamily="JetBrains Mono Variable, monospace"
+        pointerEvents="none" transform={upright ? `rotate(${upright} ${cx} ${top + 62})` : undefined}>{kind}</text>
+      <Header pins={[vcc, data, gnd]} labels={['VCC', 'DATA', 'GND']} bodyY={top + 72} upright={upright} />
+    </>
+  );
+}
+
+/** MPU6050 on its GY-521 board (M6.4b, screen 19): 8 pins VCC GND SCL SDA XDA XCL AD0 INT; the chip, the X / Y arrows
+ *  printed on the board, and a small level whose bubble shows the tilt (degrees about Y, about X). */
+export function Gy521({ pins, tilt = [0, 0], upright = 0 }: { pins: Point[]; tilt?: [number, number]; upright?: number }) {
+  const cx = (pins[0]!.x + pins[pins.length - 1]!.x) / 2;
+  const w = pins[pins.length - 1]!.x - pins[0]!.x + 24;
+  const top = pins[0]!.y - 16 - 74;
+  const ax = cx + 30;
+  const ay = top + 40;
+  const lx = cx - 40;
+  const ly = top + 30;
+  const rad = Math.PI / 180;
+  return (
+    <>
+      <rect x={cx - w / 2} y={top} width={w} height={74} rx={4} fill="#3b5bb7" stroke="#26408a" filter="url(#lift)" />
+      {[cx - w / 2 + 9, cx + w / 2 - 9].map((hx) => <circle key={hx} cx={hx} cy={top + 9} r={4} fill="#f6f4ef" stroke="#c9b26a" strokeWidth={1.6} />)}
+      <rect x={cx - 14} y={top + 16} width={28} height={28} rx={2} fill="#1c1e21" /><circle cx={cx - 10} cy={top + 20} r={1.4} fill="#5e656d" />
+      <path d={`M${ax},${ay} h18 M${ax + 14},${ay - 3} l4,3 l-4,3 M${ax},${ay} v-18 M${ax - 3},${ay - 14} l3,-4 l3,4`} stroke="#e3eef9" strokeWidth={1.3} fill="none" />
+      <g fontSize={6} fontWeight={700} fill="#e3eef9" pointerEvents="none" fontFamily="Inter Variable, Inter, sans-serif">
+        <text x={ax + 22} y={ay + 2}>X</text><text x={ax - 2} y={ay - 22}>Y</text>
+      </g>
+      <g className="level">
+        <circle cx={lx} cy={ly} r={12} fill="#e9f5ea" stroke="#9fd8b6" /><circle cx={lx} cy={ly} r={4.5} fill="none" stroke="#9fd8b6" />
+        <circle className="bubble" cx={f(lx - 8 * Math.sin(tilt[0] * rad))} cy={f(ly + 8 * Math.sin(tilt[1] * rad))} r={3.6} fill="#2fb56a" />
+      </g>
+      <Header pins={pins} labels={['VCC', 'GND', 'SCL', 'SDA', 'XDA', 'XCL', 'AD0', 'INT']} bodyY={top + 74} upright={upright} />
+    </>
+  );
+}
+
+/** HC-SR04 (M6.4, screens 07, 19): pins VCC, Trig, Echo, GND in a row, its board below them as screen 07 drew it — turned
+ *  (R) at the breadboard's top edge it faces away; while it measures, the sound going out. */
+export function HcSr04({ vcc, trig, echo, gnd, sounding = false, upright = 0 }: { vcc: Point; trig: Point; echo: Point; gnd: Point; sounding?: boolean; upright?: number }) {
+  const cx = (vcc.x + gnd.x) / 2;
+  const y = vcc.y;
+  const top = y + 16;
+  const w = 226;
+  const h = 100;
+  const turn = (x: number, yy: number) => (upright ? `rotate(${upright} ${f(x)} ${f(yy)})` : undefined);
+  return (
+    <>
+      <rect x={cx - w / 2} y={top} width={w} height={h} rx={5} fill="#1f6fb5" stroke="#134a7b" filter="url(#lift)" />
+      {[cx - w / 2 + 54, cx + w / 2 - 54].map((tx) => (
+        <g key={tx}>
+          <circle cx={tx} cy={top + h / 2 + 4} r={38} fill="#c9cdd2" stroke="#8f969f" />
+          <circle cx={tx} cy={top + h / 2 + 4} r={30} fill="#4d545c" opacity={0.55} />
+          <circle cx={tx} cy={top + h / 2 + 4} r={22} fill="none" stroke="#9aa1a9" strokeDasharray="2 2" />
+          {sounding && (
+            <g className="waves" pointerEvents="none">
+              {([[48, 0.55], [58, 0.35], [68, 0.2]] as const).map(([r, op]) => (
+                <path key={r} d={`M${f(tx - r * 0.6)},${f(top + h + 4 + r * 0.25)} A${r} ${r} 0 0 0 ${f(tx + r * 0.6)},${f(top + h + 4 + r * 0.25)}`} stroke="#2563d9" strokeWidth={2} fill="none" opacity={op} />
+              ))}
+            </g>
+          )}
+        </g>
+      ))}
+      <rect x={cx - 12} y={top + h / 2 - 5} width={24} height={10} rx={5} fill="#c9cdd2" />
+      <text x={cx} y={top + h - 8} fontSize={7} fill="#d5e6f7" textAnchor="middle" fontFamily="JetBrains Mono Variable, monospace" fontWeight={600}
+        pointerEvents="none" transform={turn(cx, top + h - 10)}>HC-SR04</text>
+      <rect x={vcc.x - 7} y={y + 7} width={gnd.x - vcc.x + 14} height={7} rx={1} fill="#26282c" />
+      {([[vcc, 'VCC'], [trig, 'Trig'], [echo, 'Echo'], [gnd, 'GND']] as const).map(([p, t]) => (
+        <g key={t}>
+          <line x1={p.x} y1={p.y} x2={p.x} y2={top} stroke="#c7ccd2" strokeWidth={1.8} />
+          <text x={p.x} y={top + 11} fontSize={5.5} fontWeight={700} fill="#e3eef9" textAnchor="middle" fontFamily="Inter Variable, Inter, sans-serif"
+            pointerEvents="none" transform={turn(p.x, top + 9)}>{t}</text>
+        </g>
+      ))}
+    </>
+  );
+}
+
 /** A part from its type and the places of its legs. */
 export interface PartLook {
   /** An LED's brightness, 0–1, while running (M4.5). */
@@ -519,6 +606,8 @@ export interface PartLook {
   /** A PIR's OUT high, a soil sensor's moisture 0–1 (M6.3). */
   motion?: boolean;
   moisture?: number;
+  /** An MPU6050's tilt, degrees about Y and X (M6.4b). */
+  tilt?: [number, number];
 }
 
 export function PartDrawing({ type, legs, props, look = {} }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown>; look?: PartLook }) {
@@ -527,7 +616,7 @@ export function PartDrawing({ type, legs, props, look = {} }: { type: string; le
     case 'button': return <PushButton legs={[legs['1a']!, legs['2a']!, legs['1b']!, legs['2b']!]} pressed={look.pressed} />;
     case 'battery': return <Battery plus={legs['+']!} minus={legs['-']!} kind={String(props?.kind ?? '2xAA')} />;
     case 'led': case 'potentiometer': case 'slide-switch': case 'ldr': case 'rgb-led': case 'buzzer':
-    case 'pir': case 'line-sensor': case 'soil-moisture': case 'temp-sensor': {
+    case 'pir': case 'line-sensor': case 'soil-moisture': case 'temp-sensor': case 'dht': case 'hc-sr04': case 'mpu6050': {
       // drawn as if not turned, then turned about the legs' middle (M5.1); the letters and signs stay upright
       const t = partTurns(type, legs);
       const { local, transform } = unturned(legs, t);
@@ -541,6 +630,9 @@ export function PartDrawing({ type, legs, props, look = {} }: { type: string; le
         pir: () => <Pir vcc={local.vcc!} out={local.out!} gnd={local.gnd!} motion={look.motion} upright={up} />,
         'line-sensor': () => <LineSensor out={local.out!} gnd={local.gnd!} vcc={local.vcc!} overLine={(look.position ?? 0) >= 0.5} upright={up} />,
         'soil-moisture': () => <SoilSensor aout={local.out!} vcc={local.vcc!} gnd={local.gnd!} moisture={look.moisture} upright={up} />,
+        dht: () => <Dht vcc={local.vcc!} data={local.out!} gnd={local.gnd!} kind={String(props?.kind ?? 'DHT11')} upright={up} />,
+        'hc-sr04': () => <HcSr04 vcc={local.vcc!} trig={local.trig!} echo={local.echo!} gnd={local.gnd!} sounding={look.sounding} upright={up} />,
+        mpu6050: () => <Gy521 pins={['vcc', 'gnd', 'scl', 'sda', 'xda', 'xcl', 'ad0', 'int'].map((l) => local[l]!)} tilt={look.tilt} upright={up} />,
         'temp-sensor': () => <TempSensor vs={local.vcc!} vout={local.out!} gnd={local.gnd!} kind={String(props?.kind ?? 'TMP36')} upright={up} />,
         'rgb-led': () => <RgbLed r={local.r!} c={local.common!} g={local.g!} b={local.b!} dies={look.dies} common={String(props?.common ?? 'cathode')} upright={up} />,
       }[type]();
@@ -631,6 +723,15 @@ export function PartIcon({ type }: { type: string }) {
         <circle cx="13" cy="13" r="2" fill="#ef3b2c" /><circle cx="18" cy="12" r="2" fill="#22b14c" /><circle cx="16" cy="17" r="2" fill="#2f6fe0" />
       </>
     ),
+    'hc-sr04': <><rect x="2" y="9" width="28" height="14" rx="2" fill="#1f6fb5" /><circle cx="9" cy="16" r="5.5" fill="#c9cdd2" /><circle cx="23" cy="16" r="5.5" fill="#c9cdd2" /><circle cx="9" cy="16" r="3.5" fill="#6d747c" /><circle cx="23" cy="16" r="3.5" fill="#6d747c" /></>,
+    dht: (
+      <>
+        <rect x="9" y="4" width="14" height="20" rx="2" fill="#3f8fe0" />
+        <path fill="#1f5ea8" d={[0, 1, 2].flatMap((c) => [0, 1, 2, 3].map((r) => `M${11 + c * 3.5},${7 + r * 3.5}h2v2h-2z`)).join('')} />
+        <path d="M12,24 v5 M15,24 v5 M18,24 v5 M21,24 v5" stroke="#a5abb2" strokeWidth="1.3" />
+      </>
+    ),
+    mpu6050: <><rect x="4" y="8" width="24" height="16" rx="2" fill="#3b5bb7" /><rect x="12" y="11" width="8" height="8" rx="1" fill="#1c1e21" /><path d="M6,27 v3 M9,27 v3 M12,27 v3 M15,27 v3 M18,27 v3 M21,27 v3 M24,27 v3 M27,27 v3" stroke="#a5abb2" strokeWidth="1.2" /></>,
     pir: <><rect x="5" y="17" width="22" height="9" rx="2" fill="#2f8f4f" /><path d="M8,18 a8,8 0 0 1 16,0Z" fill="#f2f3f5" stroke="#c9d0d8" /></>,
     'line-sensor': <><rect x="10" y="3" width="12" height="26" rx="2" fill="#2b5fa8" /><circle cx="16" cy="23" r="3" fill="#2d3136" /><circle cx="16" cy="16" r="2.5" fill="#d6d9de" /></>,
     'soil-moisture': <><path d="M11,3 h10 v20 l-5,6 l-5,-6 z" fill="#1d1f22" /><path d="M13,8 h6 M13,12 h6" stroke="#e8d49a" strokeWidth="1" opacity=".6" /></>,

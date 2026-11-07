@@ -7,7 +7,7 @@ import { PART_ART } from './library';
  * footprints are set here; the push button's, the potentiometer's and the slide switch's come from their art.json.
  */
 export type PartType = 'resistor' | 'led' | 'rgb-led' | 'button' | 'slide-switch' | 'potentiometer' | 'ldr' | 'buzzer' | 'battery'
-  | 'pir' | 'line-sensor' | 'soil-moisture' | 'temp-sensor';
+  | 'hc-sr04' | 'dht' | 'mpu6050' | 'pir' | 'line-sensor' | 'soil-moisture' | 'temp-sensor';
 
 export interface PartKind {
   type: PartType;
@@ -46,6 +46,12 @@ export const PART_KINDS: PartKind[] = [
   { type: 'buzzer', name: 'Buzzer', detail: 'active · passive', group: 'Basics', prefix: 'bz', legs: { '+': [0, 0], '-': [48, 0] }, props: { kind: 'active' }, rows: ROWS },
   // its red lead in a + rail, its black lead in the − rail below it (screen 17b): the pack hangs below the breadboard
   { type: 'battery', name: 'Battery pack', detail: '2×AA · 4×AA · 9 V', group: 'Basics', prefix: 'bat', legs: { '+': [0, 0], '-': [0, 16] }, props: { kind: '2xAA' }, rows: ['B+'] },
+  // modules (M6.4, screen 19): the HC-SR04 drawn as screen 07, its board below its pins — clicked in, it hangs off
+  // the breadboard's bottom edge (R turns it to face the other way); the DHT and the GY-521 stand in row f
+  { type: 'hc-sr04', group: 'Sensors', name: 'Ultrasonic HC-SR04', detail: 'distance · 5 V', prefix: 'sonar', legs: { vcc: [0, 0], trig: [16, 0], echo: [32, 0], gnd: [48, 0] }, props: {}, rows: [...'jihgfedcba'] },
+  { type: 'dht', group: 'Sensors', name: 'DHT11 / DHT22', detail: 'temperature, humidity', prefix: 'dht', legs: { vcc: [0, 0], out: [16, 0], gnd: [32, 0] }, props: { kind: 'DHT11' }, rows: MODULE_ROWS },
+  { type: 'mpu6050', group: 'Sensors', name: 'MPU6050 motion', detail: 'accelerometer · I²C', prefix: 'mpu',
+    legs: Object.fromEntries(['vcc', 'gnd', 'scl', 'sda', 'xda', 'xcl', 'ad0', 'int'].map((l, i) => [l, [16 * i, 0] as [number, number]])), props: {}, rows: MODULE_ROWS },
   // sensor modules (M6.3, screen 18): three pins in a row, as printed; in row f, their boards over the top half
   { type: 'pir', group: 'Sensors', name: 'PIR motion', detail: 'HC-SR501 · 5 V', prefix: 'pir', legs: { vcc: [0, 0], out: [16, 0], gnd: [32, 0] }, props: {}, rows: MODULE_ROWS },
   { type: 'line-sensor', group: 'Sensors', name: 'Line sensor (IR)', detail: 'TCRT5000', prefix: 'line', legs: { out: [0, 0], gnd: [16, 0], vcc: [32, 0] }, props: {}, rows: MODULE_ROWS },

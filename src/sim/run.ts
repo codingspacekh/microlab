@@ -113,7 +113,10 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const console = new Console(options.onOutput);
   const mp = await startMicroPython(load, console);
   const clock = options.clock ?? new RealClock();
-  const now = () => clock.nowUs();
+  // the time the pins and the circuit see: the clock's, or — inside time_pulse_us — the moment a scheduled change was
+  // due, so a late wake-up doesn't stretch a pulse (M6.4)
+  let asOf: number | undefined;
+  const now = () => asOf ?? clock.nowUs();
   const spec = options.board ? BOARDS[options.board] : undefined;
   const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []), options.control,
     new Set<string>(spec && 'noPull' in spec ? spec.noPull : []));
@@ -133,7 +136,10 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const sound: [number, number][] = [];
   const bus: [number, string][] = [];
   const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
-  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, { display, sound, motion, bus, stop, quiet, circuit }, options));
+  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, {
+    display, sound, motion, bus, stop, quiet, circuit,
+    asOf: (t, read) => { asOf = t; try { return read(); } finally { asOf = undefined; } },
+  }, options));
   mp._module.microlabHook = () => {
     clock.poll();
     stop();
@@ -193,6 +199,8 @@ interface MicrobitParts {
   quiet: () => boolean;
   /** The circuit, when there is one: the parts that answer a protocol (a DHT, M6.4). */
   circuit?: CircuitHost;
+  /** Reads the pins as of `t` (µs) while `read` runs (time_pulse_us, M6.4). */
+  asOf: <T>(t: number, read: () => T) => T;
 }
 
 /** Stop (N-03): KeyboardInterrupt is scheduled when the window asks, and again every 50 ms while it still asks, in
@@ -211,7 +219,7 @@ function stopper(mp: MicroPython, control: Control | undefined, faulted: () => b
 }
 
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
-  const { display, sound, motion, bus, stop, quiet, circuit } = mb;
+  const { display, sound, motion, bus, stop, quiet, circuit, asOf } = mb;
   const log = (entry: string) => bus.push([clock.nowUs(), entry]);
   return {
     ticks_us: () => clock.ticksUs(),
@@ -325,24 +333,27 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
       log(`dht pin=${pin} ${bytes ?? 'timeout'}`);
       return bytes ?? -1;
     },
-    /** machine_time_pulse_us (extmod/machine_pulse.c, v1.29): two changes, -2 / -1 on a timeout; virtual time jumps to
-     *  the next input change. */
+    /** machine_time_pulse_us (extmod/machine_pulse.c, v1.29): two changes, -2 / -1 on a timeout. It steps from one
+     *  input change to the next: it sleeps until a change is due, then reads the pin as of then — a late wake-up
+     *  (a busy laptop) doesn't stretch the pulse, nor miss a short one (M6.4: an HC-SR04's echo). */
     pulse_us: (pin: string, level: number, timeoutUs: number): number => {
       let want = level ? 1 : 0;
       let left = 2;
-      let start = clock.ticksUs();
+      let t = clock.ticksUs();
+      let start = t;
       for (;;) {
-        const t = clock.ticksUs();
-        if (pins.level(pin) === want) {
+        if (asOf(t, () => pins.level(pin)) === want) {
           want = 1 - want;
           if (--left === 0) return t - start;
           start = t;
-        } else {
-          if (t - start >= timeoutUs || stop()) return -left;
-          const until = Math.min(pins.nextChangeUs(), start + timeoutUs);
-          const wait = until - clock.nowUs();
-          if (wait > 0) clock.sleepUs(wait);
+          continue;
         }
+        if (t - start >= timeoutUs || stop()) return -left;
+        const until = Math.min(asOf(t, () => pins.nextChangeUs()), start + timeoutUs);
+        const wait = until - clock.nowUs();
+        if (wait > 0) clock.sleepUs(wait);
+        // a change from outside (the window) isn't scheduled: it is seen as of now
+        t = until === Infinity ? clock.ticksUs() : Math.max(t + 1, Math.min(until, clock.ticksUs()));
       }
     },
   };

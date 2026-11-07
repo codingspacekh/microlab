@@ -149,8 +149,30 @@ describe('M6.3 the sensors in the editor', () => {
   });
 
   it('in the Sensors group, a TMP36 to start with', () => {
-    expect(PART_KINDS.filter((k) => k.group === 'Sensors').map((k) => k.type)).toEqual(['pir', 'line-sensor', 'soil-moisture', 'temp-sensor']);
+    expect(PART_KINDS.filter((k) => k.group === 'Sensors').map((k) => k.type)).toEqual(expect.arrayContaining(['pir', 'line-sensor', 'soil-moisture', 'temp-sensor']));
     expect(partKind('resistor').group).toBe('Basics');
     expect(partKind('temp-sensor')).toMatchObject({ props: { kind: 'TMP36' } });
+  });
+});
+
+/** M6.4c (screen 19): the DHT, the HC-SR04 and the GY-521 (MPU6050), pins in their printed order. */
+describe('M6.4c the modules in the editor', () => {
+  it('DHT VCC DATA GND; HC-SR04 VCC Trig Echo GND; GY-521 VCC GND SCL SDA XDA XCL AD0 INT, all side by side', () => {
+    const p = empty();
+    expect(snapPart(sceneOf(p), 'dht', at(p, 'bb1.f2'))).toEqual({ vcc: 'bb1.f2', out: 'bb1.f3', gnd: 'bb1.f4' });
+    expect(snapPart(sceneOf(p), 'hc-sr04', at(p, 'bb1.j20'))).toEqual({ vcc: 'bb1.j20', trig: 'bb1.j21', echo: 'bb1.j22', gnd: 'bb1.j23' });
+    expect(snapPart(sceneOf(p), 'mpu6050', at(p, 'bb1.f7'))).toEqual(Object.fromEntries(['vcc', 'gnd', 'scl', 'sda', 'xda', 'xcl', 'ad0', 'int'].map((l, i) => [l, `bb1.f${7 + i}`])));
+  });
+
+  it('clicked in the panel: the HC-SR04 in row j, its board hanging off the edge; the others in row f', () => {
+    const s = sceneOf(empty());
+    expect(freeSpot(s, 'hc-sr04')).toEqual({ vcc: 'bb1.j1', trig: 'bb1.j2', echo: 'bb1.j3', gnd: 'bb1.j4' });
+    expect(freeSpot(s, 'dht')).toEqual({ vcc: 'bb1.f1', out: 'bb1.f2', gnd: 'bb1.f3' });
+  });
+
+  it('in the Sensors group, first as in the prototype; a DHT11 to start with', () => {
+    expect(PART_KINDS.filter((k) => k.group === 'Sensors').map((k) => k.type))
+      .toEqual(['hc-sr04', 'dht', 'mpu6050', 'pir', 'line-sensor', 'soil-moisture', 'temp-sensor']);
+    expect(partKind('dht')).toMatchObject({ props: { kind: 'DHT11' } });
   });
 });

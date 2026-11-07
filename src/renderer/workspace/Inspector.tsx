@@ -18,12 +18,16 @@ const QUICK_OHMS = [100, 220, 330, 1000, 4700, 10_000];
 const POTS = [1000, 10_000, 100_000];
 const PACKS = [{ value: '2xAA', label: '2×AA · 3 V' }, { value: '4xAA', label: '4×AA · 6 V' }, { value: '9V', label: '9 V' }];
 const TEMPS = [{ value: 'TMP36', label: 'TMP36' }, { value: 'LM35', label: 'LM35' }];
+const DHTS = [{ value: 'DHT11', label: 'DHT11' }, { value: 'DHT22', label: 'DHT22' }];
 /** A sensor module's pins as printed on it, in order (M6.3, screen 18). */
 const PRINTED: Record<string, [string, string][]> = {
   pir: [['vcc', 'VCC'], ['out', 'OUT'], ['gnd', 'GND']],
   'line-sensor': [['out', 'OUT'], ['gnd', 'GND'], ['vcc', 'VCC']],
   'soil-moisture': [['out', 'AOUT'], ['vcc', 'VCC'], ['gnd', 'GND']],
   'temp-sensor': [['vcc', '+Vs'], ['out', 'Vout'], ['gnd', 'GND']],
+  dht: [['vcc', 'VCC'], ['out', 'DATA'], ['gnd', 'GND']],
+  'hc-sr04': [['vcc', 'VCC'], ['trig', 'Trig'], ['echo', 'Echo'], ['gnd', 'GND']],
+  mpu6050: [['vcc', 'VCC'], ['gnd', 'GND'], ['scl', 'SCL'], ['sda', 'SDA'], ['xda', 'XDA'], ['xcl', 'XCL'], ['ad0', 'AD0'], ['int', 'INT']],
 };
 const BUZZERS = [{ value: 'active', label: 'Active' }, { value: 'passive', label: 'Passive' }];
 const COMMONS = [{ value: 'cathode', label: '− cathode' }, { value: 'anode', label: '+ anode' }];
@@ -40,6 +44,9 @@ const TIPS: Record<string, string> = {
   'soil-moisture': 'AOUT to an ADC pin: about 2.4 V in dry soil, 0.9 V in water — wetter is lower. 3.3 V or 5 V.',
   'temp-TMP36': 'TMP36: 0.5 V + 10 mV per °C on Vout (0.72 V at 22 °C), from 2.7–5.5 V. Its flat face towards you: +Vs, Vout, GND.',
   'temp-LM35': 'LM35: 10 mV per °C on Vout (0.22 V at 22 °C); it needs 4 V or more — VBUS, VIN or 5V. Flat face towards you: +Vs, Vout, GND.',
+  dht: 'DATA to any pin — no resistor: the module has its pull-up. import dht; d = dht.DHT11(Pin(15)); d.measure(); then d.temperature(), d.humidity(). A DHT11 gives a new reading every second, a DHT22 every 2 s.',
+  'hc-sr04': 'It needs 5 V (VBUS, VIN or 5V). A 10 µs pulse on Trig, then time_pulse_us on Echo: 58 µs per cm. Echo is 5 V: bring it down with 1 kΩ + 2 kΩ before the board\'s pin, or the pin is damaged.',
+  mpu6050: 'SDA and SCL to the board\'s I²C pins (3.3 V or 5 V on VCC). It answers at 0x68 (AD0 high: 0x69) and starts asleep: write 0 to register 0x6B to wake it.',
   battery: 'A supply of its own, not joined to the board. To use it with the board, join its − to the board\'s GND.',
 };
 const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({ value, name: value[0]!.toUpperCase() + value.slice(1), colour }));
@@ -124,9 +131,10 @@ export function Inspector({ project, selection, onChange, onClose, onSelect }: I
             <Segmented label="Common leg" hideLabel value={String(part.props?.common ?? 'cathode')} onChange={(v) => set('common', v)} options={COMMONS} />
           </Row>
         )}
-        {part.type === 'temp-sensor' && (
+        {(part.type === 'temp-sensor' || part.type === 'dht') && (
           <Row name="Kind">
-            <Segmented label="Sensor kind" hideLabel value={String(part.props?.kind ?? 'TMP36')} onChange={(v) => set('kind', v)} options={TEMPS} />
+            <Segmented label="Sensor kind" hideLabel value={String(part.props?.kind ?? (part.type === 'dht' ? 'DHT11' : 'TMP36'))}
+              onChange={(v) => set('kind', v)} options={part.type === 'dht' ? DHTS : TEMPS} />
           </Row>
         )}
         {part.type === 'buzzer' && (

@@ -133,3 +133,20 @@ describe('M6.4 HC-SR04 with time_pulse_us', () => {
     expect(lines(r)).toEqual(['25']);
   });
 });
+
+/** A clock that wakes 3 ms late from every sleep, as a busy laptop's can. */
+class LateClock extends VirtualClock {
+  override sleepUs(us: number, wake?: () => boolean): boolean {
+    return super.sleepUs(us + 3000, wake);
+  }
+}
+
+describe('M6.4 time_pulse_us times an edge when it was due, not when the sim woke for it', () => {
+  it('waking 3 ms late, 50 cm still reads 50 cm (2900 µs)', async () => {
+    const r = await runProject(await nodeLoader(), {
+      board: 'pico-w', clock: new LateClock(), circuit: sonar('pico-w', 'VBUS', 'GP14', 'GP15'),
+      files: { 'main.py': `${ping(14, 15)}\nprint(round(cm()))\n` }, partInputs: [{ atUs: 0, part: 'sonar1', cm: 50 }],
+    });
+    expect(lines(r)).toEqual(['50']);
+  });
+});

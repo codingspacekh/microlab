@@ -603,6 +603,8 @@ export function Canvas({
           const sensor = outputs.parts[p.id];
           const motion = p.type === 'pir' && sensor?.kind === 'sensor' && sensor.volts > 1;
           const moisture = p.type === 'soil-moisture' ? live.value(`position:${p.id}`) : undefined;
+          const tilt = p.type === 'mpu6050' ? [live.value(`tiltx:${p.id}`), live.value(`tilty:${p.id}`)] as [number, number] : undefined;
+          const measuring = running && p.type === 'hc-sr04' && sensor?.kind === 'sensor' && sensor.powered;
           const lit = glow ?? (dies ? Math.max(...dies) : undefined);
           const says = running && ['led', 'rgb-led', 'buzzer', 'pir', 'line-sensor'].includes(p.type);
           const tone = p.type === 'buzzer' ? outputs.parts[p.id] : undefined;
@@ -622,7 +624,7 @@ export function Canvas({
                 const group = on ? chosen(selection).parts : [p.id];
                 begin((at) => ({ kind: 'parts', id: p.id, ids: group, start: at, at }))(e);
               }}>
-              <PartDrawing type={p.type} legs={legs} props={p.props} look={{ glow, dies, position, sounding: !!hz, motion, moisture, pressed: pressed === p.id }} />
+              <PartDrawing type={p.type} legs={legs} props={p.props} look={{ glow, dies, position, sounding: !!hz || measuring, motion, moisture, tilt, pressed: pressed === p.id }} />
               {on && <SelectBox type={p.type} legs={legs} props={p.props} />}
             </g>
           );
@@ -734,6 +736,7 @@ const PAD: Record<string, [number, number, number, number]> = {
   resistor: [10, 12, 10, 12], led: [20, 8, 20, 40], button: [26, 26, 26, 26], potentiometer: [28, 54, 28, 10],
   'slide-switch': [16, 42, 16, 8], ldr: [10, 8, 10, 38], 'rgb-led': [10, 16, 10, 40], buzzer: [8, 8, 8, 50],
   pir: [30, 96, 30, 8], 'line-sensor': [16, 126, 16, 8], 'soil-moisture': [24, 150, 24, 8], 'temp-sensor': [6, 50, 6, 16],
+  dht: [14, 94, 14, 8], mpu6050: [16, 96, 16, 8], 'hc-sr04': [93, 10, 93, 124],
 };
 function SelectBox({ type, legs: placedLegs, props }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown> }) {
   if (type === 'battery') {

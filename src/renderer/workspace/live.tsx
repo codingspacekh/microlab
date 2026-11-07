@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { ldrOhms, SENSOR_START } from '@lib/circuit';
+import { echoUs, ldrOhms, SENSOR_START } from '@lib/circuit';
 import type { Point } from '@lib/editor';
 import type { PartView } from '../../sim/circuit';
 import { noteName } from '../audio';
@@ -17,7 +17,9 @@ import { UsbPlug } from './drawings';
 
 /** The values the sim starts with (lib/circuit: a switch at 0, a knob in the middle, 300 lux on a light sensor, a soil
  *  sensor in damp soil, room temperature). */
-export const START: Record<string, number> = { position: 0, lux: 300, celsius: SENSOR_START.celsius };
+export const START: Record<string, number> = {
+  position: 0, lux: 300, celsius: SENSOR_START.celsius, humidity: SENSOR_START.humidity, cm: SENSOR_START.cm, tiltx: 0, tilty: 0,
+};
 const KNOB_START = 0.5;
 /** Pixels of drag from one end of a knob's turn to the other. */
 const KNOB_PX = 150;
@@ -86,7 +88,7 @@ const LOG = { min: -1, max: 5, step: 0.05 };
 const volts = (v: PartView | undefined, name: string) => (v?.kind !== 'sensor' ? '' : v.powered ? `${name} ${Number(v.volts.toFixed(2))} V` : 'not powered');
 
 /** The parts the Inputs card has a row for (screen 18): a light sensor, a soil moisture sensor, a temperature sensor. */
-export const SLIDER_PARTS = new Set(['ldr', 'soil-moisture', 'temp-sensor']);
+export const SLIDER_PARTS = new Set(['ldr', 'soil-moisture', 'temp-sensor', 'dht', 'hc-sr04', 'mpu6050']);
 
 /**
  * The Inputs card (screen 18, M6.3; it took the place of screen 17's light card): a row for every sensor set with a
@@ -114,6 +116,36 @@ export function InputsCard({ parts, live, views, onClose, style }: {
               <Slider label={`Light on ${name}`} value={Math.log10(lux)} min={LOG.min} max={LOG.max} step={LOG.step}
                 format={(v) => luxText(10 ** v)} ticks={['dark', 'room', 'daylight']}
                 onChange={(v) => live.set(`lux:${p.id}`, Number((10 ** v).toPrecision(v < 1 ? 1 : 2)))} />
+            </Row>
+          );
+        }
+        if (p.type === 'dht') {
+          return (
+            <Row key={p.id} icon="therm" name={name} kind={String(p.props?.kind ?? 'DHT11')} reading="">
+              <Slider label={`Temperature of ${name}`} value={live.value(`celsius:${p.id}`)} min={-20} max={60} step={1}
+                format={(v) => `${v} °C`} onChange={(v) => live.set(`celsius:${p.id}`, v)} />
+              <Slider label={`Humidity of ${name}`} value={live.value(`humidity:${p.id}`)} min={0} max={100} step={1}
+                format={(v) => `${v} %`} onChange={(v) => live.set(`humidity:${p.id}`, v)} />
+            </Row>
+          );
+        }
+        if (p.type === 'hc-sr04') {
+          const cm = live.value(`cm:${p.id}`);
+          return (
+            <Row key={p.id} icon="ruler" name={name} kind="object" reading={`echo ${echoUs(cm)} µs`}>
+              <Slider label={`Distance from ${name}`} value={cm} min={2} max={400} step={1}
+                format={(v) => `${v.toFixed(1)} cm`} ticks={['2 cm', '400 cm']} onChange={(v) => live.set(`cm:${p.id}`, v)} />
+            </Row>
+          );
+        }
+        if (p.type === 'mpu6050') {
+          const tx = live.value(`tiltx:${p.id}`);
+          const ty = live.value(`tilty:${p.id}`);
+          const g = (v: number) => Math.sin((v * Math.PI) / 180).toFixed(2);
+          return (
+            <Row key={p.id} icon="tilt" name={name} kind="tilt" reading={`x ${g(tx)} g · y ${g(ty)} g`}>
+              <Slider label={`Tilt of ${name} about X`} value={tx} min={-90} max={90} step={1} format={(v) => `X ${v}°`} onChange={(v) => live.set(`tiltx:${p.id}`, v)} />
+              <Slider label={`Tilt of ${name} about Y`} value={ty} min={-90} max={90} step={1} format={(v) => `Y ${v}°`} onChange={(v) => live.set(`tilty:${p.id}`, v)} />
             </Row>
           );
         }

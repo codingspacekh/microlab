@@ -200,7 +200,7 @@ test('M6.3 (screen 18): a TMP36 set on the Inputs card and a PIR held with the m
   const win = await app.firstWindow();
   await win.getByRole('button', { name: 'New Pico W project' }).click();
   // TMP36 in f2–f4 (+Vs 3V3, Vout GP26, GND); PIR in f8–f10 (VCC VBUS, OUT GP14, GND)
-  await drag(win, await centre(win, '.parts .pitem:has-text("Temperature")'), await centre(win, '[data-point="bb1.f3"]'));
+  await drag(win, await centre(win, '.parts .pitem:has-text("TMP36 · LM35")'), await centre(win, '[data-point="bb1.f3"]'));
   await drag(win, await centre(win, '[data-point="board.3V3"]'), await centre(win, '[data-point="bb1.j2"]'));
   await drag(win, await centre(win, '[data-point="board.GP26"]'), await centre(win, '[data-point="bb1.j3"]'));
   await drag(win, await centre(win, '[data-point="board.GND@23"]'), await centre(win, '[data-point="bb1.j4"]'));
@@ -229,4 +229,43 @@ test('M6.3 (screen 18): a TMP36 set on the Inputs card and a PIR held with the m
   await win.mouse.up();
   await expect(win.locator('[data-part="pir1"] .waves')).toHaveCount(1);   // OUT high for 3 s after
   await expect(log).toContainText(/60 C motion\s*60 C still/, { timeout: 5000 });   // still again after the hold
+});
+
+test('M6.4 (screen 19): a DHT22 and an HC-SR04 behind its divider, set on the Inputs card, read by the real worker', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  // DHT in f2–f4: VCC 3V3, DATA GP16, GND
+  await drag(win, await centre(win, '.parts .pitem:has-text("DHT11 / DHT22")'), await centre(win, '[data-point="bb1.f3"]'));
+  await win.getByRole('complementary', { name: 'Inspector' }).getByRole('radio', { name: 'DHT22' }).click();
+  await drag(win, await centre(win, '[data-point="board.3V3"]'), await centre(win, '[data-point="bb1.j2"]'));
+  await drag(win, await centre(win, '[data-point="board.GP16"]'), await centre(win, '[data-point="bb1.j3"]'));
+  await drag(win, await centre(win, '[data-point="board.GND@38"]'), await centre(win, '[data-point="bb1.j4"]'));
+  // HC-SR04 in j20–j23, its board hanging off the bottom edge: VCC VBUS, Trig GP14; Echo → 220 Ω → GP15's column,
+  // 220 Ω on to GND (two equal resistors: 5 V becomes 2.5 V, a safe high for a 3.3 V pin)
+  await drag(win, await centre(win, '.parts .pitem:has-text("Ultrasonic HC-SR04")'), await between(win, 'bb1.j21', 'bb1.j22'));
+  await expect(win.locator('[data-part="sonar1"]')).toHaveAttribute('data-legs', 'bb1.j20 bb1.j21 bb1.j22 bb1.j23');
+  await drag(win, await centre(win, '[data-point="board.VBUS"]'), await centre(win, '[data-point="bb1.i20"]'));
+  await drag(win, await centre(win, '[data-point="board.GP14"]'), await centre(win, '[data-point="bb1.i21"]'));
+  await drag(win, await centre(win, '[data-point="board.GND@18"]'), await centre(win, '[data-point="bb1.i23"]'));
+  await drag(win, await centre(win, '.parts .pitem:has-text("Resistor")'), await between(win, 'bb1.h22', 'bb1.h25'));
+  await drag(win, await centre(win, '.parts .pitem:has-text("Resistor")'), await between(win, 'bb1.g25', 'bb1.g28'));
+  await drag(win, await centre(win, '[data-point="board.GP15"]'), await centre(win, '[data-point="bb1.i25"]'));
+  await drag(win, await centre(win, '[data-point="board.GND@13"]'), await centre(win, '[data-point="bb1.i28"]'));
+  await setCode(win, [
+    'from machine import Pin, time_pulse_us', 'import dht, time', 'air = dht.DHT22(Pin(16))',
+    'trig, echo = Pin(14, Pin.OUT), Pin(15, Pin.IN)', 'while True:', '    air.measure()',
+    '    trig.value(1)', '    time.sleep_us(10)', '    trig.value(0)', '    cm = time_pulse_us(echo, 1, 30000) / 58',
+    "    print('%.1f C %.0f %% %d cm' % (air.temperature(), air.humidity(), cm))", '    time.sleep(0.3)', '',
+  ].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const log = win.getByRole('log', { name: 'Console' });
+  await expect(log).toContainText('22.0 C 50 % 100 cm', { timeout: 5000 });
+  const card = win.getByRole('group', { name: 'Inputs' });
+  await card.getByRole('slider', { name: 'Distance from SONAR1' }).focus();
+  await win.keyboard.press('Home');
+  await expect(log).toContainText('22.0 C 50 % 2 cm', { timeout: 3000 });
+  await card.getByRole('slider', { name: 'Temperature of DHT1' }).focus();
+  await win.keyboard.press('End');
+  await expect(log).toContainText('60.0 C 50 % 2 cm', { timeout: 3000 });
+  await expect(win.getByRole('status')).toContainText('Running at real speed');   // no damage: the divider works
 });
