@@ -5,7 +5,7 @@ import { EMPTY_HISTORY, redo, undo, type History } from '@lib/editor';
 import { Icon, Logo } from '../ui/Icon';
 import { Dialog } from '../ui/Dialog';
 import { MenuButton } from '../ui/Menu';
-import type { MicrolabApi } from './api';
+import type { MicrolabApi, RecentItem, Recovered } from './api';
 import { BOARD_NAMES } from './boards';
 import { ControlsPage } from './ControlsPage';
 import { StartPage } from './StartPage';
@@ -49,6 +49,8 @@ export interface OpenProject {
 }
 
 let opened = 0;
+/** The recovery copy is written this long after the last change (F-03). */
+const AUTOSAVE_MS = 3000;
 
 export interface AppProps {
   api: MicrolabApi;
@@ -74,6 +76,7 @@ export function App({ api, width, startRun }: AppProps) {
   const runFile = (entry: string) => {
     if (!open) return;
     setOpen((cur) => (cur ? { ...cur, lastRun: entry } : cur));
+    if (open.doc !== open.saved) keepCopy(open);   // a run is a moment worth keeping (F-03)
     sim.run(open.doc, entry, boardName(open));
   };
   const runControls: RunControls = {
@@ -101,6 +104,59 @@ export function App({ api, width, startRun }: AppProps) {
     else if ('message' in r) setNotice(r.message);
   };
 
+  // recent projects (F-05): fresh each time the Start screen shows
+  const [recent, setRecent] = useState<RecentItem[]>([]);
+  const onStart = !open && mode === 'workspace';
+  useEffect(() => {
+    if (!onStart) return;
+    let live = true;
+    void api.project.recent().then((r) => { if (live) setRecent(r); });
+    return () => { live = false; };
+  }, [api, onStart]);
+  const openRecent = async (item: RecentItem) => {
+    const r = await api.project.openPath(item.path);
+    if (r.ok) show({ doc: r.doc, name: r.name, path: r.path });
+    else if ('message' in r) { setNotice(r.message); setRecent(await api.project.recent()); }
+  };
+
+  // the recovery copy (F-03): written a few seconds after each change and on every run while there are unsaved
+  // changes; removed once they are saved or given up. Found at start, it is offered back on the Start screen.
+  const [recovered, setRecovered] = useState<Recovered | null>(null);
+  useEffect(() => {
+    let live = true;
+    void api.recovery.get().then((r) => { if (live && r) setRecovered(r); });
+    return () => { live = false; };
+  }, [api]);
+  const copyKept = useRef(false);
+  const keepCopy = (o: OpenProject) => {
+    copyKept.current = true;
+    void api.recovery.write(o.doc, { name: o.name, ...(o.path ? { path: o.path } : {}) });
+  };
+  const dropCopy = () => {
+    copyKept.current = false;
+    return api.recovery.clear();
+  };
+  useEffect(() => {
+    if (!open) return;
+    if (open.doc === open.saved) {
+      if (copyKept.current) void dropCopy();
+      return;
+    }
+    const t = setTimeout(() => keepCopy(open), AUTOSAVE_MS);
+    return () => clearTimeout(t);
+  }, [open?.doc, open?.saved]);
+  const recover = () => {
+    if (!recovered) return;
+    // shown with its changes not saved: Save writes it to its own file again (or asks where)
+    sim.reset();
+    copyKept.current = true;
+    setOpen({ doc: recovered.doc, name: recovered.name, ...(recovered.path ? { path: recovered.path } : {}), key: ++opened, saved: { ...recovered.doc } });
+    setRecovered(null);
+    setNotice(null);
+    setMode('workspace');
+  };
+  const discard = () => { setRecovered(null); void dropCopy(); };
+
   /** Save (to its file, or asking where when it has none or `asNew`); true when it was saved. */
   const save = async (asNew = false): Promise<boolean> => {
     const o = latest.current;
@@ -127,7 +183,8 @@ export function App({ api, width, startRun }: AppProps) {
   // the main process asks before the window closes with changes (M4.6)
   const guardRef = useRef(guard);
   guardRef.current = guard;
-  useEffect(() => api.app.onCloseRequest(() => guardRef.current(() => api.app.close())), [api]);
+  // closing with the changes given up (Don't save) or saved: no copy is left to offer back
+  useEffect(() => api.app.onCloseRequest(() => guardRef.current(() => { void api.recovery.clear().finally(() => api.app.close()); })), [api]);
   useEffect(() => { api.app.setDirty(dirty); }, [api, dirty]);
   useEffect(() => { document.title = open ? `${open.name}${dirty ? ' •' : ''} — MicroLab` : 'MicroLab'; }, [open, dirty]);
 
@@ -270,7 +327,10 @@ export function App({ api, width, startRun }: AppProps) {
             <button type="button" className="btn sm" onClick={() => consoleDo({ do: 'interrupt' })}><Icon name="stop" size={14} /> Stop the board</button>
           </>
         ) : undefined} />
-    : <StartPage onNew={start} onOpen={actions.onOpen} onLearn={() => setMode('learn')} onExamples={() => setMode('examples')} />;
+    : <StartPage onNew={start} onOpen={actions.onOpen} onLearn={() => setMode('learn')} onExamples={() => setMode('examples')}
+        recent={recent} onOpenRecent={(r) => guard(() => void openRecent(r))}
+        onForget={(r) => void api.project.forget(r.path).then(async () => setRecent(await api.project.recent()))}
+        recovered={recovered} onRecover={recover} onDiscard={discard} />;
 
   return (
     <div className="app">

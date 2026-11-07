@@ -16,6 +16,14 @@ export const BOARD_NAMES: Record<BoardId, string> = {
   'esp32-devkit-v1-ext': esp32Ext.name,
 };
 
+/** Each board's short name, on a chip (screen 01's recent projects). */
+export const BOARD_CHIPS: Record<BoardId, string> = {
+  'microbit-v2': 'micro:bit V2',
+  'pico-w': 'Pico W',
+  'esp32-devkit-v1': 'ESP32',
+  'esp32-devkit-v1-ext': 'ESP32 + ext',
+};
+
 /** Each board's picture (library/boards/<id>/art.svg), drawn on the canvas where the project's view puts it. */
 export const BOARD_ART: Record<BoardId, string> = {
   'microbit-v2': microbitArt,

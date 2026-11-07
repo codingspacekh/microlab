@@ -1,22 +1,42 @@
-import type { NewProjectBoard } from '@lib/boards';
+import type { BoardId, NewProjectBoard } from '@lib/boards';
 import { Icon } from '../ui';
-import { BOARD_CARDS } from './boards';
+import type { RecentItem, Recovered } from './api';
+import { BOARD_ART, BOARD_CARDS, BOARD_CHIPS } from './boards';
+import { whenText } from './when';
 
 /**
- * The Start screen (01, M4.2 minimal): a new project from the board the student will use (F-01), open a .mlab
- * (F-02), and the ways into Learn and Examples. Recent projects (F-05) join it in M5.
+ * The Start screen (01): a new project from the board the student will use (F-01), open a .mlab (F-02), the
+ * recent projects (F-05, M5.7) — and, when MicroLab ended with changes not saved, that project offered back (F-03).
  */
 export interface StartPageProps {
   onNew: (board: NewProjectBoard) => void;
   onOpen: () => void;
   onLearn: () => void;
   onExamples: () => void;
+  recent?: RecentItem[];
+  onOpenRecent?: (item: RecentItem) => void;
+  onForget?: (item: RecentItem) => void;
+  /** A project with unsaved changes from when MicroLab last ended (F-03). */
+  recovered?: Recovered | null;
+  onRecover?: () => void;
+  onDiscard?: () => void;
 }
 
-export function StartPage({ onNew, onOpen, onLearn, onExamples }: StartPageProps) {
+export function StartPage({ onNew, onOpen, onLearn, onExamples, recent = [], onOpenRecent, onForget, recovered, onRecover, onDiscard }: StartPageProps) {
   return (
     <main className="start">
       <div className="start-main">
+        {recovered && (
+          <div className="card recover-card" role="alert">
+            <span className="ri"><Icon name="restart" /></span>
+            <div className="about">
+              <h2>Your changes to “{recovered.name}” were kept</h2>
+              <span className="small muted">MicroLab closed before they were saved ({whenText(recovered.at).replace(/^Today /, 'today at ')}). Get them back, or let them go.</span>
+            </div>
+            <button type="button" className="btn" onClick={onDiscard}>Let them go</button>
+            <button type="button" className="btn primary" onClick={onRecover}>Get them back</button>
+          </div>
+        )}
         <div>
           <h1>Start a new project</h1>
           <p className="muted">Choose the board you'll use. The breadboard and a starter <code>main.py</code> are ready for you.</p>
@@ -31,14 +51,30 @@ export function StartPage({ onNew, onOpen, onLearn, onExamples }: StartPageProps
             </div>
           ))}
         </div>
-        <div className="card open-card">
-          <span className="ri"><Icon name="folder" /></span>
-          <div className="about">
-            <h2>Open a project</h2>
-            <span className="small muted">A <code>.mlab</code> file — one of yours, or a starter project from your teacher.</span>
+        <section className="card recent-card" aria-label="Recent projects">
+          <div className="rh">
+            <h2>Recent projects</h2>
+            <button type="button" className="btn ghost sm link" onClick={onOpen}><Icon name="folder" size={14} /> Open a project…</button>
           </div>
-          <button type="button" className="btn primary" onClick={onOpen}><Icon name="folder" size={14} /> Open a project…</button>
-        </div>
+          {recent.length === 0 ? (
+            <p className="small muted empty">The projects you open or save show here. A <code>.mlab</code> file — one of yours, or a starter project from your teacher — opens with <b>Open a project…</b></p>
+          ) : (
+            <ul>
+              {recent.map((r) => (
+                <li key={r.path} className={r.missing ? 'missing' : undefined}>
+                  <button type="button" className="row-btn" disabled={r.missing} title={r.missing ? `${r.where} is no longer there` : r.path}
+                    onClick={() => onOpenRecent?.(r)}>
+                    <span className="pic"><img src={BOARD_ART[r.board as BoardId]} alt="" draggable={false} /></span>
+                    <span className="nm"><b>{r.name}</b><span className="mono tiny muted">{r.missing ? `${r.where} — no longer there` : r.where}</span></span>
+                    <span className="chip">{BOARD_CHIPS[r.board as BoardId] ?? r.board}</span>
+                    <span className="small muted when">{whenText(r.at)}</span>
+                  </button>
+                  {r.missing && <button type="button" className="btn ghost sm" onClick={() => onForget?.(r)}>Take off the list</button>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
       <aside className="start-side">
         <div className="card side-card">

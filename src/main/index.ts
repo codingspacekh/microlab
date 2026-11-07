@@ -14,6 +14,7 @@ import { BoardWatcher, listUsbWindows, listVolumes } from './board-watcher';
 import { whoHolds } from './port-holder';
 import { openSerial, type SerialLink } from './serial-link';
 import { openProjectFile, saveProjectFile } from './project-files';
+import { Recent, Recovery } from './recent';
 import { SettingsStore } from './settings';
 import pkg from '../../package.json';
 import type { ProjectDoc } from '@lib/project';
@@ -91,6 +92,23 @@ function createWindow(): void {
 app.whenReady().then(() => {
   serveAppFiles();
   const settings = new SettingsStore(join(app.getPath('userData'), 'settings.json'));
+  // recent projects (F-05) and the recovery copy (F-03, M5.7)
+  const recent = new Recent(settings, app.getPath('home'));
+  const recovery = new Recovery(join(app.getPath('userData'), 'recovery'));
+  const remember = <T extends { ok: boolean }>(r: T, board: string): T => {
+    if (r.ok) { const k = r as unknown as { path: string; name: string }; recent.add({ path: k.path, name: k.name, board }); }
+    return r;
+  };
+  const opened = async (path: string) => {
+    const r = await openProjectFile(path);
+    return r.ok ? remember(r, r.doc.project.board) : r;
+  };
+  ipcMain.handle('project:recent', () => recent.list());
+  ipcMain.handle('project:open-path', (_e, path: string) => opened(path));
+  ipcMain.handle('project:forget', (_e, path: string) => recent.forget(path));
+  ipcMain.handle('recovery:get', () => recovery.get());
+  ipcMain.handle('recovery:write', (_e, doc: ProjectDoc, about: { name: string; path?: string }) => recovery.write(doc, about));
+  ipcMain.handle('recovery:clear', () => recovery.clear());
   ipcMain.handle('settings:get', (_e, key: string) => settings.get(key));
   ipcMain.handle('settings:set', (_e, key: string, value: unknown) => settings.set(key, value));
   ipcMain.on('app:dirty', (e, value: boolean) => { dirty.set(e.sender.id, value); });
@@ -109,14 +127,14 @@ app.whenReady().then(() => {
       if (r.canceled || !r.filePath) return { ok: false, canceled: true };
       path = r.filePath;
     }
-    return saveProjectFile(path, doc);
+    return remember(await saveProjectFile(path, doc), doc.project.board);
   });
   ipcMain.handle('project:open', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const options = { title: 'Open a project', filters: [{ name: 'MicroLab project', extensions: ['mlab'] }], properties: ['openFile' as const] };
     const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     const path = r.filePaths[0];
-    return r.canceled || !path ? { ok: false, canceled: true } : openProjectFile(path);
+    return r.canceled || !path ? { ok: false, canceled: true } : opened(path);
   });
   // Real boards (F-55): the USB ports, looked at about once a second; every window is told what changed.
   const user = userInfo().username;

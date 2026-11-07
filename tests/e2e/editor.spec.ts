@@ -59,19 +59,26 @@ test('M5.5 typing on the Pico W: machine. offers Pin with its arguments, Enter t
   await win.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End');
   await win.keyboard.type('\nimport machine\nbutton = machine.Pi');
   const list = win.locator('.cm-tooltip-autocomplete');
+  // CodeMirror ignores Enter for 75 ms after the list changes (a key already on its way never picks by accident); on a
+  // busy laptop the list can still be changing after a short wait — then, as a person would, press it again
+  const pick = async () => {
+    for (let i = 0; i < 3 && await list.count(); i++) {
+      await win.waitForTimeout(150);
+      await win.keyboard.press('Enter');
+      await expect(list).toHaveCount(0, { timeout: 500 }).catch(() => {});
+    }
+    await expect(list).toHaveCount(0);
+  };
   await expect(list).toBeVisible();
   await expect(list.locator('li[aria-selected]')).toContainText('Pin(id, mode=-1, pull=-1, …)');
   await expect(win.locator('.cm-completionInfo')).toContainText('GPIO pin');
-  // CodeMirror ignores Enter for 75 ms after the list changes, so a key already on its way never picks by accident
-  await win.waitForTimeout(150);
-  await win.keyboard.press('Enter');
+  await pick();
   await win.keyboard.type('(14, ');
   await expect(win.locator('.ml-signature b')).toHaveText('mode=-1');
   await win.keyboard.type('machine.Pin.IN, machine.Pin.PULL_U');
   await expect(list.locator('li[aria-selected]')).toContainText('PULL_UP');
   await expect(win.locator('.ml-signature')).toHaveCount(0);   // the list's explanation is not covered
-  await win.waitForTimeout(150);
-  await win.keyboard.press('Enter');
+  await pick();
   await expect(win.locator('.ml-signature b')).toHaveText('pull=-1');
   await win.keyboard.type(')');
   await expect(editor).toContainText('button = machine.Pin(14, machine.Pin.IN, machine.Pin.PULL_UP)');

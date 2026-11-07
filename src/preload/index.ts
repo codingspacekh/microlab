@@ -13,6 +13,14 @@ contextBridge.exposeInMainWorld('microlab', {
   project: {
     open: (): Promise<unknown> => ipcRenderer.invoke('project:open'),
     save: (doc: unknown, opts: unknown): Promise<unknown> => ipcRenderer.invoke('project:save', doc, opts),
+    recent: (): Promise<unknown> => ipcRenderer.invoke('project:recent'),
+    openPath: (path: string): Promise<unknown> => ipcRenderer.invoke('project:open-path', path),
+    forget: (path: string): Promise<void> => ipcRenderer.invoke('project:forget', path),
+  },
+  recovery: {
+    get: (): Promise<unknown> => ipcRenderer.invoke('recovery:get'),
+    write: (doc: unknown, about: unknown): Promise<void> => ipcRenderer.invoke('recovery:write', doc, about),
+    clear: (): Promise<void> => ipcRenderer.invoke('recovery:clear'),
   },
   boards: {
     get: (): Promise<unknown> => ipcRenderer.invoke('boards:get'),
