@@ -1,7 +1,8 @@
+import { currentCompletions, startCompletion } from '@codemirror/autocomplete';
 import { syntaxTree } from '@codemirror/language';
 import { insertNewlineAndIndent, undo } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { App } from '../../src/renderer/app/App';
 import type { MicrolabApi } from '../../src/renderer/app/api';
@@ -84,5 +85,51 @@ describe('M4.4 main.py in the workspace', () => {
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'main.py' }), { key: 'Backspace' });
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'main.py' }), { key: 'Delete' });
     expect(svg.querySelectorAll('[data-part]')).toHaveLength(1);
+  });
+});
+
+describe('M5.5 F-20 help while typing (screen 02b)', () => {
+  const setup = (board: string, code: string) => {
+    render(<CodeEditor label="main.py" board={board} value={code} onChange={() => {}} />);
+    const view = viewOf(screen.getByRole('textbox', { name: 'main.py' }));
+    act(() => { view.dispatch({ selection: { anchor: view.state.doc.length } }); view.focus(); });
+    return view;
+  };
+  const offered = (view: EditorView) => currentCompletions(view.state).map((c) => `${c.label}${c.detail ?? ''}`);
+
+  it('on the Pico W, machine. offers Pin(id, mode=-1, pull=-1, …)', async () => {
+    const view = setup('pico-w', 'import machine\n');
+    type(view, 'machine.');
+    act(() => { startCompletion(view); });
+    await waitFor(() => expect(offered(view)).toContain('Pin(id, mode=-1, pull=-1, …)'));
+  });
+
+  it('on the micro:bit, pin offers pin0, pin1, …; inside a string nothing is offered', async () => {
+    const view = setup('microbit-v2', 'from microbit import *\n');
+    type(view, 'pin');
+    act(() => { startCompletion(view); });
+    await waitFor(() => expect(offered(view)).toEqual(expect.arrayContaining(['pin0', 'pin1', 'pin2', 'pin_logo'])));
+    type(view, '\nprint("pin');
+    act(() => { startCompletion(view); });
+    await new Promise((r) => setTimeout(r, 100));
+    expect(offered(view).filter((l) => l.startsWith('pin0'))).toEqual([]);
+  });
+
+  it('typing a call shows its arguments, the one being typed in bold, and what it does', () => {
+    const view = setup('pico-w', 'from machine import Pin\n');
+    type(view, 'led = Pin(15, ');
+    const tip = document.querySelector('.ml-signature')!;
+    expect(tip.querySelector('code')!.textContent).toBe('Pin(id, mode=-1, pull=-1, *, value=None, alt=-1)');
+    expect(tip.querySelector('b')!.textContent).toBe('mode=-1');
+    expect(tip.textContent).toMatch(/GPIO pin/);
+    type(view, 'Pin.OUT)');
+    expect(document.querySelector('.ml-signature')).toBeNull();
+  });
+
+  it('the same code on the ESP32 has no ALT_PWM and has PWM.duty', async () => {
+    const view = setup('esp32-devkit-v1', 'from machine import Pin, PWM\np = PWM(Pin(2))\n');
+    type(view, 'p.d');
+    act(() => { startCompletion(view); });
+    await waitFor(() => expect(offered(view).map((l) => l.replace(/\(.*$/, ''))).toContain('duty'));
   });
 });

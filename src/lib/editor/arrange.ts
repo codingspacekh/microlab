@@ -1,5 +1,6 @@
 import type { Project } from '../project';
 import { allPoints, pointAt, PITCH, sceneOf, type Point, type Scene } from './geometry';
+import { partKind } from './parts';
 import { holeIndex, holeKey, usedPoints, type HoleIndex } from './place';
 
 /**
@@ -126,8 +127,7 @@ export function duplicate(project: Project, chosen: Chosen): { project: Project;
   const partIds: string[] = [];
   const parts = [...project.parts];
   for (const src of sources) {
-    const prefix = /^[a-z]+/i.exec(src.id)?.[0] ?? 'p';
-    const [id] = nextIds(prefix, parts.map((p) => p.id), 1);
+    const [id] = nextIds(partKind(src.type).prefix, parts.map((p) => p.id), 1);
     partIds.push(id!);
     const legs = Object.fromEntries(Object.keys(src.legs).map((leg) => [leg, where.get(`part:${src.id}:${leg}`)!]));
     parts.push({ ...structuredClone(src), id: id!, legs });

@@ -3,6 +3,7 @@
 import _ream
 import utime as _utime
 import microbit as _mb
+import sys as _sys
 import _data
 
 _TICK_US = 6000
@@ -33,8 +34,11 @@ class _Music:
 _m = _Music()
 _mb._audio['playing'] = lambda: _m.state != _IDLE
 
+# setattr makes each name an interned string, as the firmware's ROM names are: dir() finds only those, and
+# MicroPython interns string literals of at most 10 characters ('ENTERTAINER' has 11)
+_self = _sys.modules[__name__]
 for _name, _notes in _data.TUNES.items():
-    globals()[_name] = _notes
+    setattr(_self, _name, _notes)
 
 
 def _output():

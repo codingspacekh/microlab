@@ -50,3 +50,30 @@ test('the editor and the console below it fill the code side', async () => {
   expect(Math.abs(con.y + con.height - (side.y + side.height))).toBeLessThanOrEqual(2);
   expect(ed.height).toBeGreaterThan(con.height);   // the code gets the most room
 });
+
+test('M5.5 typing on the Pico W: machine. offers Pin with its arguments, Enter takes it, ( shows what it needs', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  const editor = win.getByRole('textbox', { name: 'main.py' });
+  await editor.click();
+  await win.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End');
+  await win.keyboard.type('\nimport machine\nbutton = machine.Pi');
+  const list = win.locator('.cm-tooltip-autocomplete');
+  await expect(list).toBeVisible();
+  await expect(list.locator('li[aria-selected]')).toContainText('Pin(id, mode=-1, pull=-1, …)');
+  await expect(win.locator('.cm-completionInfo')).toContainText('GPIO pin');
+  // CodeMirror ignores Enter for 75 ms after the list changes, so a key already on its way never picks by accident
+  await win.waitForTimeout(150);
+  await win.keyboard.press('Enter');
+  await win.keyboard.type('(14, ');
+  await expect(win.locator('.ml-signature b')).toHaveText('mode=-1');
+  await win.keyboard.type('machine.Pin.IN, machine.Pin.PULL_U');
+  await expect(list.locator('li[aria-selected]')).toContainText('PULL_UP');
+  await expect(win.locator('.ml-signature')).toHaveCount(0);   // the list's explanation is not covered
+  await win.waitForTimeout(150);
+  await win.keyboard.press('Enter');
+  await expect(win.locator('.ml-signature b')).toHaveText('pull=-1');
+  await win.keyboard.type(')');
+  await expect(editor).toContainText('button = machine.Pin(14, machine.Pin.IN, machine.Pin.PULL_UP)');
+  await expect(win.locator('.ml-signature')).toHaveCount(0);
+});

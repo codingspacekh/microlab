@@ -173,7 +173,7 @@ export function Workspace({
         <div className="ftabs" role="tablist" aria-label="Files">
           <button type="button" role="tab" aria-selected="true"><Icon name="file" size={14} /> main.py</button>
         </div>
-        <CodeEditor label="main.py" value={text(doc.files['main.py'])} onChange={(code) => onChange({ ...doc, files: { ...doc.files, 'main.py': code } })} />
+        <CodeEditor label="main.py" board={project.board} value={text(doc.files['main.py'])} onChange={(code) => onChange({ ...doc, files: { ...doc.files, 'main.py': code } })} />
         <Console chunks={run.console} running={running} entry="main.py" onClear={onClearConsole} board={realBoard} tab={consoleTab} onTab={onConsoleTab} />
       </section>
     </div>

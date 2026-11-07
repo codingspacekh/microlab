@@ -17,3 +17,4 @@
 .ftabs { height: 36px; flex: none; display: flex; align-items: stretch; border-bottom: 1px solid var(--line); background: var(--bg); padding-left: 4px; }
 .ftabs [role="tab"] { display: flex; align-items: center; gap: 7px; padding: 0 12px; color: var(--tx-2); font-family: var(--mono); font-size: 12px; border-right: 1px solid var(--line); background: none; border-top: 0; border-bottom: 0; border-left: 0; }
 .ftabs [role="tab"][aria-selected="true"] { background: var(--code-bg); color: var(--tx-1); box-shadow: inset 0 2px 0 var(--accent); }
+

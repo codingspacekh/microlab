@@ -17,3 +17,7 @@ export type { Box, LitStrip } from './viewport';
 export { deleteBend, insertBend, moveBend, straighten } from './commands';
 export { holeCard, joinsOf, pinCard } from './cards';
 export type { ChipKind, HoleCard, PinCard } from './cards';
+export { apiFor, boardApi, parseModule } from './api/model';
+export type { ApiItem, ApiKind } from './api/model';
+export { completeAt, signatureAt } from './api/complete';
+export type { Suggestion } from './api/complete';
