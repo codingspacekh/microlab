@@ -1,5 +1,5 @@
 import type { BoardData } from '@lib/boards';
-import { findFaults, LED, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
+import { BUZZER, findFaults, LED, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
 
@@ -27,7 +27,9 @@ export type PartView =
   /** brightness = current / the LED's 20 mA rating, 0–1 (the window decides how a glow looks). */
   | { kind: 'led'; amps: number; brightness: number }
   /** angle 0–180° from the pulse width (0.5 ms → 0°, 2.5 ms → 180°, SG90); it moves only with ≥ 4.5 V across it. */
-  | { kind: 'servo'; angle: number; powered: boolean; pulseUs?: number };
+  | { kind: 'servo'; angle: number; powered: boolean; pulseUs?: number }
+  /** What a buzzer sounds like (M6.2): its pitch in Hz (0: silent) and its loudness 0–1. */
+  | { kind: 'buzzer'; hz: number; volume: number };
 
 /** [µs, part id, its new state] — one entry per change, as the window would be told. */
 export type PartTraceEntry = [number, string, PartView];
@@ -56,6 +58,11 @@ export class CircuitHost {
   private readonly pinOfNet = new Map<string, string>();
   private readonly views = new Map<string, PartView>();
   private readonly servoAngle = new Map<string, number>();
+  private readonly keyOfLabel = new Map<string, string>();   // 'GP15' → '15'
+  /** The last solve, each on / off combination of the PWM pins (`pwm`, in mask order) with its weight: a buzzer
+   *  hears the swing, not the average. One combination when no pin is on PWM. */
+  private combos: { mask: number; weight: number; volts: Record<string, number> }[] = [];
+  private pwmPins: string[] = [];
 
   constructor(
     private readonly spec: CircuitSpec,
@@ -74,6 +81,7 @@ export class CircuitHost {
       if (net === undefined) continue;
       this.netOfPin.set(String(p.gpio), net);
       this.labelOfPin.set(String(p.gpio), p.label);
+      this.keyOfLabel.set(p.label, String(p.gpio));
       this.pinOfNet.set(net, String(p.gpio));
     }
     this.script = [...changes].sort((a, b) => a.atUs - b.atUs);
@@ -150,6 +158,8 @@ export class CircuitHost {
       // more PWM pins than that: their DC average (duty × voltage) — fine for resistive loads
       this.solution = solve(this.netlist, state, this.previous.get(-1));
       this.previous.set(-1, this.solution);
+      this.combos = [{ mask: 0, weight: 1, volts: this.solution.volts }];
+      this.pwmPins = [];
       this.faults = findFaults(this.spec, this.netlist, this.solution, state);
     } else {
       this.averagePwm(state, pwm);
@@ -186,7 +196,34 @@ export class CircuitHost {
     }
     for (const part of this.spec.parts) {
       if (part.type === 'servo') this.setView(t, part.id, this.servo(part.id));
+      if (part.type === 'buzzer') this.setView(t, part.id, this.buzzer(part.id, part.props?.kind === 'passive'));
     }
+  }
+
+  /** A buzzer's sound from the voltage across it in each PWM combination (M6.2): an active one sounds at its own
+   *  pitch for the part of the time it has ≥ 2 V (+ above −); a passive one at the frequency of the PWM pin that
+   *  swings it most, as loud as the swing and the square wave's fundamental (sin π·duty) make it. */
+  private buzzer(id: string, passive: boolean): PartView {
+    const plus = this.connectivity.netOf(`${id}.+`) ?? '';
+    const minus = this.connectivity.netOf(`${id}.-`) ?? '';
+    const across = (volts: Record<string, number>) => (volts[plus] ?? 0) - (volts[minus] ?? 0);
+    const round = (v: number) => Math.round(v * 100) / 100;
+    if (!passive) {
+      const on = this.combos.reduce((t, c) => t + (across(c.volts) >= BUZZER.active.minVolts ? c.weight : 0), 0);
+      return on > 0.005 ? { kind: 'buzzer', hz: BUZZER.active.hz, volume: round(Math.min(1, on)) } : { kind: 'buzzer', hz: 0, volume: 0 };
+    }
+    const base = this.combos.find((c) => c.mask === 0);
+    let best: { swing: number; label: string } | undefined;
+    this.pwmPins.forEach((label, i) => {
+      const high = this.combos.find((c) => c.mask === 1 << i);
+      if (!base || !high) return;
+      const swing = Math.abs(across(high.volts) - across(base.volts));
+      if (swing >= BUZZER.passive.minSwing && (!best || swing > best.swing)) best = { swing, label };
+    });
+    const pwm = best && this.pins.pwmOf(this.keyOfLabel.get(best.label) ?? '');
+    if (!best || !pwm || pwm.freq <= 0 || pwm.duty <= 0 || pwm.duty >= 1) return { kind: 'buzzer', hz: 0, volume: 0 };
+    const volume = Math.min(1, best.swing / 3.3) * Math.sin(Math.PI * pwm.duty);
+    return { kind: 'buzzer', hz: Math.round(pwm.freq), volume: round(volume) };
   }
 
   private servo(id: string): PartView {
@@ -222,6 +259,8 @@ export class CircuitHost {
     const faults = new Map<string, Fault>();
     let converged = true;
     let iterations = 0;
+    this.combos = [];
+    this.pwmPins = pwm.map(([label]) => label);
     for (let mask = 0; mask < 1 << pwm.length; mask++) {
       let weight = 1;
       const pins = { ...state.pins };
@@ -235,6 +274,7 @@ export class CircuitHost {
       this.previous.set(mask, sol);
       converged &&= sol.converged;
       iterations += sol.iterations;
+      this.combos.push({ mask, weight, volts: sol.volts });
       for (const [k, v] of Object.entries(sol.volts)) volts[k] = (volts[k] ?? 0) + weight * v;
       for (const [k, v] of Object.entries(sol.amps)) amps[k] = (amps[k] ?? 0) + weight * v;
       for (const f of findFaults(this.spec, this.netlist, sol, combo)) {

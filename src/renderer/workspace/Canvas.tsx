@@ -603,11 +603,14 @@ export function Canvas({
           const dies = p.type === 'rgb-led' ? (['r', 'g', 'b'].map((d) => ledOf(`${p.id}:${d}`)) as [number, number, number]) : undefined;
           const position = p.type === 'slide-switch' || p.type === 'potentiometer' ? live.value(`position:${p.id}`) : undefined;
           const lit = glow ?? (dies ? Math.max(...dies) : undefined);
-          const says = running && (p.type === 'led' || p.type === 'rgb-led');
+          const says = running && (p.type === 'led' || p.type === 'rgb-led' || p.type === 'buzzer');
+          const tone = p.type === 'buzzer' ? outputs.parts[p.id] : undefined;
+          const hz = tone?.kind === 'buzzer' && tone.volume > 0 ? tone.hz : p.type === 'buzzer' ? 0 : undefined;
           return (
             <g key={p.id} data-part={p.id} data-legs={Object.values(p.legs).join(' ')} data-props={JSON.stringify(p.props ?? {})} role="img"
               {...(lit !== undefined ? { 'data-lit': lit > 0.01 ? '1' : '0' } : {})}
               {...(position !== undefined ? { 'data-position': String(position) } : {})}
+              {...(hz !== undefined ? { 'data-hz': String(hz) } : {})}
               {...(p.type === 'button' ? { 'data-pressed': pressed === p.id ? '1' : '0' } : {})}
               {...(says ? { onMouseEnter: () => setTipOf(p.id), onMouseLeave: () => setTipOf((t) => (t === p.id ? null : t)) } : {})}
               aria-label={`${safeName(p.type)} ${p.id}`} className={['part', p.type, moving && preview.blocked && 'blocked'].filter(Boolean).join(' ')}
@@ -618,7 +621,7 @@ export function Canvas({
                 const group = on ? chosen(selection).parts : [p.id];
                 begin((at) => ({ kind: 'parts', id: p.id, ids: group, start: at, at }))(e);
               }}>
-              <PartDrawing type={p.type} legs={legs} props={p.props} look={{ glow, dies, position, pressed: pressed === p.id }} />
+              <PartDrawing type={p.type} legs={legs} props={p.props} look={{ glow, dies, position, sounding: !!hz, pressed: pressed === p.id }} />
               {on && <SelectBox type={p.type} legs={legs} props={p.props} />}
             </g>
           );
@@ -742,7 +745,7 @@ function boxed(scene: Scene, a: Point, b: Point): Selection[] {
 /** The dashed box around a selected part (screen 02b), around its legs and its body — turned with the part. */
 const PAD: Record<string, [number, number, number, number]> = {
   resistor: [10, 12, 10, 12], led: [20, 8, 20, 40], button: [26, 26, 26, 26], potentiometer: [28, 54, 28, 10],
-  'slide-switch': [16, 42, 16, 8], ldr: [10, 8, 10, 38], 'rgb-led': [10, 16, 10, 40],
+  'slide-switch': [16, 42, 16, 8], ldr: [10, 8, 10, 38], 'rgb-led': [10, 16, 10, 40], buzzer: [8, 8, 8, 50],
 };
 function SelectBox({ type, legs: placedLegs, props }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown> }) {
   if (type === 'battery') {

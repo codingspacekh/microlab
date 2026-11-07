@@ -176,3 +176,22 @@ test('M6.1 (screen 17): while running a slide switch is clicked, a knob dragged,
   await win.getByRole('button', { name: 'Stop' }).click();
   await expect(card).toHaveCount(0);
 });
+
+test('M6.2: a passive buzzer plays the PWM\'s note with the real worker; the status bar turns the sound off', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await drag(win, await centre(win, '.parts .pitem:has-text("Buzzer")'), await between(win, 'bb1.a10', 'bb1.a13'));
+  await win.getByRole('complementary', { name: 'Inspector' }).getByRole('radio', { name: 'Passive' }).click();
+  await drag(win, await centre(win, '[data-point="board.GP15"]'), await centre(win, '[data-point="bb1.e10"]'));
+  await drag(win, await centre(win, '[data-point="board.GND@18"]'), await centre(win, '[data-point="bb1.e13"]'));
+  await setCode(win, 'from machine import Pin, PWM\nimport time\nb = PWM(Pin(15))\nwhile True:\n    for note in (262, 330, 392):\n        b.freq(note)\n        b.duty_u16(32768)\n        time.sleep(0.3)\n');
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const bz = win.locator('[data-part="bz1"]');
+  await expect(bz).toHaveAttribute('data-hz', '330', { timeout: 5000 });
+  await expect(bz).toHaveAttribute('data-hz', '392', { timeout: 1000 });
+  await expect(bz.locator('.waves')).toHaveCount(1);
+  await win.getByRole('button', { name: /Sound on/ }).click();
+  await expect(win.getByRole('button', { name: /Sound off/ })).toHaveAttribute('aria-pressed', 'false');
+  await win.getByRole('button', { name: 'Stop' }).click();
+  await expect(bz).toHaveAttribute('data-hz', '0');
+});

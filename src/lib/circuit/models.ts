@@ -1,4 +1,4 @@
-import { BATTERIES, RGB_DIES, SERVO_IDLE_OHMS, type Device } from './devices';
+import { BATTERIES, BUZZER, RGB_DIES, SERVO_IDLE_OHMS, type Device } from './devices';
 
 /** What a part's devices are built from: its id, the net each leg is in, its properties. */
 export interface PartContext {
@@ -35,6 +35,12 @@ export const MODELS: Record<string, PartModel> = {
     devices: ({ id, leg, props }) => RGB_DIES.map(([l, color, vf]): Device => (props.common === 'anode'
       ? { kind: 'led', id: `${id}:${l}`, a: leg('common'), k: leg(l), color, vf }
       : { kind: 'led', id: `${id}:${l}`, a: leg(l), k: leg('common'), color, vf })),
+  },
+  /** A piezo buzzer, + and − (M6.2): `kind` 'active' (its own pitch on a steady voltage) or 'passive' (the pitch of
+   *  the square wave across it). Electrically a load between its legs; what it sounds like is worked out by the sim. */
+  buzzer: {
+    legs: ['+', '-'],
+    devices: ({ id, leg, props }) => [{ kind: 'resistor', id, a: leg('+'), b: leg('-'), ohms: BUZZER[props.kind === 'passive' ? 'passive' : 'active'].ohms }],
   },
   /** Across the channel: 1a–1b and 2a–2b are joined inside; pressing joins 1 and 2. */
   button: {

@@ -376,6 +376,29 @@ export function UsbPlug({ at: { x, y } }: { at: Point }) {
   );
 }
 
+/** A 12 mm piezo buzzer (M6.2; screen 06): legs + and −, the round body below them; while it sounds, its waves. */
+export function Buzzer({ p, m, sounding = false, upright = 0 }: { p: Point; m: Point; sounding?: boolean; upright?: number }) {
+  const cx = (p.x + m.x) / 2;
+  const cy = p.y + 26;
+  return (
+    <>
+      {[p, m].map((q, i) => <line key={i} x1={q.x} y1={q.y} x2={f(cx + (q.x - cx) * 0.5)} y2={cy - 12} stroke="#a5abb2" strokeWidth={1.8} />)}
+      {sounding && (
+        <g className="waves" pointerEvents="none">
+          {([[30, 0.5], [39, 0.32], [48, 0.18]] as const).map(([r, op]) => (
+            <path key={r} d={`M${f(cx + r * 0.7)},${f(cy - r * 0.7)} A${r} ${r} 0 0 1 ${f(cx + r * 0.7)},${f(cy + r * 0.7)}`} stroke="#2563d9" strokeWidth={2} fill="none" opacity={op} />
+          ))}
+        </g>
+      )}
+      <circle cx={cx} cy={cy} r={19} fill="#26282c" stroke="#0f1012" filter="url(#lift)" />
+      <circle cx={cx} cy={cy} r={12} fill="none" stroke="#3b3e43" />
+      <circle cx={cx} cy={cy} r={3} fill="#0f1012" />
+      <text x={cx - 12} y={cy - 7} fontSize={9} fontWeight={700} fill="#cfd3d8" textAnchor="middle" pointerEvents="none"
+        transform={upright ? `rotate(${upright} ${f(cx - 12)} ${f(cy - 10)})` : undefined}>+</text>
+    </>
+  );
+}
+
 /** A part from its type and the places of its legs. */
 export interface PartLook {
   /** An LED's brightness, 0–1, while running (M4.5). */
@@ -386,6 +409,8 @@ export interface PartLook {
   pressed?: boolean;
   /** A slide switch's position (0 / 1) or a knob's (0–1, from leg 1) while running (M6.1). */
   position?: number;
+  /** A buzzer sounding while running (M6.2). */
+  sounding?: boolean;
 }
 
 export function PartDrawing({ type, legs, props, look = {} }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown>; look?: PartLook }) {
@@ -393,7 +418,7 @@ export function PartDrawing({ type, legs, props, look = {} }: { type: string; le
     case 'resistor': return <Resistor a={legs.a!} b={legs.b!} ohms={Number(props?.ohms ?? 220)} />;
     case 'button': return <PushButton legs={[legs['1a']!, legs['2a']!, legs['1b']!, legs['2b']!]} pressed={look.pressed} />;
     case 'battery': return <Battery plus={legs['+']!} minus={legs['-']!} kind={String(props?.kind ?? '2xAA')} />;
-    case 'led': case 'potentiometer': case 'slide-switch': case 'ldr': case 'rgb-led': {
+    case 'led': case 'potentiometer': case 'slide-switch': case 'ldr': case 'rgb-led': case 'buzzer': {
       // drawn as if not turned, then turned about the legs' middle (M5.1); the letters and signs stay upright
       const t = partTurns(type, legs);
       const { local, transform } = unturned(legs, t);
@@ -403,6 +428,7 @@ export function PartDrawing({ type, legs, props, look = {} }: { type: string; le
         potentiometer: () => <Potentiometer l={local['1']!} w={local['2']!} r={local['3']!} angle={((look.position ?? 0.5) - 0.5) * 270} />,
         'slide-switch': () => <SlideSwitch l={local['1']!} m={local['2']!} r={local['3']!} position={look.position} upright={up} />,
         ldr: () => <Ldr a={local.a!} b={local.b!} />,
+        buzzer: () => <Buzzer p={local['+']!} m={local['-']!} sounding={look.sounding} upright={up} />,
         'rgb-led': () => <RgbLed r={local.r!} c={local.common!} g={local.g!} b={local.b!} dies={look.dies} common={String(props?.common ?? 'cathode')} upright={up} />,
       }[type]();
       return t ? <g transform={transform}>{body}</g> : body;
@@ -492,6 +518,7 @@ export function PartIcon({ type }: { type: string }) {
         <circle cx="13" cy="13" r="2" fill="#ef3b2c" /><circle cx="18" cy="12" r="2" fill="#22b14c" /><circle cx="16" cy="17" r="2" fill="#2f6fe0" />
       </>
     ),
+    buzzer: <><circle cx="16" cy="16" r="10" fill="#26282c" /><circle cx="16" cy="16" r="6" fill="none" stroke="#3b3e43" /><circle cx="16" cy="16" r="1.8" fill="#0f1012" /></>,
     'slide-switch': <><rect x="5" y="11" width="22" height="10" rx="2" fill="#2d3136" /><rect x="8" y="13" width="9" height="6" rx="1" fill="#e9ebee" /></>,
     ldr: (
       <>

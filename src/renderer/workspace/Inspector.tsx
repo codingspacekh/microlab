@@ -17,6 +17,7 @@ export const SHRINK = 'Parts or wires use columns 31–63: move them first.';
 const QUICK_OHMS = [100, 220, 330, 1000, 4700, 10_000];
 const POTS = [1000, 10_000, 100_000];
 const PACKS = [{ value: '2xAA', label: '2×AA · 3 V' }, { value: '4xAA', label: '4×AA · 6 V' }, { value: '9V', label: '9 V' }];
+const BUZZERS = [{ value: 'active', label: 'Active' }, { value: 'passive', label: 'Passive' }];
 const COMMONS = [{ value: 'cathode', label: '− cathode' }, { value: 'anode', label: '+ anode' }];
 /** A part's tip under its rows: what to know when it goes in. */
 const TIPS: Record<string, string> = {
@@ -24,6 +25,8 @@ const TIPS: Record<string, string> = {
   'rgb-led': 'Three LEDs in one: each of R, G and B needs its own resistor. Common cathode: the long leg to GND; common anode: to 3.3 V, and a pin set low lights its colour.',
   'slide-switch': 'The middle leg (2) is joined to leg 1 or to leg 3, whichever way the switch is slid.',
   ldr: 'More light, less resistance: about 15 kΩ in dim light, under 1 kΩ in bright light. With a resistor it makes a voltage an ADC pin can read.',
+  'buzzer-active': 'Active: it beeps by itself at its own pitch — a pin on is a beep. + towards the pin, − to GND; turned round, it is silent.',
+  'buzzer-passive': 'Passive: it plays the note of the PWM on its pin — PWM(Pin(15), freq=440) is A4; a steady level is silent.',
   battery: 'A supply of its own, not joined to the board. To use it with the board, join its − to the board\'s GND.',
 };
 const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({ value, name: value[0]!.toUpperCase() + value.slice(1), colour }));
@@ -108,6 +111,11 @@ export function Inspector({ project, selection, onChange, onClose, onSelect }: I
             <Segmented label="Common leg" hideLabel value={String(part.props?.common ?? 'cathode')} onChange={(v) => set('common', v)} options={COMMONS} />
           </Row>
         )}
+        {part.type === 'buzzer' && (
+          <Row name="Kind">
+            <Segmented label="Buzzer kind" hideLabel value={String(part.props?.kind ?? 'active')} onChange={(v) => set('kind', v)} options={BUZZERS} />
+          </Row>
+        )}
         {part.type === 'battery' && (
           <Row name="Pack" stack>
             <Segmented label="Battery pack" hideLabel full value={String(part.props?.kind ?? '2xAA')} onChange={(v) => set('kind', v)} options={PACKS} />
@@ -133,6 +141,13 @@ export function Inspector({ project, selection, onChange, onClose, onSelect }: I
               <span><b className="minus">−</b> black lead <span className="mono">{label(part.legs['-']!)}</span></span>
             </span>
           </Row>
+        ) : part.type === 'buzzer' ? (
+          <Row name="Legs in">
+            <span className="small legs">
+              <span><b className="plus">+</b> <span className="mono">{label(part.legs['+']!)}</span></span>
+              <span><b className="minus">−</b> <span className="mono">{label(part.legs['-']!)}</span></span>
+            </span>
+          </Row>
         ) : part.type === 'rgb-led' ? (
           <Row name="Legs in">
             <span className="small mono">
@@ -148,7 +163,10 @@ export function Inspector({ project, selection, onChange, onClose, onSelect }: I
             return joins.every((j) => j === 'nothing') ? 'nothing yet' : joins.join(' ↔ ');
           })()}</span>
         </Row>
-        {TIPS[part.type] && <p className="tiny muted led-tip">{TIPS[part.type]}</p>}
+        {(() => {
+          const tip = TIPS[part.type === 'buzzer' ? `buzzer-${part.props?.kind === 'passive' ? 'passive' : 'active'}` : part.type];
+          return tip ? <p className="tiny muted led-tip">{tip}</p> : null;
+        })()}
       </>
     );
   } else if (selection.kind === 'wire') {

@@ -37,6 +37,8 @@ export const ICONS: Record<string, string> = {
   "search": "<path d=\"M11 4a7 7 0 1 0 0 14a7 7 0 0 0 0-14M16.5 16.5L21 21\"/>",
   "send": "<path d=\"M12 16V4M7 9l5-5 5 5M5 20h14\"/>",
   "shake": "<path d=\"M8 4h8v16H8zM4 8v8M20 8v8M2 10v4M22 10v4\"/>",
+  "sound": "<path d=\"M4 9h4l5-4v14l-5-4H4zM16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11\"/>",
+  "soundoff": "<path d=\"M4 9h4l5-4v14l-5-4H4zM17 9.5l5 5M22 9.5l-5 5\"/>",
   "stop": "<rect x=\"6\" y=\"6\" width=\"12\" height=\"12\" rx=\"1.5\"/>",
   "sun": "<path d=\"M12 8a4 4 0 1 0 0 8a4 4 0 0 0 0-8M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5\"/>",
   "term": "<path d=\"M4 5h16v14H4zM8 10l3 2-3 2M13 15h3\"/>",

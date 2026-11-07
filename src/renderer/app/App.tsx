@@ -20,6 +20,8 @@ import type { BoardId } from '@lib/boards';
 import type { ConsoleAction, SendRequest } from '@lib/repl';
 import { kindOf, type Detection, type FoundBoard } from '@lib/usb';
 import { useRun, type RunState, type StartRun } from './useRun';
+import { useSound } from './useSound';
+import type { AudioLike } from '../audio';
 
 /**
  * The window (M4.1, screens 01–03): the top bar with the three modes, the page, the status bar. With no project open
@@ -58,15 +60,18 @@ export interface AppProps {
   width?: number;
   /** Starts a run; tests give a fake one (the real one starts the simulation worker). */
   startRun?: StartRun;
+  /** Makes the AudioContext the run's sound plays on (M6.2); tests give a fake one. */
+  audio?: () => AudioLike | null;
 }
 
 
-export function App({ api, width, startRun }: AppProps) {
+export function App({ api, width, startRun, audio }: AppProps) {
   const [mode, setMode] = useState<Mode>('workspace');
   const [open, setOpen] = useState<OpenProject | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const controls = useHash() === '#controls';
   const sim = useRun(startRun);
+  const sound = useSound(api, sim.state, audio);
   const latest = useRef(open);
   latest.current = open;
   const boardName = (o: OpenProject) => BOARD_NAMES[o.doc.project.board as keyof typeof BOARD_NAMES] ?? o.doc.project.board;
@@ -341,7 +346,7 @@ export function App({ api, width, startRun }: AppProps) {
         } : undefined} />
       {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
       {page}
-      <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} board={boardRuns} />
+      <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} board={boardRuns} sound={sound} />
       <div className="toasts">
         {sent && (
           <div className="toast sent" role="status" aria-live="polite">
@@ -528,7 +533,7 @@ function Notice({ text, onDismiss }: { text: string; onDismiss: () => void }) {
   );
 }
 
-function StatusBar({ project, run, board }: { project: OpenProject | null; run: RunState; board?: string }) {
+function StatusBar({ project, run, board, sound }: { project: OpenProject | null; run: RunState; board?: string; sound: { muted: boolean; toggle: () => void } }) {
   const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
   const p = project?.doc.project;
   const e = run.ended;
@@ -539,9 +544,17 @@ function StatusBar({ project, run, board }: { project: OpenProject | null; run: 
     : board ? <span className="st running"><span className="dot" />{board}</span>
     : project?.savedNote ? <span className="st saved">{project.savedNote}</span>
     : <span>Ready</span>;
+  // screen 06: while running, what can be heard says so, and a click turns it off (M6.2)
+  const audible = run.status !== 'idle' && !!p && (p.board === 'microbit-v2' || p.parts.some((x) => x.type === 'buzzer'));
   return (
     <footer className="statusbar" role="status">
       {left}
+      {audible && (
+        <button type="button" className="btn ghost sm sound" aria-pressed={!sound.muted} onClick={sound.toggle}
+          title={sound.muted ? 'Turn the sound on' : 'Turn the sound off'}>
+          <Icon name={sound.muted ? 'soundoff' : 'sound'} size={12} /> {sound.muted ? 'Sound off' : 'Sound on (from the laptop)'}
+        </button>
+      )}
       <span className="r">{p ? `${BOARD_NAMES[p.board as keyof typeof BOARD_NAMES] ?? p.board} + ${count(p.parts.length, 'part')} · ${count(p.wires.length, 'wire')}` : 'MicroLab'}</span>
     </footer>
   );

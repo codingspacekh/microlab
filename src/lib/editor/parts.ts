@@ -6,7 +6,7 @@ import { PART_ART } from './library';
  * LEDs, RGB LEDs, light sensors and battery packs have no fixed picture — they are drawn from their holes — so their
  * footprints are set here; the push button's, the potentiometer's and the slide switch's come from their art.json.
  */
-export type PartType = 'resistor' | 'led' | 'rgb-led' | 'button' | 'slide-switch' | 'potentiometer' | 'ldr' | 'battery';
+export type PartType = 'resistor' | 'led' | 'rgb-led' | 'button' | 'slide-switch' | 'potentiometer' | 'ldr' | 'buzzer' | 'battery';
 
 export interface PartKind {
   type: PartType;
@@ -38,6 +38,8 @@ export const PART_KINDS: PartKind[] = [
   { type: 'slide-switch', name: 'Slide switch', detail: 'SS12D00', prefix: 'sw', legs: fromArt('slide-switch'), props: {}, rows: ROWS },
   { type: 'potentiometer', name: 'Potentiometer', detail: '10 kΩ knob', prefix: 'pot', legs: fromArt('potentiometer'), props: { ohms: 10_000 }, rows: ROWS },
   { type: 'ldr', name: 'Light sensor (LDR)', detail: 'GL5528', prefix: 'ldr', legs: { a: [0, 0], b: [32, 0] }, props: {}, rows: ROWS },
+  // a 12 mm piezo buzzer: its legs 7.6 mm apart, three holes (M6.2)
+  { type: 'buzzer', name: 'Buzzer', detail: 'active · passive', prefix: 'bz', legs: { '+': [0, 0], '-': [48, 0] }, props: { kind: 'active' }, rows: ROWS },
   // its red lead in a + rail, its black lead in the − rail below it (screen 17b): the pack hangs below the breadboard
   { type: 'battery', name: 'Battery pack', detail: '2×AA · 4×AA · 9 V', prefix: 'bat', legs: { '+': [0, 0], '-': [0, 16] }, props: { kind: '2xAA' }, rows: ['B+'] },
 ];

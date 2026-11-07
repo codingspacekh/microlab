@@ -76,6 +76,17 @@ export const BATTERIES: Record<string, { volts: number; ohms: number; limitA: nu
 /** An SG90 at rest draws about 10 mA from 5 V. */
 export const SERVO_IDLE_OHMS = 500;
 
+/**
+ * Piezo buzzers, as a kit wires straight to a pin (M6.2). An active one (TMB12A03-type, 3–5 V self-drive) has its own
+ * oscillator: from `minVolts` (+ above −) it sounds at `hz`, drawing ≈ 7 mA at 3.3 V (as `ohms`). A passive one is a
+ * bare piezo disc: it draws next to nothing and sounds only with a square wave across it, at the wave's frequency,
+ * from a swing of `minSwing`. (A magnetic buzzer, 16–42 Ω, would need a transistor: M7.)
+ */
+export const BUZZER = {
+  active: { ohms: 470, hz: 2300, minVolts: 2.0 },
+  passive: { ohms: 10_000, minSwing: 1.0 },
+} as const;
+
 /** Forward voltages as on screen 12b; rated 20 mA, burnt above 30 mA (decision 1). */
 export const LED_COLORS: Record<string, { vf: number }> = {
   red: { vf: 2.0 },

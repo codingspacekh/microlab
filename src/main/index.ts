@@ -35,9 +35,13 @@ const rendererDir = join(here, '../renderer');
 if (process.env.MICROLAB_USER_DATA) app.setPath('userData', process.env.MICROLAB_USER_DATA);
 
 // E2E runs hidden (the teacher's request, 2026-11-06): the window is never shown, the app has no Dock icon and never
-// takes focus from what the teacher is doing; its page still lays out, draws and runs timers at full speed.
+// takes focus from what the teacher is doing; its page still lays out, draws and runs timers at full speed. Nor is it
+// heard (M6.2): a buzzer's sound plays on a muted output.
 const HIDDEN = process.env.MICROLAB_HIDDEN === '1';
-if (HIDDEN) app.dock?.hide();
+if (HIDDEN) {
+  app.dock?.hide();
+  app.commandLine.appendSwitch('mute-audio');
+}
 
 protocol.registerSchemesAsPrivileged([
   { scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },

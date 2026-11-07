@@ -99,6 +99,8 @@ export interface RunOptions {
   onPin?: (pin: string, level: number) => void;
   /** Each new frame of the micro:bit's display: 25 brightnesses 0–9, row by row. */
   onDisplay?: (pixels: string) => void;
+  /** Each change of the micro:bit speaker's pitch, Hz (0: silence) (M6.2). */
+  onSound?: (hz: number) => void;
 }
 
 /** The sim's own Python (src/python/common) and the boards' (src/python/<folder>), written to a folder the
@@ -273,6 +275,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
       } else if ((last?.[1] ?? 0) !== hz) {
         sound.push([t, hz]);
       }
+      options.onSound?.(hz);
     },
     accel_values: (): string => { clock.ticksUs(); return motion.values().join(' '); },
     accel_gesture: (): string => motion.gesture(),

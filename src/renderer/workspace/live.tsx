@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ldrOhms } from '@lib/circuit';
 import type { Point } from '@lib/editor';
 import type { PartView } from '../../sim/circuit';
+import { noteName } from '../audio';
 import { Icon, Slider } from '../ui';
 import { UsbPlug } from './drawings';
 
@@ -9,7 +10,8 @@ import { UsbPlug } from './drawings';
  * The circuit's inputs while a program runs (M6.1, screen 17) and what the parts say on hover: a slide switch is
  * clicked to slide it, a knob dragged up (more) or down (less), the light on a light sensor set on its card. Each is a
  * live slot of the run ('position:sw1', 'position:pot1', 'lux:ldr1'); the sim's own start values are shown until one
- * is changed, and a new run starts from them again. Hovering an LED or an RGB LED says its current (screen 03, 17);
+ * is changed, and a new run starts from them again. Hovering an LED or an RGB LED says its current (screen 03, 17), a
+ * buzzer its pitch and note (M6.2);
  * hovering the micro:bit GPIO board's micro-USB says what it gives (screen 17b).
  */
 
@@ -108,6 +110,12 @@ export function PartTip({ id, type, common, views, style }: { id: string; type: 
   };
   if (type === 'led') {
     return <div className="tip part-tip" role="tooltip" style={style}><b>{id.toUpperCase()} · {mA(led(id).amps)}</b></div>;
+  }
+  if (type === 'buzzer') {
+    const v = views[id];
+    const hz = v?.kind === 'buzzer' && v.volume > 0 ? v.hz : 0;
+    const note = noteName(hz);
+    return <div className="tip part-tip" role="tooltip" style={style}><b>{id.toUpperCase()} · {hz ? `${hz} Hz${note ? ` · ${note}` : ''}` : 'silent'}</b></div>;
   }
   const [r, g, b] = ['r', 'g', 'b'].map((d) => led(`${id}:${d}`));
   const dim = [g!, b!].some((d) => d.amps > 0 && d.brightness < 0.25);

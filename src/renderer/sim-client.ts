@@ -22,7 +22,7 @@ export interface WorkerLike {
 export interface RunEvents {
   onOutput: (text: string) => void;
   onParts: (states: Record<string, PartView>) => void;
-  onBoard: (outputs: { pins: Record<string, number>; display?: string }) => void;
+  onBoard: (outputs: { pins: Record<string, number>; display?: string; sound?: number }) => void;
   onEnd: (result: RunResult) => void;
 }
 
@@ -64,7 +64,7 @@ export function startRun(req: { doc: ProjectDoc; entry: string }, events: RunEve
     if (ended) return;
     if (m.type === 'output') events.onOutput(m.text);
     else if (m.type === 'parts') events.onParts(m.states);
-    else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}) });
+    else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}), ...(m.sound !== undefined ? { sound: m.sound } : {}) });
     else end(m.result);
   };
   worker.onerror = (e) => end({ ...emptyResult('error'), error: { type: 'Error', message: `The simulator couldn't start: ${e.message}` } });

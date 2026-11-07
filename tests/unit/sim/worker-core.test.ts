@@ -68,6 +68,18 @@ describe('M2.8 the worker\'s run: output batched to ≤ 60 a second, then the en
     expect(frames.at(-1)!.display).toBe('0909099999999990999000900');
   });
 
+  it('M6.2: the micro:bit speaker\'s pitch reaches the window, then its silence', async () => {
+    const control = new Control();
+    const posts: WorkerMessage[] = [];
+    await handleStart({
+      type: 'start', board: 'microbit-v2', control: control.buffer, inputs: [],
+      files: { 'main.py': 'from microbit import *\nimport music\nmusic.pitch(440, 50)\nsleep(50)\n' },
+    }, (m) => posts.push(m), await nodeLoader());
+    const sounds = posts.flatMap((m) => (m.type === 'board' && m.sound !== undefined ? [m.sound] : []));
+    expect(sounds.some((hz) => Math.abs(hz - 440) < 1)).toBe(true);   // 440.14: the nearest whole µs period
+    expect(sounds.at(-1)).toBe(0);
+  });
+
   it('Control: input slots by name; an unknown one is an error', () => {
     const c = new Control(['level:14', 'volts:26']);
     c.setInput('volts:26', 1.2);

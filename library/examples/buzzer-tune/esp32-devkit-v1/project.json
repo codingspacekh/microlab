@@ -1,0 +1,36 @@
+{
+  "format": 1,
+  "title": "Four notes (passive buzzer)",
+  "board": "esp32-devkit-v1",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "bz1",
+      "type": "buzzer",
+      "props": {
+        "kind": "passive"
+      },
+      "legs": {
+        "+": "bb1.a10",
+        "-": "bb1.a13"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.D15",
+      "b": "bb1.e10"
+    },
+    {
+      "id": "w2",
+      "a": "board.GND",
+      "b": "bb1.e13"
+    }
+  ]
+}

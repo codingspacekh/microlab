@@ -6,7 +6,7 @@ export { MODELS } from './models';
 export type { PartModel, PartContext } from './models';
 export type { CircuitSpec, PartSpec, WireSpec, PointRef, Problem } from './spec';
 export { UnionFind } from './union-find';
-export { LED, LED_COLORS, RGB_DIES, BATTERIES, CONTACT_OHMS, WIPER_OHMS, SERVO_IDLE_OHMS, ldrOhms } from './devices';
+export { LED, LED_COLORS, RGB_DIES, BATTERIES, BUZZER, CONTACT_OHMS, WIPER_OHMS, SERVO_IDLE_OHMS, ldrOhms } from './devices';
 export type { Device, Netlist, PinState, PartState, SimState } from './devices';
 export { toNetlist } from './netlist';
 export { solve } from './solve';

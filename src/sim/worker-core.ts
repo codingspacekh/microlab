@@ -25,8 +25,9 @@ export type WorkerMessage =
   | { type: 'output'; text: string }
   /** The latest state of every part that changed since the last message. */
   | { type: 'parts'; states: Record<string, PartView> }
-  /** The board's own outputs that changed (M4.5): pin levels ('LED' is the Pico W's own LED), the display. */
-  | { type: 'board'; pins: Record<string, number>; display?: string }
+  /** The board's own outputs that changed (M4.5): pin levels ('LED' is the Pico W's own LED), the display, the
+   *  micro:bit speaker's pitch (Hz, 0: silence; M6.2). */
+  | { type: 'board'; pins: Record<string, number>; display?: string; sound?: number }
   | { type: 'end'; result: RunResult };
 
 const FRAME_MS = 1000 / 60;
@@ -42,15 +43,19 @@ export async function handleStart(
   let parts: Record<string, PartView> = {};
   let pins: Record<string, number> = {};
   let display: string | undefined;
+  let sound: number | undefined;
   let last = -Infinity;
   const flush = () => {
     if (pending) post({ type: 'output', text: pending });
     if (Object.keys(parts).length) post({ type: 'parts', states: parts });
-    if (Object.keys(pins).length || display !== undefined) post({ type: 'board', pins, ...(display !== undefined ? { display } : {}) });
+    if (Object.keys(pins).length || display !== undefined || sound !== undefined) {
+      post({ type: 'board', pins, ...(display !== undefined ? { display } : {}), ...(sound !== undefined ? { sound } : {}) });
+    }
     pending = '';
     parts = {};
     pins = {};
     display = undefined;
+    sound = undefined;
     last = now();
   };
   const maybeFlush = () => {
@@ -62,7 +67,9 @@ export async function handleStart(
     entry: msg.entry,
     circuit: msg.circuit,
     control,
-    clock: new RealClock({ wait: (ms) => control.wait(ms) }),
+    // a sleep sends what is waiting once a frame has passed: a note (an LED) set just after a send is shown while the
+    // program sleeps, not only at its next change
+    clock: new RealClock({ wait: (ms) => { maybeFlush(); control.wait(ms); } }),
     onOutput: (text) => {
       pending += text;
       maybeFlush();
@@ -77,6 +84,10 @@ export async function handleStart(
     },
     onDisplay: (pixels) => {
       display = pixels;
+      maybeFlush();
+    },
+    onSound: (hz) => {
+      sound = hz;
       maybeFlush();
     },
   });
