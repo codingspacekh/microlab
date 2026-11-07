@@ -188,3 +188,11 @@ describe('M6.5a the kit\'s modules in the editor', () => {
     expect(snapPart(sceneOf(empty()), 'flame', at(empty(), 'bb1.f21'))).toEqual({ ao: 'bb1.f21', gnd: 'bb1.f22', vcc: 'bb1.f23', out: 'bb1.f24' });
   });
 });
+
+/** M6.5b (screen 21): the kit's six chips in the Chips group, pins as commonly printed. */
+describe('M6.5b the kit\'s chips in the editor', () => {
+  it('in the Chips group, each with the legs its model has, in row f first', () => {
+    expect(PART_KINDS.filter((k) => k.group === 'Chips').map((k) => k.type)).toEqual(['pcf8591', 'bmp280', 'ds18b20', 'ds1302', 'vl53l0x', 'max30102']);
+    expect(freeSpot(sceneOf(empty()), 'ds1302')).toEqual({ vcc: 'bb1.f1', gnd: 'bb1.f2', clk: 'bb1.f3', dat: 'bb1.f4', rst: 'bb1.f5' });
+  });
+});

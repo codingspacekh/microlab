@@ -305,3 +305,27 @@ test('M6.5a (screen 20): a joystick dragged and an IR obstacle sensor clicked, r
   await win.mouse.click(ir.x, ir.y);
   await expect(log).toContainText('blocked', { timeout: 2000 });
 });
+
+test('M6.5b (screen 21): a DS18B20 read with onewire and ds18x20 by the real worker, its temperature set on the Inputs card', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await win.locator('.parts .pitem:has-text("DS18B20")').scrollIntoViewIfNeeded();
+  await drag(win, await centre(win, '.parts .pitem:has-text("DS18B20")'), await centre(win, '[data-point="bb1.f3"]'));
+  await win.keyboard.press('Escape');
+  await drag(win, await centre(win, '[data-point="board.GP16"]'), await centre(win, '[data-point="bb1.j2"]'));
+  await drag(win, await centre(win, '[data-point="board.3V3"]'), await centre(win, '[data-point="bb1.j3"]'));
+  await drag(win, await centre(win, '[data-point="board.GND@38"]'), await centre(win, '[data-point="bb1.j4"]'));
+  await setCode(win, [
+    'import onewire, ds18x20, time', 'from machine import Pin', 'ds = ds18x20.DS18X20(onewire.OneWire(Pin(16)))',
+    'roms = ds.scan()', "print('found', len(roms))", 'while True:', '    ds.convert_temp()', '    time.sleep_ms(750)',
+    "    print('%.1f C' % ds.read_temp(roms[0]))", '',
+  ].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const log = win.getByRole('log', { name: 'Console' });
+  await expect(log).toContainText('found 1', { timeout: 5000 });
+  await expect(log).toContainText('22.0 C', { timeout: 3000 });
+  const slider = win.getByRole('group', { name: 'Inputs' }).getByRole('slider', { name: 'Temperature of TEMP1' });
+  await slider.focus();
+  await win.keyboard.press('End');
+  await expect(log).toContainText('100.0 C', { timeout: 3000 });
+});

@@ -3,7 +3,7 @@ import { echoUs, ldrOhms, SENSOR_START } from '@lib/circuit';
 import type { Point } from '@lib/editor';
 import type { PartView } from '../../sim/circuit';
 import { noteName } from '../audio';
-import { Icon, Slider } from '../ui';
+import { Icon, Slider, Switch } from '../ui';
 import { UsbPlug } from './drawings';
 
 /**
@@ -19,6 +19,7 @@ import { UsbPlug } from './drawings';
  *  sensor in damp soil, room temperature). */
 export const START: Record<string, number> = {
   position: 0, lux: 300, celsius: SENSOR_START.celsius, humidity: SENSOR_START.humidity, cm: SENSOR_START.cm, tiltx: 0, tilty: 0,
+  hpa: 1013, bpm: 72, spo2: 98,
 };
 const KNOB_START = 0.5;
 /** Pixels of drag from one end of a knob's turn to the other. */
@@ -57,7 +58,8 @@ export function useLive(running: boolean, onInput?: (name: string, value: number
   useEffect(() => { if (running) setValues({}); else drag.current = null; }, [running]);
 
   const startOf = (slot: string) => (slot.startsWith('position:pot') || slot.startsWith('position:knob') || slot.startsWith('x:') || slot.startsWith('y:') ? KNOB_START
-    : slot.startsWith('position:soil') ? SENSOR_START.moisture : START[slot.slice(0, slot.indexOf(':'))] ?? 0);
+    : slot.startsWith('position:soil') ? SENSOR_START.moisture : slot.startsWith('position:pulse') ? 1   // a finger on it
+      : START[slot.slice(0, slot.indexOf(':'))] ?? 0);
   const value = (slot: string) => values[slot] ?? startOf(slot);
   /** Sets a slot (and tells the run) unless it already has that value. */
   const put = (slot: string, v: number) => {
@@ -136,7 +138,7 @@ const volts = (v: PartView | undefined, name: string) => (v?.kind !== 'sensor' ?
 
 /** The parts the Inputs card has a row for (screen 18): a light sensor, a soil moisture sensor, a temperature sensor. */
 export const SLIDER_PARTS = new Set(['ldr', 'soil-moisture', 'temp-sensor', 'dht', 'hc-sr04', 'mpu6050',
-  'ldr-module', 'flame', 'raindrop', 'water-level', 'mq2', 'speed-sensor']);
+  'ldr-module', 'flame', 'raindrop', 'water-level', 'mq2', 'speed-sensor', 'bmp280', 'ds18b20', 'vl53l0x', 'max30102']);
 
 /** The kit's modules set with a 0–1 slider (M6.5a): its name on the card, the slider's label, its ends, its output's name. */
 const LEVELS: Record<string, { icon: string; kind: string; label: string; ticks: [string, string]; out: string }> = {
@@ -171,6 +173,38 @@ export function InputsCard({ parts, live, views, onClose, style }: {
             <Row key={p.id} icon={l.icon} name={name} kind={l.kind} reading={volts(views[p.id], l.out)}>
               <Slider label={`${l.label} ${name}`} value={Math.round(live.value(`position:${p.id}`) * 100)} min={0} max={100} step={1}
                 format={(v) => `${v} %`} ticks={l.ticks} onChange={(v) => live.set(`position:${p.id}`, v / 100)} />
+            </Row>
+          );
+        }
+        if (p.type === 'bmp280') {
+          return (
+            <Row key={p.id} icon="therm" name={name} kind="air" reading="BMP280">
+              <Slider label={`Temperature at ${name}`} value={live.value(`celsius:${p.id}`)} min={-20} max={60} step={1} format={(v) => `${v} °C`} onChange={(v) => live.set(`celsius:${p.id}`, v)} />
+              <Slider label={`Pressure at ${name}`} value={live.value(`hpa:${p.id}`)} min={900} max={1100} step={1} format={(v) => `${v} hPa`} onChange={(v) => live.set(`hpa:${p.id}`, v)} />
+            </Row>
+          );
+        }
+        if (p.type === 'ds18b20') {
+          return (
+            <Row key={p.id} icon="therm" name={name} kind="DS18B20" reading="">
+              <Slider label={`Temperature of ${name}`} value={live.value(`celsius:${p.id}`)} min={-20} max={100} step={0.5} format={(v) => `${v} °C`} onChange={(v) => live.set(`celsius:${p.id}`, v)} />
+            </Row>
+          );
+        }
+        if (p.type === 'vl53l0x') {
+          const cm = live.value(`cm:${p.id}`);
+          return (
+            <Row key={p.id} icon="ruler" name={name} kind="object" reading={cm > 200 ? 'nothing in 2 m' : `${Math.round(cm * 10)} mm`}>
+              <Slider label={`Distance from ${name}`} value={cm} min={3} max={250} step={1} format={(v) => `${v} cm`} ticks={['3 cm', '2 m', '']} onChange={(v) => live.set(`cm:${p.id}`, v)} />
+            </Row>
+          );
+        }
+        if (p.type === 'max30102') {
+          return (
+            <Row key={p.id} icon="heart" name={name} kind="pulse" reading="">
+              <Switch label={`A finger on ${name}`} value={live.value(`position:${p.id}`) >= 0.5} onChange={(on) => live.set(`position:${p.id}`, on ? 1 : 0)} />
+              <Slider label={`Heart rate of ${name}`} value={live.value(`bpm:${p.id}`)} min={40} max={180} step={1} format={(v) => `${v} bpm`} onChange={(v) => live.set(`bpm:${p.id}`, v)} />
+              <Slider label={`Oxygen of ${name}`} value={live.value(`spo2:${p.id}`)} min={85} max={100} step={1} format={(v) => `${v} %`} onChange={(v) => live.set(`spo2:${p.id}`, v)} />
             </Row>
           );
         }
@@ -257,6 +291,15 @@ const mA = (amps: number) => `${Number((amps * 1000).toFixed(1))} mA`;
 export function PartTip({ id, type, common, views, overLine = false, values = {}, style }: {
   id: string; type: string; common?: string; views: Record<string, PartView>; overLine?: boolean; values?: Record<string, number>; style: CSSProperties;
 }) {
+  if (type === 'ds1302') {
+    const v = views[id];
+    return (
+      <div className="tip part-tip" role="tooltip" style={style}>
+        <b>{id.toUpperCase()} · {v?.kind === 'clock' ? v.time : '—'}</b>
+        <div>It keeps the laptop's time (its coin cell). A program can set it; then it counts on.</div>
+      </div>
+    );
+  }
   if (type === 'joystick') {
     return (
       <div className="tip part-tip" role="tooltip" style={style}>

@@ -33,6 +33,12 @@ export class Ds1302 {
     this.at = now;
   }
 
+  /** Its time now as 'HH:MM:SS' (what the window shows, M6.5b). */
+  timeText(now: number): string {
+    const d = this.time(now);
+    return [d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()].map((v) => String(v).padStart(2, '0')).join(':');
+  }
+
   private time(now: number): Date {
     return new Date(this.halted ? this.base : this.base + Math.floor((now - this.at) / 1000));
   }

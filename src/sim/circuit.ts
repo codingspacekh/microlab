@@ -44,7 +44,9 @@ export type PartView =
   /** What a buzzer sounds like (M6.2): its pitch in Hz (0: silent) and its loudness 0–1. */
   | { kind: 'buzzer'; hz: number; volume: number }
   /** A sensor module's output (M6.3): its volts, and whether its supply is enough for it to work. */
-  | { kind: 'sensor'; volts: number; powered: boolean };
+  | { kind: 'sensor'; volts: number; powered: boolean }
+  /** A real-time clock's time, 'HH:MM:SS' (M6.5b). */
+  | { kind: 'clock'; time: string };
 
 /** [µs, part id, its new state] — one entry per change, as the window would be told. */
 export type PartTraceEntry = [number, string, PartView];
@@ -458,6 +460,7 @@ export class CircuitHost {
     for (const part of this.spec.parts) {
       if (part.type === 'servo') this.setView(t, part.id, this.servo(part.id));
       if (part.type === 'buzzer') this.setView(t, part.id, this.buzzer(part.id, part.props?.kind === 'passive'));
+      if (part.type === 'ds1302') { this.setView(t, part.id, { kind: 'clock', time: this.ds1302(part.id).timeText(t) }); continue; }
       if (isSensor(part.type)) {
         const st = this.parts[part.id];
         const first = st?.drives ? Object.values(st.drives)[0] : st?.drive;

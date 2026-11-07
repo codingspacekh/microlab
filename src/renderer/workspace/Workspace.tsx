@@ -150,7 +150,7 @@ export function Workspace({
           </div>
         </div>
         <div className="list">
-          {(['Basics', 'Sensors', 'Modules'] as const).map((group) => {
+          {(['Basics', 'Sensors', 'Modules', 'Chips'] as const).map((group) => {
             const kinds = PART_KINDS.filter((k) => k.group === group);
             return (
               <div key={group} className="pgroup" role="group" aria-label={group}>

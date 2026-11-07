@@ -9,12 +9,13 @@ import { PART_ART } from './library';
 export type PartType = 'resistor' | 'led' | 'rgb-led' | 'button' | 'slide-switch' | 'potentiometer' | 'ldr' | 'buzzer' | 'battery'
   | 'hc-sr04' | 'dht' | 'mpu6050' | 'pir' | 'line-sensor' | 'soil-moisture' | 'temp-sensor'
   | 'button-module' | 'touch' | 'vibration' | 'ir-obstacle' | 'hall' | 'flame' | 'raindrop' | 'water-level' | 'mq2'
-  | 'ldr-module' | 'pot-module' | 'joystick' | 'rotary-encoder' | 'speed-sensor';
+  | 'ldr-module' | 'pot-module' | 'joystick' | 'rotary-encoder' | 'speed-sensor'
+  | 'pcf8591' | 'bmp280' | 'ds18b20' | 'ds1302' | 'vl53l0x' | 'max30102';
 
 export interface PartKind {
   type: PartType;
   /** Its group in the parts panel (screen 02, design/build.py PARTS). */
-  group: 'Basics' | 'Sensors' | 'Modules';
+  group: 'Basics' | 'Sensors' | 'Modules' | 'Chips';
   name: string;
   detail: string;
   prefix: string;
@@ -77,6 +78,18 @@ export const PART_KINDS: PartKind[] = [
     ['speed-sensor', 'IR speed sensor', '20-slot wheel', 'speed', ['vcc', 'gnd', 'out']],
   ] as const).map(([type, name, detail, prefix, legs]): PartKind => ({
     type, group: 'Modules', name, detail, prefix, props: {}, rows: MODULE_ROWS,
+    legs: Object.fromEntries(legs.map((l, i) => [l, [16 * i, 0] as [number, number]])),
+  })),
+  // the kit's chips on their modules (M6.5b, screen 21)
+  ...([
+    ['pcf8591', 'PCF8591', 'ADC · DAC · I²C', 'adc', ['aout', 'ain3', 'ain2', 'ain1', 'ain0', 'scl', 'sda', 'gnd', 'vcc']],
+    ['bmp280', 'BMP280', 'pressure · I²C', 'baro', ['vcc', 'gnd', 'scl', 'sda', 'csb', 'sdo']],
+    ['ds18b20', 'DS18B20', 'temperature · 1-Wire', 'temp', ['out', 'vcc', 'gnd']],
+    ['ds1302', 'DS1302 clock', 'real-time clock', 'rtc', ['vcc', 'gnd', 'clk', 'dat', 'rst']],
+    ['vl53l0x', 'VL53L0X', 'laser distance · I²C', 'tof', ['vcc', 'gnd', 'scl', 'sda', 'gpio1', 'xshut']],
+    ['max30102', 'MAX30102', 'pulse · SpO2 · I²C', 'pulse', ['vcc', 'scl', 'sda', 'int', 'gnd']],
+  ] as const).map(([type, name, detail, prefix, legs]): PartKind => ({
+    type, group: 'Chips', name, detail, prefix, props: {}, rows: MODULE_ROWS,
     legs: Object.fromEntries(legs.map((l, i) => [l, [16 * i, 0] as [number, number]])),
   })),
 ];

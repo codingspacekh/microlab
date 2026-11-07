@@ -63,6 +63,12 @@ const TIPS: Record<string, string> = {
   joystick: 'VRx and VRy to two ADC pins: the middle at rest. SW goes to GND when the stick is pressed — give it Pin.PULL_UP.',
   'rotary-encoder': 'CLK and DT (pulled up on the module) close in turn as it is turned: when CLK falls, DT says which way. SW to GND when pressed — give it Pin.PULL_UP.',
   'speed-sensor': 'A wheel with 20 slots turns in its gap: DO pulses 20 times a turn. Count them in a second for the speed.',
+  pcf8591: 'On I²C at 0x48: write 0x40 + the input (0–3), then read 2 bytes — the second is the input, 0–255 of VCC. A second byte written goes out on AOUT.',
+  bmp280: 'On I²C at 0x76 (SDO to VCC: 0x77); a 3.3 V part. It starts asleep: write 0x27 to 0xF4, then read 0xF7–0xFC and its calibration at 0x88 — a driver turns them into °C and hPa.',
+  ds18b20: 'On 1-Wire: import onewire, ds18x20 (Pico W, ESP32). The module has its 4.7 kΩ pull-up. A reading takes 750 ms after convert_temp(); before the first it says 85 °C.',
+  ds1302: 'CLK, DAT and RST to any pins; a driver sends bytes LSB first (lib/ds1302.py in the example). Its coin cell keeps the time while the board is off.',
+  vl53l0x: 'On I²C at 0x29 (XSHUT low: off). Its start-up is long: use a driver (Pololu\'s, in MicroPython). A range takes about 30 ms; nothing within 2 m reads 8190.',
+  max30102: 'On I²C at 0x57. Set SpO2 mode (0x09 = 3), then read its FIFO: red and IR, 3 bytes each. A program finds the beats in IR, and the oxygen from red against IR.',
   battery: 'A supply of its own, not joined to the board. To use it with the board, join its − to the board\'s GND.',
 };
 const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({ value, name: value[0]!.toUpperCase() + value.slice(1), colour }));

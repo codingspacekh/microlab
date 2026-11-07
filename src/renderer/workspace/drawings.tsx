@@ -414,7 +414,10 @@ function Header({ pins, labels, bodyY, upright }: { pins: Point[]; labels: strin
         </g>
       ))}
       <g fontSize={5.5} fontWeight={700} fill="#e9edf2" textAnchor="middle" pointerEvents="none" fontFamily="Inter Variable, Inter, sans-serif">
-        {pins.map((p, i) => <text key={i} x={p.x} y={y - 18} transform={upright ? `rotate(${upright} ${p.x} ${y - 20})` : undefined}>{labels[i]}</text>)}
+        {pins.map((p, i) => (
+          // GPIO1, XSHUT: smaller, so they don't meet their neighbours
+          <text key={i} x={p.x} y={y - 18} fontSize={labels[i]!.length > 4 ? 4.2 : undefined} transform={upright ? `rotate(${upright} ${p.x} ${y - 20})` : undefined}>{labels[i]}</text>
+        ))}
       </g>
     </>
   );
@@ -592,7 +595,9 @@ export function HcSr04({ vcc, trig, echo, gnd, sounding = false, upright = 0 }: 
 }
 
 // ------------------------------------------------------------------ the SunFounder kit's modules (M6.5a, screens 20, 20b)
-const PCB: Record<string, [string, string]> = { blue: ['#2457a6', '#173c78'], red: ['#b8322a', '#7d1f19'], black: ['#26282c', '#0f1012'] };
+const PCB: Record<string, [string, string]> = {
+  blue: ['#2457a6', '#173c78'], red: ['#b8322a', '#7d1f19'], black: ['#26282c', '#0f1012'], purple: ['#5b3fa0', '#3b2875'], green: ['#2f7d3f', '#1f5a2b'],
+};
 
 /** Each kit module's legs in printed order, the names printed by them, its board's colour and height. */
 export const KIT: Record<string, { legs: string[]; labels: string[]; pcb: string; h: number }> = {
@@ -610,7 +615,28 @@ export const KIT: Record<string, { legs: string[]; labels: string[]; pcb: string
   joystick: { legs: ['gnd', 'vcc', 'vrx', 'vry', 'sw'], labels: ['GND', 'VCC', 'VRx', 'VRy', 'SW'], pcb: 'black', h: 74 },
   'rotary-encoder': { legs: ['clk', 'dt', 'sw', 'vcc', 'gnd'], labels: ['CLK', 'DT', 'SW', 'VCC', 'GND'], pcb: 'blue', h: 70 },
   'speed-sensor': { legs: ['vcc', 'gnd', 'out'], labels: ['VCC', 'GND', 'DO'], pcb: 'blue', h: 64 },
+  // the chips (M6.5b, screen 21)
+  pcf8591: { legs: ['aout', 'ain3', 'ain2', 'ain1', 'ain0', 'scl', 'sda', 'gnd', 'vcc'], labels: ['AOUT', 'AIN3', 'AIN2', 'AIN1', 'AIN0', 'SCL', 'SDA', 'GND', 'VCC'], pcb: 'blue', h: 58 },
+  bmp280: { legs: ['vcc', 'gnd', 'scl', 'sda', 'csb', 'sdo'], labels: ['VCC', 'GND', 'SCL', 'SDA', 'CSB', 'SDO'], pcb: 'purple', h: 58 },
+  ds18b20: { legs: ['out', 'vcc', 'gnd'], labels: ['S', 'VCC', 'GND'], pcb: 'blue', h: 58 },
+  ds1302: { legs: ['vcc', 'gnd', 'clk', 'dat', 'rst'], labels: ['VCC', 'GND', 'CLK', 'DAT', 'RST'], pcb: 'green', h: 64 },
+  vl53l0x: { legs: ['vcc', 'gnd', 'scl', 'sda', 'gpio1', 'xshut'], labels: ['VIN', 'GND', 'SCL', 'SDA', 'GPIO1', 'XSHUT'], pcb: 'purple', h: 58 },
+  max30102: { legs: ['vcc', 'scl', 'sda', 'int', 'gnd'], labels: ['VIN', 'SCL', 'SDA', 'INT', 'GND'], pcb: 'purple', h: 58 },
 };
+
+/** A small chip in an SOIC package, its pins on two sides. */
+function Soic({ cx, y, w = 16, h = 10, label = '' }: { cx: number; y: number; w?: number; h?: number; label?: string }) {
+  return (
+    <>
+      <rect x={cx - w / 2} y={y} width={w} height={h} rx={1} fill="#1c1e21" />
+      {[0, 1, 2, 3].map((i) => {
+        const x = f(cx - w / 2 + 2 + (i * (w - 4)) / 3 - 1);
+        return <g key={i}><rect x={x} y={y - 2} width={2} height={2} fill="#c7ccd2" /><rect x={x} y={y + h} width={2} height={2} fill="#c7ccd2" /></g>;
+      })}
+      {label && <text x={cx} y={y + h / 2 + 2} fontSize={3.6} fill="#9aa1a9" textAnchor="middle" pointerEvents="none">{label}</text>}
+    </>
+  );
+}
 
 function Trimpot({ x, y }: { x: number; y: number }) {
   return (
@@ -635,7 +661,11 @@ function ModuleLeds({ x, y, on, powered = true }: { x: number; y: number; on: bo
 
 /** What a kit module shows while running: held, its level 0–1, a joystick's axes, an encoder turning, a wheel's rpm,
  *  a potentiometer module's knob 0–1, the MQ-2's heater hot. */
-export interface KitLook { pressed?: boolean; level?: number; x?: number; y?: number; turning?: boolean; rpm?: number; knob?: number; hot?: boolean; powered?: boolean }
+export interface KitLook {
+  pressed?: boolean; level?: number; x?: number; y?: number; turning?: boolean; rpm?: number; knob?: number; hot?: boolean; powered?: boolean;
+  /** A PCF8591's AOUT 0–1 of VCC, a VL53L0X measuring, a finger on a MAX30102 (M6.5b). */
+  aout?: number; measuring?: boolean; finger?: boolean;
+}
 
 /** One of the kit's modules (M6.5a, screen 20b): its board standing over its pins, 7 px beyond them each side, its
  *  element on it and — what it senses — over its top edge. */
@@ -722,6 +752,43 @@ export function KitModule({ type, pins, look = {}, upright = 0 }: { type: string
         <circle cx={cx} cy={top + 29} r={13} fill="#c7ccd2" stroke="#8f969f" /><path d={`M${cx - 9},${top + 24} h18`} stroke="#6d747c" strokeWidth={2} />
         {look.turning && <path className="turning" d={`M${cx + 22},${top + 14} A26 26 0 0 1 ${cx + 22},${top + 44} M${cx + 18},${top + 42} l4,3 l3,-4`} stroke="#e8590c" strokeWidth={2} fill="none" />}</>);
       break;
+    case 'pcf8591': {
+      const a = look.aout ?? 0;
+      el = (<><Soic cx={cx} y={top + 12} w={20} h={12} label="PCF8591" />
+        {[0, 1, 2].map((i) => <g key={i}><rect x={cx - 40 + i * 12} y={top + 34} width={6} height={9} rx={1} fill="#1c1e21" /><rect x={cx - 39 + i * 12} y={top + 35} width={4} height={4} fill="#e8b10f" /></g>)}
+        <rect className={a > 0.01 ? 'aout on' : 'aout'} x={cx + 26} y={top + 36} width={6} height={3.5} rx={1} fill={a > 0.01 ? '#ff5a4a' : '#5a2a27'} />
+        {a > 0.01 && <circle cx={cx + 29} cy={top + 38} r={f(4 + 6 * a)} fill="url(#glow-red)" />}</>);
+      break;
+    }
+    case 'bmp280':
+      el = (<><rect x={cx - 7} y={top + 14} width={14} height={14} rx={1.5} fill="#c7ccd2" stroke="#8f969f" /><circle cx={cx + 3.5} cy={top + 17.5} r={1.2} fill="#6d747c" />
+        <text x={cx} y={top + 44} fontSize={5} fontWeight={700} fill="#e3dff5" textAnchor="middle" pointerEvents="none">BMP280</text></>);
+      break;
+    case 'ds18b20':
+      el = (<><path d={`M${cx - 9},${top + 34} v-14 a9,6 0 0 1 18,0 v14 z`} fill="#1f2125" />
+        <text x={cx} y={top + 29} fontSize={3.6} fill="#cfd3d8" textAnchor="middle" pointerEvents="none">18B20</text>
+        <rect x={cx + 9} y={top + 40} width={8} height={4} rx={1} fill="#e3cb98" /></>);
+      break;
+    case 'ds1302':
+      el = (<><circle cx={cx} cy={top + 22} r={17} fill="#c7ccd2" stroke="#8f969f" />
+        <text x={cx} y={top + 24} fontSize={5} fontWeight={700} fill="#6d747c" textAnchor="middle" pointerEvents="none">CR2032</text>
+        <Soic cx={cx - 14} y={top + 46} w={14} h={8} /><rect x={cx + 6} y={top + 46} width={16} height={6} rx={3} fill="#c7ccd2" stroke="#8f969f" /></>);
+      break;
+    case 'vl53l0x':
+      el = (<><rect x={cx - 9} y={top + 12} width={18} height={9} rx={1.5} fill="#1c1e21" />
+        <circle cx={cx - 4} cy={top + 16.5} r={2} fill="#3a3d42" /><circle cx={cx + 4} cy={top + 16.5} r={2} fill="#3a3d42" />
+        <text x={cx} y={top + 44} fontSize={5} fontWeight={700} fill="#e3dff5" textAnchor="middle" pointerEvents="none">VL53L0X</text></>);
+      if (look.measuring) above = (<g className="beam"><path d={`M${cx - 4},${top + 12} L${cx - 4},${top - 46}`} stroke="#e8432a" strokeWidth={1.6} strokeDasharray="3 3" />
+        <rect x={cx - 22} y={top - 56} width={44} height={10} rx={2} fill="#c08a52" stroke="#8a5c2e" /></g>);
+      break;
+    case 'max30102':
+      el = (<><rect x={cx - 8} y={top + 12} width={16} height={12} rx={2} fill="#1c1e21" />
+        <rect x={cx - 6} y={top + 14} width={5} height={8} rx={1} fill="#8a1d1d" /><rect x={cx + 1} y={top + 14} width={5} height={8} rx={1} fill="#2a2d33" />
+        <text x={cx} y={top + 44} fontSize={5} fontWeight={700} fill="#e3dff5" textAnchor="middle" pointerEvents="none">MAX30102</text>
+        {look.finger && (<g className="finger"><path d={`M${cx - 14},${top + 40} q-2,-30 14,-34 q16,4 14,34 z`} fill="#e9b48f" opacity={0.92} stroke="#c98b63" />
+          <ellipse cx={cx} cy={top + 12} rx={8} ry={4} fill="#f4d3bd" opacity={0.9} />
+          {look.powered && <circle cx={cx} cy={top + 22} r={14} fill="url(#glow-red)" opacity={0.6} />}</g>)}</>);
+      break;
     case 'speed-sensor':
       el = <><rect x={cx - 14} y={top + 4} width={9} height={22} rx={1} fill="#1c1e21" /><rect x={cx + 5} y={top + 4} width={9} height={22} rx={1} fill="#1c1e21" /><ModuleLeds x={cx} y={top + 48} powered={look.powered ?? true} on={(look.rpm ?? 0) > 0} /></>;
       above = (<g className="wheel"><circle cx={cx} cy={top - 12} r={26} fill="#e8b10f" stroke="#a87e08" />
@@ -769,7 +836,8 @@ export function PartDrawing({ type, legs, props, look = {} }: { type: string; le
     case 'led': case 'potentiometer': case 'slide-switch': case 'ldr': case 'rgb-led': case 'buzzer':
     case 'pir': case 'line-sensor': case 'soil-moisture': case 'temp-sensor': case 'dht': case 'hc-sr04': case 'mpu6050':
     case 'button-module': case 'touch': case 'vibration': case 'ir-obstacle': case 'hall': case 'flame': case 'raindrop': case 'water-level':
-    case 'mq2': case 'ldr-module': case 'pot-module': case 'joystick': case 'rotary-encoder': case 'speed-sensor': {
+    case 'mq2': case 'ldr-module': case 'pot-module': case 'joystick': case 'rotary-encoder': case 'speed-sensor':
+    case 'pcf8591': case 'bmp280': case 'ds18b20': case 'ds1302': case 'vl53l0x': case 'max30102': {
       // drawn as if not turned, then turned about the legs' middle (M5.1); the letters and signs stay upright
       const t = partTurns(type, legs);
       const { local, transform } = unturned(legs, t);
@@ -862,7 +930,13 @@ const KIT_ICONS: Record<string, string> = {
   "pot-module": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><circle cx=\"16\" cy=\"16\" r=\"5.5\" fill=\"#e9ebee\"/><line x1=\"16\" y1=\"16\" x2=\"18\" y2=\"12\" stroke=\"#2d3136\" stroke-width=\"1.6\"/>",
   "joystick": "<rect x=\"4\" y=\"6\" width=\"24\" height=\"20\" rx=\"2\" fill=\"#26282c\"/><circle cx=\"16\" cy=\"16\" r=\"8\" fill=\"#c7ccd2\"/><circle cx=\"17\" cy=\"15\" r=\"5\" fill=\"#2d3136\"/>",
   "rotary-encoder": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><circle cx=\"16\" cy=\"16\" r=\"6\" fill=\"#c7ccd2\" stroke=\"#8f969f\"/><path d=\"M12,14 h8\" stroke=\"#6d747c\" stroke-width=\"1.4\"/>",
-  "speed-sensor": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><circle cx=\"16\" cy=\"8\" r=\"7\" fill=\"#e8b10f\"/><rect x=\"11\" y=\"12\" width=\"3\" height=\"8\" fill=\"#1c1e21\"/><rect x=\"18\" y=\"12\" width=\"3\" height=\"8\" fill=\"#1c1e21\"/>"
+  "speed-sensor": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><circle cx=\"16\" cy=\"8\" r=\"7\" fill=\"#e8b10f\"/><rect x=\"11\" y=\"12\" width=\"3\" height=\"8\" fill=\"#1c1e21\"/><rect x=\"18\" y=\"12\" width=\"3\" height=\"8\" fill=\"#1c1e21\"/>",
+  "pcf8591": "<rect x=\"2\" y=\"9\" width=\"28\" height=\"15\" rx=\"2\" fill=\"#2457a6\"/><rect x=\"11\" y=\"12\" width=\"10\" height=\"7\" rx=\"1\" fill=\"#1c1e21\"/><path d=\"M5,24 v5 M9,24 v5 M13,24 v5 M17,24 v5 M21,24 v5 M25,24 v5\" stroke=\"#a5abb2\" stroke-width=\"1.2\"/>",
+  "bmp280": "<rect x=\"6\" y=\"9\" width=\"20\" height=\"15\" rx=\"2\" fill=\"#5b3fa0\"/><rect x=\"12\" y=\"12\" width=\"8\" height=\"8\" rx=\"1\" fill=\"#c7ccd2\"/><path d=\"M9,24 v5 M13,24 v5 M17,24 v5 M21,24 v5\" stroke=\"#a5abb2\" stroke-width=\"1.2\"/>",
+  "ds18b20": "<rect x=\"8\" y=\"9\" width=\"16\" height=\"15\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M12,21 v-6 a4,3 0 0 1 8,0 v6z\" fill=\"#1f2125\"/><path d=\"M12,24 v5 M16,24 v5 M20,24 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/>",
+  "ds1302": "<rect x=\"5\" y=\"6\" width=\"22\" height=\"18\" rx=\"2\" fill=\"#2f7d3f\"/><circle cx=\"16\" cy=\"14\" r=\"6\" fill=\"#c7ccd2\"/><path d=\"M8,24 v5 M12,24 v5 M16,24 v5 M20,24 v5 M24,24 v5\" stroke=\"#a5abb2\" stroke-width=\"1.2\"/>",
+  "vl53l0x": "<rect x=\"6\" y=\"9\" width=\"20\" height=\"15\" rx=\"2\" fill=\"#5b3fa0\"/><rect x=\"11\" y=\"12\" width=\"10\" height=\"5\" rx=\"1\" fill=\"#1c1e21\"/><path d=\"M14,8 v-6\" stroke=\"#e8432a\" stroke-width=\"1.4\" stroke-dasharray=\"2 1.5\"/>",
+  "max30102": "<rect x=\"6\" y=\"9\" width=\"20\" height=\"15\" rx=\"2\" fill=\"#5b3fa0\"/><rect x=\"12\" y=\"12\" width=\"8\" height=\"6\" rx=\"1\" fill=\"#1c1e21\"/><rect x=\"13\" y=\"13\" width=\"3\" height=\"4\" fill=\"#8a1d1d\"/>"
 };
 
 export function PartIcon({ type }: { type: string }) {

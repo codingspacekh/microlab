@@ -616,9 +616,12 @@ export function Canvas({
             hot: running && sensor?.kind === 'sensor' && sensor.powered,
             // a module's LEDs light from its supply: while running as the sim says, while building as if powered
             powered: !running || (sensor?.kind === 'sensor' ? sensor.powered : true),
+            aout: sensor?.kind === 'sensor' && p.type === 'pcf8591' ? sensor.volts / 3.3 : 0,
+            measuring: running && p.type === 'vl53l0x' && sensor?.kind === 'sensor' && sensor.powered,
+            finger: p.type === 'max30102' && live.value(`position:${p.id}`) >= 0.5,
           } : undefined;
           const lit = glow ?? (dies ? Math.max(...dies) : undefined);
-          const says = running && ['led', 'rgb-led', 'buzzer', 'pir', 'line-sensor', 'joystick', 'rotary-encoder'].includes(p.type);
+          const says = running && ['led', 'rgb-led', 'buzzer', 'pir', 'line-sensor', 'joystick', 'rotary-encoder', 'ds1302'].includes(p.type);
           const tone = p.type === 'buzzer' ? outputs.parts[p.id] : undefined;
           const hz = tone?.kind === 'buzzer' && tone.volume > 0 ? tone.hz : p.type === 'buzzer' ? 0 : undefined;
           return (
@@ -752,7 +755,7 @@ const PAD: Record<string, [number, number, number, number]> = {
   dht: [14, 94, 14, 8], mpu6050: [16, 96, 16, 8], 'hc-sr04': [93, 10, 93, 124],
 };
 /** A kit module's box: its board and, over it, what it senses (a plate, a wheel, a flame …). */
-const KIT_ABOVE: Record<string, number> = { raindrop: 44, 'speed-sensor': 42, flame: 38, mq2: 30, 'ir-obstacle': 30, hall: 26 };
+const KIT_ABOVE: Record<string, number> = { raindrop: 44, 'speed-sensor': 42, flame: 38, mq2: 30, 'ir-obstacle': 30, hall: 26, vl53l0x: 60 };
 function SelectBox({ type, legs: placedLegs, props }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown> }) {
   if (type === 'battery') {
     const b = batteryBox(placedLegs['+']!, placedLegs['-']!, String(props?.kind ?? '2xAA'));
