@@ -8,7 +8,7 @@ import math
 
 from svgparts import (P, f, Breadboard, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
                       microbit, oled, hcsr04, servo, HEART, slide_switch, ldr, rgb_led, battery,
-                      pir, line_sensor, soil_sensor, temp_sensor)
+                      pir, line_sensor, soil_sensor, temp_sensor, dht, mpu6050, hcsr04_in)
 
 W, H = 692, 820
 
@@ -154,6 +154,37 @@ def mood_lamp() -> str:
     o.append(wire([bb.xy(23, "j"), bb.xy(23, "B-")], "black"))
     o.append(wire([bb.xy(1, "T-"), bb.xy(1, "B-")], "black"))
     o.append(cursor(376, 380, "hand"))
+    return _svg("".join(o))
+
+
+def modules() -> str:
+    """Pico W running (M6.4 design): a DHT22 and a GY-521 (MPU6050) standing in row f; an HC-SR04 in row a turned to
+    face away from the breadboard, its Echo through a 1 k + 2 k divider; the Pico W below, as on screen 18."""
+    bb = Breadboard(120, 230)
+    o = [bb.svg(rail_labels={"B-": ("GND", "#3a3d42"), "B+": ("3V3", "#de3b3b")})]
+    o.append(dht(bb.xy(2, "f"), bb.xy(3, "f"), bb.xy(4, "f"), "DHT22"))
+    o.append(mpu6050([bb.xy(c, "f") for c in range(7, 15)], tilt=(30, 0)))
+    o.append(hcsr04_in(bb.xy(20, "a"), bb.xy(21, "a"), bb.xy(22, "a"), bb.xy(23, "a"), up=True, cm=34))
+    o.append(resistor(bb.xy(22, "d"), bb.xy(25, "d"), "1k"))
+    o.append(resistor(bb.xy(25, "c"), bb.xy(28, "c"), "2k"))
+    psvg, pins = pico(140, 720)
+    o.append(psvg)
+    up = lambda n, y, to: wire([pins[n], (pins[n][0], y), (to[0], y), to], COL[n])
+    COL = {36: "red", 38: "black", 26: "yellow", 32: "green", 31: "blue", 40: "orange", 29: "white", 27: "purple"}
+    o.append(up(36, 590, bb.xy(1, "B+")))
+    o.append(up(38, 582, bb.xy(2, "B-")))
+    o.append(wire([bb.xy(2, "j"), bb.xy(2, "B+")], "red"))
+    o.append(wire([bb.xy(4, "j"), bb.xy(4, "B-")], "black"))
+    o.append(up(26, 540, bb.xy(3, "i")))                       # GP20 → DATA
+    o.append(wire([bb.xy(7, "j"), bb.xy(7, "B+")], "red"))
+    o.append(wire([bb.xy(8, "j"), bb.xy(8, "B-")], "black"))
+    o.append(up(32, 566, bb.xy(9, "i")))                       # GP27 → SCL
+    o.append(up(31, 558, bb.xy(10, "i")))                      # GP26 → SDA
+    o.append(wire([pins[40], (pins[40][0], 600), (100, 600), (100, 220), (bb.xy(20, "e")[0] - 12, 220), (bb.xy(20, "e")[0] - 12, 352), bb.xy(20, "e")], "orange"))   # VBUS → VCC
+    o.append(up(29, 548, bb.xy(21, "e")))                      # GP22 → Trig
+    o.append(up(27, 574, bb.xy(25, "e")))                      # GP21 ← the divider
+    o.append(wire([bb.xy(23, "e"), bb.xy(23, "B-")], "black"))
+    o.append(wire([bb.xy(28, "e"), bb.xy(28, "B-")], "black"))
     return _svg("".join(o))
 
 
@@ -349,7 +380,7 @@ def led_states() -> str:
     return _svg("".join(o), 280, 96, "0 -10 280 106")
 
 
-SCENES = {"greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
+SCENES = {"modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
           "servowiring": servo_wiring, "servopulses": servo_pulses, "plot": plot}
 
 

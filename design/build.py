@@ -74,6 +74,7 @@ ICONS = {
     "clock": '<path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18M12 7v5l3 2"/>',
     "list": '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
     "tilt": '<path d="M5 15l7-11 7 11zM3 20h18"/>',
+    "ruler": '<path d="M3 8h18v8H3zM7 8v3M11 8v4M15 8v3M19 8v4"/>',
     "shake": '<path d="M8 4h8v16H8zM4 8v8M20 8v8M2 10v4M22 10v4"/>',
     "sun": '<path d="M12 8a4 4 0 1 0 0 8a4 4 0 0 0 0-8M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>',
     "drop": '<path d="M12 3s-6 6.6-6 11a6 6 0 0 0 12 0c0-4.4-6-11-6-11z"/>',
@@ -137,6 +138,22 @@ while True:
     green.value(on and not dark)
     print(light.read_u16())
     time.sleep(0.5)''',
+    "modules": '''from machine import Pin, I2C, time_pulse_us
+import dht, struct, time
+
+air = dht.DHT22(Pin(20))
+trig, echo = Pin(22, Pin.OUT), Pin(21, Pin.IN)
+i2c = I2C(1, sda=Pin(26), scl=Pin(27))
+i2c.writeto_mem(0x68, 0x6B, b'\\x00')   # wake it up
+
+while True:
+    air.measure()
+    trig.value(1); time.sleep_us(10); trig.value(0)
+    cm = time_pulse_us(echo, 1, 30000) / 58
+    x, y, z = struct.unpack('>hhh', i2c.readfrom_mem(0x68, 0x3B, 6))
+    print('%.1f C %.0f %%  %d cm  x %.2f g' % (
+        air.temperature(), air.humidity(), cm, x / 16384))
+    time.sleep(2)''',
     "greenhouse": '''from machine import Pin, ADC
 import time
 
@@ -288,7 +305,7 @@ PARTS = [
                 ("rgb", "RGB LED", "common cathode"), ("button", "Push button", "12 mm"), ("switch", "Slide switch", ""),
                 ("pot", "Potentiometer", "10 kΩ knob"), ("ldr", "Light sensor (LDR)", ""), ("buzzer", "Buzzer", "active · passive"),
                 ("battery", "Battery pack", "2×AA · 4×AA · 9 V")]),
-    ("Sensors", [("hcsr04", "Ultrasonic HC-SR04", "distance"), ("dht", "DHT11 / DHT22", "temperature, humidity"), ("pir", "PIR motion", ""),
+    ("Sensors", [("hcsr04", "Ultrasonic HC-SR04", "distance"), ("dht", "DHT11 / DHT22", "temperature, humidity"), ("mpu6050", "MPU6050 motion", "accelerometer · I²C"), ("pir", "PIR motion", ""),
                  ("line", "Line sensor (IR)", ""), ("soil", "Soil moisture", ""), ("tmp36", "TMP36 temperature", "")]),
     ("Actuators", [("servo", "Servo SG90", "0–180°"), ("motor", "DC motor", "TT gear motor"), ("driver", "Motor driver", "L298N · L9110S"),
                    ("relay", "Relay module", "")]),

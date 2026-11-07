@@ -413,6 +413,80 @@ def temp_sensor(vs, vout, gnd, kind: str = "TMP36") -> str:
     return "".join(o) + "</g>"
 
 
+def dht(vcc, data, gnd, kind: str = "DHT22") -> str:
+    """DHT11 (blue) or DHT22 (white) on its 3-pin module standing in the breadboard: pins VCC, DATA, GND; the grilled
+    case above them, its name under the grille."""
+    cx, y = data[0], data[1]
+    top = y - 16 - 72
+    case = "#3f8fe0" if kind == "DHT11" else "#f4f4f1"
+    hole = "#1f5ea8" if kind == "DHT11" else "#c9cdd2"
+    o = ['<g class="dht">']
+    o.append(f'<rect x="{f(cx - 26)}" y="{f(top + 46)}" width="52" height="26" rx="3" fill="#2457a6" stroke="#173c78" filter="url(#lift)"/>')
+    o.append(f'<rect x="{f(cx - 19)}" y="{f(top)}" width="38" height="52" rx="3" fill="{case}" stroke="#9aa1a9" filter="url(#lift)"/>')
+    for c in range(4):
+        for r in range(6):
+            o.append(f'<rect x="{f(cx - 14 + c * 8)}" y="{f(top + 5 + r * 7)}" width="4" height="4" rx=".6" fill="{hole}"/>')
+    o.append(f'<text x="{f(cx)}" y="{f(top + 64)}" font-size="6" font-weight="700" fill="#e3eef9" text-anchor="middle" font-family="JetBrains Mono">{kind}</text>')
+    o.append(_header([vcc, data, gnd], ("VCC", "DATA", "GND"), top + 72))
+    return "".join(o) + "</g>"
+
+
+def mpu6050(pins, tilt=(0, 0)) -> str:
+    """MPU6050 on its GY-521 board standing in the breadboard: 8 pins VCC GND SCL SDA XDA XCL AD0 INT in a row; the board
+    above with the chip and the X / Y arrows printed on it; a small level shows its tilt (degrees about Y, about X)."""
+    xs = [x for x, _ in pins]
+    cx, y = (xs[0] + xs[-1]) / 2, pins[0][1]
+    w, h = xs[-1] - xs[0] + 24, 74
+    top = y - 16 - h
+    o = ['<g class="mpu6050">']
+    o.append(f'<rect x="{f(cx - w / 2)}" y="{f(top)}" width="{f(w)}" height="{h}" rx="4" fill="#3b5bb7" stroke="#26408a" filter="url(#lift)"/>')
+    for hx in (cx - w / 2 + 9, cx + w / 2 - 9):
+        o.append(f'<circle cx="{f(hx)}" cy="{f(top + 9)}" r="4" fill="#f6f4ef" stroke="#c9b26a" stroke-width="1.6"/>')
+    o.append(f'<rect x="{f(cx - 14)}" y="{f(top + 16)}" width="28" height="28" rx="2" fill="#1c1e21"/><circle cx="{f(cx - 10)}" cy="{f(top + 20)}" r="1.4" fill="#5e656d"/>')
+    ax, ay = cx + 30, top + 40
+    o.append(f'<path d="M{f(ax)},{f(ay)} h18 M{f(ax + 14)},{f(ay - 3)} l4,3 l-4,3 M{f(ax)},{f(ay)} v-18 M{f(ax - 3)},{f(ay - 14)} l3,-4 l3,4" stroke="#e3eef9" stroke-width="1.3" fill="none"/>'
+             f'<text x="{f(ax + 22)}" y="{f(ay + 2)}" font-size="6" font-weight="700" fill="#e3eef9" font-family="Inter">X</text>'
+             f'<text x="{f(ax - 2)}" y="{f(ay - 22)}" font-size="6" font-weight="700" fill="#e3eef9" font-family="Inter">Y</text>')
+    # the level: a bubble moved by the tilt
+    lx, ly = cx - 40, top + 30
+    tx, ty = tilt
+    o.append(f'<circle cx="{f(lx)}" cy="{f(ly)}" r="12" fill="#e9f5ea" stroke="#9fd8b6"/><circle cx="{f(lx)}" cy="{f(ly)}" r="4.5" fill="none" stroke="#9fd8b6"/>'
+             f'<circle cx="{f(lx - 8 * math.sin(math.radians(tx)))}" cy="{f(ly + 8 * math.sin(math.radians(ty)))}" r="3.6" fill="#2fb56a"/>')
+    o.append(_header(pins, ("VCC", "GND", "SCL", "SDA", "XDA", "XCL", "AD0", "INT"), top + h))
+    return "".join(o) + "</g>"
+
+
+def hcsr04_in(vcc, trig, echo, gnd, up: bool = True, cm: float = 0) -> str:
+    """HC-SR04 standing in the breadboard: pins VCC, Trig, Echo, GND in a row, its board standing over them — above
+    the holes when `up` (turned to face away from the breadboard), below them as screen 07 drew it; while it measures,
+    the sound going out (`cm` > 0)."""
+    cx, y = (vcc[0] + gnd[0]) / 2, vcc[1]
+    w, h = 226, 100
+    s = -1 if up else 1
+    near = y + s * 16                     # the board's edge by the pins
+    far = near + s * h
+    top = min(near, far)
+    o = ['<g class="hcsr04">']
+    o.append(f'<rect x="{f(cx - w / 2)}" y="{f(top)}" width="{w}" height="{h}" rx="5" fill="#1f6fb5" stroke="#134a7b" filter="url(#lift)"/>')
+    for tx in (cx - w / 2 + 54, cx + w / 2 - 54):
+        ty = top + h / 2 + (-4 if up else 4)
+        o.append(f'<circle cx="{f(tx)}" cy="{f(ty)}" r="38" fill="#c9cdd2" stroke="#8f969f"/>'
+                 f'<circle cx="{f(tx)}" cy="{f(ty)}" r="30" fill="#4d545c" opacity=".55"/>'
+                 f'<circle cx="{f(tx)}" cy="{f(ty)}" r="22" fill="none" stroke="#9aa1a9" stroke-dasharray="2 2"/>')
+        if cm:
+            for r, op in ((48, .55), (58, .35), (68, .2)):
+                yy = top - 4 if up else top + h + 4
+                o.append(f'<path d="M{f(tx - r * .6)},{f(yy + s * r * .25)} A{r} {r} 0 0 {1 if up else 0} {f(tx + r * .6)},{f(yy + s * r * .25)}" stroke="#2563d9" stroke-width="2" fill="none" opacity="{op}"/>')
+    o.append(f'<rect x="{f(cx - 12)}" y="{f(top + h / 2 - 5)}" width="24" height="10" rx="5" fill="#c9cdd2"/>')
+    o.append(f'<text x="{f(cx)}" y="{f(top + (14 if up else h - 8))}" font-size="7" fill="#d5e6f7" text-anchor="middle" font-family="JetBrains Mono" font-weight="600">HC-SR04</text>')
+    xs = [p[0] for p in (vcc, trig, echo, gnd)]
+    o.append(f'<rect x="{f(min(xs) - 7)}" y="{f(y + s * 7 - (7 if up else 0))}" width="{f(max(xs) - min(xs) + 14)}" height="7" rx="1" fill="#26282c"/>')
+    for (x, yy), lab in zip((vcc, trig, echo, gnd), ("VCC", "Trig", "Echo", "GND")):
+        o.append(f'<line x1="{x}" y1="{yy}" x2="{x}" y2="{f(near)}" stroke="#c7ccd2" stroke-width="1.8"/>'
+                 f'<text x="{x}" y="{f(near + s * 9 + (2 if not up else 0))}" font-size="5.5" font-weight="700" fill="#e3eef9" text-anchor="middle" font-family="Inter">{lab}</text>')
+    return "".join(o) + "</g>"
+
+
 def usb_plug(x, y) -> str:
     """A micro-USB cable plugged into the socket whose left end is at (x, y) (the GPIO board's 5V in): the plug's
     metal end in the socket, its grey body and the cable going left."""
@@ -792,6 +866,7 @@ ICON_PARTS = {
     "buzzer": '<circle cx="16" cy="16" r="10" fill="#26282c"/><circle cx="16" cy="16" r="6" fill="none" stroke="#3b3e43"/><circle cx="16" cy="16" r="1.8" fill="#0f1012"/>',
     "battery": '<rect x="4" y="9" width="22" height="14" rx="2" fill="#2d3136"/><rect x="26" y="13" width="3" height="6" rx="1" fill="#2d3136"/><rect x="6" y="11" width="9" height="10" fill="#e8b10f"/><text x="20" y="19.5" font-size="7" font-weight="700" fill="#fff" text-anchor="middle">+</text>',
     "hcsr04": '<rect x="2" y="9" width="28" height="14" rx="2" fill="#1f6fb5"/><circle cx="9" cy="16" r="5.5" fill="#c9cdd2"/><circle cx="23" cy="16" r="5.5" fill="#c9cdd2"/><circle cx="9" cy="16" r="3.5" fill="#6d747c"/><circle cx="23" cy="16" r="3.5" fill="#6d747c"/>',
+    "mpu6050": '<rect x="4" y="8" width="24" height="16" rx="2" fill="#3b5bb7"/><rect x="12" y="11" width="8" height="8" rx="1" fill="#1c1e21"/><path d="M6,27 v3 M9,27 v3 M12,27 v3 M15,27 v3 M18,27 v3 M21,27 v3 M24,27 v3 M27,27 v3" stroke="#a5abb2" stroke-width="1.2"/>',
     "dht": '<rect x="9" y="4" width="14" height="20" rx="2" fill="#3f8fe0"/>' + "".join(f'<rect x="{11 + c * 3.5}" y="{7 + r * 3.5}" width="2" height="2" fill="#1f5ea8"/>' for c in range(3) for r in range(4)) + '<path d="M12,24 v5 M15,24 v5 M18,24 v5 M21,24 v5" stroke="#a5abb2" stroke-width="1.3"/>',
     "pir": '<rect x="5" y="17" width="22" height="9" rx="2" fill="#2f8f4f"/><path d="M8,18 a8,8 0 0 1 16,0Z" fill="#f2f3f5" stroke="#c9d0d8"/>',
     "line": '<rect x="10" y="3" width="12" height="26" rx="2" fill="#2b5fa8"/><circle cx="16" cy="23" r="3" fill="#2d3136"/><circle cx="16" cy="16" r="2.5" fill="#d6d9de"/>',

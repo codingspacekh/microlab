@@ -35,6 +35,7 @@ export const ICONS: Record<string, string> = {
   "redo": "<path d=\"M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13\"/>",
   "restart": "<path d=\"M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4\"/>",
   "rotate": "<path d=\"M20 12a8 8 0 1 1-2.4-5.7M20 4v4h-4\"/>",
+  "ruler": "<path d=\"M3 8h18v8H3zM7 8v3M11 8v4M15 8v3M19 8v4\"/>",
   "search": "<path d=\"M11 4a7 7 0 1 0 0 14a7 7 0 0 0 0-14M16.5 16.5L21 21\"/>",
   "send": "<path d=\"M12 16V4M7 9l5-5 5 5M5 20h14\"/>",
   "shake": "<path d=\"M8 4h8v16H8zM4 8v8M20 8v8M2 10v4M22 10v4\"/>",
