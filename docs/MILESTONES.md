@@ -610,7 +610,7 @@ connection problem says how to fix it.
 | M2 Simulated boards (headless) | ✅ Done — golden recordings deferred at the merge, then made on the micro:bit V2 and Pico W 2026-11-06 (ESP32 to come) ([acceptance](acceptance/M2.md)) | 2026-11-06 | `v0.2.0` |
 | M3 Code drives the circuit | ✅ Done ([acceptance](acceptance/M3.md)) | 2026-11-06 | `v0.3.0` |
 | M4 Walking skeleton | ✅ Done — with Tinkercad-style building (3b) at the teacher's request; Blink by hand on the three boards checked by the teacher ([acceptance](acceptance/M4.md)) | 2026-11-06 | `v0.4.0` |
-| M5 Full editor | 🔨 Built — all 7 slices (rotate / duplicate / select several / undo; zoom, pan, hover; bends and pin cards; the inspector's Joins; autocomplete per board; the project's files and Run the open file; autosave, recovery and recent projects); waiting for the teacher to compare it with the prototype ([acceptance](acceptance/M5.md)) | | |
+| M5 Full editor | ✅ Merged — all 7 slices (rotate / duplicate / select several / undo; zoom, pan, hover; bends and pin cards; the inspector's Joins; autocomplete per board; the project's files and Run the open file; autosave, recovery and recent projects); the teacher's gate answers built (the wheel zooms, wires follow the part); **open gate item**: the side-by-side look at screens 01 / 02 / 02b, merged first by the teacher's decision ([acceptance](acceptance/M5.md)) | 2026-11-07 (partly) | `v0.5.0` |
 | M6 Parts pack 1: inputs | ⏳ | | |
 | M7 Parts pack 2: outputs & displays | ⏳ | | |
 | M8 Learn | ⏳ | | |
