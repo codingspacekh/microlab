@@ -146,3 +146,45 @@ test('M5.1 with the real keyboard and mouse: R turns, shift-click, ⌘D / Ctrl+D
   await expect(legs('r1')).toHaveAttribute('data-legs', 'bb1.a6 bb1.d6');
   await expect(win.getByRole('textbox', { name: 'main.py' })).not.toContainText('# x');
 });
+
+test('M5.2 with the real mouse: hover lights a strip, Ctrl+wheel zooms at the pointer, the wheel and a middle drag pan, Fit', async () => {
+  const win = await app.firstWindow();
+  await resize(win, 1440, 900);
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  const zoom = win.getByRole('button', { name: 'Zoom to 100 %' });
+  const pct = async () => Number((await zoom.textContent())!.replace('%', ''));
+  const fitted = await pct();
+  expect(fitted).toBeGreaterThan(50);
+  expect(fitted).toBeLessThan(200);
+
+  const c5 = await centre(win, '[data-point="bb1.c5"]');
+  await win.mouse.move(c5.x, c5.y);
+  await expect(win.locator('[data-lit-strip]')).toHaveAttribute('data-lit-strip', 'bb1.a5 bb1.e5');
+  await expect(win.locator('[data-lit-point]')).toHaveCount(5);
+
+  // zoom in at c5: c5 stays under the pointer
+  await win.keyboard.down('Control');
+  await win.mouse.wheel(0, -300);
+  await win.keyboard.up('Control');
+  await expect.poll(pct).toBeGreaterThan(fitted * 1.3);
+  const c5z = await centre(win, '[data-point="bb1.c5"]');
+  expect(Math.abs(c5z.x - c5.x)).toBeLessThan(3);
+  expect(Math.abs(c5z.y - c5.y)).toBeLessThan(3);
+
+  // the wheel alone pans; a middle-button drag pans
+  await win.mouse.wheel(0, 100);
+  await expect.poll(async () => (await centre(win, '[data-point="bb1.c5"]')).y).toBeLessThan(c5z.y - 50);
+  const before = await centre(win, '[data-point="bb1.c5"]');
+  await win.mouse.move(before.x + 200, before.y);
+  await win.mouse.down({ button: 'middle' });
+  await win.mouse.move(before.x + 260, before.y + 40, { steps: 5 });
+  await win.mouse.up({ button: 'middle' });
+  const after = await centre(win, '[data-point="bb1.c5"]');
+  expect(after.x - before.x).toBeCloseTo(60, 0);
+  expect(after.y - before.y).toBeCloseTo(40, 0);
+
+  await win.getByRole('button', { name: 'Fit' }).click();
+  await expect.poll(pct).toBe(fitted);
+  await zoom.click();
+  await expect.poll(pct).toBe(100);
+});

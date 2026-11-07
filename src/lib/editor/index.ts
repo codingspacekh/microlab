@@ -12,3 +12,5 @@ export { deleteMany, duplicate, moveParts, rotateParts } from './arrange';
 export type { Chosen } from './arrange';
 export { EMPTY_HISTORY, HISTORY_LIMIT, record, redo, undo } from './history';
 export type { History } from './history';
+export { fitBox, joined, panBy, zoomAt, ZOOM } from './viewport';
+export type { Box, LitStrip } from './viewport';

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import {
-  addPart, addWire, allPoints, boardArt, boardData, BREADBOARD, deleteMany, duplicate, footprint, freeSpot, legsCentre,
-  moveBoard, moveBreadboard, moveParts, nearestPoint, partKind, PITCH, pointAt, rotateParts, sceneOf, snapPart, snapToGrid,
-  usedPoints, type Legs, type Point, type Scene,
+  addPart, addWire, allPoints, boardArt, boardData, BREADBOARD, deleteMany, duplicate, fitBox, footprint, freeSpot, joined,
+  legsCentre, moveBoard, moveBreadboard, moveParts, nearestPoint, panBy, partKind, PITCH, pointAt, rotateParts, sceneOf,
+  snapPart, snapToGrid, usedPoints, zoomAt, ZOOM, type Box, type Legs, type Point, type Scene,
 } from '@lib/editor';
 import type { Project } from '@lib/project';
 import { BOARD_ART, BOARD_NAMES } from '../app/boards';
@@ -25,7 +25,10 @@ import { BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, partTurns, po
  * them, Delete removes them; ⌘Z / Ctrl+Z undoes any edit, ⇧⌘Z / Ctrl+Y redoes it. The toolbar does the same.
  * While a program runs (M4.5) the circuit can't be changed: LEDs glow by their current, the board's own LED and the
  * micro:bit's display light up, and a push button is pressed by holding the mouse on it.
- * Until zoom and pan (F-17, M5) the drawing is fitted to the panel when it opens and when a breadboard changes size.
+ * M5.2 (F-17): Ctrl / ⌘ + wheel or a pinch zooms at the pointer, the wheel or two fingers pan, and so does a drag with
+ * the middle or right button or with Space held; the toolbar zooms out, in, to 100 % and fits; + − 0 do the same.
+ * The drawing is fitted when it opens and when a breadboard changes size. Hovering a free hole or pin lights every hole
+ * and pin joined to it — its strip, and through wires further (F-12); while a wire is drawn, where it would end.
  */
 export const MESSAGES = {
   noRoom: 'No room there: every leg needs an empty hole on the breadboard.',
@@ -53,6 +56,7 @@ export type Selection = { kind: 'part' | 'wire' | 'breadboard'; id: string };
 type Gesture =
   | { kind: 'parts'; id: string; ids: string[]; start: Point; at: Point }   // `id` was pressed; `ids` move together
   | { kind: 'marquee'; add: boolean; start: Point; at: Point }
+  | { kind: 'pan'; last: { x: number; y: number } }   // screen pixels
   | { kind: 'board'; start: Point; at: Point }
   | { kind: 'breadboard'; id: string; start: Point; at: Point }
   | { kind: 'wire'; from: string; via: Point[]; start: Point; at: Point; mode: 'press' | 'click' };
@@ -92,13 +96,31 @@ export function Canvas({
   const [placeAt, setPlaceAt] = useState<Point | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const sizes = project.breadboards.map((b) => b.size).join();
-  const [viewBox, setViewBox] = useState(() => fit(sceneOf(project)));
+  const [viewBox, setViewBox] = useState<Box>(() => fitBox(sceneOf(project)));
   const fitted = useRef(sizes);
   useEffect(() => {
     if (fitted.current === sizes) return;
     fitted.current = sizes;
-    setViewBox(fit(sceneOf(project)));
+    setViewBox(fitBox(sceneOf(project)));
   }, [sizes, project]);
+  // screen pixels per drawing unit (1 = 100 %), measured after each change and when the panel is resized
+  const [scale, setScale] = useState(1);
+  useLayoutEffect(() => {
+    const el = svg.current;
+    if (!el) return;
+    const measure = () => {
+      const ctm = typeof el.getScreenCTM === 'function' ? el.getScreenCTM() : null;
+      const r = el.getBoundingClientRect();
+      const s = ctm?.a || Math.min(r.width / viewBox.w, r.height / viewBox.h) || 1;
+      setScale(s);
+    };
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : undefined;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, [viewBox]);
+  const [hover, setHover] = useState<string | null>(null);
+  const space = useRef(false);
 
   const toWorld = (e: { clientX: number; clientY: number }): Point => {
     const el = svg.current!;
@@ -108,7 +130,7 @@ export function Canvas({
       return { x: p.x, y: p.y };
     }
     const r = el.getBoundingClientRect();
-    return { x: e.clientX - r.left + viewBox.x, y: e.clientY - r.top + viewBox.y };
+    return { x: (e.clientX - r.left) / scale + viewBox.x, y: (e.clientY - r.top) / scale + viewBox.y };
   };
   const inside = (e: Event) => !!svg.current && svg.current.contains(e.target as Node);
 
@@ -181,6 +203,7 @@ export function Canvas({
   };
 
   const finish = (proj: Project, g: Gesture) => {
+    if (g.kind === 'pan') return;
     if (g.kind === 'wire') {
       endWire(proj, g.from, nearestPoint(sceneOf(proj), g.at), []);
       return;
@@ -208,8 +231,29 @@ export function Canvas({
   };
 
   // The latest values, for the window's listeners.
-  const latest = useRef({ project, gesture, placing, placeAt, selection, pressed });
-  latest.current = { project, gesture, placing, placeAt, selection, pressed };
+  const latest = useRef({ project, gesture, placing, placeAt, selection, pressed, scale, viewBox });
+  latest.current = { project, gesture, placing, placeAt, selection, pressed, scale, viewBox };
+
+  const zoomBy = (k: number, at?: Point) => {
+    const vb = latest.current.viewBox;
+    setViewBox(zoomAt(vb, at ?? { x: vb.x + vb.w / 2, y: vb.y + vb.h / 2 }, k, latest.current.scale));
+  };
+  const fitView = () => setViewBox(fitBox(sceneOf(latest.current.project)));
+
+  // the wheel: Ctrl / ⌘ (and a pinch) zooms at the pointer, otherwise it pans (a native listener: React's is passive)
+  useEffect(() => {
+    const el = svg.current;
+    if (!el) return;
+    const wheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) zoomBy(Math.exp(-e.deltaY * 0.0015), toWorldRef.current(e));
+      else setViewBox((vb) => panBy(vb, -e.deltaX, -e.deltaY, latest.current.scale));
+    };
+    el.addEventListener('wheel', wheel, { passive: false });
+    return () => el.removeEventListener('wheel', wheel);
+  }, []);
+  const toWorldRef = useRef(toWorld);
+  toWorldRef.current = toWorld;
 
   // Keyboard placing starts where the part would go first.
   useEffect(() => {
@@ -224,8 +268,12 @@ export function Canvas({
   useEffect(() => {
     const move = (e: MouseEvent) => {
       const { gesture: g, placing: p } = latest.current;
-      if (p && p.how !== 'keys') setPlaceAt(inside(e) ? toWorld(e) : null);
-      else if (g) setGesture({ ...g, at: toWorld(e) });
+      if (g?.kind === 'pan') {
+        const { scale: s } = latest.current;
+        setViewBox((vb) => panBy(vb, e.clientX - g.last.x, e.clientY - g.last.y, s));
+        setGesture({ ...g, last: { x: e.clientX, y: e.clientY } });
+      } else if (p && p.how !== 'keys') setPlaceAt(inside(e) ? toWorld(e) : null);
+      else if (g) setGesture({ ...g, at: toWorld(e) } as Gesture);
     };
     const up = (e: MouseEvent) => {
       const { project: proj, gesture: g, placing: p, pressed: held } = latest.current;
@@ -240,6 +288,7 @@ export function Canvas({
         return;
       }
       if (!g) return;
+      if (g.kind === 'pan') { setGesture(null); return; }
       if (g.kind === 'wire' && g.mode === 'press' && Math.hypot(g.at.x - g.start.x, g.at.y - g.start.y) < MOVED) {
         setGesture({ ...g, mode: 'click' });   // clicked: now each click bends it
         return;
@@ -265,6 +314,16 @@ export function Canvas({
         return;
       }
       const mod = e.metaKey || e.ctrlKey;
+      // the view's keys, when nothing else has the keyboard (the page, the canvas or its toolbar)
+      const free = !(t instanceof Element) || t === document.body || !!t.closest('svg.scene, .ctools');
+      if (free && !mod && !e.altKey) {
+        if (e.key === ' ' && p?.how !== 'keys' && !t?.closest?.('button')) { space.current = true; e.preventDefault(); return; }
+        if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomBy(ZOOM.step); return; }
+        if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomBy(1 / ZOOM.step); return; }
+        if (e.key === '0') { e.preventDefault(); fitView(); return; }
+        const arrow = { ArrowLeft: [1, 0], ArrowRight: [-1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key];
+        if (arrow && p?.how !== 'keys') { e.preventDefault(); setViewBox((vb) => panBy(vb, arrow[0]! * 48, arrow[1]! * 48, latest.current.scale)); return; }
+      }
       if (running || e.altKey) return;
       if (mod && !g && !p && (e.key.toLowerCase() === 'z' || (e.ctrlKey && e.key.toLowerCase() === 'y'))) {
         e.preventDefault();
@@ -292,7 +351,10 @@ export function Canvas({
     window.addEventListener('mouseup', up);
     window.addEventListener('mousedown', downOutside, true);
     window.addEventListener('keydown', key);
+    const keyUp = (e: KeyboardEvent) => { if (e.key === ' ') space.current = false; };
+    window.addEventListener('keyup', keyUp);
     return () => {
+      window.removeEventListener('keyup', keyUp);
       window.removeEventListener('mousemove', move);
       window.removeEventListener('mouseup', up);
       window.removeEventListener('mousedown', downOutside, true);
@@ -302,6 +364,13 @@ export function Canvas({
 
   /** While a part is carried or a wire is being bent, a click on the canvas is theirs. */
   const onDownCapture = (e: ReactMouseEvent) => {
+    // a drag with the middle or right button, or with Space held, moves the view (F-17)
+    if (e.button === 1 || e.button === 2 || (e.button === 0 && space.current && !(placing && placing.how !== 'press'))) {
+      e.stopPropagation();
+      e.preventDefault();
+      setGesture({ kind: 'pan', last: { x: e.clientX, y: e.clientY } });
+      return;
+    }
     if (e.button !== 0) return;
     const at = toWorld(e);
     if (placing && placing.how !== 'press') {
@@ -355,7 +424,10 @@ export function Canvas({
     const v = outputs.parts[id];
     return v?.kind === 'led' ? v.brightness : 0;
   };
-  const busy = gesture ? gesture.kind === 'wire' ? 'wire' : gesture.kind === 'marquee' ? 'choosing' : 'moving' : placing ? 'placing' : '';
+  const busy = gesture ? gesture.kind === 'wire' ? 'wire' : gesture.kind === 'marquee' ? 'choosing' : gesture.kind === 'pan' ? 'panning' : 'moving' : placing ? 'placing' : '';
+  // F-12: what is joined to the hole under the pointer — or, while a wire is drawn, to where it would end
+  const litFrom = running ? null : gesture?.kind === 'wire' ? nearestPoint(scene, gesture.at) ?? gesture.from : gesture ? null : hover;
+  const lit = useMemo(() => (litFrom ? joined(shown, litFrom) : null), [shown, litFrom]);
   const hint = problem ?? (placing?.how === 'carry' ? MESSAGES.carry : placing?.how === 'keys' ? MESSAGES.keys
     : gesture?.kind === 'wire' && gesture.mode === 'click' ? MESSAGES.bending
     : selection.length > 1 && !gesture ? MESSAGES.several(selection.length, MOD) : null);
@@ -373,6 +445,7 @@ export function Canvas({
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
         preserveAspectRatio="xMidYMid meet"
         onMouseDownCapture={onDownCapture}
+        onContextMenu={(e) => e.preventDefault()}
         onKeyDown={onKey}
       >
         <Defs />
@@ -409,6 +482,7 @@ export function Canvas({
           onMouseDown={begin((at) => ({ kind: 'board', start: at, at }))}
         />
         <BoardOutputsLayer boardId={scene.boardId} at={scene.view.board} pins={outputs.board.pins} display={outputs.board.display} led={ledOf('board.LED')} />
+        {lit && <Joined scene={scene} strips={lit.strips} points={lit.points} />}
         {shown.wires.map((w) => {
           const a = pointAt(scene, w.a);
           const b = pointAt(scene, w.b);
@@ -433,6 +507,7 @@ export function Canvas({
         <g className="points" display={running ? 'none' : undefined}>
           {allPoints(scene).filter((q) => !used.has(q.ref)).map((q) => (
             <circle key={q.ref} data-point={q.ref} className="pt" cx={q.x} cy={q.y} r={5.5}
+              onMouseEnter={() => setHover(q.ref)} onMouseLeave={() => setHover((h) => (h === q.ref ? null : h))}
               onMouseDown={(e) => { if (e.button === 0) onSelect([]); begin((at) => ({ kind: 'wire', from: q.ref, via: [], start: at, at, mode: 'press' }))(e); }}>
               <title>{q.on === 'board' ? roles.get(q.ref)?.label : q.ref.slice(q.ref.indexOf('.') + 1)}</title>
             </circle>
@@ -474,6 +549,12 @@ export function Canvas({
       </svg>
       {hint && <div className={problem ? 'canvas-hint warn' : 'canvas-hint'} aria-live="polite">{hint}</div>}
       <div className="ctools" role="toolbar" aria-label="Circuit tools">
+        <ToolButton icon="zoomout" label="Zoom out" keys="−" disabled={scale <= ZOOM.min + 1e-6} onClick={() => zoomBy(1 / ZOOM.step)} />
+        <button type="button" className="btn ghost sm zoom" aria-label="Zoom to 100 %" title="Zoom to 100 %" onMouseDown={(e) => e.preventDefault()}
+          onClick={() => zoomBy(1 / scale)}>{Math.round(scale * 100)}%</button>
+        <ToolButton icon="zoomin" label="Zoom in" keys="+" disabled={scale >= ZOOM.max - 1e-6} onClick={() => zoomBy(ZOOM.step)} />
+        <ToolButton icon="fit" label="Fit" keys="0" disabled={false} onClick={fitView} />
+        <span className="vsep" />
         <ToolButton icon="undo" label="Undo" keys={`${MOD}Z`} disabled={!canEdit || !canUndo} onClick={() => { say(null); onUndo?.(); }} />
         <ToolButton icon="redo" label="Redo" keys={MOD === '⌘' ? '⇧⌘Z' : 'Ctrl+Y'} disabled={!canEdit || !canRedo} onClick={() => { say(null); onRedo?.(); }} />
         <span className="vsep" />
@@ -562,7 +643,7 @@ function placed(scene: Scene, legs: Legs): Record<string, Point> | undefined {
 }
 
 function previewOf(project: Project, g: Gesture | null): { project: Project; blocked: boolean } {
-  if (!g || g.kind === 'wire' || g.kind === 'marquee') return { project, blocked: false };
+  if (!g || g.kind === 'wire' || g.kind === 'marquee' || g.kind === 'pan') return { project, blocked: false };
   const dx = g.at.x - g.start.x;
   const dy = g.at.y - g.start.y;
   const scene = sceneOf(project);
@@ -587,19 +668,23 @@ function safeName(type: string): string {
   try { return partKind(type).name; } catch { return type; }
 }
 
-/** The board and breadboards with room around them. */
-function fit(scene: Scene) {
-  const art = boardArt(scene.boardId);
-  const boxes = [{ x: scene.view.board.x, y: scene.view.board.y, w: art.width, h: art.height }];
-  for (const bb of scene.project.breadboards) {
-    const at = scene.view.breadboards[bb.id]!;
-    const s = BREADBOARD.size(bb.size);
-    boxes.push({ x: at.x, y: at.y, w: s.width, h: s.height });
-  }
-  const pad = 48;
-  const x0 = Math.min(...boxes.map((b) => b.x)) - pad;
-  const y0 = Math.min(...boxes.map((b) => b.y)) - pad;
-  const x1 = Math.max(...boxes.map((b) => b.x + b.w)) + pad;
-  const y1 = Math.max(...boxes.map((b) => b.y + b.h)) + pad;
-  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+
+/** Everything joined to a hole (F-12, as design/svgparts.py): a green band along each lit strip, a ring on every
+ *  joined hole and board pin. */
+function Joined({ scene, strips, points }: { scene: Scene; strips: { from: string; to: string }[]; points: string[] }) {
+  return (
+    <g className="joined" pointerEvents="none">
+      {strips.map(({ from, to }) => {
+        const a = pointAt(scene, from);
+        const b = pointAt(scene, to);
+        if (!a || !b) return null;
+        return <rect key={from} data-lit-strip={`${from} ${to}`} x={Math.min(a.x, b.x) - 7} y={Math.min(a.y, b.y) - 7}
+          width={Math.abs(b.x - a.x) + 14} height={Math.abs(b.y - a.y) + 14} rx={7} fill="#2fb56a" fillOpacity={0.16} stroke="#2fb56a" strokeWidth={1.2} />;
+      })}
+      {points.map((r) => {
+        const p = pointAt(scene, r);
+        return p ? <circle key={r} data-lit-point={r} cx={p.x} cy={p.y} r={4.6} fill="none" stroke="#1f9d55" strokeWidth={1.6} /> : null;
+      })}
+    </g>
+  );
 }

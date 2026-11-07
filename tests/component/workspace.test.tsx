@@ -567,3 +567,90 @@ describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', ()
     expect(document.querySelectorAll('[data-part]')).toHaveLength(0);
   });
 });
+
+describe('M5.2 zoom, pan and fit (F-17); everything joined to a hole lights up (F-12)', () => {
+  const tool = (name: string) => within(screen.getByRole('toolbar', { name: 'Circuit tools' })).getByRole('button', { name });
+  const vb = (s: ReturnType<typeof setup>) => s.svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number, number, number];
+
+  it('Zoom in shows less of the drawing about its middle, Zoom out more, Fit goes back to the whole circuit', () => {
+    const s = setup();
+    const [x, y, w, h] = vb(s);
+    fireEvent.click(tool('Zoom in'));
+    const [x1, y1, w1, h1] = vb(s);
+    expect(w1).toBeCloseTo(w / 1.25);
+    expect(x1 + w1 / 2).toBeCloseTo(x + w / 2);
+    expect(y1 + h1 / 2).toBeCloseTo(y + h / 2);
+    fireEvent.click(tool('Zoom out'));
+    fireEvent.click(tool('Zoom out'));
+    expect(vb(s)[2]).toBeCloseTo(w * 1.25);
+    fireEvent.click(tool('Fit'));
+    expect(vb(s)).toEqual([x, y, w, h]);
+    expect(tool('Zoom to 100 %')).toHaveTextContent('%');
+  });
+
+  it('+, − and 0 on the canvas; typed in the code editor they are code', () => {
+    const s = setup();
+    const w = vb(s)[2];
+    fireEvent.keyDown(window, { key: '+' });
+    expect(vb(s)[2]).toBeCloseTo(w / 1.25);
+    fireEvent.keyDown(window, { key: '0' });
+    expect(vb(s)[2]).toBe(w);
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'main.py' }), { key: '-' });
+    expect(vb(s)[2]).toBe(w);
+  });
+
+  it('Ctrl + wheel zooms at the pointer; the wheel alone pans', () => {
+    const s = setup();
+    const [x, y, w] = vb(s);
+    fireEvent.wheel(s.svg, { ...s.client(x, y), deltaY: -100, ctrlKey: true });
+    const [x1, y1, w1] = vb(s);
+    expect(w1).toBeLessThan(w);
+    expect([x1, y1]).toEqual([x, y]);   // the corner was under the pointer: it stays
+    fireEvent.wheel(s.svg, { deltaX: 30, deltaY: 50 });
+    const [x2, y2] = vb(s);
+    expect(x2 - x1).toBeCloseTo(30);    // jsdom: 1 px = 1 unit
+    expect(y2 - y1).toBeCloseTo(50);
+  });
+
+  it('a drag with the middle button, or with Space held, moves the view and changes nothing', () => {
+    const s = setup();
+    place(s, /^Resistor/, 'resistor', 'bb1.a5');
+    const before = s.parts();
+    const [x, y] = vb(s);
+    fireEvent.mouseDown(s.svg.querySelector('[data-part="r1"]')!, { clientX: 100, clientY: 100, button: 1 });
+    fireEvent.mouseMove(window, { clientX: 140, clientY: 90 });
+    fireEvent.mouseUp(window, { clientX: 140, clientY: 90, button: 1 });
+    expect(vb(s).slice(0, 2)).toEqual([x - 40, y + 10]);
+    fireEvent.keyDown(window, { key: ' ' });
+    fireEvent.mouseDown(s.svg.querySelector('.bg')!, { clientX: 100, clientY: 100, button: 0 });
+    fireEvent.mouseMove(window, { clientX: 90, clientY: 100 });
+    fireEvent.mouseUp(window, { clientX: 90, clientY: 100, button: 0 });
+    fireEvent.keyUp(window, { key: ' ' });
+    expect(vb(s).slice(0, 2)).toEqual([x - 30, y + 10]);
+    expect(s.parts()).toEqual(before);
+    expect(s.svg.querySelector('[data-marquee]')).toBeNull();
+  });
+
+  it('hovering a hole lights its strip and every hole in it; leaving puts it out', () => {
+    const s = setup();
+    fireEvent.mouseEnter(s.svg.querySelector('[data-point="bb1.c5"]')!);
+    expect(s.svg.querySelector('[data-lit-strip]')?.getAttribute('data-lit-strip')).toBe('bb1.a5 bb1.e5');
+    expect([...s.svg.querySelectorAll('[data-lit-point]')].map((c) => c.getAttribute('data-lit-point')).sort())
+      .toEqual(['bb1.a5', 'bb1.b5', 'bb1.c5', 'bb1.d5', 'bb1.e5']);
+    fireEvent.mouseLeave(s.svg.querySelector('[data-point="bb1.c5"]')!);
+    expect(s.svg.querySelector('[data-lit-strip]')).toBeNull();
+  });
+
+  it('through a wire: the strip at its other end and the board pin light too', () => {
+    const s = setup();
+    const a = s.point('board.GP15');
+    const b = s.point('bb1.e5');
+    fireEvent.mouseDown(s.svg.querySelector('[data-point="board.GP15"]')!, s.client(a.x, a.y));
+    fireEvent.mouseMove(s.svg, s.client(b.x, b.y));
+    // while drawing, where it would end lights up (the prototype's screen 02)
+    expect(s.svg.querySelector('[data-lit-strip]')?.getAttribute('data-lit-strip')).toBe('bb1.a5 bb1.e5');
+    fireEvent.mouseUp(s.svg, s.client(b.x, b.y));
+    fireEvent.mouseEnter(s.svg.querySelector('[data-point="bb1.a5"]')!);
+    expect(s.svg.querySelector('[data-lit-point="board.GP15"]')).not.toBeNull();
+  });
+});

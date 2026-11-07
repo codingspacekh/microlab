@@ -83,3 +83,7 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .canvas .ctools .btn:disabled { opacity: .4; cursor: default; }
 .canvas .ctools .vsep { height: 18px; }
 .scene .marquee { fill: rgba(37, 99, 217, .08); stroke: var(--accent, #2563d9); stroke-width: 1; stroke-dasharray: 4 3; pointer-events: none; }
+
+/* ---------- M5.2: zoom and pan (F-17) ---------- */
+.canvas .ctools .zoom { width: 48px; padding: 0; justify-content: center; font-size: 12px; font-weight: 550; color: var(--tx-2); font-variant-numeric: tabular-nums; }
+.scene.busy.panning, .scene.busy.panning * { cursor: grabbing; }
