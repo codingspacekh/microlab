@@ -4,8 +4,8 @@ For each board and each fixed-footprint part it writes
   library/<boards|parts>/<id>/art.svg    a standalone picture (its own <defs>)
   library/<boards|parts>/<id>/art.json   {width, height, pitch, pins|legs: {key: [x, y]}} in the picture's units
 Board pins are keyed by their `number` in board.json; part legs by leg name. One pitch (0.1 in) = 16 units,
-so every pin and leg lands on a breadboard hole (F-12, F-13). Resistors and LEDs have no fixed art: they are
-drawn from the holes their legs are in (the renderer, M4).
+so every pin and leg lands on a breadboard hole (F-12, F-13). Resistors, LEDs, RGB LEDs, light sensors and battery
+packs have no fixed art: they are drawn from the holes their legs are in (the renderer, M4, M6).
 """
 import json
 import pathlib
@@ -77,7 +77,8 @@ def boards() -> None:
 
     svg, pins = s.microbit(200, 600)                   # keys: pin id (GND@3); 1–13 top row, 14–26 bottom, 27–30 I²C
     lit, _ = s.microbit(200, 600, image=["11111"] * 5)  # the 25 pixels, row by row
-    write("boards", "microbit-v2", svg, {n: pins[pid] for n, pid, _ in s.mbit_pins()}, "pins", {"display": glows(lit, "mbit")})
+    write("boards", "microbit-v2", svg, {n: pins[pid] for n, pid, _ in s.mbit_pins()}, "pins",
+          {"display": glows(lit, "mbit"), "usb": {"socket": s.mbit_usb(200, 600)}})   # M6.1: the GPIO board's micro-USB
 
 
 def parts() -> None:
@@ -88,6 +89,9 @@ def parts() -> None:
     # Potentiometer: ends 1 and 3, wiper 2, two holes apart in one row.
     legs = {"1": bb.xy(21, "e"), "2": bb.xy(23, "e"), "3": bb.xy(25, "e")}
     write("parts", "potentiometer", s.pot(legs["1"], legs["2"], legs["3"]), legs, "legs")
+    # Slide switch (M6.1): legs 1, 2 (the common) and 3 side by side in one row.
+    legs = {"1": bb.xy(21, "e"), "2": bb.xy(22, "e"), "3": bb.xy(23, "e")}
+    write("parts", "slide-switch", s.slide_switch(legs["1"], legs["2"], legs["3"]), legs, "legs")
 
 
 if __name__ == "__main__":

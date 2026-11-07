@@ -7,7 +7,7 @@ on the ESP32 and *Heart & knob* on the micro:bit. Every wire ends on a real pin 
 import math
 
 from svgparts import (P, f, Breadboard, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
-                      microbit, oled, hcsr04, servo, HEART)
+                      microbit, oled, hcsr04, servo, HEART, slide_switch, ldr, rgb_led, battery)
 
 W, H = 692, 820
 
@@ -124,6 +124,70 @@ def heart() -> str:
     o.append(wire([bb.xy(25, "a"), bb.xy(25, "T+")], "red"))
     o.append(cursor(184, 138, "hand"))
     return _svg("".join(o))
+
+
+# ------------------------------------------------------------------ M6.1 · inputs pack (screens 17, 17b)
+def mood_lamp() -> str:
+    """Pico W running: a slide switch on GP16 (slid to 3, so it reads 0), a light sensor with 10 kΩ on GP26 in the
+    dark, an RGB LED through three 220 Ω on GP15 / GP14 / GP13 showing red + blue."""
+    bb = Breadboard(120, 300)
+    o = [bb.svg(rail_labels={"T-": ("GND", "#3a3d42"), "T+": ("3V3", "#de3b3b"), "B-": ("GND", "#3a3d42")})]
+    for col in (8, 10, 11):
+        o.append(resistor(bb.xy(col, "e"), bb.xy(col, "f"), "220"))
+    o.append(rgb_led(bb.xy(8, "h"), bb.xy(9, "h"), bb.xy(10, "h"), bb.xy(11, "h"), lit=(1, 0, .55)))
+    o.append(slide_switch(bb.xy(15, "e"), bb.xy(16, "e"), bb.xy(17, "e"), position=1))
+    o.append(ldr(bb.xy(21, "b"), bb.xy(23, "b")))
+    o.append(resistor(bb.xy(23, "e"), bb.xy(23, "f"), "10k"))
+    psvg, pins = pico(152, 200)
+    o.append(psvg)
+    o.append(wire([pins[20], (456, 236), (248, 236), bb.xy(8, "a")], "red"))        # GP15 → red
+    o.append(wire([pins[19], (440, 252), (280, 252), bb.xy(10, "a")], "green"))     # GP14 → green
+    o.append(wire([pins[17], (408, 268), (296, 268), bb.xy(11, "a")], "blue"))      # GP13 → blue
+    o.append(wire([pins[21], (472, 236), (472, 282), (376, 282), bb.xy(16, "a")], "yellow"))   # GP16 → the switch's common
+    o.append(wire([bb.xy(17, "a"), bb.xy(17, "T-")], "black"))
+    o.append(wire([pins[31], (328, 64), (640, 64), (640, 282), (488, 282), bb.xy(23, "a")], "purple"))   # GP26 (ADC0)
+    o.append(wire([pins[36], (248, 80), (104, 80), (104, 322), bb.xy(2, "T+")], "red"))   # 3V3 → the + rail
+    o.append(wire([bb.xy(21, "a"), bb.xy(21, "T+")], "red"))
+    o.append(wire([pins[3], bb.xy(5, "T-")], "black"))
+    o.append(wire([bb.xy(9, "j"), bb.xy(9, "B-")], "black"))
+    o.append(wire([bb.xy(23, "j"), bb.xy(23, "B-")], "black"))
+    o.append(wire([bb.xy(1, "T-"), bb.xy(1, "B-")], "black"))
+    o.append(cursor(376, 380, "hand"))
+    return _svg("".join(o))
+
+
+def gpio_battery() -> str:
+    """micro:bit editing: the GPIO board's own micro-USB plugged in (its 5V pins live); a 2×AA pack on the bottom rails
+    lighting an LED by itself, selected; the 4×AA and 9 V packs drawn beside, for the design."""
+    bb = Breadboard(120, 448)
+    o = [bb.svg(rail_labels={"T-": ("GND", "#3a3d42"), "T+": ("5V", "#de3b3b")})]
+    msvg, mp = microbit(184, 340, usb=True)
+    o.append(msvg)
+    gx, _ = mp["GND@15"]
+    o.append(wire([mp["GND@15"], (gx, 434), (136, 434), bb.xy(2, "T-")], "black"))
+    o.append(wire([mp["5V"], (mp["5V"][0], 440), (152, 440), bb.xy(3, "T+")], "red"))   # the GPIO board's 5V
+    o.append(resistor(bb.xy(5, "a"), bb.xy(8, "a"), "220"))
+    o.append(led(bb.xy(8, "b"), bb.xy(10, "b"), "green", "on"))
+    o.append(wire([bb.xy(5, "e"), bb.xy(5, "T+")], "red"))
+    o.append(wire([bb.xy(10, "e"), bb.xy(10, "T-")], "black"))
+    # bottom rails: a 2×AA pack lights its own LED (B+ / B−), the pack below the breadboard
+    o.append(battery(bb.xy(20, "B+"), bb.xy(20, "B-"), "2xAA"))
+    o.append(wire([bb.xy(21, "B+"), bb.xy(21, "j")], "red"))
+    o.append(resistor(bb.xy(21, "h"), bb.xy(24, "h"), "220"))
+    o.append(led(bb.xy(24, "i"), bb.xy(26, "i"), "red", "on", lean=-22))
+    o.append(wire([bb.xy(26, "j"), bb.xy(26, "B-")], "black"))
+    x, y = bb.xy(20, "B+")
+    o.append(f'<rect x="{x - 56}" y="{y + 26}" width="112" height="70" rx="8" fill="none" stroke="#2563d9" stroke-width="1.6" stroke-dasharray="4 3"/>')
+    return _svg("".join(o))
+
+
+def battery_kinds() -> str:
+    """The three packs, as the parts panel offers them."""
+    o = []
+    for i, kind in enumerate(("2xAA", "4xAA", "9V")):
+        x = 70 + i * 130
+        o.append(battery((x - 0, 40), (x, 24), kind))
+    return _svg("".join(o), 190, 82, "0 -122 400 172")
 
 
 # ------------------------------------------------------------------ small pictures
@@ -249,7 +313,7 @@ def led_states() -> str:
     return _svg("".join(o), 280, 96, "0 -10 280 106")
 
 
-SCENES = {"bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
+SCENES = {"moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
           "servowiring": servo_wiring, "servopulses": servo_pulses, "plot": plot}
 
 

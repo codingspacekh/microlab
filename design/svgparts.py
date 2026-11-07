@@ -214,6 +214,123 @@ def pot(l, w, r, angle: float = 0, label: str = "") -> str:
     return "".join(o) + "</g>"
 
 
+def slide_switch(l, m, r, position: int = 0) -> str:
+    """SS12D00 slide switch: legs 1 (l), 2 — the common — (m) and 3 (r) in one row, its body above them. The knob
+    slides towards leg 1 (position 0: leg 2 is joined to leg 1) or towards leg 3 (position 1: 2 joined to 3)."""
+    cx, cy = m[0], m[1] - 24
+    o = ['<g class="slide">']
+    for x, y in (l, m, r):
+        o.append(f'<line x1="{x}" y1="{y}" x2="{f(cx + (x - cx) * .8)}" y2="{f(cy + 8)}" stroke="#a5abb2" stroke-width="1.8"/>')
+    o.append(f'<rect x="{f(cx - 26)}" y="{f(cy - 11)}" width="52" height="20" rx="3" fill="#2d3136" stroke="#15181b" filter="url(#lift)"/>'
+             f'<rect x="{f(cx - 19)}" y="{f(cy - 6)}" width="38" height="10" rx="2" fill="#15181b"/>')
+    kx = cx - 18 if position == 0 else cx + 2
+    o.append(f'<rect x="{f(kx)}" y="{f(cy - 7)}" width="16" height="12" rx="1.6" fill="#e9ebee" stroke="#9ba2aa"/>')
+    for dx in (4, 8, 12):
+        o.append(f'<line x1="{f(kx + dx)}" y1="{f(cy - 4)}" x2="{f(kx + dx)}" y2="{f(cy + 2)}" stroke="#9ba2aa" stroke-width="1"/>')
+    o.append(f'<text x="{f(cx - 22)}" y="{f(cy - 14)}" font-size="6.5" font-weight="700" fill="#6b7280" text-anchor="middle">1</text>'
+             f'<text x="{f(cx + 22)}" y="{f(cy - 14)}" font-size="6.5" font-weight="700" fill="#6b7280" text-anchor="middle">3</text>')
+    return "".join(o) + "</g>"
+
+
+def ldr(a, b, lean: int = 22) -> str:
+    """Light-dependent resistor (GL5528, 5 mm): legs in holes a and b, the disc leaning `lean` px away (down if > 0),
+    its red-brown track in a zigzag across it."""
+    cx, cy = (a[0] + b[0]) / 2, a[1] + lean
+    o = ['<g class="ldr">']
+    for x, y in (a, b):
+        o.append(f'<path d="M{x},{y} L{f(cx + (x - cx) * .45)},{f(cy - 8)}" stroke="#a5abb2" stroke-width="1.7" fill="none"/>')
+    o.append(f'<circle cx="{f(cx)}" cy="{f(cy)}" r="11" fill="#f2d7a6" stroke="#c9a46a"/>'
+             f'<path d="M{f(cx - 9)},{f(cy - 3)} A11 11 0 0 1 {f(cx - 4)},{f(cy - 9.8)} M{f(cx + 9)},{f(cy + 3)} A11 11 0 0 1 {f(cx + 4)},{f(cy + 9.8)}" stroke="#d6b24c" stroke-width="2.4" fill="none"/>')
+    zig = f"M{f(cx - 6)},{f(cy - 6)} h12 v3 h-12 v3 h12 v3 h-12 v3 h12"
+    o.append(f'<path d="{zig}" stroke="#a5582d" stroke-width="1.3" fill="none" stroke-linejoin="round"/>'
+             f'<circle cx="{f(cx)}" cy="{f(cy)}" r="11" fill="#fff" opacity=".12"/>')
+    return "".join(o) + "</g>"
+
+
+RGB_DIE = {"r": ("#ff3b2c", "red"), "g": ("#22c55e", "green"), "b": ("#3b82f6", "blue")}
+
+
+def rgb_led(r, c, g, b, lit=(0, 0, 0), common: str = "cathode", lean: int = 24) -> str:
+    """5 mm RGB LED, legs left to right: red (r), the common — the longest — (c), green (g), blue (b); the milky body
+    leaning `lean` px away. `lit`: each die's brightness 0–1; the body takes their mix. Small letters name the legs."""
+    cx, cy = (r[0] + b[0]) / 2, r[1] + lean
+    o = ['<g class="rgb">']
+    for (x, y), w in ((r, 1.6), (c, 2.1), (g, 1.6), (b, 1.6)):
+        o.append(f'<path d="M{x},{y} L{f(cx + (x - cx) * .3)},{f(cy - 8)}" stroke="#a5abb2" stroke-width="{w}" fill="none"/>')
+    for (x, y), t in zip((r, c, g, b), ("R", "−" if common == "cathode" else "+", "G", "B")):
+        o.append(f'<text x="{x}" y="{y - 7}" font-size="6.5" font-weight="700" fill="#6b7280" text-anchor="middle">{t}</text>')
+    for (k, (col, glow)), v, dx in zip(RGB_DIE.items(), lit, (-4, 0, 4)):
+        if v > 0:
+            o.append(f'<circle cx="{f(cx + dx)}" cy="{f(cy)}" r="34" fill="url(#glow-{glow})" opacity="{f(min(1, .25 + v))}"/>')
+    o.append(f'<circle cx="{f(cx)}" cy="{f(cy)}" r="11" fill="#eef1f4" stroke="rgba(0,0,0,.18)"/>')
+    if any(lit):
+        top = max(lit)
+        mix = "#{:02x}{:02x}{:02x}".format(*(round(255 * v / top) for v in lit))
+        o.append(f'<circle cx="{f(cx)}" cy="{f(cy)}" r="10.5" fill="{mix}" opacity="{f(.35 + .6 * top)}"/>')
+    for (k, (col, _)), v, dx, dy in zip(RGB_DIE.items(), lit, (-3.5, 3.5, 0), (-1.5, -1.5, 3)):
+        o.append(f'<rect x="{f(cx + dx - 1.4)}" y="{f(cy + dy - 1.4)}" width="2.8" height="2.8" fill="{col}" opacity="{f(.45 + .55 * v)}"/>')
+    o.append(f'<ellipse cx="{f(cx - 3.5)}" cy="{f(cy - 4.5)}" rx="3.2" ry="2.2" fill="#fff" opacity=".6"/>')
+    return "".join(o) + "</g>"
+
+
+BATTERY = {"2xAA": (96, 56, 2, "3 V"), "4xAA": (96, 100, 4, "6 V"), "9V": (64, 92, 0, "9 V")}
+
+
+def battery(plus, minus, kind: str = "4xAA") -> str:
+    """A battery pack (2×AA, 4×AA in a holder, or a 9 V battery with its snap): its red lead in hole `plus`, its black
+    lead in `minus` — a rail pair — and the pack beyond the minus hole, away from the breadboard. Packs are drawn
+    smaller than real (a 4×AA holder is 62 mm across) so they don't hide the breadboard."""
+    w, h, cells, volts = BATTERY[kind]
+    dx, dy = minus[0] - plus[0], minus[1] - plus[1]
+    n = math.hypot(dx, dy) or 1
+    ux, uy = dx / n, dy / n
+    gap = 26
+    cx, cy = minus[0] + ux * (gap + h / 2), minus[1] + uy * (gap + h / 2)
+    rot = math.degrees(math.atan2(ux, -uy))
+    a = math.radians(rot)
+    world = lambda lx, ly: (cx + lx * math.cos(a) - ly * math.sin(a), cy + lx * math.sin(a) + ly * math.cos(a))
+    o = ['<g class="battery">']
+    for hole, lx, col in ((plus, -12, "red"), (minus, 12, "black")):
+        ex, ey = world(lx, h / 2)
+        mx, my = world(lx, h / 2 + gap * .55)
+        c1, c2 = WIRE[col]
+        path = f"M{f(ex)},{f(ey)} Q{f(mx)},{f(my)} {f(hole[0])},{f(hole[1])}"
+        o.append(f'<path d="{path}" fill="none" stroke="{c2}" stroke-width="4.4" stroke-linecap="round"/>'
+                 f'<path d="{path}" fill="none" stroke="{c1}" stroke-width="2.6" stroke-linecap="round"/>'
+                 f'<circle cx="{hole[0]}" cy="{hole[1]}" r="3.2" fill="{c2}"/><circle cx="{hole[0]}" cy="{hole[1]}" r="1.4" fill="{c1}"/>')
+    o.append(f'<g transform="translate({f(cx)},{f(cy)}) rotate({f(rot)})">')
+    if cells:
+        o.append(f'<rect x="{f(-w / 2)}" y="{f(-h / 2)}" width="{w}" height="{h}" rx="5" fill="#2d3136" stroke="#15181b" filter="url(#lift)"/>')
+        ch = (h - 12) / cells
+        for i in range(cells):
+            y0 = -h / 2 + 6 + i * ch
+            o.append(f'<rect x="{f(-w / 2 + 6)}" y="{f(y0 + 1)}" width="{w - 16}" height="{f(ch - 2)}" rx="{f((ch - 2) / 2)}" fill="#e8b10f"/>'
+                     f'<rect x="{f(-w / 2 + 6)}" y="{f(y0 + 1)}" width="{f((w - 16) * .32)}" height="{f(ch - 2)}" rx="{f((ch - 2) / 2)}" fill="#1c1e21"/>'
+                     f'<rect x="{f(w / 2 - 10)}" y="{f(y0 + ch / 2 - 3)}" width="3" height="6" rx="1" fill="#c7ccd2"/>')
+    else:
+        o.append(f'<rect x="{f(-w / 2)}" y="{f(-h / 2)}" width="{w}" height="{h}" rx="4" fill="#1f2227" stroke="#0e0f11" filter="url(#lift)"/>'
+                 f'<rect x="{f(-w / 2)}" y="{f(-h / 2 + 14)}" width="{w}" height="{f(h * .45)}" fill="#d6b24c"/>'
+                 f'<rect x="{f(-w / 2 + 4)}" y="{f(h / 2 - 12)}" width="{w - 8}" height="12" rx="3" fill="#15171a"/>')
+    o.append("</g>")
+    # the writing stays upright whichever way the pack is turned
+    tx, ty = world(0, 0)
+    o.append(f'<text x="{f(tx)}" y="{f(ty + 3.5)}" font-size="10" font-weight="700" fill="#fff" stroke="#15171a" stroke-width="2.4" '
+             f'paint-order="stroke" text-anchor="middle" font-family="Inter">{volts}</text>')
+    for lx, sign, col in ((-12, "+", "#ff8a7a"), (12, "−", "#cfd3d8")):
+        px, py = world(lx, h / 2 - 6)
+        o.append(f'<text x="{f(px)}" y="{f(py + 3)}" font-size="8" font-weight="700" fill="{col}" text-anchor="middle">{sign}</text>')
+    return "".join(o) + "</g>"
+
+
+def usb_plug(x, y) -> str:
+    """A micro-USB cable plugged into the socket whose left end is at (x, y) (the GPIO board's 5V in): the plug's
+    metal end in the socket, its grey body and the cable going left."""
+    return (f'<g class="usb-plug"><path d="M{f(x - 30)},{f(y + 8)} C{f(x - 70)},{f(y + 8)} {f(x - 70)},{f(y + 60)} {f(x - 110)},{f(y + 60)}" '
+            f'stroke="#2d3136" stroke-width="7" fill="none" stroke-linecap="round"/>'
+            f'<rect x="{f(x - 34)}" y="{f(y - 1)}" width="28" height="18" rx="4" fill="#3a3d42" stroke="#15171a"/>'
+            f'<rect x="{f(x - 7)}" y="{f(y + 3)}" width="14" height="10" rx="1.5" fill="#c7ccd2" stroke="#8f969f"/></g>')
+
+
 # ------------------------------------------------------------------ boards
 PICO_B = ["GP0", "GP1", "GND", "GP2", "GP3", "GP4", "GP5", "GND", "GP6", "GP7", "GP8", "GP9", "GND",
           "GP10", "GP11", "GP12", "GP13", "GND", "GP14", "GP15"]                       # pins 1–20, left → right
@@ -435,7 +552,13 @@ def _microbit_face(x: float, y: float, image, a_pressed: bool, sound: bool):
     return "".join(o)
 
 
-def microbit(hx0: int, hy: int, image=None, a_pressed: bool = False, sound: bool = False):
+def mbit_usb(hx0: int, hy: int):
+    """Where the GPIO board's micro-USB socket starts (its left end, top), for microbit(hx0, hy): the plug goes here."""
+    stem_l = hx0 + 7.5 * P - (320 + 24) / 2
+    return (stem_l - 10, hy - 84 + 8 + 24)
+
+
+def microbit(hx0: int, hy: int, image=None, a_pressed: bool = False, sound: bool = False, usb: bool = False):
     """micro:bit V2 standing upright in the micro:bit GPIO board (drawn face-on so the display reads normally).
     (hx0, hy) is pin 1, the top row's left end; the bottom row is 3 pitches below, the I²C header 3 pitches to
     the right of the rows' end. Returns (svg, {pin id: (x, y)}) with the ids of mbit_pins()."""
@@ -464,6 +587,8 @@ def microbit(hx0: int, hy: int, image=None, a_pressed: bool = False, sound: bool
              f'<rect x="{f(stem_l + 29)}" y="{f(uy - 4)}" width="14" height="4" fill="#aab0b7"/>'
              f'<rect x="{f(stem_l + 54)}" y="{f(uy + 4)}" width="6" height="5" rx="1" fill="#ff5a3c"/>'
              f'<text x="{f(stem_l + 66)}" y="{f(uy + 9)}" font-size="6" fill="{SILK}" font-family="JetBrains Mono">PWR</text>')
+    if usb:   # M6.1: the GPIO board's own micro-USB plugged in (its 5V pins live)
+        o.append(usb_plug(stem_l - 10, uy))
     o.append(f'<text x="{f(stem_l + stem_w - 22)}" y="{f(uy + 10)}" font-size="9" font-weight="700" fill="{SILK}" text-anchor="end" font-family="Inter">micro:bit GPIO Board</text>')
     # the micro:bit, then the slot's front lip over its edge
     o.append(_microbit_face(x, y, image, a_pressed, sound))

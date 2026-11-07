@@ -116,6 +116,23 @@ while True:
         show(0, 0, 1)
         print("Green again")
     time.sleep(0.05)''',
+    "moodlamp": '''from machine import Pin, ADC
+import time
+
+red = Pin(15, Pin.OUT)
+green = Pin(14, Pin.OUT)
+blue = Pin(13, Pin.OUT)
+switch = Pin(16, Pin.IN, Pin.PULL_UP)   # slid to 3: reads 0
+light = ADC(26)                         # more light: more volts
+
+while True:
+    on = switch.value() == 0
+    dark = light.read_u16() < 20000
+    red.value(on and dark)
+    blue.value(on and dark)             # red + blue: purple
+    green.value(on and not dark)
+    print(light.read_u16())
+    time.sleep(0.5)''',
     "traffic_typing": '''from machine import Pin
 import time
 
