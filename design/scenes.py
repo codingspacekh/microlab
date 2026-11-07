@@ -6,7 +6,7 @@ on the ESP32 and *Heart & knob* on the micro:bit. Every wire ends on a real pin 
 """
 import math
 
-from svgparts import (P, f, Breadboard, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
+from svgparts import (P, f, Breadboard, microbit_bare, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
                       microbit, oled, hcsr04, servo, HEART, slide_switch, ldr, rgb_led, battery,
                       pir, line_sensor, soil_sensor, temp_sensor, dht, mpu6050, hcsr04_in,
                       kit_button, kit_touch, kit_vibration, kit_ir_obstacle, kit_hall, kit_flame, kit_raindrop, kit_water, kit_mq2,
@@ -350,8 +350,8 @@ def board_art(kind: str) -> str:
     if kind == "esp32":
         s, _ = esp32(60, 180)
         return _svg(s, 270, 135, "0 8 380 190")
-    s, _ = microbit(80, 330, image=HEART)
-    return _svg(s, 270, 135, "8 0 376 420")
+    s, _ = microbit_bare(20, 10, image=HEART)   # screen 24: the micro:bit alone, as a student first holds it
+    return _svg(s, 270, 135, "-60 0 480 276")
 
 
 def bootsel() -> str:
@@ -478,7 +478,40 @@ def place_breadboard() -> str:
     return _svg(svg + f'<g opacity=".55">{bb.svg()}</g>' + cursor(520, 470, "hand"), w=692, h=420, vb="-200 96 900 470")
 
 
-SCENES = {"bare": bare, "placebb": place_breadboard, "chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
+def mbit_alone() -> str:
+    """Screen 24: a new micro:bit project is the micro:bit alone; an LED wired to ring 0 and GND, as with crocodile clips."""
+    bb = Breadboard(60, 420, cols=30)
+    o = [bb.svg()]
+    msvg, mp = microbit_bare(130, 110, image=HEART)
+    o.append(msvg)
+    o.append(resistor(bb.xy(5, "a"), bb.xy(8, "a"), "220"))
+    o.append(led(bb.xy(8, "b"), bb.xy(10, "b"), "red", "on"))
+    x0, y0 = mp["P0"]
+    o.append(wire([mp["P0"], (x0, 396), bb.xy(5, "e")[:1] + (396,), bb.xy(5, "e")], "orange"))
+    xg, yg = mp["GND"]
+    o.append(wire([mp["GND"], (xg, 404), bb.xy(10, "e")[:1] + (404,), bb.xy(10, "e")], "black"))
+    for pid in ("P1", "P2", "3.3V"):
+        cx, cy = mp[pid]
+        o.append(f'<circle cx="{cx}" cy="{cy}" r="11" fill="none" stroke="#2563d9" stroke-width="1.4" stroke-dasharray="3 2"/>')
+    return _svg("".join(o), vb="-300 -60 870 1031")   # room on the left for the open parts panel
+
+
+def mbit_gpio() -> str:
+    """Screen 24b: the GPIO board added — the micro:bit in its slot; the wires that were on ring 0 and GND are on the
+    header's P0 and GND now (the same pins); the GPIO board selected."""
+    bb = Breadboard(60, 470, cols=30)
+    o = [bb.svg()]
+    msvg, mp = microbit(150, 330, image=HEART, usb=True)
+    o.append(msvg)
+    o.append(resistor(bb.xy(5, "a"), bb.xy(8, "a"), "220"))
+    o.append(led(bb.xy(8, "b"), bb.xy(10, "b"), "red", "on"))
+    o.append(wire([mp["P0"], (mp["P0"][0], 452), bb.xy(5, "e")[:1] + (452,), bb.xy(5, "e")], "orange"))
+    o.append(wire([mp["GND@15"], (mp["GND@15"][0], 458), bb.xy(10, "e")[:1] + (458,), bb.xy(10, "e")], "black"))
+    o.append(f'<rect x="{150 - 34}" y="{330 - 92}" width="{15 * P + 68}" height="{3 * P + 130}" rx="10" fill="none" stroke="#2563d9" stroke-width="1.6" stroke-dasharray="5 3"/>')
+    return _svg("".join(o), vb="-60 -40 900 1066")
+
+
+SCENES = {"mbitalone": mbit_alone, "mbitgpio": mbit_gpio, "bare": bare, "placebb": place_breadboard, "chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
           "servowiring": servo_wiring, "servopulses": servo_pulses, "plot": plot}
 
 

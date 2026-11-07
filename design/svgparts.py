@@ -965,6 +965,19 @@ def _microbit_face(x: float, y: float, image, a_pressed: bool, sound: bool):
     return "".join(o)
 
 
+MBIT_RINGS = [("P0", "0"), ("P1", "1"), ("P2", "2"), ("3.3V", "3V"), ("GND", "GND")]
+
+
+def microbit_bare(x: float, y: float, image=None, a_pressed: bool = False, sound: bool = False):
+    """The micro:bit V2 on its own (screen 24): 320 × 258 from (x, y), its five big rings along the bottom edge.
+    Returns (svg, {pin id: (x, y)}): the rings' centres, keyed as the GPIO board's header (P0, P1, P2, 3.3V, GND),
+    so a wire on a ring stays on the same pin when the micro:bit goes into its GPIO board."""
+    W, H = 320, 258
+    ey = y + H - 58
+    pins = {pid: (x + bx, ey + 15) for (pid, _), bx in zip(MBIT_RINGS, (34, 102, 160, 218, 286))}
+    return '<g class="board microbit">' + _microbit_face(x, y, image, a_pressed, sound) + "</g>", pins
+
+
 def mbit_usb(hx0: int, hy: int):
     """Where the GPIO board's micro-USB socket starts (its left end, top), for microbit(hx0, hy): the plug goes here."""
     stem_l = hx0 + 7.5 * P - (320 + 24) / 2
@@ -1148,6 +1161,7 @@ ICON_PARTS = {
     "lcd": '<rect x="2" y="8" width="28" height="16" rx="2" fill="#2f8f4f"/><rect x="5" y="11" width="22" height="10" fill="#a8d86a"/><path d="M7,14 h12 M7,18 h16" stroke="#3b5a1e" stroke-width="1.4"/>',
     "seg7": '<rect x="8" y="3" width="16" height="26" rx="2" fill="#2d3136"/><path d="M12,8 h8 M12,16 h8 M12,24 h8 M11,9 v6 M21,9 v6 M11,17 v6 M21,17 v6" stroke="#ef3b2c" stroke-width="1.8" stroke-linecap="round"/>',
     "neopixel": "".join(f'<circle cx="{16 + 10 * math.cos(math.radians(a))}" cy="{16 + 10 * math.sin(math.radians(a))}" r="2.6" fill="{c}"/>' for a, c in zip(range(0, 360, 45), ("#ef3b2c", "#ff8a00", "#f5d000", "#22b14c", "#16b8c9", "#2f6fe0", "#8d5bd1", "#e0409a"))) + '<circle cx="16" cy="16" r="13" fill="none" stroke="#2d3136" stroke-width="2.4" opacity=".25"/>',
+    "gpioboard": '<rect x="3" y="12" width="26" height="15" rx="2" fill="#1d4f9e"/><rect x="7" y="4" width="18" height="11" rx="2" fill="#1d1e21"/><rect x="6" y="13" width="20" height="3" rx="1" fill="#121a24"/>' + "".join(f'<circle cx="{6 + i * 2.5}" cy="{y}" r=".8" fill="#d3d7dc"/>' for i in range(9) for y in (20, 24)),
     "microbit": '<rect x="3" y="6" width="26" height="20" rx="3" fill="#1d1e21"/>' + "".join(f'<rect x="{11 + c * 2.6}" y="{10 + r * 2.6}" width="1.2" height="1.8" fill="{"#ff3a22" if HEART[r][c] == "1" else "#3b2d2d"}"/>' for r in range(5) for c in range(5)) + '<circle cx="7" cy="14" r="2" fill="#c9cdd2"/><circle cx="25" cy="14" r="2" fill="#c9cdd2"/><rect x="5" y="22" width="22" height="3" fill="#d6b24c"/>',
     "pico": '<rect x="2" y="9" width="28" height="14" rx="2" fill="#2b7a4b"/><rect x="0" y="13" width="4" height="6" rx="1" fill="#c7ccd2"/><rect x="13" y="12" width="7" height="7" fill="#1c1e21"/><rect x="22" y="12" width="5" height="7" fill="#c3c8ce"/>' + "".join(f'<circle cx="{4 + i * 2.6}" cy="{c}" r=".8" fill="#d6b24c"/>' for i in range(10) for c in (10.5, 21.5)),
     "esp32": '<rect x="2" y="8" width="28" height="16" rx="2" fill="#1e2733"/><rect x="15" y="10" width="14" height="12" rx="1" fill="#b9bfc7"/><rect x="0" y="13" width="4" height="6" rx="1" fill="#c7ccd2"/>' + "".join(f'<circle cx="{4 + i * 2.6}" cy="{c}" r=".8" fill="#d6b24c"/>' for i in range(10) for c in (9.5, 22.5)),

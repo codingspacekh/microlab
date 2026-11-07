@@ -350,7 +350,7 @@ def code(name: str, *opts: str) -> str:
 
 # ---------------------------------------------------------------- parts panel
 PARTS = [
-    ("Basics", [("breadboard", "Breadboard", "half · full"), ("resistor", "Resistor", "220 Ω – 10 kΩ"), ("led", "LED", "5 colours"),
+    ("Basics", [("breadboard", "Breadboard", "mini · half · full"), ("resistor", "Resistor", "220 Ω – 10 kΩ"), ("led", "LED", "5 colours"),
                 ("rgb", "RGB LED", "common cathode"), ("button", "Push button", "12 mm"), ("switch", "Slide switch", ""),
                 ("pot", "Potentiometer", "10 kΩ knob"), ("ldr", "Light sensor (LDR)", ""), ("buzzer", "Buzzer", "active · passive"),
                 ("battery", "Battery pack", "2×AA · 4×AA · 9 V")]),
@@ -370,9 +370,13 @@ PARTS = [
 ]
 
 
-def parts(hover: str = "", drag: str = "") -> str:
+MICROBIT_PARTS = [("micro:bit", [("gpioboard", "GPIO board", "30 pins · 5V from its USB")])]
+
+
+def parts(hover: str = "", drag: str = "", board: str = "") -> str:
+    """`board` = microbit: the micro:bit's own group first (screen 24: its GPIO board)."""
     out = []
-    for group, items in PARTS:
+    for group, items in (MICROBIT_PARTS if board == "microbit" else []) + PARTS:
         out.append(f'<div class="pgroup"><div class="gh">{icon("chevd", "s12")} {group}<span class="n">{len(items)}</span></div>')
         for kind, name, sub in items:
             cls = " hover" if kind == hover else " drag" if kind == drag else ""
