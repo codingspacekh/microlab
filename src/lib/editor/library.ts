@@ -9,6 +9,7 @@ import picoArt from '../../../library/boards/pico-w/art.json';
 import picoJson from '../../../library/boards/pico-w/board.json';
 import buttonArt from '../../../library/parts/button/art.json';
 import potArt from '../../../library/parts/potentiometer/art.json';
+import switchArt from '../../../library/parts/slide-switch/art.json';
 
 /**
  * The library's data the editor needs (architecture §2.7): each board's pins and the picture's size and pin places
@@ -24,6 +25,8 @@ export interface Art {
   leds?: Record<string, [number, number]>;
   /** The micro:bit's 25 display pixels, row by row. */
   display?: [number, number][];
+  /** The micro:bit GPIO board's own micro-USB socket, its left end (M6.1): the plug goes here. */
+  usb?: { socket: [number, number] };
 }
 
 export interface PartArt {
@@ -59,7 +62,8 @@ export function boardData(id: BoardId): BoardData {
   return b;
 }
 
-export const PART_ART: Record<'button' | 'potentiometer', PartArt> = {
+export const PART_ART: Record<'button' | 'potentiometer' | 'slide-switch', PartArt> = {
   button: buttonArt as unknown as PartArt,
   potentiometer: potArt as unknown as PartArt,
+  'slide-switch': switchArt as unknown as PartArt,
 };

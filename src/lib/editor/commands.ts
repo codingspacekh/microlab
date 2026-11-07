@@ -112,3 +112,13 @@ export function deleteBend(project: Project, id: string, index: number): Project
 export function straighten(project: Project, id: string): Project {
   return setVia(project, id, () => []);
 }
+
+/** The micro:bit GPIO board's own micro-USB plugged in (not set, as a new project) or taken out (M6.1, screen 17b):
+ *  without it the board's 5V pins give nothing. The same project back when nothing changes. */
+export function setUsb(project: Project, plugged: boolean): Project {
+  if ((project.usb !== false) === plugged) return project;
+  if (!plugged) return { ...project, usb: false };
+  const next = { ...project };
+  delete next.usb;
+  return next;
+}

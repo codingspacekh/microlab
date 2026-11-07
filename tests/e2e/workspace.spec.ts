@@ -90,7 +90,7 @@ test('M4.3b with the real mouse: a part clicked then placed, a wire with two ben
   await win.getByRole('button', { name: 'New Pico W project' }).click();
 
   // click the LED in the panel, then click on the breadboard
-  await win.locator('.parts .pitem:has-text("LED")').click();
+  await win.locator('.parts .pitem:has-text("red, 5 mm")').click();
   const c10 = await centre(win, '[data-point="bb1.c10"]');
   const c12 = await centre(win, '[data-point="bb1.c12"]');
   await win.mouse.move((c10.x + c12.x) / 2, c10.y, { steps: 4 });

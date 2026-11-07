@@ -116,3 +116,16 @@ describe('M4.3b F-11, F-13, F-14: bends, colours, values, delete, the breadboard
     expect(setBreadboardSize(deleteWire(p, 'w1'), 'bb1', 'half')!.breadboards[0]!.size).toBe('half');
   });
 });
+
+describe('M6.1 the micro:bit GPIO board\'s micro-USB (screen 17b)', () => {
+  it('taken out: usb false; plugged back in: not set, as a new project', async () => {
+    const { setUsb } = await import('@lib/editor');
+    const { newProject } = await import('@lib/project');
+    const p = newProject('microbit-v2').project;
+    expect(p.usb).toBeUndefined();
+    const out = setUsb(p, false);
+    expect(out.usb).toBe(false);
+    expect('usb' in setUsb(out, true)).toBe(false);
+    expect(setUsb(p, true)).toBe(p);   // nothing changed: no undo step
+  });
+});

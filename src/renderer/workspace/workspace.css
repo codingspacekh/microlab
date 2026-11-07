@@ -123,3 +123,21 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .files-panel .fspace { margin: 0; color: var(--tx-2); }
 .files-panel .fspace.near { color: var(--warn-ink, #8a5a00); font-weight: 600; }
 .files-panel .fspace.over { color: var(--danger); font-weight: 600; }
+
+/* ---------- M6.1: the inputs while running (screen 17), the GPIO board's micro-USB (screen 17b) ---------- */
+.inputs { padding: 10px 12px; width: 262px; z-index: 3; }
+.inputs .ih { display: flex; align-items: center; gap: 6px; font-size: 12.5px; margin-bottom: 8px; }
+.inputs .ih .spacer { flex: 1; }
+.inputs p { margin: 8px 0 0; }
+.inputs .slider { grid-template-columns: auto minmax(0, 1fr) 76px; }
+.inputs p b { color: var(--tx-1); }
+.canvas .part-tip, .canvas .usb-tip { background: var(--inverse); color: var(--on-inverse); max-width: 240px; }
+.canvas .part-tip .dies { margin-top: 4px; font-family: var(--mono); font-size: 11.5px; line-height: 1.55; }
+.canvas .part-tip .dies .r { color: #ff8a7a; } .canvas .part-tip .dies .g { color: #7fe0a8; } .canvas .part-tip .dies .b { color: #8db4ff; }
+.canvas .part-tip .note { opacity: .7; font-size: 11px; margin-top: 3px; }
+.canvas .usb-tip div { opacity: .85; margin-top: 2px; }
+.scene .usb { cursor: pointer; }
+.scene.running .usb { cursor: default; }
+.scene.running .part.slide-switch, .scene.running .part.ldr { cursor: pointer; }
+.scene.running .part.potentiometer { cursor: ns-resize; }
+.prop.stack { grid-template-columns: minmax(0, 1fr); gap: 4px; }

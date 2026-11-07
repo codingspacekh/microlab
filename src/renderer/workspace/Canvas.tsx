@@ -3,14 +3,15 @@ import {
   addPart, addWire, allPoints, boardArt, boardData, BREADBOARD, deleteBend, deleteMany, duplicate, fitBox, footprint, freeSpot, holeCard,
   insertBend, joined, moveBend, pinCard, type HoleCard, type PinCard,
   legsCentre, moveBoard, moveBreadboard, moveParts, nearestPoint, panBy, partKind, PITCH, pointAt, rotateParts, sceneOf,
-  snapPart, snapToGrid, usedPoints, zoomAt, ZOOM, type Box, type Legs, type Point, type Scene,
+  setUsb, snapPart, snapToGrid, usedPoints, zoomAt, ZOOM, type Box, type Legs, type Point, type Scene,
 } from '@lib/editor';
 import type { Project } from '@lib/project';
 import { BOARD_ART, BOARD_NAMES } from '../app/boards';
 import type { PartView } from '../../sim/circuit';
 import type { BoardOutputs } from '../app/useRun';
 import { Icon } from '../ui/Icon';
-import { BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, partTurns, polyline, Wire } from './drawings';
+import { batteryBox, BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, partTurns, polyline, Wire } from './drawings';
+import { LightCard, PartTip, UsbSocket, UsbTip, useLive } from './live';
 
 /**
  * The circuit canvas (screens 02, 02b, 03; F-10–F-14). Everything is drawn from the project: the board's picture and
@@ -25,7 +26,10 @@ import { BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, partTurns, po
  * inside it; the selected parts move together, R turns them a quarter (or the part being placed), ⌘D / Ctrl+D copies
  * them, Delete removes them; ⌘Z / Ctrl+Z undoes any edit, ⇧⌘Z / Ctrl+Y redoes it (the top bar has the buttons).
  * While a program runs (M4.5) the circuit can't be changed: LEDs glow by their current, the board's own LED and the
- * micro:bit's display light up, and a push button is pressed by holding the mouse on it.
+ * micro:bit's display light up, and a push button is pressed by holding the mouse on it. M6.1 (screen 17): a slide
+ * switch is clicked to slide it, a knob dragged up or down to turn it, the light on a light sensor set on its card
+ * (live.tsx); an RGB LED mixes its dies; hovering an LED says its current. Screen 17b: the micro:bit GPIO board's
+ * micro-USB is clicked to plug it in or take it out (an edit, while building).
  * M5.2 (F-17): the wheel or a pinch zooms at the pointer (as in Tinkercad: the M5 gate), Shift + wheel pans, and so
  * does a drag with the middle or right button or with Space held; the toolbar zooms out, in, to 100 % and fits; + − 0 do the same.
  * The drawing is fitted when it opens and when a breadboard changes size. Hovering a free hole or pin lights every hole
@@ -95,6 +99,15 @@ export function Canvas({
 }: CanvasProps) {
   const svg = useRef<SVGSVGElement>(null);
   const [pressed, setPressed] = useState<string | null>(null);
+  const live = useLive(running, onInput);
+  /** What is hovered that says something: an LED or RGB LED while running, the GPIO board's micro-USB ('usb'). */
+  const [tipOf, setTipOf] = useState<string | null>(null);
+  /** The light sensor whose card is open while running: the first one when a run starts (screen 17). */
+  const [lightOf, setLightOf] = useState<string | null>(null);
+  const firstLdr = project.parts.find((p) => p.type === 'ldr')?.id ?? null;
+  const firstLdrRef = useRef(firstLdr);
+  firstLdrRef.current = firstLdr;
+  useEffect(() => { setLightOf(running ? firstLdrRef.current : null); setTipOf(null); }, [running]);
   const [gesture, setGesture] = useState<Gesture | null>(null);
   const [placeAt, setPlaceAt] = useState<Point | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -444,6 +457,18 @@ export function Canvas({
     setPressed(id);
     onInput?.(`pressed:${id}`, 1);
   };
+  /** A part's input while running: a button held, a switch slid, a knob dragged, a light sensor's card opened. */
+  const runInput = (type: string, id: string) => {
+    if (type === 'button') return press(id);
+    return (e: ReactMouseEvent) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (type === 'slide-switch') live.set(`position:${id}`, live.value(`position:${id}`) ? 0 : 1);
+      else if (type === 'potentiometer') live.turn(id, e);
+      else if (type === 'ldr') setLightOf(id);
+    };
+  };
   const ledOf = (id: string) => {
     const v = outputs.parts[id];
     return v?.kind === 'led' ? v.brightness : 0;
@@ -507,6 +532,11 @@ export function Canvas({
           height={art.height}
           onMouseDown={begin((at) => ({ kind: 'board', start: at, at }))}
         />
+        {art.usb && (
+          <UsbSocket at={{ x: scene.view.board.x + art.usb.socket[0], y: scene.view.board.y + art.usb.socket[1] }} plugged={project.usb !== false}
+            onToggle={() => { if (!running) onChange(setUsb(project, project.usb === false)); }}
+            onHover={(on) => setTipOf((t) => (on ? 'usb' : t === 'usb' ? null : t))} />
+        )}
         <BoardOutputsLayer boardId={scene.boardId} at={scene.view.board} pins={outputs.board.pins} display={outputs.board.display} led={ledOf('board.LED')} />
         {lit && <Joined scene={scene} strips={lit.strips} points={lit.points} />}
         {shown.wires.map((w) => {
@@ -570,20 +600,26 @@ export function Canvas({
           const moving = gesture?.kind === 'parts' && gesture.ids.includes(p.id);
           const on = isOn('part', p.id);
           const glow = p.type === 'led' ? ledOf(p.id) : undefined;
+          const dies = p.type === 'rgb-led' ? (['r', 'g', 'b'].map((d) => ledOf(`${p.id}:${d}`)) as [number, number, number]) : undefined;
+          const position = p.type === 'slide-switch' || p.type === 'potentiometer' ? live.value(`position:${p.id}`) : undefined;
+          const lit = glow ?? (dies ? Math.max(...dies) : undefined);
+          const says = running && (p.type === 'led' || p.type === 'rgb-led');
           return (
             <g key={p.id} data-part={p.id} data-legs={Object.values(p.legs).join(' ')} data-props={JSON.stringify(p.props ?? {})} role="img"
-              {...(glow !== undefined ? { 'data-lit': glow > 0.01 ? '1' : '0' } : {})}
+              {...(lit !== undefined ? { 'data-lit': lit > 0.01 ? '1' : '0' } : {})}
+              {...(position !== undefined ? { 'data-position': String(position) } : {})}
               {...(p.type === 'button' ? { 'data-pressed': pressed === p.id ? '1' : '0' } : {})}
+              {...(says ? { onMouseEnter: () => setTipOf(p.id), onMouseLeave: () => setTipOf((t) => (t === p.id ? null : t)) } : {})}
               aria-label={`${safeName(p.type)} ${p.id}`} className={['part', p.type, moving && preview.blocked && 'blocked'].filter(Boolean).join(' ')}
               aria-selected={on || undefined}
-              onMouseDown={running ? (p.type === 'button' ? press(p.id) : undefined) : (e) => {
+              onMouseDown={running ? runInput(p.type, p.id) : (e) => {
                 if (e.button !== 0) return;
                 if (e.shiftKey) { e.preventDefault(); e.stopPropagation(); say(null); toggle('part', p.id); return; }
                 const group = on ? chosen(selection).parts : [p.id];
                 begin((at) => ({ kind: 'parts', id: p.id, ids: group, start: at, at }))(e);
               }}>
-              <PartDrawing type={p.type} legs={legs} props={p.props} look={{ glow, pressed: pressed === p.id }} />
-              {on && <SelectBox type={p.type} legs={legs} />}
+              <PartDrawing type={p.type} legs={legs} props={p.props} look={{ glow, dies, position, pressed: pressed === p.id }} />
+              {on && <SelectBox type={p.type} legs={legs} props={p.props} />}
             </g>
           );
         })}
@@ -599,6 +635,48 @@ export function Canvas({
         )}
       </svg>
       {hint && <div className={problem ? 'canvas-hint warn' : 'canvas-hint'} aria-live="polite">{hint}</div>}
+      {(() => {
+        // the running cards (M6.1): beside what they belong to, inside the panel
+        const near = (refs: string[], dy = 30): CSSProperties => {
+          const pts = refs.map((r) => pointAt(scene, r)).filter((q): q is Point => !!q);
+          if (!pts.length) return {};
+          const c = screenOf({ x: pts.reduce((t, q) => t + q.x, 0) / pts.length, y: Math.max(...pts.map((q) => q.y)) });
+          const room = panelSize();
+          return { left: Math.max(8, Math.min(Math.round(c.x - 120), (room.w || 1e4) - 290)), top: Math.max(8, Math.round(c.y + dy * scale)) };
+        };
+        // the light card goes under the sensor's breadboard, where it hides no part, inside the panel
+        const below = (legs: Record<string, string>): CSSProperties => {
+          const first = Object.values(legs)[0]!;
+          const bb = shown.breadboards.find((b) => first.startsWith(`${b.id}.`));
+          const at = bb && scene.view.breadboards[bb.id];
+          if (!bb || !at) return near(Object.values(legs), 44);
+          const x = Object.values(legs).map((r) => pointAt(scene, r)?.x ?? 0).reduce((t, v) => t + v, 0) / Object.keys(legs).length;
+          const c = screenOf({ x, y: at.y + BREADBOARD.size(bb.size).height });
+          const room = panelSize();
+          return {
+            left: Math.max(8, Math.min(Math.round(c.x - 131), (room.w || 1e4) - 278)),
+            top: Math.max(8, Math.min(Math.round(c.y + 12), (room.h || 1e4) - 190)),
+          };
+        };
+        const ldr = running && lightOf ? project.parts.find((p) => p.id === lightOf) : undefined;
+        const tipPart = running && tipOf && tipOf !== 'usb' ? project.parts.find((p) => p.id === tipOf) : undefined;
+        return (
+          <>
+            {ldr && (
+              <LightCard id={ldr.id} lux={live.value(`lux:${ldr.id}`)} onLux={(v) => live.set(`lux:${ldr.id}`, v)} onClose={() => setLightOf(null)}
+                style={below(ldr.legs)} />
+            )}
+            {tipPart && <PartTip id={tipPart.id} type={tipPart.type} common={String(tipPart.props?.common ?? 'cathode')} views={outputs.parts} style={near(Object.values(tipPart.legs), 46)} />}
+            {tipOf === 'usb' && art.usb && (
+              <UsbTip plugged={project.usb !== false} style={(() => {
+                const c = screenOf({ x: scene.view.board.x + art.usb.socket[0], y: scene.view.board.y + art.usb.socket[1] });
+                // left of the cable, over the empty canvas, not over the board's pins
+                return { left: Math.max(8, Math.round(c.x - 110 * scale - 240)), top: Math.round(c.y + 70 * scale) };
+              })()} />
+            )}
+          </>
+        );
+      })()}
       {!running && !placing && (!gesture || gesture.kind === 'wire') && (
         <>
           {gesture?.kind === 'wire' && gesture.from.startsWith('board.') && gesture.from !== litFrom && (
@@ -664,8 +742,13 @@ function boxed(scene: Scene, a: Point, b: Point): Selection[] {
 /** The dashed box around a selected part (screen 02b), around its legs and its body — turned with the part. */
 const PAD: Record<string, [number, number, number, number]> = {
   resistor: [10, 12, 10, 12], led: [20, 8, 20, 40], button: [26, 26, 26, 26], potentiometer: [28, 54, 28, 10],
+  'slide-switch': [16, 42, 16, 8], ldr: [10, 8, 10, 38], 'rgb-led': [10, 16, 10, 40],
 };
-function SelectBox({ type, legs: placedLegs }: { type: string; legs: Record<string, Point> }) {
+function SelectBox({ type, legs: placedLegs, props }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown> }) {
+  if (type === 'battery') {
+    const b = batteryBox(placedLegs['+']!, placedLegs['-']!, String(props?.kind ?? '2xAA'));
+    return <rect className="sel" x={b.x0 - 6} y={b.y0 - 6} width={b.x1 - b.x0 + 12} height={b.y1 - b.y0 + 12} rx={6} />;
+  }
   const legs = Object.values(placedLegs);
   let [l, t, r, b] = PAD[type] ?? [12, 12, 12, 12];
   // a quarter turn clockwise brings what was on the left to the top

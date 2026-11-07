@@ -2,8 +2,9 @@ import { BREADBOARD, holeOffset, turnsOf, type Point } from '@lib/editor';
 import { COLUMNS, railHole, type BreadboardSize } from '@lib/circuit';
 
 /**
- * The circuit's pictures, as in the approved prototype (design/svgparts.py): the breadboard, wires, resistors and
- * LEDs drawn from the holes they use, the push button and the potentiometer. One pitch (0.1 in) = 16 units.
+ * The circuit's pictures, as in the approved prototype (design/svgparts.py): the breadboard, wires, resistors, LEDs,
+ * RGB LEDs, light sensors and battery packs drawn from the holes they use, the push button, the slide switch and the
+ * potentiometer (M6.1, screens 17, 17b), the GPIO board's micro-USB plug. One pitch (0.1 in) = 16 units.
  */
 const f = (v: number) => Math.round(v * 10) / 10;
 
@@ -209,25 +210,201 @@ export function Potentiometer({ l, w, r, angle = 0 }: { l: Point; w: Point; r: P
   );
 }
 
+/** SS12D00 slide switch (M6.1): legs 1, 2 — the common — and 3 in one row, its body above them; the knob slides
+ *  towards leg 1 (position 0: leg 2 joined to leg 1) or leg 3 (position 1: 2 joined to 3). */
+export function SlideSwitch({ l, m, r, position = 0, upright = 0 }: { l: Point; m: Point; r: Point; position?: number; upright?: number }) {
+  const cx = m.x;
+  const cy = m.y - 24;
+  const kx = position ? cx + 2 : cx - 18;
+  const turn = (x: number, y: number) => (upright ? `rotate(${upright} ${f(x)} ${f(y)})` : undefined);
+  return (
+    <>
+      {[l, m, r].map((p, i) => <line key={i} x1={p.x} y1={p.y} x2={f(cx + (p.x - cx) * 0.8)} y2={cy + 8} stroke="#a5abb2" strokeWidth={1.8} />)}
+      <rect x={cx - 26} y={cy - 11} width={52} height={20} rx={3} fill="#2d3136" stroke="#15181b" filter="url(#lift)" />
+      <rect x={cx - 19} y={cy - 6} width={38} height={10} rx={2} fill="#15181b" />
+      <rect className="knob" x={kx} y={cy - 7} width={16} height={12} rx={1.6} fill="#e9ebee" stroke="#9ba2aa" />
+      {[4, 8, 12].map((dx) => <line key={dx} x1={kx + dx} y1={cy - 4} x2={kx + dx} y2={cy + 2} stroke="#9ba2aa" strokeWidth={1} />)}
+      <g fontSize={6.5} fontWeight={700} fill="#6b7280" textAnchor="middle" pointerEvents="none">
+        <text x={cx - 22} y={cy - 14} transform={turn(cx - 22, cy - 16)}>1</text>
+        <text x={cx + 22} y={cy - 14} transform={turn(cx + 22, cy - 16)}>3</text>
+      </g>
+    </>
+  );
+}
+
+/** A light-dependent resistor (GL5528, 5 mm, M6.1): legs in holes a and b, the disc leaning down from them, its
+ *  red-brown track in a zigzag across it. */
+export function Ldr({ a, b, lean = 22 }: { a: Point; b: Point; lean?: number }) {
+  const cx = (a.x + b.x) / 2;
+  const cy = a.y + lean;
+  return (
+    <>
+      {[a, b].map((p, i) => <path key={i} d={`M${p.x},${p.y} L${f(cx + (p.x - cx) * 0.45)},${f(cy - 8)}`} stroke="#a5abb2" strokeWidth={1.7} fill="none" />)}
+      <circle cx={cx} cy={cy} r={11} fill="#f2d7a6" stroke="#c9a46a" />
+      <path d={`M${f(cx - 9)},${f(cy - 3)} A11 11 0 0 1 ${f(cx - 4)},${f(cy - 9.8)} M${f(cx + 9)},${f(cy + 3)} A11 11 0 0 1 ${f(cx + 4)},${f(cy + 9.8)}`} stroke="#d6b24c" strokeWidth={2.4} fill="none" />
+      <path d={`M${f(cx - 6)},${f(cy - 6)} h12 v3 h-12 v3 h12 v3 h-12 v3 h12`} stroke="#a5582d" strokeWidth={1.3} fill="none" strokeLinejoin="round" />
+      <circle cx={cx} cy={cy} r={11} fill="#fff" opacity={0.12} />
+    </>
+  );
+}
+
+const RGB_DIE: [string, string][] = [['#ff3b2c', 'red'], ['#22c55e', 'green'], ['#3b82f6', 'blue']];
+
+/** 5 mm RGB LED (M6.1): legs red, the common — the longest —, green, blue; the milky body leaning down. `dies`: each
+ *  die's brightness 0–1 while running; the body takes their mix. Small letters name the legs (− or + on the common). */
+export function RgbLed({ r, c, g, b, dies = [0, 0, 0], common = 'cathode', upright = 0, lean = 24 }: {
+  r: Point; c: Point; g: Point; b: Point; dies?: [number, number, number]; common?: string; upright?: number; lean?: number;
+}) {
+  const cx = (r.x + b.x) / 2;
+  const cy = r.y + lean;
+  const top = Math.max(...dies);
+  const lit = top > 0.01;
+  const mix = lit ? `#${dies.map((v) => Math.round((255 * v) / top).toString(16).padStart(2, '0')).join('')}` : '';
+  return (
+    <>
+      {([[r, 1.6], [c, 2.1], [g, 1.6], [b, 1.6]] as const).map(([p, w], i) => (
+        <path key={i} d={`M${p.x},${p.y} L${f(cx + (p.x - cx) * 0.3)},${f(cy - 8)}`} stroke="#a5abb2" strokeWidth={w} fill="none" />
+      ))}
+      <g fontSize={6.5} fontWeight={700} fill="#6b7280" textAnchor="middle" pointerEvents="none">
+        {([[r, 'R'], [c, common === 'anode' ? '+' : '−'], [g, 'G'], [b, 'B']] as const).map(([p, t]) => (
+          <text key={t} x={p.x} y={p.y - 7} transform={upright ? `rotate(${upright} ${p.x} ${p.y - 9})` : undefined}>{t}</text>
+        ))}
+      </g>
+      {RGB_DIE.map(([, glow], i) => dies[i]! > 0.01 && (
+        <circle key={glow} className="glow" cx={cx + [-4, 0, 4][i]!} cy={cy} r={34} fill={`url(#glow-${glow})`} opacity={f(Math.min(1, 0.25 + dies[i]!))} />
+      ))}
+      <circle cx={cx} cy={cy} r={11} fill="#eef1f4" stroke="rgba(0,0,0,.18)" />
+      {lit && <circle cx={cx} cy={cy} r={10.5} fill={mix} opacity={f(0.35 + 0.6 * top)} />}
+      {RGB_DIE.map(([col], i) => (
+        <rect key={col} x={f(cx + [-3.5, 3.5, 0][i]! - 1.4)} y={f(cy + [-1.5, -1.5, 3][i]! - 1.4)} width={2.8} height={2.8} fill={col} opacity={f(0.45 + 0.55 * dies[i]!)} />
+      ))}
+      <ellipse cx={cx - 3.5} cy={cy - 4.5} rx={3.2} ry={2.2} fill="#fff" opacity={0.6} />
+    </>
+  );
+}
+
+/** Battery packs as drawn (svgparts BATTERY): width, height, cells (0: a 9 V battery), what it says. Smaller than real
+ *  (a 4×AA holder is 62 mm across) so they don't hide the breadboard. */
+export const BATTERY_LOOK: Record<string, [number, number, number, string]> = {
+  '2xAA': [96, 56, 2, '3 V'], '4xAA': [96, 100, 4, '6 V'], '9V': [64, 92, 0, '9 V'],
+};
+const LEAD_GAP = 26;
+
+/** Where a pack lies: beyond its minus hole, away from the plus one; `world` turns its own (x, y) into the drawing's. */
+function packFrame(plus: Point, minus: Point, kind: string) {
+  const [w, h, cells, volts] = BATTERY_LOOK[kind] ?? BATTERY_LOOK['2xAA']!;
+  const n = Math.hypot(minus.x - plus.x, minus.y - plus.y) || 1;
+  const ux = (minus.x - plus.x) / n;
+  const uy = (minus.y - plus.y) / n;
+  const cx = minus.x + ux * (LEAD_GAP + h / 2);
+  const cy = minus.y + uy * (LEAD_GAP + h / 2);
+  const rot = (Math.atan2(ux, -uy) * 180) / Math.PI;
+  const a = (rot * Math.PI) / 180;
+  const world = (lx: number, ly: number): Point => ({ x: cx + lx * Math.cos(a) - ly * Math.sin(a), y: cy + lx * Math.sin(a) + ly * Math.cos(a) });
+  return { w, h, cells, volts, cx, cy, rot, world };
+}
+
+/** The box round a pack and its leads (its selection box). */
+export function batteryBox(plus: Point, minus: Point, kind: string): { x0: number; y0: number; x1: number; y1: number } {
+  const { w, h, world } = packFrame(plus, minus, kind);
+  const pts = [plus, minus, world(-w / 2, -h / 2), world(w / 2, -h / 2), world(-w / 2, h / 2), world(w / 2, h / 2)];
+  return { x0: Math.min(...pts.map((p) => p.x)), y0: Math.min(...pts.map((p) => p.y)), x1: Math.max(...pts.map((p) => p.x)), y1: Math.max(...pts.map((p) => p.y)) };
+}
+
+/** A battery pack (M6.1, screen 17b): 2×AA, 4×AA in a holder, or a 9 V battery with its snap; its red lead in the
+ *  `plus` hole, its black lead in `minus` — a rail pair — and the pack beyond the minus hole. The writing stays upright. */
+export function Battery({ plus, minus, kind = '2xAA' }: { plus: Point; minus: Point; kind?: string }) {
+  const { w, h, cells, volts, cx, cy, rot, world } = packFrame(plus, minus, kind);
+  const ch = (h - 12) / Math.max(1, cells);
+  const centre = world(0, 0);
+  return (
+    <>
+      {([[plus, -12, 'red'], [minus, 12, 'black']] as const).map(([hole, lx, col]) => {
+        const e = world(lx, h / 2);
+        const m = world(lx, h / 2 + LEAD_GAP * 0.55);
+        const [c1, c2] = WIRE_COLOURS[col]!;
+        const d = `M${f(e.x)},${f(e.y)} Q${f(m.x)},${f(m.y)} ${hole.x},${hole.y}`;
+        return (
+          <g key={col} className={`lead ${col}`}>
+            <path d={d} fill="none" stroke={c2} strokeWidth={4.4} strokeLinecap="round" />
+            <path d={d} fill="none" stroke={c1} strokeWidth={2.6} strokeLinecap="round" />
+            <circle cx={hole.x} cy={hole.y} r={3.2} fill={c2} /><circle cx={hole.x} cy={hole.y} r={1.4} fill={c1} />
+          </g>
+        );
+      })}
+      <g transform={`translate(${f(cx)},${f(cy)}) rotate(${f(rot)})`}>
+        {cells ? (
+          <>
+            <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={5} fill="#2d3136" stroke="#15181b" filter="url(#lift)" />
+            {Array.from({ length: cells }, (_, i) => {
+              const y0 = -h / 2 + 6 + i * ch;
+              return (
+                <g key={i}>
+                  <rect x={-w / 2 + 6} y={f(y0 + 1)} width={w - 16} height={f(ch - 2)} rx={f((ch - 2) / 2)} fill="#e8b10f" />
+                  <rect x={-w / 2 + 6} y={f(y0 + 1)} width={f((w - 16) * 0.32)} height={f(ch - 2)} rx={f((ch - 2) / 2)} fill="#1c1e21" />
+                  <rect x={w / 2 - 10} y={f(y0 + ch / 2 - 3)} width={3} height={6} rx={1} fill="#c7ccd2" />
+                </g>
+              );
+            })}
+          </>
+        ) : (
+          <>
+            <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={4} fill="#1f2227" stroke="#0e0f11" filter="url(#lift)" />
+            <rect x={-w / 2} y={-h / 2 + 14} width={w} height={f(h * 0.45)} fill="#d6b24c" />
+            <rect x={-w / 2 + 4} y={h / 2 - 12} width={w - 8} height={12} rx={3} fill="#15171a" />
+          </>
+        )}
+      </g>
+      <text x={f(centre.x)} y={f(centre.y + 3.5)} fontSize={10} fontWeight={700} fill="#fff" stroke="#15171a" strokeWidth={2.4}
+        paintOrder="stroke" textAnchor="middle" fontFamily="Inter Variable, Inter, sans-serif" pointerEvents="none">{volts}</text>
+      {([[-12, '+', '#ff8a7a'], [12, '−', '#cfd3d8']] as const).map(([lx, sign, col]) => {
+        const q = world(lx, h / 2 - 6);
+        return <text key={sign} x={f(q.x)} y={f(q.y + 3)} fontSize={8} fontWeight={700} fill={col} textAnchor="middle" pointerEvents="none">{sign}</text>;
+      })}
+    </>
+  );
+}
+
+/** A micro-USB cable plugged into the socket whose left end is at `at` (the GPIO board's 5V in, M6.1). */
+export function UsbPlug({ at: { x, y } }: { at: Point }) {
+  return (
+    <g className="usb-plug">
+      <path d={`M${x - 30},${y + 8} C${x - 70},${y + 8} ${x - 70},${y + 60} ${x - 110},${y + 60}`} stroke="#2d3136" strokeWidth={7} fill="none" strokeLinecap="round" />
+      <rect x={x - 34} y={y - 1} width={28} height={18} rx={4} fill="#3a3d42" stroke="#15171a" />
+      <rect x={x - 7} y={y + 3} width={14} height={10} rx={1.5} fill="#c7ccd2" stroke="#8f969f" />
+    </g>
+  );
+}
+
 /** A part from its type and the places of its legs. */
 export interface PartLook {
   /** An LED's brightness, 0–1, while running (M4.5). */
   glow?: number;
+  /** An RGB LED's red, green and blue dies, 0–1 each (M6.1). */
+  dies?: [number, number, number];
   /** A push button held down while running. */
   pressed?: boolean;
+  /** A slide switch's position (0 / 1) or a knob's (0–1, from leg 1) while running (M6.1). */
+  position?: number;
 }
 
 export function PartDrawing({ type, legs, props, look = {} }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown>; look?: PartLook }) {
   switch (type) {
     case 'resistor': return <Resistor a={legs.a!} b={legs.b!} ohms={Number(props?.ohms ?? 220)} />;
     case 'button': return <PushButton legs={[legs['1a']!, legs['2a']!, legs['1b']!, legs['2b']!]} pressed={look.pressed} />;
-    case 'led': case 'potentiometer': {
-      // drawn as if not turned, then turned about the legs' middle (M5.1); the LED's + and − stay upright
+    case 'battery': return <Battery plus={legs['+']!} minus={legs['-']!} kind={String(props?.kind ?? '2xAA')} />;
+    case 'led': case 'potentiometer': case 'slide-switch': case 'ldr': case 'rgb-led': {
+      // drawn as if not turned, then turned about the legs' middle (M5.1); the letters and signs stay upright
       const t = partTurns(type, legs);
       const { local, transform } = unturned(legs, t);
-      const body = type === 'led'
-        ? <Led a={local.a!} k={local.k!} colour={String(props?.color ?? 'red')} glow={look.glow} upright={-90 * t} />
-        : <Potentiometer l={local['1']!} w={local['2']!} r={local['3']!} />;
+      const up = -90 * t;
+      const body = {
+        led: () => <Led a={local.a!} k={local.k!} colour={String(props?.color ?? 'red')} glow={look.glow} upright={up} />,
+        potentiometer: () => <Potentiometer l={local['1']!} w={local['2']!} r={local['3']!} angle={((look.position ?? 0.5) - 0.5) * 270} />,
+        'slide-switch': () => <SlideSwitch l={local['1']!} m={local['2']!} r={local['3']!} position={look.position} upright={up} />,
+        ldr: () => <Ldr a={local.a!} b={local.b!} />,
+        'rgb-led': () => <RgbLed r={local.r!} c={local.common!} g={local.g!} b={local.b!} dies={look.dies} common={String(props?.common ?? 'cathode')} upright={up} />,
+      }[type]();
       return t ? <g transform={transform}>{body}</g> : body;
     }
     default: return null;
@@ -305,6 +482,27 @@ export function PartIcon({ type }: { type: string }) {
       <>
         <rect x="6" y="9" width="20" height="16" rx="2" fill="#2b5fa8" /><circle cx="16" cy="16" r="6.5" fill="#e9ebee" />
         <line x1="16" y1="16" x2="19" y2="11" stroke="#2d3136" strokeWidth="2" strokeLinecap="round" />
+      </>
+    ),
+    'rgb-led': (
+      <>
+        {[11, 18, 21.5].map((x) => <line key={x} x1={x} y1="20" x2={x} y2="29" stroke="#a5abb2" strokeWidth="1.4" />)}
+        <line x1="14.5" y1="20" x2="14.5" y2="30" stroke="#a5abb2" strokeWidth="1.4" />
+        <path d="M9,21 V13 a7,7 0 0 1 14,0 V21Z" fill="#eef1f4" stroke="#c9d0d8" />
+        <circle cx="13" cy="13" r="2" fill="#ef3b2c" /><circle cx="18" cy="12" r="2" fill="#22b14c" /><circle cx="16" cy="17" r="2" fill="#2f6fe0" />
+      </>
+    ),
+    'slide-switch': <><rect x="5" y="11" width="22" height="10" rx="2" fill="#2d3136" /><rect x="8" y="13" width="9" height="6" rx="1" fill="#e9ebee" /></>,
+    ldr: (
+      <>
+        <circle cx="16" cy="14" r="8" fill="#f2d7a6" stroke="#c9a46a" /><path d="M11,12 h10 M11,15 h10 M11,18 h10" stroke="#a5582d" strokeWidth="1.3" />
+        <line x1="13" y1="22" x2="13" y2="29" stroke="#a5abb2" strokeWidth="1.5" /><line x1="19" y1="22" x2="19" y2="29" stroke="#a5abb2" strokeWidth="1.5" />
+      </>
+    ),
+    battery: (
+      <>
+        <rect x="4" y="9" width="22" height="14" rx="2" fill="#2d3136" /><rect x="26" y="13" width="3" height="6" rx="1" fill="#2d3136" />
+        <rect x="6" y="11" width="9" height="10" fill="#e8b10f" /><text x="20" y="19.5" fontSize="7" fontWeight="700" fill="#fff" textAnchor="middle">+</text>
       </>
     ),
   }[type];

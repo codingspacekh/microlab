@@ -10,12 +10,22 @@ import { bands, LED_SWATCHES, PartIcon, WIRE_COLOURS } from './drawings';
 
 /**
  * The inspector (screen 02b, F-14): what the selected part, wire or breadboard is, and what can be set — a resistor's
- * value (E12 stepper, quick values, its colour bands), an LED's colour, a potentiometer's value, a wire's colour, the
- * breadboard's size. Delete removes a part or a wire (F-11). Only the kit's controls (N-14).
+ * value (E12 stepper, quick values, its colour bands), an LED's colour, a potentiometer's value, an RGB LED's common
+ * leg and a battery pack's kind (M6.1, screens 17, 17b), a wire's colour, the breadboard's size. Delete removes a part or a wire (F-11). Only the kit's controls (N-14).
  */
 export const SHRINK = 'Parts or wires use columns 31–63: move them first.';
 const QUICK_OHMS = [100, 220, 330, 1000, 4700, 10_000];
 const POTS = [1000, 10_000, 100_000];
+const PACKS = [{ value: '2xAA', label: '2×AA · 3 V' }, { value: '4xAA', label: '4×AA · 6 V' }, { value: '9V', label: '9 V' }];
+const COMMONS = [{ value: 'cathode', label: '− cathode' }, { value: 'anode', label: '+ anode' }];
+/** A part's tip under its rows: what to know when it goes in. */
+const TIPS: Record<string, string> = {
+  led: 'The long leg (+) goes towards the pin or 3.3 V, the short leg (−) by the flat edge towards GND. Turned round, an LED doesn\'t light.',
+  'rgb-led': 'Three LEDs in one: each of R, G and B needs its own resistor. Common cathode: the long leg to GND; common anode: to 3.3 V, and a pin set low lights its colour.',
+  'slide-switch': 'The middle leg (2) is joined to leg 1 or to leg 3, whichever way the switch is slid.',
+  ldr: 'More light, less resistance: about 15 kΩ in dim light, under 1 kΩ in bright light. With a resistor it makes a voltage an ADC pin can read.',
+  battery: 'A supply of its own, not joined to the board. To use it with the board, join its − to the board\'s GND.',
+};
 const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({ value, name: value[0]!.toUpperCase() + value.slice(1), colour }));
 
 export interface InspectorProps {
@@ -93,6 +103,16 @@ export function Inspector({ project, selection, onChange, onClose, onSelect }: I
             <Swatches label="LED colour" hideLabel colours={LED_SWATCHES} value={String(part.props?.color ?? 'red')} onChange={(v) => set('color', v)} />
           </Row>
         )}
+        {part.type === 'rgb-led' && (
+          <Row name="Common">
+            <Segmented label="Common leg" hideLabel value={String(part.props?.common ?? 'cathode')} onChange={(v) => set('common', v)} options={COMMONS} />
+          </Row>
+        )}
+        {part.type === 'battery' && (
+          <Row name="Pack" stack>
+            <Segmented label="Battery pack" hideLabel full value={String(part.props?.kind ?? '2xAA')} onChange={(v) => set('kind', v)} options={PACKS} />
+          </Row>
+        )}
         {part.type === 'potentiometer' && (
           <Row name="Value">
             <Segmented label="Potentiometer value" hideLabel value={String(ohms)} onChange={(v) => set('ohms', Number(v))}
@@ -106,13 +126,29 @@ export function Inspector({ project, selection, onChange, onClose, onSelect }: I
               <span><b className="minus">−</b> cathode <span className="mono">{label(part.legs.k!)}</span></span>
             </span>
           </Row>
+        ) : part.type === 'battery' ? (
+          <Row name="Legs in">
+            <span className="small legs">
+              <span><b className="plus">+</b> red lead <span className="mono">{label(part.legs['+']!)}</span></span>
+              <span><b className="minus">−</b> black lead <span className="mono">{label(part.legs['-']!)}</span></span>
+            </span>
+          </Row>
+        ) : part.type === 'rgb-led' ? (
+          <Row name="Legs in">
+            <span className="small mono">
+              {(['r', 'common', 'g', 'b'] as const).map((k) => `${k === 'common' ? (part.props?.common === 'anode' ? '+' : '−') : k.toUpperCase()} ${label(part.legs[k]!)}`).join(', ')}
+            </span>
+          </Row>
         ) : (
           <Row name="Legs in"><span className="small mono">{Object.values(part.legs).map(label).join(', ')}</span></Row>
         )}
-        <Row name="Joins"><span className="small joins">{joinsOf(project, part.id).join(' ↔ ')}</span></Row>
-        {part.type === 'led' && (
-          <p className="tiny muted led-tip">The long leg (+) goes towards the pin or 3.3 V, the short leg (−) by the flat edge towards GND. Turned round, an LED doesn't light.</p>
-        )}
+        <Row name="Joins">
+          <span className="small joins">{(() => {
+            const joins = joinsOf(project, part.id);
+            return joins.every((j) => j === 'nothing') ? 'nothing yet' : joins.join(' ↔ ');
+          })()}</span>
+        </Row>
+        {TIPS[part.type] && <p className="tiny muted led-tip">{TIPS[part.type]}</p>}
       </>
     );
   } else if (selection.kind === 'wire') {
@@ -183,6 +219,7 @@ export function Inspector({ project, selection, onChange, onClose, onSelect }: I
   );
 }
 
-function Row({ name, children }: { name: string; children: React.ReactNode }) {
-  return <div className="prop"><span>{name}</span><div className="pv">{children}</div></div>;
+/** A property: its name, then what it is; `stack` puts a wide control under its name. */
+function Row({ name, children, stack = false }: { name: string; children: React.ReactNode; stack?: boolean }) {
+  return <div className={stack ? 'prop stack' : 'prop'}><span>{name}</span><div className="pv">{children}</div></div>;
 }

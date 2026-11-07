@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addPart, addWire, freeSpot, legsCentre, partKind, pointAt, sceneOf, snapPart, usedPoints } from '@lib/editor';
+import { addPart, addWire, freeSpot, legsCentre, PART_KINDS, partKind, pointAt, sceneOf, snapPart, usedPoints } from '@lib/editor';
 import { newProject, type Project } from '@lib/project';
 
 /** M4.3 F-10, F-11, F-12: a part snaps to holes; every leg needs an empty hole on the breadboard. */
@@ -88,5 +88,47 @@ describe('M4.3 a free spot (a part clicked in the parts panel)', () => {
     expect(partKind('led')).toMatchObject({ name: 'LED', props: { color: 'red' } });
     expect(Object.keys(partKind('button').legs)).toEqual(['1a', '2a', '1b', '2b']);
     expect(Object.keys(partKind('potentiometer').legs)).toEqual(['1', '2', '3']);
+  });
+});
+
+/** M6.1 the inputs pack in the editor (screens 17, 17b): the slide switch, the light sensor, the RGB LED, the
+ *  battery pack — each part kind's legs are the circuit's own, and they land on holes. */
+describe('M6.1 the inputs pack in the editor', () => {
+  it('a slide switch: legs 1, 2, 3 side by side; a light sensor: two legs two holes apart', () => {
+    const p = empty();
+    expect(snapPart(sceneOf(p), 'slide-switch', at(p, 'bb1.e21'))).toEqual({ 1: 'bb1.e21', 2: 'bb1.e22', 3: 'bb1.e23' });
+    expect(snapPart(sceneOf(p), 'ldr', at(p, 'bb1.a24'))).toEqual({ a: 'bb1.a24', b: 'bb1.a26' });
+  });
+
+  it('an RGB LED: red, the common, green, blue in four holes side by side', () => {
+    const p = empty();
+    expect(snapPart(sceneOf(p), 'rgb-led', at(p, 'bb1.h20'))).toEqual({ r: 'bb1.h20', common: 'bb1.h21', g: 'bb1.h22', b: 'bb1.h23' });
+  });
+
+  it('a battery pack: its red lead in a + rail, its black lead in the − rail below; turned twice, the top rails', () => {
+    const p = empty();
+    expect(snapPart(sceneOf(p), 'battery', at(p, 'bb1.B+20'))).toEqual({ '+': 'bb1.B+20', '-': 'bb1.B-20' });
+    expect(snapPart(sceneOf(p), 'battery', at(p, 'bb1.T+5'), undefined, 2)).toEqual({ '+': 'bb1.T+5', '-': 'bb1.T-5' });
+  });
+
+  it('clicked in the panel: a battery goes on the bottom rails, the others in the first free holes', () => {
+    const s = sceneOf(empty());
+    expect(freeSpot(s, 'battery')).toEqual({ '+': 'bb1.B+1', '-': 'bb1.B-1' });
+    expect(freeSpot(s, 'rgb-led')).toEqual({ r: 'bb1.a1', common: 'bb1.a2', g: 'bb1.a3', b: 'bb1.a4' });
+    expect(freeSpot(s, 'slide-switch')).toEqual({ 1: 'bb1.a1', 2: 'bb1.a2', 3: 'bb1.a3' });
+  });
+
+  it('their names, legs and first props: common cathode, a 2×AA pack', () => {
+    expect(partKind('rgb-led')).toMatchObject({ name: 'RGB LED', props: { common: 'cathode' } });
+    expect(partKind('battery')).toMatchObject({ name: 'Battery pack', props: { kind: '2xAA' } });
+    expect(partKind('slide-switch')).toMatchObject({ name: 'Slide switch' });
+    expect(partKind('ldr')).toMatchObject({ name: 'Light sensor (LDR)' });
+    expect(Object.keys(partKind('rgb-led').legs)).toEqual(['r', 'common', 'g', 'b']);
+    expect(Object.keys(partKind('battery').legs)).toEqual(['+', '-']);
+  });
+
+  it('every part kind\'s legs are the ones its circuit model has', async () => {
+    const { MODELS } = await import('@lib/circuit');
+    for (const k of PART_KINDS) expect(Object.keys(k.legs).sort()).toEqual([...MODELS[k.type]!.legs].sort());
   });
 });

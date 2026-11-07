@@ -154,7 +154,7 @@ export function Workspace({
             <div className="gh">Basics<span className="n">{PART_KINDS.length}</span></div>
             {PART_KINDS.map((k) => (
               <button key={k.type} type="button" className={placing?.type === k.type ? 'pitem drag' : 'pitem'}
-                title={`Drag ${k.name.toLowerCase()} onto the breadboard, or click it and then click where it goes`}
+                title={`Drag the ${inText(k.name)} onto the breadboard, or click it and then click where it goes`}
                 aria-disabled={running || undefined}
                 onMouseDown={(e) => {
                   if (e.button !== 0 || running) return;
@@ -168,7 +168,7 @@ export function Workspace({
               </button>
             ))}
           </div>
-          {running && <p className="small run-lock" role="note">Stop the program to change the circuit. While it runs, press a push button by holding the mouse on it.</p>}
+          {running && <p className="small run-lock" role="note">Stop the program to change the circuit. While it runs, press a push button by holding the mouse on it, click a slide switch to slide it, drag a knob up or down to turn it, and set the light on a light sensor on its card.</p>}
           <p className="tiny muted howto">Drag a part onto the breadboard, or click it and click where it goes. For a wire, drag from a pin or hole to another — or click it, click for each bend, and click where it ends.</p>
         </div>
       </section>
@@ -230,6 +230,11 @@ export function Workspace({
       </section>
     </div>
   );
+}
+
+/** A part's name inside a sentence: 'push button', but 'LED', 'RGB LED'. */
+function inText(name: string): string {
+  return /^[A-Z]{2}/.test(name) ? name : name[0]!.toLowerCase() + name.slice(1);
 }
 
 /** A file's text; a file that isn't text (bytes) is shown empty until the file tree can say so (M5). */

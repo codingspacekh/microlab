@@ -58,7 +58,7 @@ for (const b of BOARDS) {
     await win.getByRole('button', { name: b.button }).click();
     // the circuit of library/examples/blink: GP15 → 220 Ω (a5–a8) → LED (b8–b10) → GND
     await drag(win, await centre(win, '.parts .pitem:has-text("Resistor")'), await between(win, 'bb1.a5', 'bb1.a8'));
-    await drag(win, await centre(win, '.parts .pitem:has-text("LED")'), await between(win, 'bb1.b8', 'bb1.b10'));
+    await drag(win, await centre(win, '.parts .pitem:has-text("red, 5 mm")'), await between(win, 'bb1.b8', 'bb1.b10'));
     await drag(win, await centre(win, `[data-point="${b.pin}"]`), await centre(win, '[data-point="bb1.e5"]'));
     await drag(win, await centre(win, '[data-point^="board.GND"]'), await centre(win, '[data-point="bb1.e10"]'));
     await expect(win.getByRole('status')).toContainText('2 parts · 2 wires');
@@ -134,4 +134,45 @@ test('M5.6 (Q19): a second file, made with +, runs with Run led_test.py; it impo
   await win.getByRole('menuitem', { name: /Run main\.py/ }).click();
   await expect(log).toContainText('running main.py');
   await win.getByRole('button', { name: 'Stop' }).click();
+});
+
+test('M6.1 (screen 17): while running a slide switch is clicked, a knob dragged, the light on a light sensor set on its card', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  // slide switch e20–e22: leg 1 (e20) to GND, leg 2 (e21) to GP14; knob e10–e14: GND, GP26, 3V3 (up = more); a light sensor
+  await drag(win, await centre(win, '.parts .pitem:has-text("Slide switch")'), await centre(win, '[data-point="bb1.e21"]'));
+  await drag(win, await centre(win, '[data-point="board.GND@18"]'), await centre(win, '[data-point="bb1.a20"]'));
+  await drag(win, await centre(win, '[data-point="board.GP14"]'), await centre(win, '[data-point="bb1.a21"]'));
+  await drag(win, await centre(win, '.parts .pitem:has-text("Potentiometer")'), await centre(win, '[data-point="bb1.e12"]'));
+  await drag(win, await centre(win, '[data-point="board.GND@23"]'), await centre(win, '[data-point="bb1.a10"]'));
+  await drag(win, await centre(win, '[data-point="board.GP26"]'), await centre(win, '[data-point="bb1.a12"]'));
+  await drag(win, await centre(win, '[data-point="board.3V3"]'), await centre(win, '[data-point="bb1.a14"]'));
+  await drag(win, await centre(win, '.parts .pitem:has-text("Light sensor")'), await between(win, 'bb1.j26', 'bb1.j28'));
+  await expect(win.getByRole('status')).toContainText('3 parts · 5 wires');
+  await setCode(win, [
+    'from machine import Pin, ADC', 'import time', 'sw = Pin(14, Pin.IN, Pin.PULL_UP)', 'knob = ADC(26)', 'last = None', 'while True:',
+    '    now = (sw.value(), knob.read_u16() > 45000)', '    if now != last:',
+    '        print("switch", now[0], "knob high" if now[1] else "knob low")', '        last = now', '    time.sleep_ms(20)', '',
+  ].join('\n'));
+
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const log = win.getByRole('log', { name: 'Console' });
+  await expect(log).toContainText('switch 0 knob low', { timeout: 5000 });   // slid to 1 joins 2–1: GND
+  await win.locator('[data-part="sw1"]').click();
+  await expect(log).toContainText('switch 1 knob low', { timeout: 2000 });
+  await expect(win.locator('[data-part="sw1"]')).toHaveAttribute('data-position', '1');
+  const knob = await centre(win, '[data-part="pot1"]');
+  await win.mouse.move(knob.x, knob.y);
+  await win.mouse.down();
+  await win.mouse.move(knob.x, knob.y - 60, { steps: 4 });
+  await win.mouse.up();
+  await expect(log).toContainText('switch 1 knob high', { timeout: 2000 });
+
+  const card = win.getByRole('group', { name: 'Light on LDR1' });
+  await expect(card).toContainText('LDR1 is 1.4 kΩ now');
+  await card.getByRole('slider').focus();
+  await win.keyboard.press('End');
+  await expect(card).toContainText('LDR1 is 100 Ω now');
+  await win.getByRole('button', { name: 'Stop' }).click();
+  await expect(card).toHaveCount(0);
 });

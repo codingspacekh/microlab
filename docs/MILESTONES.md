@@ -611,7 +611,7 @@ connection problem says how to fix it.
 | M3 Code drives the circuit | ✅ Done ([acceptance](acceptance/M3.md)) | 2026-11-06 | `v0.3.0` |
 | M4 Walking skeleton | ✅ Done — with Tinkercad-style building (3b) at the teacher's request; Blink by hand on the three boards checked by the teacher ([acceptance](acceptance/M4.md)) | 2026-11-06 | `v0.4.0` |
 | M5 Full editor | ✅ Merged — all 7 slices (rotate / duplicate / select several / undo; zoom, pan, hover; bends and pin cards; the inspector's Joins; autocomplete per board; the project's files and Run the open file; autosave, recovery and recent projects); the teacher's gate answers built (the wheel zooms, wires follow the part); **open gate item**: the side-by-side look at screens 01 / 02 / 02b, merged first by the teacher's decision ([acceptance](acceptance/M5.md)) | 2026-11-07 (partly) | `v0.5.0` |
-| M6 Parts pack 1: inputs | 🔨 Started 2026-11-07 — slice 1a: the engine, the sim and the examples for the slide switch, LDR, RGB LED, battery packs, the GPIO board's USB ([acceptance](acceptance/M6.md)) | | |
+| M6 Parts pack 1: inputs | 🔨 Started 2026-11-07 — slice 1 done: the slide switch, LDR, RGB LED, battery packs and the GPIO board's USB in the engine, the examples and the editor, with their controls while running (screens 17, 17b; and a knob dragged while running) ([acceptance](acceptance/M6.md)) | | |
 | M7 Parts pack 2: outputs & displays | ⏳ | | |
 | M8 Learn | ⏳ | | |
 | M9 Errors, faults & multimeter | ⏳ | | |
