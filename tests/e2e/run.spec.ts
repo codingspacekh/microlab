@@ -115,7 +115,8 @@ test('M5.6 (Q19): a second file, made with +, runs with Run led_test.py; it impo
   const win = await app.firstWindow();
   await win.getByRole('button', { name: 'New Pico W project' }).click();
   const make = async (name: string, code: string) => {
-    await win.getByRole('button', { name: 'Add a new file' }).click();
+    await win.getByRole('button', { name: 'Add a file or a library' }).click();
+    await win.getByRole('menuitem', { name: 'New file…' }).click();
     await win.getByRole('textbox', { name: 'New file' }).fill(name);
     await win.keyboard.press('Enter');
     await win.getByRole('textbox', { name }).click();
@@ -352,4 +353,22 @@ test('M6.6 (screen 06): the micro:bit inputs card — button A held, the tempera
   await card.getByRole('slider', { name: 'Tilt' }).focus();
   await win.keyboard.press('ArrowRight');
   await expect(log).toContainText('- 50 64', { timeout: 3000 });
+});
+
+test('M6.7 (screen 22): Add a library from the + menu puts bmp280 in lib/ with its licence; main.py imports it in the real worker', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await win.getByRole('button', { name: 'Add a file or a library' }).click();
+  await win.getByRole('menuitem', { name: 'Add a library…' }).click();
+  const dialog = win.getByRole('dialog', { name: 'Add a library' });
+  await dialog.getByRole('button', { name: 'Add bmp280' }).click();
+  await expect(dialog.getByRole('listitem', { name: 'BMP280 air pressure' })).toContainText('in lib/');
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await setCode(win, "from bmp280 import BMP280\nprint('library', BMP280.__name__)\n");
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.getByRole('log', { name: 'Console' })).toContainText('library BMP280', { timeout: 5000 });
+  await win.getByRole('button', { name: 'Project files' }).click();
+  const files = win.getByRole('complementary', { name: 'Project files' });
+  await expect(files.getByRole('treeitem', { name: /bmp280\.py/ })).toBeVisible();
+  await expect(files.getByRole('treeitem', { name: /LICENSE-bmp280\.txt/ })).toBeVisible();
 });

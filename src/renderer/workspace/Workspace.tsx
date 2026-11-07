@@ -7,6 +7,8 @@ import { CodeEditor } from '../editor/CodeEditor';
 import type { RunState } from '../app/useRun';
 import { Divider } from '../ui/Divider';
 import { Icon } from '../ui/Icon';
+import { MenuButton } from '../ui/Menu';
+import { AddLibrary } from './AddLibrary';
 import type { MicrolabApi } from '../app/api';
 import { BOARD_ART, BOARD_NAMES } from '../app/boards';
 import { Canvas, type Placing, type Selection } from './Canvas';
@@ -75,6 +77,7 @@ export function Workspace({
   // the files open in tabs (F-21): main.py, then each one opened, until it is closed
   const [tabs, setTabs] = useState<string[]>(() => [file]);
   const [files, setFiles] = useState<{ ask: FilesAsk | null } | null>(null);
+  const [libraries, setLibraries] = useState(false);
   const shownTabs = [...tabs.filter((t) => t in doc.files), ...(tabs.includes(file) || !(file in doc.files) ? [] : [file])];
   const openFile = (p: string) => { setTabs((t) => (t.includes(p) ? t : [...t, p])); onFile?.(p); };
   const closeTab = (p: string) => {
@@ -185,7 +188,8 @@ export function Workspace({
           onUndo={onUndo} onRedo={onRedo} />
         {banner && <div className="cbanner">{banner}</div>}
         {selection.length === 1 && (
-          <Inspector key={`${selection[0]!.kind}:${selection[0]!.id}`} project={project} selection={selection[0]!} onChange={setProject} onClose={() => setSelection([])} onSelect={setSelection} />
+          <Inspector key={`${selection[0]!.kind}:${selection[0]!.id}`} project={project} selection={selection[0]!} onChange={setProject} onClose={() => setSelection([])} onSelect={setSelection}
+            doc={doc} onDoc={onChange} />
         )}
       </section>
       <Divider label="Code panel width" value={sidePx} min={LIMITS.side[0]} max={sideMax} edge="right"
@@ -206,7 +210,10 @@ export function Workspace({
             ))}
           </div>
           <span className="r">
-            <button type="button" className="btn ghost sm icon" aria-label="Add a new file" title="New file" onClick={() => setFiles({ ask: { kind: 'new' } })}><Icon name="plus" size={14} /></button>
+            <MenuButton label="Add a file or a library" icon="plus" alignRight items={[
+              { label: 'New file…', icon: 'file', onSelect: () => setFiles({ ask: { kind: 'new' } }) },
+              { label: 'Add a library…', icon: 'book', onSelect: () => setLibraries(true) },
+            ]} />
             <button type="button" className="btn ghost sm icon" aria-label="Project files" title="Project files" aria-expanded={!!files}
               onClick={() => setFiles((f) => (f ? null : { ask: null }))}><Icon name="more" size={14} /></button>
           </span>
@@ -220,6 +227,7 @@ export function Workspace({
           : <p className="small muted not-text">{editing} isn't a text file, so it can't be shown here.</p>}
         {files && (
           <FilesPanel key={files.ask ? 'ask' : 'list'} doc={doc} ask={files.ask} onDoc={onChange} onOpen={openFile} onClose={() => setFiles(null)}
+            onAddLibrary={() => setLibraries(true)}
             onRenamed={(from, to) => {
               const move = (p: string) => (p === from ? to : p.startsWith(`${from}/`) ? `${to}/${p.slice(from.length + 1)}` : p);
               setTabs((t) => t.map(move));
@@ -231,6 +239,7 @@ export function Workspace({
               if (gone(editing)) onFile?.('main.py' in doc.files && !gone('main.py') ? 'main.py' : shownTabs.find((t) => !gone(t)) ?? 'main.py');
             }} />
         )}
+        {libraries && <AddLibrary doc={doc} onDoc={onChange} onCopy={(t) => void api.app.copy(t)} onClose={() => setLibraries(false)} />}
         <Console chunks={run.console} running={running} entry={runFile} onClear={onClearConsole} board={realBoard} tab={consoleTab} onTab={onConsoleTab} />
       </section>
     </div>

@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { boardData, deletePart, deleteWire, duplicate, joinsOf, partKind, rotateParts, setBreadboardSize, setPartProp, setWireColour, straighten } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { BreadboardSize } from '@lib/circuit';
-import type { Project } from '@lib/project';
+import type { Project, ProjectDoc } from '@lib/project';
 import { formatValue } from '@lib/units';
 import { Chips, Icon, Segmented, Stepper, Swatches } from '../ui';
 import { MESSAGES, wireColour, type Selection } from './Canvas';
+import { LibraryLine } from './AddLibrary';
 import { bands, KIT, LED_SWATCHES, PartIcon, WIRE_COLOURS } from './drawings';
 
 /**
@@ -67,7 +68,7 @@ const TIPS: Record<string, string> = {
   bmp280: 'On I²C at 0x76 (SDO to VCC: 0x77); a 3.3 V part. It starts asleep: write 0x27 to 0xF4, then read 0xF7–0xFC and its calibration at 0x88 — a driver turns them into °C and hPa.',
   ds18b20: 'On 1-Wire: import onewire, ds18x20 (Pico W, ESP32). The module has its 4.7 kΩ pull-up. A reading takes 750 ms after convert_temp(); before the first it says 85 °C.',
   ds1302: 'CLK, DAT and RST to any pins; a driver sends bytes LSB first (lib/ds1302.py in the example). Its coin cell keeps the time while the board is off.',
-  vl53l0x: 'On I²C at 0x29 (XSHUT low: off). Its start-up is long: use a driver (Pololu\'s, in MicroPython). A range takes about 30 ms; nothing within 2 m reads 8190.',
+  vl53l0x: 'On I²C at 0x29 (XSHUT low: off). Its start-up is long: use a driver (the vl53l0x library, above). A range takes about 30 ms; nothing within 2 m reads 8190.',
   max30102: 'On I²C at 0x57. Set SpO2 mode (0x09 = 3), then read its FIFO: red and IR, 3 bytes each. A program finds the beats in IR, and the oxygen from red against IR.',
   battery: 'A supply of its own, not joined to the board. To use it with the board, join its − to the board\'s GND.',
 };
@@ -81,9 +82,12 @@ export interface InspectorProps {
   onClose: () => void;
   /** Duplicate selects the copy (M5.4). */
   onSelect?: (s: Selection[]) => void;
+  /** The project's files, for a part's Library line (M6.7, screen 22b): what it needs, and Add. */
+  doc?: ProjectDoc;
+  onDoc?: (doc: ProjectDoc) => void;
 }
 
-export function Inspector({ project, selection, onChange, onClose, onSelect }: InspectorProps) {
+export function Inspector({ project, selection, onChange, onClose, onSelect, doc, onDoc }: InspectorProps) {
   const [error, setError] = useState<string | null>(null);
   const board = project.board as BoardId;
   const label = (ref: string) => {
@@ -213,6 +217,7 @@ export function Inspector({ project, selection, onChange, onClose, onSelect }: I
             return joins.every((j) => j === 'nothing') ? 'nothing yet' : joins.join(' ↔ ');
           })()}</span>
         </Row>
+        {doc && onDoc && <LibraryLine doc={{ ...doc, project }} type={part.type} onDoc={onDoc} />}
         {(() => {
           const tip = TIPS[part.type === 'buzzer' ? `buzzer-${part.props?.kind === 'passive' ? 'passive' : 'active'}`
             : part.type === 'temp-sensor' ? `temp-${part.props?.kind === 'LM35' ? 'LM35' : 'TMP36'}` : part.type];
