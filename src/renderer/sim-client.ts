@@ -45,7 +45,7 @@ const SLOT: Record<string, string[]> = {
   'button-module': ['pressed'], 'ldr-module': ['lux'], 'pot-module': ['position'], touch: ['pressed'], vibration: ['pressed'],
   'ir-obstacle': ['position'], hall: ['position'], 'water-level': ['position'], flame: ['position'], raindrop: ['position'], mq2: ['position'],
   joystick: ['x', 'y', 'pressed'], 'rotary-encoder': ['steps', 'pressed'], 'speed-sensor': ['rpm'],
-  bmp280: ['celsius', 'hpa'], ds18b20: ['celsius'],                          // M6.5b: the air (the PCF8591 reads the circuit)
+  bmp280: ['celsius', 'hpa'], ds18b20: ['celsius'], vl53l0x: ['cm'], max30102: ['bpm', 'spo2', 'position'],                          // M6.5b: the air (the PCF8591 reads the circuit)
 };
 
 export function inputSlots(project: Project): string[] {

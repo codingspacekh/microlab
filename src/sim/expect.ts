@@ -22,6 +22,7 @@ export const expectSchema = z.object({
     at: z.number().min(0), part: z.string(), pressed: z.boolean().optional(), position: z.number().optional(), lux: z.number().optional(), celsius: z.number().optional(),
     humidity: z.number().optional(), cm: z.number().optional(), tiltx: z.number().optional(), tilty: z.number().optional(),
     x: z.number().optional(), y: z.number().optional(), steps: z.number().optional(), rpm: z.number().optional(), hpa: z.number().optional(),
+    bpm: z.number().optional(), spo2: z.number().optional(),
   })).optional(),
   parts: z.record(z.string(), z.object({
     blinks: z.number().positive().optional(),

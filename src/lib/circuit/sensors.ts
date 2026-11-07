@@ -33,6 +33,9 @@ export const SENSORS = {
   /** DS1302 RTC module (M6.5b): 2–5.5 V; it answers pin by pin (ds1302.ts). */
   ds1302: { minVolts: 2.0, loadOhms: 10_000 },
   bmp280: { minVolts: 1.8, loadOhms: 10_000 },
+  /** VL53L0X and MAX30102 on their modules (M6.5b): they answer on I²C (i2c.ts). */
+  vl53l0x: { minVolts: 2.6, loadOhms: 330 },
+  max30102: { minVolts: 3.0, loadOhms: 600 },
   /** TMP36: 2.7–5.5 V, 0.5 V + 10 mV/°C (−40…125 °C). LM35: 4–30 V, 10 mV/°C (0…150 °C as wired simply). ≈ 50 µA. */
   'temp-sensor': { TMP36: { minVolts: 2.7, offset: 0.5, min: -40, max: 125 }, LM35: { minVolts: 4.0, offset: 0, min: 0, max: 150 }, loadOhms: 100_000 },
 } as const;
@@ -73,6 +76,8 @@ export function sensorDrive(type: SensorType, props: Record<string, unknown>, in
     case 'bmp280':
     case 'ds18b20':
     case 'ds1302':
+    case 'vl53l0x':
+    case 'max30102':
       return OFF;   // its DATA is its pull-up and its protocol, no driven level
     case 'hc-sr04':
       return input.echo ? { volts: supply, ohms: 100 } : { volts: 0, ohms: 100 };

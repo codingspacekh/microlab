@@ -59,8 +59,10 @@ export interface PartState {
   y?: number;
   steps?: number;
   rpm?: number;
-  /** A BMP280's air pressure, hPa (M6.5b). */
+  /** A BMP280's air pressure, hPa; a MAX30102's heart rate and oxygen (M6.5b). */
   hpa?: number;
+  bpm?: number;
+  spo2?: number;
   /** An MPU6050's tilt, degrees (M6.4b). */
   tiltx?: number;
   tilty?: number;

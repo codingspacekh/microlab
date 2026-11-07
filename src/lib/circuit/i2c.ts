@@ -210,3 +210,182 @@ export class Bmp280 implements I2CDevice {
     if (mode !== 3) this.regs[0xf4] = this.regs[0xf4]! & ~3;
   }
 }
+
+/** VL53L0X (ST) on a module (2.6–5.5 V with its regulator): at 0x29 (XSHUT pulled up; low: shut down). */
+export const VL53L0X = { address: 0x29, minVolts: 2.6, loadOhms: 330, rangeUs: 30_000, maxMm: 2000, noTarget: 8190 } as const;
+
+/**
+ * A VL53L0X as its drivers see it: two pages of registers (0xFF = 1 selects the second, where the stop variable 0x91
+ * lives); IDENTIFICATION_MODEL_ID 0xC0 = 0xEE; 0x83 answers the SPAD-info poll; writing bit 0 of SYSRANGE_START (0x00)
+ * starts a measurement (the bit reads back clear), RESULT_INTERRUPT_STATUS (0x13) says 0x04 once it is done (≈ 30 ms,
+ * the default timing budget), the range in mm at RESULT_RANGE_STATUS + 10 (0x1E, big-endian), SYSTEM_INTERRUPT_CLEAR
+ * (0x0B) clears it; mode 0x02: back to back. Anything else is kept as written, as a register.
+ */
+export class Vl53l0x implements I2CDevice {
+  private pages = [new Uint8Array(256), new Uint8Array(256)];
+  private pointer = 0;
+  private started = -1;     // when the measurement under way started (µs); -1: none
+  private ready = false;
+  private continuous = false;
+  private mm = 0;
+
+  constructor(private readonly now: () => number, private readonly distanceMm: () => number) {
+    this.pages[0]![0xc0] = 0xee;
+    this.pages[0]![0xc1] = 0xaa;
+    this.pages[0]![0xc2] = 0x10;
+    this.pages[1]![0x91] = 0x3c;   // the stop variable
+    this.pages[1]![0x92] = 0x2c;   // SPAD count and type
+  }
+
+  private page(): Uint8Array {
+    return this.pages[this.pages[0]![0xff] === 1 ? 1 : 0]!;
+  }
+
+  private settle(): void {
+    if (this.started < 0 || this.now() < this.started + VL53L0X.rangeUs) return;
+    const d = this.distanceMm();
+    this.mm = d > VL53L0X.maxMm ? VL53L0X.noTarget : Math.max(0, Math.round(d));
+    this.ready = true;
+    this.started = this.continuous ? this.now() : -1;
+  }
+
+  write(bytes: number[]): void {
+    if (!bytes.length) return;
+    this.pointer = bytes[0]!;
+    for (const b of bytes.slice(1)) {
+      const reg = this.pointer;
+      if (reg === 0xff) this.pages[0]![0xff] = b;
+      else if (this.page() === this.pages[0] && reg === 0x00 && b & 0x03) {   // SYSRANGE_START
+        this.continuous = (b & 0x02) !== 0;
+        this.started = this.now();
+        this.ready = false;
+      } else if (this.page() === this.pages[0] && reg === 0x0b) this.ready = false;   // SYSTEM_INTERRUPT_CLEAR
+      else this.page()[reg] = b;
+      this.pointer = (this.pointer + 1) & 0xff;
+    }
+  }
+
+  read(n: number): number[] {
+    this.settle();
+    const out: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const reg = this.pointer;
+      const p0 = this.page() === this.pages[0];
+      if (p0 && reg === 0x00) out.push(this.started >= 0 && !this.continuous ? 0 : this.continuous ? 0x02 : 0);
+      else if (p0 && reg === 0x13) out.push(this.ready ? 0x04 : 0);
+      else if (p0 && reg === 0x14) out.push(this.ready ? 0x5e : 0);
+      else if (p0 && reg === 0x1e) out.push(this.mm >> 8);
+      else if (p0 && reg === 0x1f) out.push(this.mm & 0xff);
+      else if (reg === 0x83) out.push(this.page()[0x83] || 0x10);   // the SPAD-info poll ends
+      else out.push(this.page()[reg]!);
+      this.pointer = (this.pointer + 1) & 0xff;
+    }
+    return out;
+  }
+}
+
+/** MAX30102 (Maxim / Analog Devices) on a module (3.3–5 V): at 0x57, part id 0x15; a 32-sample FIFO. */
+export const MAX30102 = { address: 0x57, partId: 0x15, minVolts: 3.0, loadOhms: 600, rates: [50, 100, 200, 400, 800, 1000, 1600, 3200] } as const;
+
+/** What a MAX30102 sees: a finger on it, its heart rate, the blood's oxygen. */
+export interface PulseInput { finger: boolean; bpm: number; spo2: number }
+
+/**
+ * A MAX30102 as its drivers see it: MODE_CONFIG (0x09: bit 6 reset, 0x02 heart rate — red, 0x03 SpO2 — red and IR),
+ * SPO2_CONFIG (0x0A: the sample rate), the FIFO pointers (write 0x04, overflow 0x05, read 0x06) and FIFO_DATA (0x07):
+ * each sample is 3 bytes a LED, 18 bits. Samples arrive at the sample rate from when a mode is set; a finger's pulse
+ * makes them rise at each beat (a systolic peak and a smaller dicrotic one), red's swing / IR's being the ratio
+ * R = (110 − SpO2) / 25 that a program's estimate (SpO2 ≈ 110 − 25 R) turns back.
+ */
+export class Max30102 implements I2CDevice {
+  private regs = new Uint8Array(256);
+  private pointer = 0;
+  private since = -1;          // when sampling started (µs)
+  private made = 0;            // samples made since then
+  private fifo: number[][] = [];   // each sample: its bytes
+  private byte = 0;            // bytes of the head sample already read
+  private rd = 0;
+  private overflow = 0;
+
+  constructor(private readonly now: () => number, private readonly input: () => PulseInput) {
+    this.reset();
+  }
+
+  private reset(): void {
+    this.regs.fill(0);
+    this.regs[0xff] = MAX30102.partId;
+    this.since = -1;
+    this.fifo = [];
+    this.byte = 0;
+    this.rd = 0;
+    this.overflow = 0;
+  }
+
+  private leds(): number {
+    const mode = this.regs[0x09]! & 7;
+    return mode === 2 ? 1 : mode === 3 ? 2 : mode === 7 ? 2 : 0;
+  }
+
+  private sample(t: number): number[] {
+    const { finger, bpm, spo2 } = this.input();
+    const s = t / 1e6;
+    const phase = ((s * bpm) / 60) % 1;
+    const pulse = Math.exp(-(((phase - 0.15) / 0.07) ** 2)) + 0.4 * Math.exp(-(((phase - 0.45) / 0.1) ** 2));
+    const noise = Math.sin(s * 37.7) * 20;   // a little, the same each run
+    const r = (110 - spo2) / 25;
+    const ir = finger ? 100_000 + 1500 * pulse + noise : 1000 + noise;
+    const red = finger ? 80_000 + r * 1200 * pulse + noise : 800 + noise;
+    const bytes = (v: number) => {
+      const x = Math.max(0, Math.min(0x3ffff, Math.round(v)));
+      return [(x >> 16) & 3, (x >> 8) & 0xff, x & 0xff];
+    };
+    return this.leds() === 1 ? bytes(red) : [...bytes(red), ...bytes(ir)];
+  }
+
+  /** The samples due by now into the FIFO (32 deep; past that they are lost and counted, rollover off). */
+  private fill(): void {
+    if (this.since < 0 || !this.leds()) return;
+    const rate = MAX30102.rates[(this.regs[0x0a]! >> 2) & 7]!;
+    const due = Math.floor(((this.now() - this.since) * rate) / 1e6);
+    for (; this.made < due; this.made++) {
+      if (this.fifo.length >= 32) { this.overflow = Math.min(31, this.overflow + 1); continue; }
+      this.fifo.push(this.sample(this.since + (this.made * 1e6) / rate));
+    }
+  }
+
+  write(bytes: number[]): void {
+    if (!bytes.length) return;
+    this.pointer = bytes[0]!;
+    for (const b of bytes.slice(1)) {
+      const reg = this.pointer;
+      if (reg === 0x09 && b & 0x40) { this.reset(); continue; }
+      if (reg === 0x09) { this.regs[reg] = b; this.since = this.now(); this.made = 0; this.fifo = []; this.byte = 0; }
+      else if (reg === 0x04 || reg === 0x06) { this.fifo = []; this.byte = 0; this.rd = b & 31; }   // pointers cleared
+      else if (reg === 0x05) this.overflow = b & 31;
+      else if (reg !== 0xff) this.regs[reg] = b;
+      if (reg !== 0x07) this.pointer = (this.pointer + 1) & 0xff;
+    }
+  }
+
+  read(n: number): number[] {
+    this.fill();
+    const out: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const reg = this.pointer;
+      if (reg === 0x07) {   // FIFO_DATA: the pointer stays on it
+        const head = this.fifo[0];
+        if (!head) { out.push(0); continue; }
+        out.push(head[this.byte++]!);
+        if (this.byte >= head.length) { this.fifo.shift(); this.byte = 0; this.rd = (this.rd + 1) & 31; }
+        continue;
+      }
+      if (reg === 0x04) out.push((this.rd + this.fifo.length) & 31);
+      else if (reg === 0x05) out.push(this.overflow);
+      else if (reg === 0x06) out.push(this.rd);
+      else if (reg === 0x00) out.push(this.fifo.length ? 0x40 : 0);   // PPG_RDY
+      else out.push(this.regs[reg]!);
+      this.pointer = (this.pointer + 1) & 0xff;
+    }
+    return out;
+  }
+}

@@ -1,5 +1,5 @@
 import type { BoardData } from '@lib/boards';
-import { Bmp280, BUZZER, dhtBytes, Ds1302, Ds18b20, OneWireBus, type OneWireDevice, ENCODER, Pcf8591, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
+import { Bmp280, Max30102, Vl53l0x, BUZZER, dhtBytes, Ds1302, Ds18b20, OneWireBus, type OneWireDevice, ENCODER, Pcf8591, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
 
@@ -28,6 +28,8 @@ export interface PartChange {
   steps?: number;
   rpm?: number;
   hpa?: number;
+  bpm?: number;
+  spo2?: number;
 }
 
 /** Up to this many PWM pins are averaged exactly (2^n solves: an RGB LED is 3); beyond, their DC average. */
@@ -49,9 +51,9 @@ export type PartTraceEntry = [number, string, PartView];
 
 /** The live input slots a part takes (sim-client's SLOT): 'pressed:btn1', 'celsius:dht1' … */
 /** Parts that answer on I²C (M6.4b, M6.5b). */
-const I2C_CHIPS = new Set(['mpu6050', 'pcf8591', 'bmp280']);
+const I2C_CHIPS = new Set(['mpu6050', 'pcf8591', 'bmp280', 'vl53l0x', 'max30102']);
 
-const LIVE_KINDS = new Set(['pressed', 'position', 'lux', 'celsius', 'humidity', 'cm', 'tiltx', 'tilty', 'x', 'y', 'steps', 'rpm', 'hpa']);
+const LIVE_KINDS = new Set(['pressed', 'position', 'lux', 'celsius', 'humidity', 'cm', 'tiltx', 'tilty', 'x', 'y', 'steps', 'rpm', 'hpa', 'bpm', 'spo2']);
 
 const SERVO = { minUs: 500, maxUs: 2500, minVolts: 4.5, rest: 90 };
 
@@ -130,7 +132,7 @@ export class CircuitHost {
       if (c.humidity !== undefined) s.humidity = c.humidity;
       if (c.cm !== undefined) s.cm = c.cm;
       if (c.tiltx !== undefined) s.tiltx = c.tiltx;
-      for (const k of ['x', 'y', 'steps', 'rpm', 'hpa'] as const) if (c[k] !== undefined) s[k] = c[k];
+      for (const k of ['x', 'y', 'steps', 'rpm', 'hpa', 'bpm', 'spo2'] as const) if (c[k] !== undefined) s[k] = c[k];
       if (c.tilty !== undefined) s.tilty = c.tilty;
       changed = true;
     }
@@ -264,7 +266,9 @@ export class CircuitHost {
       const above = (leg: string) => this.volts_(part.id, leg) - this.volts_(part.id, 'gnd');
       const chip = this.chipOf(part.id, part.type);
       const address = part.type === 'mpu6050' ? (above('ad0') >= 1.5 ? MPU6050.address + 1 : MPU6050.address)
-        : part.type === 'bmp280' ? (above('sdo') >= 1.5 ? 0x77 : 0x76) : 0x48;
+        : part.type === 'bmp280' ? (above('sdo') >= 1.5 ? 0x77 : 0x76)
+        : part.type === 'vl53l0x' ? 0x29 : part.type === 'max30102' ? 0x57 : 0x48;
+      if (part.type === 'vl53l0x' && above('xshut') < 1.5) continue;   // XSHUT low: shut down
       out.set(address, chip);
     }
     return out;
@@ -281,6 +285,8 @@ export class CircuitHost {
     const s = () => this.parts[id] ?? {};
     const above = (leg: string) => this.volts_(id, leg) - this.volts_(id, 'gnd');
     if (type === 'pcf8591') chip = new Pcf8591(() => ({ ain: [above('ain0'), above('ain1'), above('ain2'), above('ain3')], vref: above('vcc') }));
+    else if (type === 'vl53l0x') chip = new Vl53l0x(() => this.now(), () => (s().cm ?? SENSOR_START.cm) * 10);
+    else if (type === 'max30102') chip = new Max30102(() => this.now(), () => ({ finger: (s().position ?? 1) >= 0.5, bpm: s().bpm ?? 72, spo2: s().spo2 ?? 98 }));
     else if (type === 'bmp280') chip = new Bmp280(() => ({ celsius: s().celsius ?? SENSOR_START.celsius, hpa: s().hpa ?? 1013.25 }));
     else chip = new Mpu6050(() => ({ tiltx: s().tiltx ?? 0, tilty: s().tilty ?? 0, celsius: s().celsius ?? SENSOR_START.celsius }));
     this.chips.set(id, chip);

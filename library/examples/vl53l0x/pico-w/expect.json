@@ -1,0 +1,22 @@
+{
+  "seconds": 2,
+  "inputs": [
+    {
+      "at": 0,
+      "part": "tof1",
+      "cm": 25
+    },
+    {
+      "at": 1.0,
+      "part": "tof1",
+      "cm": 80
+    }
+  ],
+  "console": {
+    "includes": [
+      "250 mm",
+      "800 mm"
+    ]
+  },
+  "ended": "stopped"
+}

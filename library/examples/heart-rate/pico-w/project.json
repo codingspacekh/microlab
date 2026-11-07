@@ -1,0 +1,46 @@
+{
+  "format": 1,
+  "title": "Heart rate (MAX30102)",
+  "board": "pico-w",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "pulse1",
+      "type": "max30102",
+      "legs": {
+        "vcc": "bb1.a10",
+        "scl": "bb1.a11",
+        "sda": "bb1.a12",
+        "int": "bb1.a13",
+        "gnd": "bb1.a14"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "a": "board.3V3",
+      "b": "bb1.e10",
+      "id": "w1"
+    },
+    {
+      "a": "board.GP5",
+      "b": "bb1.e11",
+      "id": "w2"
+    },
+    {
+      "a": "board.GP4",
+      "b": "bb1.e12",
+      "id": "w3"
+    },
+    {
+      "a": "board.GND",
+      "b": "bb1.e14",
+      "id": "w4"
+    }
+  ]
+}

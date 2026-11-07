@@ -111,3 +111,114 @@ describe('M6.5b the BMP280', () => {
     expect(lines(r)).toEqual(['(22.0, 1013.2)', '(-5.0, 950.0)']);
   });
 });
+
+/** VL53L0X (ST) on a module in row a from column 40: VIN GND SCL SDA GPIO1 XSHUT; at 0x29. */
+function tof(): CircuitSpec {
+  const legs = ['vcc', 'gnd', 'scl', 'sda', 'gpio1', 'xshut'];
+  return spec([{ id: 'tof1', type: 'vl53l0x', legs: Object.fromEntries(legs.map((l, i) => [l, `bb1.a${40 + i}`])) }],
+    [w('w1', 'board.3V3', 'bb1.e40'), w('w2', 'board.GND', 'bb1.e41'), w('w3', 'board.GP5', 'bb1.e42'), w('w4', 'board.GP4', 'bb1.e43')]);
+}
+/** The register dance of Pololu's VL53L0X library (MIT), as the MicroPython ports of it do it. */
+const TOF = `
+A = 0x29
+def w(r, v):
+    i2c.writeto_mem(A, r, bytes([v]))
+def r8(r):
+    return i2c.readfrom_mem(A, r, 1)[0]
+def r16(r):
+    b = i2c.readfrom_mem(A, r, 2)
+    return b[0] << 8 | b[1]
+w(0x88, 0); w(0x80, 1); w(0xFF, 1); w(0x00, 0)
+stop = r8(0x91)
+w(0x00, 1); w(0xFF, 0); w(0x80, 0)
+w(0x80, 1); w(0xFF, 1); w(0x00, 0); w(0xFF, 6)
+w(0x83, 0)
+while r8(0x83) == 0:
+    pass
+w(0x83, 1)
+w(0xFF, 1); w(0x00, 1); w(0xFF, 0); w(0x80, 0)
+def measure():
+    w(0x80, 1); w(0xFF, 1); w(0x00, 0); w(0x91, stop); w(0x00, 1); w(0xFF, 0); w(0x80, 0)
+    w(0x00, 0x01)
+    while r8(0x00) & 1:
+        pass
+    t = time.ticks_ms()
+    while r8(0x13) & 7 == 0:
+        pass
+    mm = r16(0x14 + 10)
+    w(0x0B, 1)
+    return mm, time.ticks_diff(time.ticks_ms(), t)
+`;
+
+describe('M6.5b the VL53L0X time-of-flight sensor', () => {
+  it('at 0x29, model id 0xEE; through Pololu\'s start-up, a single range in ≈ 30 ms: the distance in mm; nothing in 2 m: 8190', async () => {
+    const r = await run(tof(), `${I2C}print(i2c.scan(), hex(i2c.readfrom_mem(0x29, 0xC0, 1)[0]))\n${TOF}\nprint(measure())\ntime.sleep(0.3)\nprint(measure()[0])\n`,
+      [{ atUs: 0, part: 'tof1', cm: 25 }, { atUs: 200_000, part: 'tof1', cm: 300 }]);
+    const [scan, first, far] = lines(r);
+    expect(scan).toBe('[41] 0xee');
+    const [mm, ms] = first!.slice(1, -1).split(', ').map(Number) as [number, number];
+    expect(mm).toBe(250);
+    expect(ms).toBeGreaterThanOrEqual(28);
+    expect(ms).toBeLessThanOrEqual(36);
+    expect(far).toBe('8190');
+  });
+});
+
+/** MAX30102 (Maxim / Analog Devices) on a module in row a from column 50: VIN SCL SDA INT GND; at 0x57. */
+function oximeter(): CircuitSpec {
+  const legs = ['vcc', 'scl', 'sda', 'int', 'gnd'];
+  return spec([{ id: 'pulse1', type: 'max30102', legs: Object.fromEntries(legs.map((l, i) => [l, `bb1.a${50 + i}`])) }],
+    [w('w1', 'board.3V3', 'bb1.e50'), w('w2', 'board.GP5', 'bb1.e51'), w('w3', 'board.GP4', 'bb1.e52'), w('w4', 'board.GND', 'bb1.e54')]);
+}
+/** Set up SpO2 mode at 100 samples a second, then read the FIFO for `s` seconds into red and ir. */
+const OXI = (s: number) => `
+A = 0x57
+w = lambda r, v: i2c.writeto_mem(A, r, bytes([v]))
+rd = lambda r, n=1: i2c.readfrom_mem(A, r, n)
+print(hex(rd(0xFF)[0]))
+w(0x09, 0x40)                 # reset
+w(0x0A, 0x27)                 # SpO2: 4096 nA range, 100 samples/s, 18 bits
+w(0x0C, 0x24); w(0x0D, 0x24)  # LED currents
+w(0x09, 0x03)                 # SpO2 mode: red and IR
+red, ir = [], []
+t0 = time.ticks_ms()
+while time.ticks_diff(time.ticks_ms(), t0) < ${s * 1000}:
+    n = (rd(0x04)[0] - rd(0x06)[0]) & 31
+    for _ in range(n):
+        d = rd(0x07, 6)
+        red.append((d[0] << 16 | d[1] << 8 | d[2]) & 0x3FFFF)
+        ir.append((d[3] << 16 | d[4] << 8 | d[5]) & 0x3FFFF)
+    time.sleep_ms(50)
+def beats(x):
+    m = sum(x) / len(x)
+    n, up = 0, False
+    for v in x:
+        if not up and v > m + (max(x) - m) * 0.5:
+            n, up = n + 1, True
+        elif up and v < m:
+            up = False
+    return n
+def ac_dc(x):
+    return (max(x) - min(x)) / (sum(x) / len(x))
+`;
+
+describe('M6.5b the MAX30102 pulse oximeter', () => {
+  it('part id 0x15; in SpO2 mode 100 samples a second fill the FIFO; the beats in 6 s give the heart rate, the red / IR ratio the SpO2', async () => {
+    const r = await run(oximeter(), `${I2C}${OXI(6)}\nprint(len(ir), beats(ir) * 10, round(110 - 25 * ac_dc(red) / ac_dc(ir)))\n`,
+      [{ atUs: 0, part: 'pulse1', bpm: 80, spo2: 96 }]);
+    const [id, line] = lines(r);
+    expect(id).toBe('0x15');
+    const [n, bpm, spo2] = line!.split(' ').map(Number) as [number, number, number];
+    expect(n).toBeGreaterThanOrEqual(590);
+    expect(n).toBeLessThanOrEqual(605);
+    expect(bpm).toBeGreaterThanOrEqual(70);
+    expect(bpm).toBeLessThanOrEqual(90);
+    expect(spo2).toBeGreaterThanOrEqual(95);
+    expect(spo2).toBeLessThanOrEqual(97);
+  });
+
+  it('no finger on it: the readings stay low (under 5000)', async () => {
+    const r = await run(oximeter(), `${I2C}${OXI(1)}\nprint(max(ir) < 5000, max(red) < 5000)\n`, [{ atUs: 0, part: 'pulse1', position: 0 }]);
+    expect(lines(r)).toEqual(['0x15', 'True True']);
+  });
+});

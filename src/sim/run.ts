@@ -300,6 +300,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     },
     /** Bytes ACKed, or -1 when the address is not ACKed. */
     i2c_write: (sda: string, scl: string, addr: number, hex: string): number => {
+      clock.sleepUs(I2C_BYTE_US * (1 + hex.length / 2));   // the address and the bytes, on the wire
       const chip = circuit?.i2c(sda, scl).get(addr);
       log(`i2c sda=${sda} scl=${scl} write ${hexByte(addr)}${hex ? ' ' + spaced(hex) : ''}${chip ? '' : ' nack'}`);
       if (!chip) return -1;
@@ -308,6 +309,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     },
     /** The bytes read (hex), or -1 when the address is not ACKed. */
     i2c_read: (sda: string, scl: string, addr: number, n: number): string | number => {
+      clock.sleepUs(I2C_BYTE_US * (1 + n));
       const chip = circuit?.i2c(sda, scl).get(addr);
       if (!chip) { log(`i2c sda=${sda} scl=${scl} read ${hexByte(addr)} ${n} nack`); return -1; }
       const data = chip.read(n).map(hexByte).join('');
@@ -378,6 +380,9 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     },
   };
 }
+
+/** A byte on I²C at 400 kHz, with its acknowledge: 9 bits (M6.5b: a chip polled in a loop sees time pass). */
+const I2C_BYTE_US = 22.5;
 
 const hexByte = (n: number) => n.toString(16).padStart(2, '0');
 const spaced = (hex: string) => hex.match(/../g)?.join(' ') ?? '';

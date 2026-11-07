@@ -82,6 +82,19 @@ export const MODELS: Record<string, PartModel> = {
       { kind: 'drive', id: `${id}:aout`, out: leg('aout'), gnd: leg('gnd'), part: id, key: 'aout' },
     ],
   },
+  /** VL53L0X module (M6.5b): VIN GND SCL SDA GPIO1 XSHUT; XSHUT pulled up on the board (low: shut down). */
+  vl53l0x: {
+    legs: ['vcc', 'gnd', 'scl', 'sda', 'gpio1', 'xshut'],
+    devices: ({ id, leg }) => [
+      { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: SENSORS.vl53l0x.loadOhms },
+      { kind: 'resistor', id: `${id}:xshut`, a: leg('vcc'), b: leg('xshut'), ohms: 10_000 },
+    ],
+  },
+  /** MAX30102 module (M6.5b): VIN SCL SDA INT GND. */
+  max30102: {
+    legs: ['vcc', 'scl', 'sda', 'int', 'gnd'],
+    devices: ({ id, leg }) => [{ kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: SENSORS.max30102.loadOhms }],
+  },
   /** DS1302 RTC module (M6.5b): VCC GND CLK DAT RST; DAT driven by the chip while it sends (the sim). */
   ds1302: {
     legs: ['vcc', 'gnd', 'clk', 'dat', 'rst'],
