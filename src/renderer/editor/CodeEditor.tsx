@@ -5,18 +5,22 @@ import { Annotation, EditorState } from '@codemirror/state';
 import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
 import { useEffect, useRef } from 'react';
+import { boardAssist } from './assist';
 import './editor.css';
 
 /**
  * The code editor (F-20, M4.4 basic): CodeMirror 6 with Python, line numbers, undo, bracket matching and four-space
  * indents (MicroPython's own style), coloured as the prototype (screens 02, 03). Tab indents; Esc then Tab leaves the
- * editor, so the keyboard is never trapped. Autocomplete per board comes in M5 (F-20, screen 02b).
+ * editor, so the keyboard is never trapped. M5.5 (F-20, screen 02b): the board's modules offered as you type, with a
+ * short explanation, and a call's arguments shown while it is typed.
  */
 export interface CodeEditorProps {
   /** Said to screen readers: the file's name. */
   label: string;
   value: string;
   onChange: (value: string) => void;
+  /** The project's board: its modules are offered (M5.5). */
+  board?: string;
 }
 
 /** A change put in from outside, not typed: onChange is not told. */
@@ -30,7 +34,7 @@ const colours = HighlightStyle.define([
   { tag: t.comment, color: 'var(--code-com)', fontStyle: 'italic' },
 ]);
 
-export function CodeEditor({ label, value, onChange }: CodeEditorProps) {
+export function CodeEditor({ label, value, onChange, board }: CodeEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const changed = useRef(onChange);
@@ -50,6 +54,7 @@ export function CodeEditor({ label, value, onChange }: CodeEditorProps) {
           indentOnInput(),
           bracketMatching(),
           python(),
+          ...(board ? [boardAssist(board)] : []),
           syntaxHighlighting(colours),
           indentUnit.of('    '),
           EditorState.tabSize.of(4),
@@ -63,8 +68,8 @@ export function CodeEditor({ label, value, onChange }: CodeEditorProps) {
     });
     view.current = v;
     return () => { v.destroy(); view.current = null; };
-    // made once per file: a new value is put in by the effect below
-  }, [label]);
+    // made once per file (and board): a new value is put in by the effect below
+  }, [label, board]);
 
   // a new value from outside (another file, another project): replace the text, without telling onChange
   useEffect(() => {

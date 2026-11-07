@@ -214,3 +214,35 @@ h3 { font-size: 13px; font-weight: 650; }
 .statusbar .st.running { color: var(--run); } .statusbar .st.running .dot { background: var(--run); }
 .statusbar .st.bad { color: var(--danger); }
 .statusbar .st.saved { color: var(--success); }
+.topbar .undo { display: flex; align-items: center; gap: 2px; }
+
+/* Run names its file; its ⌄ runs main.py (M5.6, F-22, Q19) */
+.runsplit { display: inline-flex; align-items: stretch; }
+.runsplit > .btn.run { border-radius: 8px 0 0 8px; max-width: 240px; }
+.runsplit .runfile { font-family: var(--mono); font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.runsplit .menuwrap { display: inline-flex; }
+.runsplit .menuwrap > .split { height: auto; width: 28px; padding: 0; justify-content: center; border: 1px solid var(--run); border-left: 1px solid rgba(255, 255, 255, .35); border-radius: 0 8px 8px 0; background: var(--run); color: var(--run-ink); }
+.runsplit .menuwrap .menu { top: calc(100% + 6px); }
+
+/* ---------- the Start screen's recent projects (F-05, screen 01) and a project offered back (F-03), M5.7 ---------- */
+.recent-card { padding: 6px 6px 8px; flex: none; }
+.recent-card .rh { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px 6px; }
+.recent-card .rh h2 { font-size: 15px; }
+.recent-card .rh .link { color: var(--accent-ink, var(--accent)); font-weight: 600; }
+.recent-card ul { list-style: none; margin: 0; padding: 0; }
+.recent-card li { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); }
+.recent-card li:first-child { border-top: 0; }
+.recent-card .row-btn { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 0; background: none; text-align: left; border-radius: 8px; cursor: pointer; color: var(--tx-1); }
+.recent-card .row-btn:hover:not(:disabled) { background: var(--bg); }
+.recent-card .row-btn:disabled { cursor: default; opacity: .6; }
+.recent-card .pic { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 8px; background: var(--bg); }
+.recent-card .pic img { width: 28px; height: 28px; object-fit: contain; }
+.recent-card .nm { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.recent-card .nm b { font-size: 13px; }
+.recent-card .nm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-card .chip { flex: none; font-family: var(--font); font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--bg-2, var(--bg)); color: var(--tx-2); }
+.recent-card .when { flex: none; width: 92px; text-align: right; }
+.recent-card .empty { padding: 4px 12px 8px; margin: 0; line-height: 1.5; }
+.recover-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-color: var(--accent-line); background: var(--accent-soft); }
+.recover-card .about { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.recover-card .ri { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; flex: none; background: var(--panel); color: var(--accent-ink, var(--accent)); }

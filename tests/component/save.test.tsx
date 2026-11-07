@@ -15,7 +15,11 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
     project: {
       open: vi.fn(async () => ({ ok: true as const, path: '/s/Other.mlab', name: 'Other', doc: newProject('microbit-v2') })),
       save: vi.fn(save),
+      recent: vi.fn(async () => []),
+      openPath: vi.fn(async () => ({ ok: false as const, message: 'gone' })),
+      forget: vi.fn(async () => {}),
     },
+    recovery: { get: vi.fn(async () => null), write: vi.fn(async () => {}), clear: vi.fn(async () => {}) },
     boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(async () => {}), send: vi.fn(async () => ({ ok: false as const, message: 'no' })),
       install: vi.fn(async () => ({ ok: false as const, message: 'no' })),
       cancelInstall: vi.fn(async () => {}),
@@ -158,14 +162,16 @@ describe('M4.6 "Save your changes?" before a project is closed', () => {
     expect(screen.getByRole('heading', { name: 'Start a new project' })).toBeInTheDocument();
   });
 
-  it('closing the window: asked only when there are changes; Don\'t save closes it', () => {
+  it('closing the window: asked only when there are changes; Don\'t save closes it — after the recovery copy is gone', async () => {
     const f = setup();
     f.requestClose();
-    expect(f.api.app.close).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(f.api.app.close).toHaveBeenCalledTimes(1));
     change();
     f.requestClose();
+    await new Promise((r) => setTimeout(r, 20));
     expect(f.api.app.close).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: "Don't save" }));
-    expect(f.api.app.close).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(f.api.app.close).toHaveBeenCalledTimes(2));
+    expect(f.api.recovery.clear).toHaveBeenCalled();
   });
 });

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { boardData, deletePart, deleteWire, partKind, setBreadboardSize, setPartProp, setWireColour } from '@lib/editor';
+import { boardData, deletePart, deleteWire, duplicate, joinsOf, partKind, rotateParts, setBreadboardSize, setPartProp, setWireColour, straighten } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { BreadboardSize } from '@lib/circuit';
 import type { Project } from '@lib/project';
 import { formatValue } from '@lib/units';
 import { Chips, Icon, Segmented, Stepper, Swatches } from '../ui';
-import { wireColour, type Selection } from './Canvas';
+import { MESSAGES, wireColour, type Selection } from './Canvas';
 import { bands, LED_SWATCHES, PartIcon, WIRE_COLOURS } from './drawings';
 
 /**
@@ -21,11 +21,14 @@ const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({
 export interface InspectorProps {
   project: Project;
   selection: Selection;
-  onChange: (project: Project) => void;
+  /** `merge` names the value changed, so a run of changes to it is one undo step (M5.1). */
+  onChange: (project: Project, merge?: string) => void;
   onClose: () => void;
+  /** Duplicate selects the copy (M5.4). */
+  onSelect?: (s: Selection[]) => void;
 }
 
-export function Inspector({ project, selection, onChange, onClose }: InspectorProps) {
+export function Inspector({ project, selection, onChange, onClose, onSelect }: InspectorProps) {
   const [error, setError] = useState<string | null>(null);
   const board = project.board as BoardId;
   const label = (ref: string) => {
@@ -38,15 +41,37 @@ export function Inspector({ project, selection, onChange, onClose }: InspectorPr
   let title: string;
   let rows: React.ReactNode;
   let remove: (() => Project) | undefined;
+  let partActions: React.ReactNode;
 
   if (selection.kind === 'part') {
     const part = project.parts.find((p) => p.id === selection.id);
     if (!part) return null;
     const kind = partKind(part.type);
-    const set = (key: string, v: number | string) => onChange(setPartProp(project, part.id, key, v));
+    const set = (key: string, v: number | string) => onChange(setPartProp(project, part.id, key, v), `${part.id}.${key}`);
     icon = <PartIcon type={part.type} />;
     title = `${part.id.toUpperCase()} · ${kind.name}`;
     remove = () => deletePart(project, part.id);
+    // screen 02b: Rotate · Duplicate · Delete
+    partActions = (
+      <div className="actions">
+        <button type="button" className="btn sm" title="Rotate (R)" onClick={() => {
+          const next = rotateParts(project, [part.id]);
+          if (!next) { setError(MESSAGES.noTurn); return; }
+          setError(null);
+          onChange(next);
+        }}><Icon name="rotate" size={14} /> Rotate</button>
+        <button type="button" className="btn sm icon" aria-label="Duplicate" title="Duplicate (⌘D / Ctrl+D)" onClick={() => {
+          const r = duplicate(project, { parts: [part.id], wires: [] });
+          if (!r) { setError(MESSAGES.noCopy); return; }
+          setError(null);
+          onChange(r.project);
+          onSelect?.([{ kind: 'part', id: r.parts[0]! }]);
+        }}><Icon name="copy" size={14} /></button>
+        <button type="button" className="btn sm icon danger" aria-label="Delete" title="Delete (Delete key)" onClick={() => { onChange(deletePart(project, part.id)); onClose(); }}>
+          <Icon name="trash" size={14} />
+        </button>
+      </div>
+    );
     const ohms = Number(part.props?.ohms ?? kind.props.ohms ?? 0);
     rows = (
       <>
@@ -84,6 +109,7 @@ export function Inspector({ project, selection, onChange, onClose }: InspectorPr
         ) : (
           <Row name="Legs in"><span className="small mono">{Object.values(part.legs).map(label).join(', ')}</span></Row>
         )}
+        <Row name="Joins"><span className="small joins">{joinsOf(project, part.id).join(' ↔ ')}</span></Row>
         {part.type === 'led' && (
           <p className="tiny muted led-tip">The long leg (+) goes towards the pin or 3.3 V, the short leg (−) by the flat edge towards GND. Turned round, an LED doesn't light.</p>
         )}
@@ -100,9 +126,16 @@ export function Inspector({ project, selection, onChange, onClose }: InspectorPr
     rows = (
       <>
         <Row name="Colour">
-          <Swatches label="Wire colour" hideLabel colours={WIRE_SWATCHES} value={colour} onChange={(v) => onChange(setWireColour(project, wire.id, v))} />
+          <Swatches label="Wire colour" hideLabel colours={WIRE_SWATCHES} value={colour} onChange={(v) => onChange(setWireColour(project, wire.id, v), `${wire.id}.color`)} />
         </Row>
         <Row name="Joins"><span className="small mono">{label(wire.a)} ↔ {label(wire.b)}</span></Row>
+        <Row name="Bends">
+          <span className="bends-row">
+            <span className="small">{wire.via?.length ?? 0}</span>
+            <button type="button" className="btn sm" disabled={!wire.via?.length} onClick={() => onChange(straighten(project, wire.id))}>Straighten</button>
+          </span>
+        </Row>
+        <p className="tiny muted led-tip">Drag a bend to move it, double-click it to take it away; drag a dot in the middle of a stretch to add one.</p>
       </>
     );
   } else {
@@ -136,7 +169,9 @@ export function Inspector({ project, selection, onChange, onClose }: InspectorPr
         <button type="button" className="btn ghost sm icon" aria-label="Close the inspector" title="Close (Esc)" onClick={onClose}><Icon name="x" size={14} /></button>
       </div>
       {rows}
-      {remove && (
+      {error && selection.kind === 'part' && <p className="small inspector-error" role="alert">{error}</p>}
+      {partActions}
+      {remove && !partActions && (
         <div className="actions">
           <button type="button" className="btn sm danger" onClick={() => { onChange(remove!()); onClose(); }}>
             <Icon name="trash" size={14} /> Delete

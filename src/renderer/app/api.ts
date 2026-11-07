@@ -1,6 +1,11 @@
 import type { OpenResult, ProjectDoc, SaveResult } from '@lib/project';
 import type { BoardListing, ConsoleAction, ConsoleKind, SendRequest, SendResult } from '@lib/repl';
 
+/** A recent project (F-05): where it is from the home folder, and whether it is still there. */
+export interface RecentItem { path: string; name: string; board: string; at: number; where: string; missing: boolean }
+/** The recovery copy (F-03): the project's name, its file if it had one, when it was written. */
+export interface Recovered { name: string; path?: string; at: number; doc: ProjectDoc }
+
 /** What the board did, or why it couldn't. */
 export type Result<T> = ({ ok: true } & T) | { ok: false; message: string };
 import type { Detection, FoundBoard, InstallResult, InstallStep, UsbChip } from '@lib/usb';
@@ -18,6 +23,19 @@ export interface MicrolabApi {
     open(): Promise<OpenResult>;
     /** Saves to `path`; with no path, asks where (Save as), starting from `name` (F-02, M4.6). */
     save(doc: ProjectDoc, opts: { path?: string; name: string }): Promise<SaveResult>;
+    /** The projects opened or saved lately, newest first (F-05, screen 01). */
+    recent(): Promise<RecentItem[]>;
+    /** Opens a recent project by its path, without asking. */
+    openPath(path: string): Promise<OpenResult>;
+    /** Takes a project off the recent list. */
+    forget(path: string): Promise<void>;
+  };
+  /** The copy of a project with unsaved changes (F-03): offered back if the app ended without saving or giving
+   *  the changes up. */
+  recovery: {
+    get(): Promise<Recovered | null>;
+    write(doc: ProjectDoc, about: { name: string; path?: string }): Promise<void>;
+    clear(): Promise<void>;
   };
   /** Real boards on USB (F-55): what is plugged in now, and every change. */
   boards: {
@@ -81,7 +99,11 @@ export function getApi(): MicrolabApi {
     project: {
       open: async () => ({ ok: false, message: 'Opening a file needs the MicroLab app.' }),
       save: async () => ({ ok: false, message: 'Saving a file needs the MicroLab app.' }),
+      recent: async () => [],
+      openPath: async () => ({ ok: false, message: 'Opening a file needs the MicroLab app.' }),
+      forget: async () => {},
     },
+    recovery: { get: async () => null, write: async () => {}, clear: async () => {} },
     boards: { get: async () => ({ boards: [], drives: [] }), check: async () => {}, send: async () => ({ ok: false, message: 'Sending to a board needs the MicroLab app.' }),
       install: async () => ({ ok: false, message: 'Installing MicroPython needs the MicroLab app.' }),
       cancelInstall: async () => {},

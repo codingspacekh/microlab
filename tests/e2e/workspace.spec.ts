@@ -53,6 +53,21 @@ test('build part of Blink with the mouse: a resistor dragged onto a5–a8, a wir
   await win.mouse.up();
   await expect(win.locator('[data-wire="w1"]')).toHaveAttribute('data-ends', 'board.GP15 bb1.e5');
   await expect(win.getByRole('status')).toContainText('1 part · 1 wire');
+
+  // M5.4 (screen 02b): the resistor's inspector says what its legs are joined to
+  const r1 = await centre(win, '[data-part="r1"] rect >> nth=0');
+  await win.mouse.click(r1.x, r1.y);
+  await expect(win.getByRole('complementary', { name: 'Inspector' })).toContainText('JoinsGP15 ↔ nothing');
+
+  // the M5 gate (as in Tinkercad): the resistor dragged two holes right takes the wire's end in its strip with it
+  const a7 = await centre(win, '[data-point="bb1.a7"]');
+  await win.mouse.move(r1.x, r1.y);
+  await win.mouse.down();
+  await win.mouse.move(r1.x + (a7.x - a5.x) + 2, r1.y - 2, { steps: 8 });
+  await win.mouse.up();
+  await expect(win.locator('[data-part="r1"]')).toHaveAttribute('data-legs', 'bb1.a7 bb1.a10');
+  await expect(win.locator('[data-wire="w1"]')).toHaveAttribute('data-ends', 'board.GP15 bb1.e7');
+  await expect(win.getByRole('complementary', { name: 'Inspector' })).toContainText('JoinsGP15 ↔ nothing');
 });
 
 test('at 1280 × 720 the micro:bit and its breadboard fit in the canvas', async () => {
@@ -99,4 +114,124 @@ test('M4.3b with the real mouse: a part clicked then placed, a wire with two ben
   // Delete removes the selected wire
   await win.keyboard.press('Delete');
   await expect(win.locator('[data-wire]')).toHaveCount(0);
+});
+
+test('M5.1 with the real keyboard and mouse: R turns, shift-click, ⌘D / Ctrl+D copies, ⌘Z / Ctrl+Z undoes, redo', async () => {
+  const win = await app.firstWindow();
+  await resize(win, 1440, 900);
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const legs = (id: string) => win.locator(`[data-part="${id}"]`);
+
+  const a5 = await centre(win, '[data-point="bb1.a5"]');
+  const a8 = await centre(win, '[data-point="bb1.a8"]');
+  const item = await centre(win, '.parts .pitem:has-text("Resistor")');
+  await win.mouse.move(item.x, item.y);
+  await win.mouse.down();
+  await win.mouse.move((a5.x + a8.x) / 2 + 3, a5.y - 2, { steps: 8 });
+  await win.mouse.up();
+  await expect(legs('r1')).toHaveAttribute('data-legs', 'bb1.a5 bb1.a8');
+
+  await win.keyboard.press('r');
+  await expect(legs('r1')).toHaveAttribute('data-legs', 'bb1.a6 bb1.d6');
+  await win.keyboard.press(`${mod}+d`);
+  await expect(win.locator('[data-part]')).toHaveCount(2);
+  await expect(legs('r2')).toHaveAttribute('aria-selected', 'true');
+
+  // shift-click the first: both selected, both deleted, both back
+  const r1 = await centre(win, '[data-part="r1"] rect >> nth=0');
+  await win.keyboard.down('Shift');
+  await win.mouse.click(r1.x, r1.y);
+  await win.keyboard.up('Shift');
+  await expect(win.locator('svg.scene [aria-selected="true"]')).toHaveCount(2);
+  await win.keyboard.press('Delete');
+  await expect(win.locator('[data-part]')).toHaveCount(0);
+  await win.keyboard.press(`${mod}+z`);
+  await expect(win.locator('[data-part]')).toHaveCount(2);
+  await win.keyboard.press(`${mod}+z`);
+  await win.keyboard.press(`${mod}+z`);
+  await expect(legs('r1')).toHaveAttribute('data-legs', 'bb1.a5 bb1.a8');
+  await win.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+z' : 'Control+y');
+  await expect(legs('r1')).toHaveAttribute('data-legs', 'bb1.a6 bb1.d6');
+
+  // ⌘Z in the code editor undoes typing, never the circuit
+  await win.getByRole('textbox', { name: 'main.py' }).click();
+  await win.keyboard.insertText('# x');
+  await win.keyboard.press(`${mod}+z`);
+  await expect(legs('r1')).toHaveAttribute('data-legs', 'bb1.a6 bb1.d6');
+  await expect(win.getByRole('textbox', { name: 'main.py' })).not.toContainText('# x');
+});
+
+test('M5.2 with the real mouse: hover lights a strip, the wheel zooms at the pointer, Shift+wheel and a middle drag pan, Fit', async () => {
+  const win = await app.firstWindow();
+  await resize(win, 1440, 900);
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  const zoom = win.getByRole('button', { name: 'Zoom to 100 %' });
+  const pct = async () => Number((await zoom.textContent())!.replace('%', ''));
+  const fitted = await pct();
+  expect(fitted).toBeGreaterThan(50);
+  expect(fitted).toBeLessThan(200);
+
+  const c5 = await centre(win, '[data-point="bb1.c5"]');
+  await win.mouse.move(c5.x, c5.y);
+  await expect(win.locator('[data-lit-strip]')).toHaveAttribute('data-lit-strip', 'bb1.a5 bb1.e5');
+  await expect(win.locator('[data-lit-point]')).toHaveCount(5);
+
+  // the wheel zooms in at c5 (the M5 gate: as in Tinkercad): c5 stays under the pointer
+  await win.mouse.wheel(0, -300);
+  await expect.poll(pct).toBeGreaterThan(fitted * 1.3);
+  const c5z = await centre(win, '[data-point="bb1.c5"]');
+  expect(Math.abs(c5z.x - c5.x)).toBeLessThan(3);
+  expect(Math.abs(c5z.y - c5.y)).toBeLessThan(3);
+
+  // Shift + wheel pans; a middle-button drag pans
+  await win.keyboard.down('Shift');
+  await win.mouse.wheel(0, 100);
+  await win.keyboard.up('Shift');
+  await expect.poll(async () => (await centre(win, '[data-point="bb1.c5"]')).y).toBeLessThan(c5z.y - 50);
+  const before = await centre(win, '[data-point="bb1.c5"]');
+  await win.mouse.move(before.x + 200, before.y);
+  await win.mouse.down({ button: 'middle' });
+  await win.mouse.move(before.x + 260, before.y + 40, { steps: 5 });
+  await win.mouse.up({ button: 'middle' });
+  const after = await centre(win, '[data-point="bb1.c5"]');
+  expect(after.x - before.x).toBeCloseTo(60, 0);
+  expect(after.y - before.y).toBeCloseTo(40, 0);
+
+  await win.getByRole('button', { name: 'Fit' }).click();
+  await expect.poll(pct).toBe(fitted);
+  await zoom.click();
+  await expect.poll(pct).toBe(100);
+});
+
+test('M5.3 with the real mouse: GP15\'s card, a hole\'s card, a bend dragged and double-clicked away', async () => {
+  const win = await app.firstWindow();
+  await resize(win, 1440, 900);
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  const gp15 = await centre(win, '[data-point="board.GP15"]');
+  await win.mouse.move(gp15.x, gp15.y);
+  await expect(win.getByRole('tooltip')).toContainText('GP15 · pin 20');
+  await expect(win.getByRole('tooltip')).toContainText('PWM7B');
+
+  // a wire with one bend: click the pin, click below the board, click a5
+  const a5 = await centre(win, '[data-point="bb1.a5"]');
+  await win.mouse.click(gp15.x, gp15.y);
+  await win.mouse.click(gp15.x, gp15.y + 60);
+  await win.mouse.move(a5.x, a5.y, { steps: 4 });
+  await expect(win.getByRole('tooltip').last()).toContainText('Column 5, rows a–e');
+  await win.mouse.click(a5.x, a5.y);
+  const wire = win.locator('[data-wire="w1"]');
+  const before = (await wire.getAttribute('data-via'))!;
+  expect(before.split(' ')).toHaveLength(1);
+
+  const h = await centre(win, '[data-bend="0"]');
+  await win.mouse.move(h.x, h.y);
+  await win.mouse.down();
+  await win.mouse.move(h.x + 80, h.y, { steps: 6 });
+  await win.mouse.up();
+  await expect(wire).not.toHaveAttribute('data-via', before);
+  const h2 = await centre(win, '[data-bend="0"]');
+  expect(h2.x - h.x).toBeGreaterThan(60);
+  await win.mouse.dblclick(h2.x, h2.y);
+  await expect(wire).toHaveAttribute('data-via', '');
 });

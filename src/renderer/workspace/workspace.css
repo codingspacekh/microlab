@@ -10,7 +10,7 @@
 .scene.busy .pt:hover { fill: rgba(31, 157, 85, .32); }
 .scene .ghost { opacity: .75; }
 .scene .ghost.blocked { opacity: .35; }
-.canvas-hint { position: absolute; left: 14px; bottom: 14px; max-width: calc(100% - 28px); padding: 8px 12px; border-radius: 9px; background: var(--panel); border: 1px solid var(--warn-line, var(--line)); box-shadow: var(--shadow-l, 0 4px 12px rgba(16,24,40,.12)); font-size: 12.5px; color: var(--tx-1); }
+.canvas-hint { position: absolute; left: 14px; bottom: 54px; max-width: calc(100% - 28px); padding: 8px 12px; border-radius: 9px; background: var(--panel); border: 1px solid var(--warn-line, var(--line)); box-shadow: var(--shadow-l, 0 4px 12px rgba(16,24,40,.12)); font-size: 12.5px; color: var(--tx-1); }
 
 /* ---------- the parts panel ---------- */
 .parts { border-right: 0; }
@@ -48,7 +48,7 @@ button.pitem:focus-visible { box-shadow: 0 0 0 2px var(--accent-line); }
 .scene:focus-visible { outline: 2px solid var(--accent-line); outline-offset: -2px; }
 .canvas-hint.warn { border-color: var(--warn-line); background: var(--warn-soft, #fff7e6); }
 .float { position: absolute; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-l); }
-.inspector { top: 14px; right: 14px; width: clamp(260px, 42%, 320px); max-height: calc(100% - 28px); overflow: auto; padding: 12px; z-index: 3; }
+.inspector { bottom: 14px; right: 14px; width: clamp(260px, 42%, 320px); max-height: calc(100% - 28px); overflow: auto; padding: 12px; z-index: 3; }
 .inspector .ih { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .inspector .ih b { font-size: 13px; }
 .inspector .ih .pic { width: 28px; height: 28px; border-radius: 6px; background: var(--bg); display: grid; place-items: center; flex: none; }
@@ -76,3 +76,50 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .canvas .cbanner { position: absolute; left: 12px; top: 12px; right: 12px; z-index: 5; display: flex; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 9px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow-m); font-size: 12.5px; }
 .canvas .cbanner > .ico { color: var(--accent); flex: none; }
 .canvas .cbanner .spacer { flex: 1; }
+
+/* ---------- M5.1: the canvas tools (screen 02), several selected ---------- */
+.canvas .ctools { position: absolute; left: 12px; bottom: 12px; z-index: 2; display: flex; gap: 4px; align-items: center; padding: 3px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--shadow-m); }
+.canvas .ctools .btn { border: 0; height: 28px; }
+.canvas .ctools .btn:disabled { opacity: .4; cursor: default; }
+.canvas .ctools .vsep { height: 18px; }
+.scene .marquee { fill: rgba(37, 99, 217, .08); stroke: var(--accent, #2563d9); stroke-width: 1; stroke-dasharray: 4 3; pointer-events: none; }
+
+/* ---------- M5.2: zoom and pan (F-17) ---------- */
+.canvas .ctools .zoom { width: 48px; padding: 0; justify-content: center; font-size: 12px; font-weight: 550; color: var(--tx-2); font-variant-numeric: tabular-nums; }
+.scene.busy.panning, .scene.busy.panning * { cursor: grabbing; }
+
+/* ---------- M5.3: bends (F-13), pin and hole cards (F-15, F-12; screen 02) ---------- */
+.scene .bends .bend { fill: #fff; stroke: var(--accent, #2563d9); stroke-width: 1.6; cursor: move; }
+.scene .bends .bend-add { fill: var(--accent, #2563d9); fill-opacity: .55; stroke: #fff; stroke-width: 1; cursor: copy; }
+.scene .bends .bend-add:hover { fill-opacity: 1; }
+.canvas .tip { position: absolute; z-index: 2; pointer-events: none; width: max-content; max-width: 260px; border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.4; box-shadow: var(--shadow-m); }
+.canvas .pin-card { background: var(--inverse); color: var(--on-inverse); }
+.canvas .pin-card .sub { opacity: .7; }
+.canvas .pin-card .ln { margin-top: 6px; opacity: .75; }
+.canvas .pin-card .ln + .ln { margin-top: 2px; }
+.canvas .pin-card .fx { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.canvas .fn { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 4px; font-size: 10.5px; font-weight: 650; color: #fff; white-space: nowrap; }
+.canvas .fn.power { background: var(--f-power); } .canvas .fn.gnd { background: var(--f-gnd); } .canvas .fn.gpio { background: var(--f-gpio); }
+.canvas .fn.pwm { background: var(--f-pwm); } .canvas .fn.adc { background: var(--f-adc); } .canvas .fn.i2c { background: var(--f-i2c); }
+.canvas .fn.spi { background: var(--f-spi); } .canvas .fn.uart { background: var(--f-uart); } .canvas .fn.touch { background: var(--f-touch); }
+.canvas .hole-card { background: var(--panel); color: var(--tx-1); border: 1px solid var(--success-line, #9fd8b6); max-width: 230px; }
+.canvas .hole-card b { color: var(--success, #1f9d55); }
+.canvas .hole-card .small { color: var(--tx-2); }
+.inspector .bends-row { display: inline-flex; align-items: center; gap: 10px; }
+
+/* ---------- M5.6: the project's files (F-21) ---------- */
+.ws .side { position: relative; }
+.files-panel { top: 42px; right: 8px; width: min(340px, calc(100% - 16px)); max-height: calc(100% - 56px); display: flex; flex-direction: column; z-index: 6; padding: 10px; gap: 8px; }
+.files-panel .fh { display: flex; align-items: baseline; gap: 8px; }
+.files-panel .fh b { font-size: 13px; }
+.files-panel .fh .spacer { flex: 1; }
+.files-panel .fbar { display: flex; gap: 6px; }
+.files-panel .tree { min-height: 80px; max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
+.files-panel .tree .r { grid-template-columns: 18px minmax(0, 1fr) auto; }
+.files-panel .tree .diff { display: none; }
+.files-panel .fask { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 8px; background: var(--bg); }
+.files-panel .fask p { margin: 0; line-height: 1.45; }
+.files-panel .fask .row { display: flex; gap: 6px; justify-content: flex-end; }
+.files-panel .fspace { margin: 0; color: var(--tx-2); }
+.files-panel .fspace.near { color: var(--warn-ink, #8a5a00); font-weight: 600; }
+.files-panel .fspace.over { color: var(--danger); font-weight: 600; }

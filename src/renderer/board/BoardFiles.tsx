@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { isTextFile, type ProjectDoc } from '@lib/project';
 import type { BoardListing } from '@lib/repl';
 import type { MicrolabApi } from '../app/api';
-import { Checkbox, Dialog, Icon, TextField } from '../ui';
+import { buildTree, Checkbox, Dialog, FileTree, Icon, TextField, type FileNode } from '../ui';
 import { size } from './SendToBoard';
 
 /**
@@ -24,13 +24,6 @@ export interface BoardFilesProps {
 type Side = 'project' | 'board';
 type Status = 'same' | 'differs' | 'not on the board' | 'only on the board' | '';
 
-interface Node {
-  name: string;
-  path: string;
-  dir: boolean;
-  size?: number;
-  children: Node[];
-}
 
 type Ask =
   | { kind: 'to-board'; files: string[]; replaces: string[] }
@@ -41,40 +34,6 @@ type Ask =
 const bytes = (v: string | Uint8Array) => (typeof v === 'string' ? new TextEncoder().encode(v).length : v.length);
 const KB = (n: number) => `${Math.round(n / 1024)} KB`;
 const under = (dir: string) => (p: string) => p.startsWith(`${dir}/`);
-
-/** Files and folders as a tree: main.py first, then folders, then files, each alphabetical. */
-function tree(files: { path: string; size: number }[], dirs: string[]): Node[] {
-  const root: Node = { name: '', path: '', dir: true, children: [] };
-  const at = (path: string): Node => {
-    if (!path) return root;
-    const parts = path.split('/');
-    let n = root;
-    for (let i = 0; i < parts.length; i++) {
-      const p = parts.slice(0, i + 1).join('/');
-      let c = n.children.find((x) => x.path === p);
-      if (!c) { c = { name: parts[i]!, path: p, dir: true, children: [] }; n.children.push(c); }
-      n = c;
-    }
-    return n;
-  };
-  for (const d of dirs) at(d);
-  for (const f of files) {
-    const parent = at(f.path.split('/').slice(0, -1).join('/'));
-    parent.children.push({ name: f.path.split('/').at(-1)!, path: f.path, dir: false, size: f.size, children: [] });
-  }
-  const order = (a: Node, b: Node) => Number(b.path === 'main.py') - Number(a.path === 'main.py') || Number(b.dir) - Number(a.dir) || a.name.localeCompare(b.name);
-  const sort = (n: Node) => { n.children.sort(order); n.children.forEach(sort); };
-  sort(root);
-  return root.children;
-}
-
-/** "1 folder · 3 files": what a folder holds, directly. */
-function holds(n: Node): string {
-  const d = n.children.filter((c) => c.dir).length;
-  const f = n.children.length - d;
-  const say = (k: number, one: string) => `${k} ${one}${k === 1 ? '' : 's'}`;
-  return [d ? say(d, 'folder') : '', f ? say(f, 'file') : ''].filter(Boolean).join(' · ') || 'empty';
-}
 
 export function BoardFiles({ api, id, name, doc, onDoc, onClose }: BoardFilesProps) {
   const [listing, setListing] = useState<BoardListing | null>(null);
@@ -116,7 +75,7 @@ export function BoardFiles({ api, id, name, doc, onDoc, onClose }: BoardFilesPro
   const onBoard = new Map(listing?.files.map((f) => [f.path, f.size]) ?? []);
   const boardDirs = new Set(listing?.dirs ?? []);
 
-  const status = (side: Side, n: Node): Status => {
+  const status = (side: Side, n: FileNode): Status => {
     if (!listing) return '';
     if (n.dir) {
       if (side === 'board') return projFiles.some((f) => under(n.path)(f.path)) ? '' : 'only on the board';
@@ -224,7 +183,7 @@ export function BoardFiles({ api, id, name, doc, onDoc, onClose }: BoardFilesPro
             <div className="tb">
               <button type="button" className="btn sm" disabled={!sel.project || busy || !listing} onClick={toBoard}>Copy to the board <Icon name="chevr" size={12} /></button>
             </div>
-            <Tree label="This project" side="project" nodes={tree(projFiles, projDirs)} status={status} selected={sel.project}
+            <FileTree label="This project" nodes={buildTree(projFiles, projDirs)} status={(n) => status('project', n)} selected={sel.project}
               onSelect={(p) => setSel((x) => ({ ...x, project: p }))} opened={opened.project}
               onOpened={(o) => setOpened((x) => ({ ...x, project: o }))} />
           </section>
@@ -254,7 +213,7 @@ export function BoardFiles({ api, id, name, doc, onDoc, onClose }: BoardFilesPro
                 {view.text === null ? <p className="small muted">This file isn't text ({view.size} bytes).</p> : <pre className="mono">{view.text}</pre>}
               </section>
             ) : listing ? (
-              <Tree label={`On the ${name}`} side="board" nodes={tree(listing.files, listing.dirs)} status={status} selected={sel.board}
+              <FileTree label={`On the ${name}`} nodes={buildTree(listing.files, listing.dirs)} status={(n) => status('board', n)} selected={sel.board}
                 onSelect={(p) => setSel((x) => ({ ...x, board: p }))} opened={opened.board}
                 onOpened={(o) => setOpened((x) => ({ ...x, board: o }))} />
             ) : <p className="small muted pad">{error ? '' : `Reading the ${name}'s files…`}</p>}
@@ -337,72 +296,3 @@ function Question({ ask, name, keep, onKeep, folder, onFolder, sizeOnBoard, size
   );
 }
 
-interface TreeProps {
-  label: string;
-  side: Side;
-  nodes: Node[];
-  status: (side: Side, n: Node) => Status;
-  selected: string | null;
-  onSelect: (path: string) => void;
-  opened: Set<string>;
-  onOpened: (o: Set<string>) => void;
-}
-
-/** A file tree (ARIA tree): ↑ ↓ move, → opens a folder, ← closes it (or goes to its folder), Enter opens or closes. */
-function Tree({ label, side, nodes, status, selected, onSelect, opened, onOpened }: TreeProps) {
-  const rows: { n: Node; level: number }[] = [];
-  const walk = (ns: Node[], level: number) => {
-    for (const n of ns) {
-      rows.push({ n, level });
-      if (n.dir && opened.has(n.path)) walk(n.children, level + 1);
-    }
-  };
-  walk(nodes, 1);
-  const refs = useRef(new Map<string, HTMLDivElement>());
-  const toggle = (p: string, open?: boolean) => {
-    const o = new Set(opened);
-    if (open ?? !o.has(p)) o.add(p); else o.delete(p);
-    onOpened(o);
-  };
-  const go = (p: string) => { onSelect(p); refs.current.get(p)?.focus(); };
-  const onKey = (e: KeyboardEvent, i: number) => {
-    const { n } = rows[i]!;
-    const to = (j: number) => { const r = rows[j]; if (r) { e.preventDefault(); go(r.n.path); } };
-    if (e.key === 'ArrowDown') to(i + 1);
-    else if (e.key === 'ArrowUp') to(i - 1);
-    else if (e.key === 'Home') to(0);
-    else if (e.key === 'End') to(rows.length - 1);
-    else if (e.key === 'ArrowRight' && n.dir) { e.preventDefault(); toggle(n.path, true); }
-    else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      if (n.dir && opened.has(n.path)) toggle(n.path, false);
-      else { const up = n.path.split('/').slice(0, -1).join('/'); if (up) go(up); }
-    } else if (e.key === 'Enter' && n.dir) { e.preventDefault(); toggle(n.path); }
-  };
-  const focusable = selected && rows.some((r) => r.n.path === selected) ? selected : rows[0]?.n.path;
-  return (
-    <div className="tree" role="tree" aria-label={label}>
-      {rows.length === 0 && <p className="small muted pad">No files.</p>}
-      {rows.map(({ n, level }, i) => {
-        const st = status(side, n);
-        const open = opened.has(n.path);
-        return (
-          <div key={n.path} ref={(el) => { if (el) refs.current.set(n.path, el); else refs.current.delete(n.path); }}
-            role="treeitem" aria-label={`${n.name}${st ? `, ${st}` : ''}`} aria-level={level} aria-selected={selected === n.path}
-            aria-expanded={n.dir ? open : undefined} tabIndex={n.path === focusable ? 0 : -1}
-            className={`r${selected === n.path ? ' sel' : ''}`} style={{ paddingLeft: 6 + (level - 1) * 16 }}
-            onClick={() => onSelect(n.path)} onDoubleClick={() => n.dir && toggle(n.path)} onKeyDown={(e) => onKey(e, i)}>
-            {n.dir
-              ? <button type="button" className="tw" tabIndex={-1} aria-label={`${open ? 'Close' : 'Open'} ${n.name}`} onClick={(e) => { e.stopPropagation(); toggle(n.path); }}>
-                  <Icon name={open ? 'chevd' : 'chevr'} size={12} />
-                </button>
-              : <span className="tw" />}
-            <span className="nm"><Icon name={n.dir ? 'folder' : 'file'} size={14} />{n.name}</span>
-            <span className="sz">{n.dir ? holds(n) : size(n.size ?? 0)}</span>
-            <span className={`diff ${st.replace(/ /g, '-')}`}>{st}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}

@@ -10,3 +10,4 @@ export { Divider, type DividerProps } from './Divider';
 export { Icon, Logo } from './Icon';
 export { MenuButton, type MenuButtonProps, type MenuItem } from './Menu';
 export { Dialog, type DialogAction, type DialogProps } from './Dialog';
+export { buildTree, FileTree, fileSize, holds, type FileNode, type FileTreeProps } from './FileTree';

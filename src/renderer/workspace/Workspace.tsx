@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { PART_KINDS } from '@lib/editor';
+import { EMPTY_HISTORY, PART_KINDS, record, type History } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
-import type { ProjectDoc } from '@lib/project';
+import { spaceNote, type ProjectDoc } from '@lib/project';
 import { Console, type BoardConsoleView } from '../console/Console';
 import { CodeEditor } from '../editor/CodeEditor';
 import type { RunState } from '../app/useRun';
@@ -10,6 +10,7 @@ import { Icon } from '../ui/Icon';
 import type { MicrolabApi } from '../app/api';
 import { BOARD_ART, BOARD_NAMES } from '../app/boards';
 import { Canvas, type Placing, type Selection } from './Canvas';
+import { FilesPanel, type FilesAsk } from './FilesPanel';
 import { Inspector } from './Inspector';
 import { PartIcon } from './drawings';
 import './workspace.css';
@@ -46,16 +47,43 @@ export interface WorkspaceProps {
   onConsoleTab?: (tab: 'sim' | 'board') => void;
   /** Over the canvas while the real board runs: the simulator is stopped, the board must be wired like this. */
   banner?: ReactNode;
+  /** The circuit's undo / redo (M5.1, F-16), kept by the app with the open project (its top bar has the buttons). */
+  history?: History;
+  onHistory?: (h: History) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  /** The file in the editor (M5.6, F-21) and the file Run runs or is running (Q19), named in the console. */
+  file?: string;
+  onFile?: (path: string) => void;
+  runFile?: string;
 }
+
+/** Edits of one value of one thing within this long are one undo step (a stepper held, a value typed). */
+const MERGE_MS = 1000;
 
 const IDLE_RUN: Pick<RunState, 'parts' | 'board'> = { parts: {}, board: { pins: {} } };
 
-export function Workspace({ api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, onConsoleTab, banner }: WorkspaceProps) {
+export function Workspace({
+  api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, onConsoleTab, banner,
+  history = EMPTY_HISTORY, onHistory, onUndo, onRedo, file = 'main.py', onFile, runFile = file,
+}: WorkspaceProps) {
   const { ref, width } = useWidth(fixed);
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
   const [drag, setDrag] = useState<Partial<Record<keyof Layout, number>>>({});
   const [placing, setPlacing] = useState<Placing | null>(null);
-  const [selection, setSelection] = useState<Selection | null>(null);
+  const [selection, setSelection] = useState<Selection[]>([]);
+  // the files open in tabs (F-21): main.py, then each one opened, until it is closed
+  const [tabs, setTabs] = useState<string[]>(() => [file]);
+  const [files, setFiles] = useState<{ ask: FilesAsk | null } | null>(null);
+  const shownTabs = [...tabs.filter((t) => t in doc.files), ...(tabs.includes(file) || !(file in doc.files) ? [] : [file])];
+  const openFile = (p: string) => { setTabs((t) => (t.includes(p) ? t : [...t, p])); onFile?.(p); };
+  const closeTab = (p: string) => {
+    const rest = shownTabs.filter((t) => t !== p);
+    setTabs(rest);
+    if (p === file) onFile?.(rest[Math.max(0, shownTabs.indexOf(p) - 1)] ?? 'main.py');
+  };
+  const editing = file in doc.files ? file : 'main.py';
+  const merging = useRef<{ key: string; at: number; n: number }>({ key: '', at: 0, n: 0 });
 
   useEffect(() => {
     let live = true;
@@ -81,11 +109,35 @@ export function Workspace({ api, width: fixed, doc, onChange, run, running, onIn
   useEffect(() => {
     if (!running) return;
     setPlacing(null);
-    setSelection(null);
+    setSelection([]);
   }, [running]);
 
   const project = doc.project;
-  const setProject = (p: typeof project) => onChange({ ...doc, project: p });
+  const keep = (h: History) => onHistory?.(h);
+  // what was selected may be gone (an undo, a redo)
+  useEffect(() => {
+    setSelection((sel) => {
+      const kept = sel.filter((x) => (x.kind === 'part' ? project.parts : x.kind === 'wire' ? project.wires : project.breadboards).some((t) => t.id === x.id));
+      return kept.length === sel.length ? sel : kept;
+    });
+    if (project !== recorded.current) merging.current = { ...merging.current, key: '' };
+  }, [project]);
+  const recorded = useRef(project);
+  /** Every circuit edit is one undo step; `merge` names an edit of one value, so a run of them is one step. */
+  const setProject = (p: typeof project, merge?: string) => {
+    if (p === project) return;
+    let token: string | undefined;
+    if (merge) {
+      const m = merging.current;
+      const now = Date.now();
+      if (m.key !== merge || now - m.at > MERGE_MS) merging.current = { key: merge, at: now, n: m.n + 1 };
+      else m.at = now;
+      token = `${merge}#${merging.current.n}`;
+    } else merging.current = { ...merging.current, key: '' };
+    keep(record(history, project, token));
+    recorded.current = p;
+    onChange({ ...doc, project: p });
+  };
 
   const board = project.board as BoardId;
   return (
@@ -107,10 +159,10 @@ export function Workspace({ api, width: fixed, doc, onChange, run, running, onIn
                 onMouseDown={(e) => {
                   if (e.button !== 0 || running) return;
                   e.preventDefault();
-                  setSelection(null);   // the inspector would cover the canvas
+                  setSelection([]);   // the inspector would cover the canvas
                   setPlacing({ type: k.type, how: 'press', start: { x: e.clientX, y: e.clientY } });
                 }}
-                onClick={(e) => { if (e.detail === 0 && !running) { setSelection(null); setPlacing({ type: k.type, how: 'keys' }); } }}>
+                onClick={(e) => { if (e.detail === 0 && !running) { setSelection([]); setPlacing({ type: k.type, how: 'keys' }); } }}>
                 <span className="pic"><PartIcon type={k.type} /></span>
                 <span className="nm">{k.name}<small>{k.detail}</small></span>
               </button>
@@ -123,21 +175,58 @@ export function Workspace({ api, width: fixed, doc, onChange, run, running, onIn
       <Divider label="Parts panel width" value={partsPx} min={LIMITS.parts[0]} max={partsMax}
         onChange={(v) => setDrag({ parts: v })} onCommit={commit('parts')} />
       <section className="canvas" aria-label="Circuit">
-        <Canvas project={project} onChange={setProject} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection}
-          running={running} outputs={running || run.ended ? run : IDLE_RUN} onInput={onInput} />
+        <Canvas project={project} onChange={(p) => setProject(p)} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection}
+          running={running} outputs={running || run.ended ? run : IDLE_RUN} onInput={onInput}
+          onUndo={onUndo} onRedo={onRedo} />
         {banner && <div className="cbanner">{banner}</div>}
-        {selection && (
-          <Inspector key={`${selection.kind}:${selection.id}`} project={project} selection={selection} onChange={setProject} onClose={() => setSelection(null)} />
+        {selection.length === 1 && (
+          <Inspector key={`${selection[0]!.kind}:${selection[0]!.id}`} project={project} selection={selection[0]!} onChange={setProject} onClose={() => setSelection([])} onSelect={setSelection} />
         )}
       </section>
       <Divider label="Code panel width" value={sidePx} min={LIMITS.side[0]} max={sideMax} edge="right"
         onChange={(v) => setDrag({ side: v })} onCommit={commit('side')} />
       <section className="side" aria-label="Code" style={{ flexBasis: sidePx }}>
-        <div className="ftabs" role="tablist" aria-label="Files">
-          <button type="button" role="tab" aria-selected="true"><Icon name="file" size={14} /> main.py</button>
+        <div className="ftabs">
+          <div className="tabs" role="tablist" aria-label="Files">
+            {shownTabs.map((p) => (
+              <span key={p} className={p === editing ? 'ftab on' : 'ftab'}>
+                <button type="button" role="tab" aria-selected={p === editing} title={p} onClick={() => onFile?.(p)}
+                  ref={p === editing ? (el) => el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }) : undefined}>
+                  <Icon name="file" size={14} /> <span className="fname">{p.split('/').pop()}</span>{p.startsWith('lib/') && <>{' '}<span className="libtag">library</span></>}
+                </button>
+                {shownTabs.length > 1 && (
+                  <button type="button" className="x" aria-label={`Close ${p}`} title="Close" onClick={() => closeTab(p)}><Icon name="x" size={12} /></button>
+                )}
+              </span>
+            ))}
+          </div>
+          <span className="r">
+            <button type="button" className="btn ghost sm icon" aria-label="Add a new file" title="New file" onClick={() => setFiles({ ask: { kind: 'new' } })}><Icon name="plus" size={14} /></button>
+            <button type="button" className="btn ghost sm icon" aria-label="Project files" title="Project files" aria-expanded={!!files}
+              onClick={() => setFiles((f) => (f ? null : { ask: null }))}><Icon name="more" size={14} /></button>
+          </span>
         </div>
-        <CodeEditor label="main.py" value={text(doc.files['main.py'])} onChange={(code) => onChange({ ...doc, files: { ...doc.files, 'main.py': code } })} />
-        <Console chunks={run.console} running={running} entry="main.py" onClear={onClearConsole} board={realBoard} tab={consoleTab} onTab={onConsoleTab} />
+        {(() => {
+          const space = spaceNote(doc);
+          return space && space.level !== 'ok' ? <p className={`space-warn ${space.level}`} role="alert"><Icon name="warn" size={14} /> {space.text}</p> : null;
+        })()}
+        {typeof doc.files[editing] === 'string' || !(editing in doc.files)
+          ? <CodeEditor label={editing} board={project.board} value={text(doc.files[editing])} onChange={(code) => onChange({ ...doc, files: { ...doc.files, [editing]: code } })} />
+          : <p className="small muted not-text">{editing} isn't a text file, so it can't be shown here.</p>}
+        {files && (
+          <FilesPanel key={files.ask ? 'ask' : 'list'} doc={doc} ask={files.ask} onDoc={onChange} onOpen={openFile} onClose={() => setFiles(null)}
+            onRenamed={(from, to) => {
+              const move = (p: string) => (p === from ? to : p.startsWith(`${from}/`) ? `${to}/${p.slice(from.length + 1)}` : p);
+              setTabs((t) => t.map(move));
+              onFile?.(move(editing));
+            }}
+            onDeleted={(p) => {
+              const gone = (t: string) => t === p || t.startsWith(`${p}/`);
+              setTabs((t) => t.filter((x) => !gone(x)));
+              if (gone(editing)) onFile?.('main.py' in doc.files && !gone('main.py') ? 'main.py' : shownTabs.find((t) => !gone(t)) ?? 'main.py');
+            }} />
+        )}
+        <Console chunks={run.console} running={running} entry={runFile} onClear={onClearConsole} board={realBoard} tab={consoleTab} onTab={onConsoleTab} />
       </section>
     </div>
   );

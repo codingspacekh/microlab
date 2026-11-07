@@ -88,7 +88,7 @@ test('F-02 / F-60: save with ⌘S / Ctrl+S, start again, open the file: the same
   await expect(win.getByRole('textbox', { name: 'main.py' })).toContainText('print("from the teacher")');
 
   // and it runs as it was saved
-  await win.getByRole('button', { name: 'Run' }).click();
+  await win.getByRole('button', { name: 'Run main.py' }).click();
   await expect(win.getByRole('log', { name: 'Console' })).toContainText('from the teacher', { timeout: 5000 });
 });
 
@@ -109,6 +109,9 @@ test('closing the window with unsaved changes asks first; Don\'t save closes it'
     const w = BrowserWindow.getAllWindows()[0]!;
     w.once('closed', () => resolve(BrowserWindow.getAllWindows().length));
   }));
-  await win.getByRole('button', { name: "Don't save" }).click();
+  // the click closes the window; hidden (MICROLAB_HIDDEN) it can close before Playwright's click returns
+  await win.getByRole('button', { name: "Don't save" }).click().catch((e: Error) => {
+    if (!/has been closed/.test(e.message)) throw e;
+  });
   expect(await closed).toBe(0);
 });

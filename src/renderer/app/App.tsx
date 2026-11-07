@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NewProjectBoard } from '@lib/boards';
-import { newProject, type ProjectDoc } from '@lib/project';
+import { newProject, runTarget, type ProjectDoc } from '@lib/project';
+import { EMPTY_HISTORY, redo, undo, type History } from '@lib/editor';
 import { Icon, Logo } from '../ui/Icon';
 import { Dialog } from '../ui/Dialog';
 import { MenuButton } from '../ui/Menu';
-import type { MicrolabApi } from './api';
+import type { MicrolabApi, RecentItem, Recovered } from './api';
 import { BOARD_NAMES } from './boards';
 import { ControlsPage } from './ControlsPage';
 import { StartPage } from './StartPage';
@@ -39,9 +40,17 @@ export interface OpenProject {
   saved: ProjectDoc;
   /** "Saved “Blink.mlab”", until the next change. */
   savedNote?: string;
+  /** The circuit's undo / redo (M5.1, F-16): while the project is open, through Learn and back. */
+  history?: History;
+  /** The file in the editor (M5.6, F-21): main.py when a project opens. */
+  file?: string;
+  /** The last Python file run, for Run while a file that isn't Python is open (Q19). */
+  lastRun?: string;
 }
 
 let opened = 0;
+/** The recovery copy is written this long after the last change (F-03). */
+const AUTOSAVE_MS = 3000;
 
 export interface AppProps {
   api: MicrolabApi;
@@ -51,8 +60,6 @@ export interface AppProps {
   startRun?: StartRun;
 }
 
-/** The file Run runs (requirements Rev 7, Q19): the open file — main.py while a project has only that (M5.6). */
-const ENTRY = 'main.py';
 
 export function App({ api, width, startRun }: AppProps) {
   const [mode, setMode] = useState<Mode>('workspace');
@@ -64,9 +71,19 @@ export function App({ api, width, startRun }: AppProps) {
   latest.current = open;
   const boardName = (o: OpenProject) => BOARD_NAMES[o.doc.project.board as keyof typeof BOARD_NAMES] ?? o.doc.project.board;
   const running = sim.state.status !== 'idle';
+  // what Run runs (F-22, Q19): the file in the editor, as Thonny does; main.py from its menu
+  const target = open ? runTarget(open.doc.files, open.file ?? 'main.py', open.lastRun) : 'main.py';
+  const runFile = (entry: string) => {
+    if (!open) return;
+    setOpen((cur) => (cur ? { ...cur, lastRun: entry } : cur));
+    if (open.doc !== open.saved) keepCopy(open);   // a run is a moment worth keeping (F-03)
+    sim.run(open.doc, entry, boardName(open));
+  };
   const runControls: RunControls = {
     state: sim.state,
-    onRun: () => { if (open) sim.run(open.doc, ENTRY, boardName(open)); },
+    target,
+    onRun: () => runFile(target),
+    onRunMain: () => runFile('main.py'),
     onStop: sim.stop,
     onRestart: () => sim.restart(() => latest.current!.doc),
   };
@@ -86,6 +103,59 @@ export function App({ api, width, startRun }: AppProps) {
     if (r.ok) show({ doc: r.doc, name: r.name, path: r.path });
     else if ('message' in r) setNotice(r.message);
   };
+
+  // recent projects (F-05): fresh each time the Start screen shows
+  const [recent, setRecent] = useState<RecentItem[]>([]);
+  const onStart = !open && mode === 'workspace';
+  useEffect(() => {
+    if (!onStart) return;
+    let live = true;
+    void api.project.recent().then((r) => { if (live) setRecent(r); });
+    return () => { live = false; };
+  }, [api, onStart]);
+  const openRecent = async (item: RecentItem) => {
+    const r = await api.project.openPath(item.path);
+    if (r.ok) show({ doc: r.doc, name: r.name, path: r.path });
+    else if ('message' in r) { setNotice(r.message); setRecent(await api.project.recent()); }
+  };
+
+  // the recovery copy (F-03): written a few seconds after each change and on every run while there are unsaved
+  // changes; removed once they are saved or given up. Found at start, it is offered back on the Start screen.
+  const [recovered, setRecovered] = useState<Recovered | null>(null);
+  useEffect(() => {
+    let live = true;
+    void api.recovery.get().then((r) => { if (live && r) setRecovered(r); });
+    return () => { live = false; };
+  }, [api]);
+  const copyKept = useRef(false);
+  const keepCopy = (o: OpenProject) => {
+    copyKept.current = true;
+    void api.recovery.write(o.doc, { name: o.name, ...(o.path ? { path: o.path } : {}) });
+  };
+  const dropCopy = () => {
+    copyKept.current = false;
+    return api.recovery.clear();
+  };
+  useEffect(() => {
+    if (!open) return;
+    if (open.doc === open.saved) {
+      if (copyKept.current) void dropCopy();
+      return;
+    }
+    const t = setTimeout(() => keepCopy(open), AUTOSAVE_MS);
+    return () => clearTimeout(t);
+  }, [open?.doc, open?.saved]);
+  const recover = () => {
+    if (!recovered) return;
+    // shown with its changes not saved: Save writes it to its own file again (or asks where)
+    sim.reset();
+    copyKept.current = true;
+    setOpen({ doc: recovered.doc, name: recovered.name, ...(recovered.path ? { path: recovered.path } : {}), key: ++opened, saved: { ...recovered.doc } });
+    setRecovered(null);
+    setNotice(null);
+    setMode('workspace');
+  };
+  const discard = () => { setRecovered(null); void dropCopy(); };
 
   /** Save (to its file, or asking where when it has none or `asNew`); true when it was saved. */
   const save = async (asNew = false): Promise<boolean> => {
@@ -113,9 +183,16 @@ export function App({ api, width, startRun }: AppProps) {
   // the main process asks before the window closes with changes (M4.6)
   const guardRef = useRef(guard);
   guardRef.current = guard;
-  useEffect(() => api.app.onCloseRequest(() => guardRef.current(() => api.app.close())), [api]);
+  // closing with the changes given up (Don't save) or saved: no copy is left to offer back
+  useEffect(() => api.app.onCloseRequest(() => guardRef.current(() => { void api.recovery.clear().finally(() => api.app.close()); })), [api]);
   useEffect(() => { api.app.setDirty(dirty); }, [api, dirty]);
   useEffect(() => { document.title = open ? `${open.name}${dirty ? ' •' : ''} — MicroLab` : 'MicroLab'; }, [open, dirty]);
+
+  // the circuit's undo / redo (M5.1): the top bar's buttons (screen 02b) and ⌘Z / Ctrl+Z on the canvas
+  const step = (go: typeof undo) => setOpen((cur) => {
+    const r = cur && go(cur.history ?? EMPTY_HISTORY, cur.doc.project);
+    return r ? { ...cur!, history: r.history, doc: { ...cur!.doc, project: r.project }, savedNote: undefined } : cur;
+  });
 
   // ⌘S / Ctrl+S save, ⇧ for Save as; ⌘O / Ctrl+O open
   const keysRef = useRef<(e: KeyboardEvent) => void>(() => {});
@@ -193,9 +270,9 @@ export function App({ api, width, startRun }: AppProps) {
     if (!open) return;
     if (running) sim.stop();
     if (!await openConsole(id)) return;
-    const code = open.doc.files[ENTRY];
-    bc.note(id, [{ kind: 'sys', text: `Running ${ENTRY} from the editor on the board — its own main.py is unchanged.\n` }]);
-    await api.boards.console.do(id, { do: 'run', name: ENTRY, code: typeof code === 'string' ? code : new TextDecoder().decode(code) });
+    const code = open.doc.files[target];
+    bc.note(id, [{ kind: 'sys', text: `Running ${target} from the editor on the board — its own main.py is unchanged.\n` }]);
+    await api.boards.console.do(id, { do: 'run', name: target, code: typeof code === 'string' ? code : new TextDecoder().decode(code ?? new Uint8Array()) });
   };
   // the connection helper (F-56), installing MicroPython (F-52): while open
   const [helping, setHelping] = useState(false);
@@ -210,7 +287,7 @@ export function App({ api, width, startRun }: AppProps) {
         onChoose={(id) => { setChosen(id); void api.settings.set('board.chosen', id); }} onCheck={(id) => void api.boards.check(id)}
         onHelp={() => setHelping(true)} onInstall={setInstalling} />
       <SendToBoard detection={boards} project={open.doc.project.board as BoardId} chosen={chosen} files={open.doc.files}
-        entry={ENTRY} busy={sending} onSend={(id, req) => void send(id, req)}
+        entry={target} busy={sending} onSend={(id, req) => void send(id, req)}
         onRunFile={(id) => void runOnBoard(id)} onOpenConsole={(id) => void openConsole(id)}
         onBoardFiles={(id) => { if (running) sim.stop(); setFilesOf({ id, name: nameOf(id) }); }}
         onHelp={() => setHelping(true)} />
@@ -227,6 +304,10 @@ export function App({ api, width, startRun }: AppProps) {
   const page = controls ? <ControlsPage />
     : mode !== 'workspace' ? <Later mode={mode} />
     : open ? <Workspace key={open.key} api={api} width={width} doc={open.doc} onChange={(doc) => setOpen((cur) => (cur ? { ...cur, doc, savedNote: undefined } : cur))}
+        history={open.history ?? EMPTY_HISTORY} onHistory={(h) => setOpen((cur) => (cur ? { ...cur, history: h } : cur))}
+        onUndo={() => step(undo)} onRedo={() => step(redo)}
+        file={open.file ?? 'main.py'} onFile={(p) => setOpen((cur) => (cur ? { ...cur, file: p } : cur))}
+        runFile={running ? open.lastRun ?? target : target}
         run={sim.state} running={running} onInput={sim.setInput} onClearConsole={sim.clear}
         consoleTab={bc.tab} onConsoleTab={bc.setTab}
         board={bc.shown ? {
@@ -246,11 +327,18 @@ export function App({ api, width, startRun }: AppProps) {
             <button type="button" className="btn sm" onClick={() => consoleDo({ do: 'interrupt' })}><Icon name="stop" size={14} /> Stop the board</button>
           </>
         ) : undefined} />
-    : <StartPage onNew={start} onOpen={actions.onOpen} onLearn={() => setMode('learn')} onExamples={() => setMode('examples')} />;
+    : <StartPage onNew={start} onOpen={actions.onOpen} onLearn={() => setMode('learn')} onExamples={() => setMode('examples')}
+        recent={recent} onOpenRecent={(r) => guard(() => void openRecent(r))}
+        onForget={(r) => void api.project.forget(r.path).then(async () => setRecent(await api.project.recent()))}
+        recovered={recovered} onRecover={recover} onDiscard={discard} />;
 
   return (
     <div className="app">
-      <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} dirty={dirty} run={runControls} chip={chip} {...actions} />
+      <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} dirty={dirty} run={runControls} chip={chip} {...actions}
+        edit={open && mode === 'workspace' ? {
+          canUndo: !running && (open.history?.past.length ?? 0) > 0, canRedo: !running && (open.history?.future.length ?? 0) > 0,
+          onUndo: () => step(undo), onRedo: () => step(redo),
+        } : undefined} />
       {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
       {page}
       <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} board={boardRuns} />
@@ -325,18 +413,24 @@ interface TopBarProps {
   onSaveAs: () => void;
   /** The real board's chip (F-55) and Send to board (F-50). */
   chip: React.ReactNode;
+  /** Undo / redo of the circuit (screen 02b), in the workspace. */
+  edit?: { canUndo: boolean; canRedo: boolean; onUndo: () => void; onRedo: () => void };
 }
 
 interface RunControls {
   state: RunState;
+  /** The file Run runs: its name is on the button. */
+  target: string;
   onRun: () => void;
+  /** Run main.py, as the board does when switched on (Run's ⌄ menu). */
+  onRunMain: () => void;
   onStop: () => void;
   onRestart: () => void;
 }
 
 const MOD = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
-function TopBar({ mode, onMode, project, dirty, run, chip, onNewProject, onOpen, onSave, onSaveAs }: TopBarProps) {
+function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, onOpen, onSave, onSaveAs }: TopBarProps) {
   return (
     <header className="topbar">
       <div className="brand"><Logo /><b>Micro<span>Lab</span></b></div>
@@ -361,6 +455,12 @@ function TopBar({ mode, onMode, project, dirty, run, chip, onNewProject, onOpen,
             { label: 'Save as…', icon: 'copy', hint: MOD === '⌘' ? '⇧⌘S' : 'Ctrl+Shift+S', keys: 'Shift+Meta+S Shift+Control+S', onSelect: onSaveAs },
           ]} />
           <span className="spacer" />
+          {edit && (
+            <div className="undo" role="group" aria-label="Undo and redo">
+              <button type="button" className="btn ghost icon" aria-label="Undo" title={`Undo (${MOD}Z)`} disabled={!edit.canUndo} onClick={edit.onUndo}><Icon name="undo" size={16} /></button>
+              <button type="button" className="btn ghost icon" aria-label="Redo" title={`Redo (${MOD === '⌘' ? '⇧⌘Z' : 'Ctrl+Y'})`} disabled={!edit.canRedo} onClick={edit.onRedo}><Icon name="redo" size={16} /></button>
+            </div>
+          )}
           <div className="vsep" />
           <RunBox run={run} />
           <div className="vsep" />
@@ -383,7 +483,14 @@ function RunBox({ run }: { run: RunControls }) {
   if (status === 'idle') {
     return (
       <div className="runbox">
-        <button type="button" className="btn run" onClick={run.onRun} title="Run main.py"><Icon name="play" size={14} /> Run</button>
+        <span className="runsplit">
+          <button type="button" className="btn run" onClick={run.onRun} title={`Run ${run.target} on the simulated board`}>
+            <Icon name="play" size={14} /> Run <span className="runfile">{run.target.split('/').pop()}</span>
+          </button>
+          <MenuButton label="More ways to run" className="split" items={[
+            { label: 'Run main.py', icon: 'play', description: 'As when the board is switched on: main.py is the file a board runs by itself.', onSelect: run.onRunMain },
+          ]} />
+        </span>
         <button type="button" className="btn icon" disabled title="Stop" aria-label="Stop"><Icon name="stop" size={14} /></button>
       </div>
     );

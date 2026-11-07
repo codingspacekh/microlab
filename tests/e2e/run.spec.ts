@@ -64,7 +64,7 @@ for (const b of BOARDS) {
     await expect(win.getByRole('status')).toContainText('2 parts · 2 wires');
     await setCode(win, readFileSync(`library/examples/blink/${b.example}/files/main.py`, 'utf8'));
 
-    await win.getByRole('button', { name: 'Run' }).click();
+    await win.getByRole('button', { name: 'Run main.py' }).click();
     const led = win.locator('[data-part="led1"]');
     await expect(led).toHaveAttribute('data-lit', '1', { timeout: 5000 });
     await expect(led).toHaveAttribute('data-lit', '0', { timeout: 2000 });
@@ -72,7 +72,7 @@ for (const b of BOARDS) {
     await expect(win.getByRole('status')).toContainText('Running at real speed');
 
     await win.getByRole('button', { name: 'Stop' }).click();
-    await expect(win.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 1000 });   // N-03: ≤ 0.5 s, with room
+    await expect(win.getByRole('button', { name: 'Run main.py' })).toBeEnabled({ timeout: 1000 });   // N-03: ≤ 0.5 s, with room
     await expect(win.getByRole('log', { name: 'Console' })).toContainText('Stopped.');
   });
 }
@@ -86,7 +86,7 @@ test('the starter programs light the board itself: the Pico W\'s LED, the micro:
       await win.getByRole('menuitem', { name: 'New project…' }).click();
     }
     await win.getByRole('button', { name: button }).click();
-    await win.getByRole('button', { name: 'Run' }).click();
+    await win.getByRole('button', { name: 'Run main.py' }).click();
     await expect(win.locator(sel)).toHaveCount(1, { timeout: 5000 });
     await expect(win.locator(sel)).toHaveCount(0, { timeout: 2000 });   // it blinks: off again
   }
@@ -99,7 +99,7 @@ test('print() reaches the console; an error says where; the button can be presse
   await drag(win, await centre(win, '[data-point="board.GP14"]'), await centre(win, '[data-point="bb1.d20"]'));
   await drag(win, await centre(win, '[data-point^="board.GND"]'), await centre(win, '[data-point="bb1.j22"]'));
   await setCode(win, 'from machine import Pin\nimport time\nb = Pin(14, Pin.IN, Pin.PULL_UP)\nprint("ready")\nwhile b.value() == 1:\n    time.sleep_ms(10)\nprint("pressed!")\nprint(nope)\n');
-  await win.getByRole('button', { name: 'Run' }).click();
+  await win.getByRole('button', { name: 'Run main.py' }).click();
   const log = win.getByRole('log', { name: 'Console' });
   await expect(log).toContainText('ready', { timeout: 5000 });
   const btn = await centre(win, '[data-part="btn1"]');
@@ -109,4 +109,29 @@ test('print() reaches the console; an error says where; the button can be presse
   await win.mouse.up();
   await expect(log).toContainText("The program stopped with an error (main.py, line 8): NameError: name 'nope' isn't defined");
   await expect(win.getByRole('status')).toContainText('Stopped: an error on line 8');
+});
+
+test('M5.6 (Q19): a second file, made with +, runs with Run led_test.py; it imports a library from lib/; Run main.py from the menu', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  const make = async (name: string, code: string) => {
+    await win.getByRole('button', { name: 'Add a new file' }).click();
+    await win.getByRole('textbox', { name: 'New file' }).fill(name);
+    await win.keyboard.press('Enter');
+    await win.getByRole('textbox', { name }).click();
+    await win.keyboard.insertText(code);
+  };
+  await make('lib/helper.py', 'def hello():\n    return "hello from lib"\n');
+  await make('led_test.py', 'import helper\nprint(helper.hello(), __name__)\n');
+  await expect(win.getByRole('tablist', { name: 'Files' }).getByRole('tab')).toHaveCount(3);
+  await win.getByRole('button', { name: 'Run led_test.py' }).click();
+  const log = win.getByRole('log', { name: 'Console' });
+  await expect(log).toContainText('running led_test.py');
+  await expect(log).toContainText('hello from lib __main__');
+  await expect(win.getByRole('button', { name: 'Run led_test.py' })).toBeVisible();   // it ended by itself
+
+  await win.getByRole('button', { name: 'More ways to run' }).click();
+  await win.getByRole('menuitem', { name: /Run main\.py/ }).click();
+  await expect(log).toContainText('running main.py');
+  await win.getByRole('button', { name: 'Stop' }).click();
 });
