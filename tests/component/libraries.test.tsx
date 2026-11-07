@@ -101,12 +101,18 @@ describe('M6.7b Add a library (screen 22)', () => {
     expect(f['lib/rotary_irq_esp.py']).toBeUndefined();
   });
 
-  it('the files panel has Add library too; on the micro:bit none of the pack runs, and it says so', () => {
+  it('the files panel has Add library too; on the micro:bit, MicroLab\'s own drivers go next to main.py, the MIT notice inside', () => {
     const s = setup('New micro:bit project');
     fireEvent.click(screen.getByRole('button', { name: 'Project files' }));
     fireEvent.click(within(screen.getByRole('complementary', { name: 'Project files' })).getByRole('button', { name: 'Add library' }));
-    expect(s.dialog()).toHaveTextContent('None of the library pack runs on the micro:bit');
-    expect(within(s.dialog()).queryAllByRole('listitem')).toHaveLength(0);
+    expect(within(s.dialog()).getAllByRole('listitem')).toHaveLength(7);
+    expect(s.row('HC-SR04 distance')).toHaveTextContent('MIT · MicroLab');
+    fireEvent.click(within(s.row('HC-SR04 distance')).getByRole('button', { name: 'Add hcsr04' }));
+    expect(s.row('HC-SR04 distance')).toHaveTextContent('added');
+    fireEvent.click(within(s.dialog()).getByRole('button', { name: 'Close' }));
+    const f = s.files();
+    expect(f['hcsr04.py']).toBe(pack('hcsr04/microbit/hcsr04.py'));
+    expect(Object.keys(f).sort()).toEqual(['hcsr04.py', 'main.py']);   // no folders, no licence file: its notice is inside
   });
 });
 
@@ -129,9 +135,11 @@ describe('M6.7b the inspector\'s Library line (screen 22b)', () => {
     expect(within(s.inspector()).queryByRole('group', { name: 'Library' })).toBeNull();
   });
 
-  it('on the micro:bit', () => {
+  it('on the micro:bit: MicroLab\'s own bmp280, added next to main.py', () => {
     const s = setup('New micro:bit project');
     s.place(/^BMP280/, 'bmp280', 'bb1.f2');
-    expect(within(s.inspector()).getByRole('group', { name: 'Library' })).toHaveTextContent('None for the micro:bit — its example talks to the part itself');
+    fireEvent.click(within(s.inspector()).getByRole('button', { name: 'Add the bmp280 library' }));
+    expect(within(s.inspector()).getByRole('group', { name: 'Library' })).toHaveTextContent('bmp280 added · MIT');
+    expect(s.files()['bmp280.py']).toBe(pack('bmp280/microbit/bmp280.py'));
   });
 });

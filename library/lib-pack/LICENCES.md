@@ -1,9 +1,9 @@
 # The library pack: licences
 
-MicroLab ships these MicroPython drivers so the parts work offline (F-54). Each is as its authors wrote it,
-unchanged (`pack.json` keeps each file's SHA-256), with its licence in its folder. *Add library* copies a
-library's files into the project's `lib/` with its licence as `lib/LICENSE-<id>.txt`, so the notice goes onto
-the board with the code.
+MicroLab ships these MicroPython drivers so the parts work offline (F-54). On the Pico W and the ESP32 each is a
+driver people already use, as its authors wrote it — unchanged (`pack.json` keeps each file's SHA-256), with its
+licence in its folder. *Add library* copies its files into the project's `lib/` with its licence as
+`lib/LICENSE-<id>.txt`, so the notice goes onto the board with the code.
 
 | Library | For | Licence | Authors | Source (commit) |
 |---|---|---|---|---|
@@ -15,6 +15,10 @@ the board with the code.
 | `rotary` — Rotary encoder | rotary-encoder | MIT | Mike Teachman | [miketeachman/micropython-rotary](https://github.com/miketeachman/micropython-rotary/tree/b4c8ce53ee2413bdad41d24a2fcf91fac6ab2d32) (`b4c8ce5`) |
 | `max30102` — MAX30102 pulse oximeter | max30102 | MIT | Nicola Elia (after SparkFun's MAX3010x library, BSD: its notice is kept in the file) | [n-elia/MAX30102-MicroPython-driver](https://github.com/n-elia/MAX30102-MicroPython-driver/tree/facf22299ade83a6bb000feb3ff832b61096e68a) (`facf222`) |
 
+**On the micro:bit** its MicroPython has no `machine.I2C` objects or numbered pins, so these drivers don't run
+there. Each library has a small one of MicroLab's own instead (`<id>/microbit/`, MIT, © 2026 MicroLab, the notice in
+the file itself — the micro:bit has about 20 KB for files), with the same calls on `microbit.i2c` and the pin
+objects. The rotary encoder's reads the pins each time `value()` is called (the micro:bit has no pin interrupts);
+it follows the state table of Mike Teachman's `micropython-rotary` (MIT).
+
 Part of MicroPython on the Pico W and the ESP32 (nothing to add): `dht` for dht; `onewire, ds18x20` for ds18b20.
-The micro:bit's MicroPython has no `machine.I2C` objects or `machine.Pin` numbers, so these drivers don't run on it; its
-examples talk to the parts with `microbit.i2c` and the pins directly.

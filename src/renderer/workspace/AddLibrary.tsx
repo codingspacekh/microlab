@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { partKind } from '@lib/editor';
-import { addLibrary, filesFor, isAdded, librariesFor, needsOf, wouldReplace, type Library } from '@lib/libpack';
+import { addLibrary, buildFor, codeFiles, isAdded, librariesFor, needsOf, wouldReplace, type Library } from '@lib/libpack';
 import type { ProjectDoc } from '@lib/project';
 import { PACK, readPack } from '../app/libpack';
 import { BOARD_NAMES } from '../app/boards';
@@ -28,6 +28,7 @@ export function AddLibrary({ doc, onDoc, onCopy, onClose }: {
   const [chosen, setChosen] = useState<string | undefined>((mine[0] ?? other[0])?.id);
   const [asking, setAsking] = useState<{ lib: Library; files: string[] } | null>(null);
   const shown = libs.find((l) => l.id === chosen);
+  const useOf = (lib: Library) => buildFor(lib, board)?.use[board as keyof Library['builds'][number]['use']] ?? '';
 
   const add = (lib: Library) => {
     const replace = wouldReplace(doc, lib, readPack);
@@ -39,7 +40,8 @@ export function AddLibrary({ doc, onDoc, onCopy, onClose }: {
     const used = usedBy(lib);
     const added = isAdded(doc, lib, readPack);
     const replace = added ? [] : wouldReplace(doc, lib, readPack);
-    const code = filesFor(lib, board).slice(0, -1).map(([, to]) => to.slice(4));
+    const build = buildFor(lib, board)!;
+    const code = codeFiles(lib, board).map((to) => to.replace(/^lib\//, ''));
     const folder = code.every((f) => f.includes('/')) ? `${code[0]!.split('/')[0]}/ · ${code.length} files` : code.join(', ');
     return (
       <li key={lib.id} aria-label={lib.title} className={lib.id === chosen ? 'lib on' : 'lib'}>
@@ -47,13 +49,13 @@ export function AddLibrary({ doc, onDoc, onCopy, onClose }: {
           <b>{lib.title}</b> <span className="mono tiny muted">{folder}</span>{used.length > 0 && <span className="for"> · {used.join(', ')}</span>}
         </button>
         <span className="act">
-          {added ? <span className="pill ok"><Icon name="check" size={12} /> in lib/</span>
+          {added ? <span className="pill ok"><Icon name="check" size={12} /> {board.startsWith('microbit') ? 'added' : 'in lib/'}</span>
             : replace.length ? <button type="button" className="btn sm" aria-label={`Replace… ${lib.id}`} onClick={() => add(lib)}>Replace…</button>
               : <button type="button" className={lib.id === chosen ? 'btn sm primary' : 'btn sm'} aria-label={`Add ${lib.id}`} onClick={() => add(lib)}><Icon name="plus" size={12} /> Add</button>}
         </span>
         <span className="meta">
           {replace.length > 0 && <span className="warn-ink">Your {replace.join(', ')} {replace.length === 1 ? 'is' : 'are'} different — it would be replaced. </span>}
-          {lib.licence} · {lib.authors} · <span className="src">{lib.source.replace('https://github.com/', '')}</span>
+          {build.licence} · {build.authors}{build.source && <> · <span className="src">{build.source.replace('https://github.com/', '')}</span></>}
         </span>
       </li>
     );
@@ -61,16 +63,19 @@ export function AddLibrary({ doc, onDoc, onCopy, onClose }: {
 
   return (
     <Dialog title="Add a library" role="dialog" width={960} icon={<Icon name="book" size={20} />} onCancel={onClose}
-      note={<><Icon name="lock" size={14} /> In the app — no internet needed. Licences in <span className="mono">lib/LICENSE-…txt</span></>}
+      note={board.startsWith('microbit')
+        ? <><Icon name="lock" size={14} /> In the app — no internet needed. MicroLab's own for the micro:bit: small, the MIT notice inside</>
+        : <><Icon name="lock" size={14} /> In the app — no internet needed. Licences in <span className="mono">lib/LICENSE-…txt</span></>}
       actions={[{ label: 'Close', onClick: onClose }]}>
       <p className="small muted">
         <span className="pill">{BOARD_NAMES[board as BoardId] ?? board}</span>{' '}
-        Drivers for the parts, as their authors wrote them. They go in <span className="mono">lib/</span> with their licence, and onto the board with <i>Send to board</i>.
+        {board.startsWith('microbit')
+          ? <>Drivers for the parts, with the same calls as on the Pico W and the ESP32. They go next to <span className="mono">main.py</span>, and onto the micro:bit with <i>Send to board</i>.</>
+          : <>Drivers for the parts, as their authors wrote them. They go in <span className="mono">lib/</span> with their licence, and onto the board with <i>Send to board</i>.</>}
       </p>
       {libs.length === 0 ? (
         <p className="small libnone">
-          None of the library pack runs on the micro:bit: its MicroPython has no <span className="mono">machine.I2C</span> objects or numbered pins.
-          Each part's example talks to the part itself (<span className="mono">microbit.i2c</span>, <span className="mono">pin0</span> …).
+          None of the library pack runs on this board yet. Each part's example talks to the part itself.
         </p>
       ) : (
         <div className="libs">
@@ -94,8 +99,8 @@ export function AddLibrary({ doc, onDoc, onCopy, onClose }: {
           {shown && (
             <section className="libstart" aria-label={`How to start with ${shown.id}`}>
               <div className="ph"><Icon name="file" size={14} /> <b>How to start</b> <span className="muted">· {shown.id}</span><span className="spacer" />
-                <button type="button" className="btn ghost sm" onClick={() => onCopy(shown.use[board as keyof typeof shown.use] ?? '')}><Icon name="copy" size={12} /> Copy</button></div>
-              <pre className="mono">{shown.use[board as keyof typeof shown.use]}</pre>
+                <button type="button" className="btn ghost sm" onClick={() => onCopy(useOf(shown))}><Icon name="copy" size={12} /> Copy</button></div>
+              <pre className="mono">{useOf(shown)}</pre>
               <p className="small muted">{shown.summary}</p>
             </section>
           )}
@@ -118,14 +123,16 @@ export function AddLibrary({ doc, onDoc, onCopy, onClose }: {
 export function LibraryLine({ doc, type, onDoc }: { doc: ProjectDoc; type: string; onDoc: (doc: ProjectDoc) => void }) {
   const board = doc.project.board;
   const need = needsOf(PACK, type, board);
-  const elsewhere = !need && PACK.libraries.some((l) => l.parts.includes(type));
+  const elsewhere = !need && PACK.libraries.some((l) => l.parts.includes(type));   // none on this board, some on others
   if (!need && !elsewhere) return null;
   let body: React.ReactNode;
   if (need?.kind === 'library') {
     const lib = need.library;
+    const licence = buildFor(lib, board)!.licence;
+    const where = board.startsWith('microbit') ? 'added' : 'in lib/';
     body = isAdded(doc, lib, readPack)
-      ? <span className="row small" style={{ gap: 6 }}><span className="pill ok"><Icon name="check" size={12} /> {lib.id}</span>{' '}<span className="muted">in lib/ · {lib.licence}</span></span>
-      : <span className="row small" style={{ gap: 6 }}><span className="mono">{lib.id}</span><span className="muted">{lib.licence}</span><span className="spacer" />
+      ? <span className="row small" style={{ gap: 6 }}><span className="pill ok"><Icon name="check" size={12} /> {lib.id}</span>{' '}<span className="muted">{where} · {licence}</span></span>
+      : <span className="row small" style={{ gap: 6 }}><span className="mono">{lib.id}</span><span className="muted">{licence}</span><span className="spacer" />
         <button type="button" className="btn sm primary" aria-label={`Add the ${lib.id} library`} onClick={() => {
           const ok = wouldReplace(doc, lib, readPack).length === 0;
           if (ok) onDoc(addLibrary(doc, lib, readPack));
@@ -133,7 +140,7 @@ export function LibraryLine({ doc, type, onDoc }: { doc: ProjectDoc; type: strin
   } else if (need?.kind === 'built-in') {
     body = <span className="small">None needed: <span className="mono">{need.modules.join(', ')}</span> {need.modules.length === 1 ? 'is' : 'are'} part of MicroPython</span>;
   } else {
-    body = <span className="small">None for the micro:bit — its example talks to the part itself</span>;
+    body = <span className="small">None for this board — its example talks to the part itself</span>;
   }
   return <div className="prop" role="group" aria-label="Library"><span>Library</span><div className="pv">{body}</div></div>;
 }

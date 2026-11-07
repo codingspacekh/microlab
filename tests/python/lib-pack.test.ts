@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseBoard } from '@lib/boards';
-import { filesFor, parsePack } from '@lib/libpack';
+import { buildFor, filesFor, parsePack } from '@lib/libpack';
 import { parseProject, toCircuit } from '@lib/project';
 import json from '../../library/lib-pack/pack.json';
 import { VirtualClock } from '../../src/sim/clock';
@@ -39,7 +39,10 @@ const CASES: Record<string, { example: string; part: string; inputs: [number, Re
     expect(o[0]).toMatch(/^x 0\.50 y 0\.00 z 0\.87 g 2\d\.\d+$/);
   } },
   rotary: { example: 'rotary-encoder', part: 'enc1', inputs: [[0.2, { steps: 3 }], [0.8, { steps: 1 }]], seconds: 1.5, prints: (o) => {
-    expect(o).toEqual(['value 3', 'value 1']);   // turned clockwise 3 steps, then back 2 (8 ms a step; it looks each 50 ms)
+    // turned clockwise 3 steps, then back 2 (8 ms a step): looked at each 50 ms (the IRQ builds), or each 1 ms (the micro:bit's)
+    expect(o.at(-1)).toBe('value 1');
+    expect(o).toContain('value 3');
+    expect(o.filter((x) => !['value 1', 'value 2', 'value 3'].includes(x))).toEqual([]);
   } },
   max30102: { example: 'heart-rate', part: 'pulse1', inputs: [[0, { bpm: 80, spo2: 96 }]], seconds: 2, prints: (o) => {
     const ir = o.map((l) => Number(l.split(' ')[1]));
@@ -48,7 +51,7 @@ const CASES: Record<string, { example: string; part: string; inputs: [number, Re
   } },
 };
 
-const runs = pack.libraries.flatMap((l) => l.boards.map((b) => [l.id, b] as const));
+const runs = pack.libraries.flatMap((l) => l.builds.flatMap((b) => b.boards.map((board) => [l.id, board] as const)));
 
 describe('M6.7 the library pack runs against the parts', () => {
   it('every library has a case', () => expect(Object.keys(CASES).sort()).toEqual(pack.libraries.map((l) => l.id).sort()));
@@ -61,7 +64,7 @@ describe('M6.7 the library pack runs against the parts', () => {
     const data = parseBoard(JSON.parse(readFileSync(join(process.cwd(), 'library/boards', board, 'board.json'), 'utf8')));
     const files = Object.fromEntries(filesFor(lib, board).map(([from, to]) => [to, readFileSync(join(ROOT, from), 'utf8')]));
     const r = await runProject(await nodeLoader(), {
-      board, circuit: toCircuit(project, data), files: { ...files, 'main.py': lib.use[board]! }, clock: new VirtualClock(),
+      board, circuit: toCircuit(project, data), files: { ...files, 'main.py': buildFor(lib, board)!.use[board]! }, clock: new VirtualClock(),
       partInputs: c.inputs.map(([at, v]) => ({ atUs: Math.round(at * 1e6), part: c.part, ...v })), maxUs: c.seconds * 1e6,
     });
     expect(r.error).toBeUndefined();
