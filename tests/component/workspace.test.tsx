@@ -601,17 +601,21 @@ describe('M5.2 zoom, pan and fit (F-17); everything joined to a hole lights up (
     expect(vb(s)[2]).toBe(w);
   });
 
-  it('Ctrl + wheel zooms at the pointer; the wheel alone pans', () => {
+  it('the wheel zooms at the pointer, as in Tinkercad (the M5 gate), and so does Ctrl + wheel / a pinch; Shift + wheel pans', () => {
     const s = setup();
     const [x, y, w] = vb(s);
-    fireEvent.wheel(s.svg, { ...s.client(x, y), deltaY: -100, ctrlKey: true });
+    fireEvent.wheel(s.svg, { ...s.client(x, y), deltaY: -100 });
     const [x1, y1, w1] = vb(s);
     expect(w1).toBeLessThan(w);
     expect([x1, y1]).toEqual([x, y]);   // the corner was under the pointer: it stays
-    fireEvent.wheel(s.svg, { deltaX: 30, deltaY: 50 });
-    const [x2, y2] = vb(s);
-    expect(x2 - x1).toBeCloseTo(30);    // jsdom: 1 px = 1 unit
-    expect(y2 - y1).toBeCloseTo(50);
+    fireEvent.wheel(s.svg, { ...s.client(x, y), deltaY: -100, ctrlKey: true });
+    expect(vb(s)[2]).toBeLessThan(w1);
+    const [x2, y2, w2] = vb(s);
+    fireEvent.wheel(s.svg, { deltaX: 30, deltaY: 50, shiftKey: true });
+    const [x3, y3, w3] = vb(s);
+    expect(w3).toBe(w2);
+    expect(x3 - x2).toBeCloseTo(30);    // jsdom: 1 px = 1 unit
+    expect(y3 - y2).toBeCloseTo(50);
   });
 
   it('a drag with the middle button, or with Space held, moves the view and changes nothing', () => {

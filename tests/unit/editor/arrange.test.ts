@@ -82,14 +82,14 @@ describe('M5.1 rotating a part', () => {
 });
 
 describe('M5.1 moving several parts', () => {
-  it('a group moves by whole holes, each part keeping its shape; wires stay where they are', () => {
+  it('a group moves by whole holes, each part keeping its shape; a wire into their strip comes with them', () => {
     let p = r1At('bb1.a5', 'bb1.a8');
     p = addPart(p, 'led', { a: 'bb1.c5', k: 'bb1.c7' }).project;
     p = addWire(p, 'board.GP15', 'bb1.b5')!;
     const m = moveParts(p, ['r1', 'led1'], { x: 2 * 16 + 3, y: 16 - 2 })!;
     expect(legsOf(m, 'r1')).toEqual({ a: 'bb1.b7', b: 'bb1.b10' });
     expect(legsOf(m, 'led1')).toEqual({ a: 'bb1.d7', k: 'bb1.d9' });
-    expect(m.wires).toEqual(p.wires);
+    expect(m.wires).toEqual([{ ...p.wires[0], b: 'bb1.c7' }]);
   });
 
   it('a group that would land on a used hole or off the breadboard does not move', () => {
@@ -103,6 +103,66 @@ describe('M5.1 moving several parts', () => {
   it('moving onto its own old holes is fine', () => {
     const p = r1At('bb1.a5', 'bb1.a8');
     expect(legsOf(moveParts(p, ['r1'], { x: 16, y: 0 })!, 'r1')).toEqual({ a: 'bb1.a6', b: 'bb1.a9' });
+  });
+});
+
+describe('M5 gate (the teacher, 2026-11-07): wires follow the part, as in Tinkercad', () => {
+  const net = (p: Project) => connect(toCircuit(p, parseBoard(picoJson)));
+  const blink = () => addWire(r1At('bb1.a5', 'bb1.a8'), 'board.GP15', 'bb1.b5')!;
+
+  it('a wire into the strip of a moved leg moves with the leg; its board end stays', () => {
+    const m = moveParts(blink(), ['r1'], { x: 2 * 16, y: 16 })!;
+    expect(legsOf(m, 'r1')).toEqual({ a: 'bb1.b7', b: 'bb1.b10' });
+    expect(m.wires[0]).toMatchObject({ a: 'board.GP15', b: 'bb1.c7' });
+    expect(net(m).netOf('bb1.b7')).toBe(net(m).netOf('board.GP15'));
+  });
+
+  it('moving a leg onto its own wire\'s hole is fine: the wire makes room', () => {
+    const m = moveParts(blink(), ['r1'], { x: 0, y: 16 })!;
+    expect(legsOf(m, 'r1')).toEqual({ a: 'bb1.b5', b: 'bb1.b8' });
+    expect(m.wires[0]!.b).toBe('bb1.c5');
+  });
+
+  it('a strip shared with a part that stays: its wire stays too (it is still joined to that part)', () => {
+    let p = addPart(blink(), 'led', { a: 'bb1.c8', k: 'bb1.c10' }).project;
+    p = addWire(p, 'bb1.d8', 'board.GND@3')!;
+    const m = moveParts(p, ['r1'], { x: 16, y: 0 })!;
+    expect(legsOf(m, 'r1')).toEqual({ a: 'bb1.a6', b: 'bb1.a9' });
+    expect(m.wires.map((w) => [w.a, w.b])).toEqual([['board.GP15', 'bb1.b6'], ['bb1.d8', 'board.GND@3']]);
+  });
+
+  it('a wire from the strip to a rail: the strip end follows, the rail end stays (rails are never dragged)', () => {
+    const p = addWire(r1At('bb1.a5', 'bb1.a8'), 'bb1.e8', 'bb1.T-9')!;
+    const m = moveParts(p, ['r1'], { x: 3 * 16, y: 0 })!;
+    expect(m.wires[0]).toMatchObject({ a: 'bb1.e11', b: 'bb1.T-9' });
+  });
+
+  it('a wire end that would leave the strip stays in it, in the nearest free hole', () => {
+    const p = addWire(r1At('bb1.a5', 'bb1.a8'), 'board.GP15', 'bb1.e5')!;
+    const m = moveParts(p, ['r1'], { x: 0, y: 16 })!;   // e5 + one row is across the channel
+    expect(legsOf(m, 'r1')).toEqual({ a: 'bb1.b5', b: 'bb1.b8' });
+    expect(m.wires[0]!.b).toBe('bb1.e5');
+  });
+
+  it('no free hole for the wire in the leg\'s new strip: the part does not move', () => {
+    let p = blink();
+    for (const r of 'bcde') p = addWire(p, `bb1.${r}6`, `bb1.${r}20`)!;
+    expect(moveParts(p, ['r1'], { x: 16, y: 0 })).toBeUndefined();
+  });
+
+  it('a wire with both ends following keeps its bends, moved with it', () => {
+    const p = addWire(r1At('bb1.a5', 'bb1.a8'), 'bb1.b5', 'bb1.b8', [{ x: 400, y: 200 }])!;
+    const m = moveParts(p, ['r1'], { x: 32, y: 0 })!;
+    expect(m.wires[0]).toMatchObject({ a: 'bb1.b7', b: 'bb1.b10', via: [{ x: 432, y: 200 }] });
+  });
+
+  it('turned, the wire goes with the leg into its new strip: still GP15 → resistor', () => {
+    const t = rotateParts(addWire(r1At('bb1.a5', 'bb1.a8'), 'board.GP15', 'bb1.c5')!, ['r1'])!;
+    const w = t.wires[0]!;
+    expect(w.a).toBe('board.GP15');
+    expect(w.b).not.toBe('bb1.c5');
+    expect(Object.values(legsOf(t, 'r1'))).not.toContain(w.b);
+    expect(net(t).netOf(legsOf(t, 'r1').a!)).toBe(net(t).netOf('board.GP15'));
   });
 });
 

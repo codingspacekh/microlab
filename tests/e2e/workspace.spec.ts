@@ -58,6 +58,16 @@ test('build part of Blink with the mouse: a resistor dragged onto a5–a8, a wir
   const r1 = await centre(win, '[data-part="r1"] rect >> nth=0');
   await win.mouse.click(r1.x, r1.y);
   await expect(win.getByRole('complementary', { name: 'Inspector' })).toContainText('JoinsGP15 ↔ nothing');
+
+  // the M5 gate (as in Tinkercad): the resistor dragged two holes right takes the wire's end in its strip with it
+  const a7 = await centre(win, '[data-point="bb1.a7"]');
+  await win.mouse.move(r1.x, r1.y);
+  await win.mouse.down();
+  await win.mouse.move(r1.x + (a7.x - a5.x) + 2, r1.y - 2, { steps: 8 });
+  await win.mouse.up();
+  await expect(win.locator('[data-part="r1"]')).toHaveAttribute('data-legs', 'bb1.a7 bb1.a10');
+  await expect(win.locator('[data-wire="w1"]')).toHaveAttribute('data-ends', 'board.GP15 bb1.e7');
+  await expect(win.getByRole('complementary', { name: 'Inspector' })).toContainText('JoinsGP15 ↔ nothing');
 });
 
 test('at 1280 × 720 the micro:bit and its breadboard fit in the canvas', async () => {
@@ -152,7 +162,7 @@ test('M5.1 with the real keyboard and mouse: R turns, shift-click, ⌘D / Ctrl+D
   await expect(win.getByRole('textbox', { name: 'main.py' })).not.toContainText('# x');
 });
 
-test('M5.2 with the real mouse: hover lights a strip, Ctrl+wheel zooms at the pointer, the wheel and a middle drag pan, Fit', async () => {
+test('M5.2 with the real mouse: hover lights a strip, the wheel zooms at the pointer, Shift+wheel and a middle drag pan, Fit', async () => {
   const win = await app.firstWindow();
   await resize(win, 1440, 900);
   await win.getByRole('button', { name: 'New Pico W project' }).click();
@@ -167,17 +177,17 @@ test('M5.2 with the real mouse: hover lights a strip, Ctrl+wheel zooms at the po
   await expect(win.locator('[data-lit-strip]')).toHaveAttribute('data-lit-strip', 'bb1.a5 bb1.e5');
   await expect(win.locator('[data-lit-point]')).toHaveCount(5);
 
-  // zoom in at c5: c5 stays under the pointer
-  await win.keyboard.down('Control');
+  // the wheel zooms in at c5 (the M5 gate: as in Tinkercad): c5 stays under the pointer
   await win.mouse.wheel(0, -300);
-  await win.keyboard.up('Control');
   await expect.poll(pct).toBeGreaterThan(fitted * 1.3);
   const c5z = await centre(win, '[data-point="bb1.c5"]');
   expect(Math.abs(c5z.x - c5.x)).toBeLessThan(3);
   expect(Math.abs(c5z.y - c5.y)).toBeLessThan(3);
 
-  // the wheel alone pans; a middle-button drag pans
+  // Shift + wheel pans; a middle-button drag pans
+  await win.keyboard.down('Shift');
   await win.mouse.wheel(0, 100);
+  await win.keyboard.up('Shift');
   await expect.poll(async () => (await centre(win, '[data-point="bb1.c5"]')).y).toBeLessThan(c5z.y - 50);
   const before = await centre(win, '[data-point="bb1.c5"]');
   await win.mouse.move(before.x + 200, before.y);

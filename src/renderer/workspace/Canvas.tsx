@@ -26,8 +26,8 @@ import { BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, partTurns, po
  * them, Delete removes them; ⌘Z / Ctrl+Z undoes any edit, ⇧⌘Z / Ctrl+Y redoes it (the top bar has the buttons).
  * While a program runs (M4.5) the circuit can't be changed: LEDs glow by their current, the board's own LED and the
  * micro:bit's display light up, and a push button is pressed by holding the mouse on it.
- * M5.2 (F-17): Ctrl / ⌘ + wheel or a pinch zooms at the pointer, the wheel or two fingers pan, and so does a drag with
- * the middle or right button or with Space held; the toolbar zooms out, in, to 100 % and fits; + − 0 do the same.
+ * M5.2 (F-17): the wheel or a pinch zooms at the pointer (as in Tinkercad: the M5 gate), Shift + wheel pans, and so
+ * does a drag with the middle or right button or with Space held; the toolbar zooms out, in, to 100 % and fits; + − 0 do the same.
  * The drawing is fitted when it opens and when a breadboard changes size. Hovering a free hole or pin lights every hole
  * and pin joined to it — its strip, and through wires further (F-12); while a wire is drawn, where it would end.
  * M5.3: a hovered pin shows its card — its name and what it can do (F-15) — and a hole its strip and what is in it;
@@ -263,14 +263,15 @@ export function Canvas({
   };
   const fitView = () => setViewBox(fitBox(sceneOf(latest.current.project)));
 
-  // the wheel: Ctrl / ⌘ (and a pinch) zooms at the pointer, otherwise it pans (a native listener: React's is passive)
+  // the wheel (and a pinch) zooms at the pointer, as in Tinkercad (the M5 gate); Shift + wheel pans
+  // (a native listener: React's is passive)
   useEffect(() => {
     const el = svg.current;
     if (!el) return;
     const wheel = (e: WheelEvent) => {
       e.preventDefault();
-      if (e.ctrlKey || e.metaKey) zoomBy(Math.exp(-e.deltaY * 0.0015), toWorldRef.current(e));
-      else setViewBox((vb) => panBy(vb, -e.deltaX, -e.deltaY, latest.current.scale));
+      if (e.shiftKey) setViewBox((vb) => panBy(vb, -e.deltaX, -e.deltaY, latest.current.scale));
+      else zoomBy(Math.exp(-(e.deltaY || e.deltaX) * 0.0015), toWorldRef.current(e));
     };
     el.addEventListener('wheel', wheel, { passive: false });
     return () => el.removeEventListener('wheel', wheel);
