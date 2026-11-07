@@ -10,7 +10,7 @@ import { BOARD_ART, BOARD_NAMES } from '../app/boards';
 import type { PartView } from '../../sim/circuit';
 import type { BoardOutputs } from '../app/useRun';
 import { Icon } from '../ui/Icon';
-import { batteryBox, BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, partTurns, polyline, Wire } from './drawings';
+import { batteryBox, KIT, BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, partTurns, polyline, Wire } from './drawings';
 import { InputsCard, PartTip, SLIDER_PARTS, UsbSocket, UsbTip, useLive } from './live';
 
 /**
@@ -457,13 +457,18 @@ export function Canvas({
   /** A part's input while running: a button held (a PIR: motion), a switch slid (a line sensor: over the line or
    *  white), a knob dragged, the Inputs card opened (a light, soil or temperature sensor). */
   const runInput = (type: string, id: string) => {
-    if (type === 'button' || type === 'pir') return press(id);
+    if (['button', 'pir', 'button-module', 'touch', 'vibration'].includes(type)) return press(id);
     return (e: ReactMouseEvent) => {
       if (e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
-      if (type === 'slide-switch' || type === 'line-sensor') live.set(`position:${id}`, live.value(`position:${id}`) ? 0 : 1);
-      else if (type === 'potentiometer') live.turn(id, e);
+      if (['slide-switch', 'line-sensor', 'ir-obstacle', 'hall'].includes(type)) live.set(`position:${id}`, live.value(`position:${id}`) ? 0 : 1);
+      else if (type === 'potentiometer' || type === 'pot-module') live.turn(id, e);
+      else if (type === 'joystick') live.stick(id, e);
+      else if (type === 'rotary-encoder') {
+        const r = (e.currentTarget as Element).getBoundingClientRect();
+        live.dial(id, e, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
+      }
       else if (SLIDER_PARTS.has(type)) setInputsOpen(true);
     };
   };
@@ -599,14 +604,21 @@ export function Canvas({
           const on = isOn('part', p.id);
           const glow = p.type === 'led' ? ledOf(p.id) : undefined;
           const dies = p.type === 'rgb-led' ? (['r', 'g', 'b'].map((d) => ledOf(`${p.id}:${d}`)) as [number, number, number]) : undefined;
-          const position = p.type === 'slide-switch' || p.type === 'potentiometer' || p.type === 'line-sensor' ? live.value(`position:${p.id}`) : undefined;
+          const position = ['slide-switch', 'potentiometer', 'line-sensor', 'ir-obstacle', 'hall', 'pot-module'].includes(p.type) ? live.value(`position:${p.id}`) : undefined;
           const sensor = outputs.parts[p.id];
           const motion = p.type === 'pir' && sensor?.kind === 'sensor' && sensor.volts > 1;
           const moisture = p.type === 'soil-moisture' ? live.value(`position:${p.id}`) : undefined;
           const tilt = p.type === 'mpu6050' ? [live.value(`tiltx:${p.id}`), live.value(`tilty:${p.id}`)] as [number, number] : undefined;
           const measuring = running && p.type === 'hc-sr04' && sensor?.kind === 'sensor' && sensor.powered;
+          const kit = KIT[p.type] ? {
+            pressed: pressed === p.id, level: live.value(`position:${p.id}`), knob: live.value(`position:${p.id}`),
+            x: live.value(`x:${p.id}`), y: live.value(`y:${p.id}`), rpm: live.value(`rpm:${p.id}`),
+            hot: running && sensor?.kind === 'sensor' && sensor.powered,
+            // a module's LEDs light from its supply: while running as the sim says, while building as if powered
+            powered: !running || (sensor?.kind === 'sensor' ? sensor.powered : true),
+          } : undefined;
           const lit = glow ?? (dies ? Math.max(...dies) : undefined);
-          const says = running && ['led', 'rgb-led', 'buzzer', 'pir', 'line-sensor'].includes(p.type);
+          const says = running && ['led', 'rgb-led', 'buzzer', 'pir', 'line-sensor', 'joystick', 'rotary-encoder'].includes(p.type);
           const tone = p.type === 'buzzer' ? outputs.parts[p.id] : undefined;
           const hz = tone?.kind === 'buzzer' && tone.volume > 0 ? tone.hz : p.type === 'buzzer' ? 0 : undefined;
           return (
@@ -624,7 +636,7 @@ export function Canvas({
                 const group = on ? chosen(selection).parts : [p.id];
                 begin((at) => ({ kind: 'parts', id: p.id, ids: group, start: at, at }))(e);
               }}>
-              <PartDrawing type={p.type} legs={legs} props={p.props} look={{ glow, dies, position, sounding: !!hz || measuring, motion, moisture, tilt, pressed: pressed === p.id }} />
+              <PartDrawing type={p.type} legs={legs} props={p.props} look={{ glow, dies, position, sounding: !!hz || measuring, motion, moisture, tilt, kit, pressed: pressed === p.id }} />
               {on && <SelectBox type={p.type} legs={legs} props={p.props} />}
             </g>
           );
@@ -657,7 +669,8 @@ export function Canvas({
             {sliders.length > 0 && <InputsCard parts={sliders} live={live} views={outputs.parts} onClose={() => setInputsOpen(false)} style={{ right: 14, bottom: 14 }} />}
             {tipPart && (
               <PartTip id={tipPart.id} type={tipPart.type} common={String(tipPart.props?.common ?? 'cathode')} views={outputs.parts}
-                overLine={live.value(`position:${tipPart.id}`) >= 0.5} style={near(Object.values(tipPart.legs), 46)} />
+                overLine={live.value(`position:${tipPart.id}`) >= 0.5} style={near(Object.values(tipPart.legs), 46)}
+                values={{ x: live.value(`x:${tipPart.id}`), y: live.value(`y:${tipPart.id}`), steps: live.value(`steps:${tipPart.id}`) }} />
             )}
             {tipOf === 'usb' && art.usb && (
               <UsbTip plugged={project.usb !== false} style={(() => {
@@ -738,13 +751,15 @@ const PAD: Record<string, [number, number, number, number]> = {
   pir: [30, 96, 30, 8], 'line-sensor': [16, 126, 16, 8], 'soil-moisture': [24, 150, 24, 8], 'temp-sensor': [6, 50, 6, 16],
   dht: [14, 94, 14, 8], mpu6050: [16, 96, 16, 8], 'hc-sr04': [93, 10, 93, 124],
 };
+/** A kit module's box: its board and, over it, what it senses (a plate, a wheel, a flame …). */
+const KIT_ABOVE: Record<string, number> = { raindrop: 44, 'speed-sensor': 42, flame: 38, mq2: 30, 'ir-obstacle': 30, hall: 26 };
 function SelectBox({ type, legs: placedLegs, props }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown> }) {
   if (type === 'battery') {
     const b = batteryBox(placedLegs['+']!, placedLegs['-']!, String(props?.kind ?? '2xAA'));
     return <rect className="sel" x={b.x0 - 6} y={b.y0 - 6} width={b.x1 - b.x0 + 12} height={b.y1 - b.y0 + 12} rx={6} />;
   }
   const legs = Object.values(placedLegs);
-  let [l, t, r, b] = PAD[type] ?? [12, 12, 12, 12];
+  let [l, t, r, b] = PAD[type] ?? (KIT[type] ? [10, 20 + KIT[type]!.h + (KIT_ABOVE[type] ?? 0), 10, 8] : [12, 12, 12, 12]);
   // a quarter turn clockwise brings what was on the left to the top
   for (let i = 0; i < partTurns(type, placedLegs); i++) [l, t, r, b] = [b, l, t, r];
   const x0 = Math.min(...legs.map((p) => p.x)) - l;

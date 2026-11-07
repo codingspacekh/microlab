@@ -57,7 +57,7 @@ describe('M4.3 the workspace draws the project', () => {
     const s = setup();
     const panel = screen.getByRole('region', { name: 'Parts' });
     expect(within(panel).getByText('Raspberry Pi Pico W')).toBeInTheDocument();
-    for (const name of [/^Resistor/, /^LED/, /^Push button/, /^Potentiometer/]) expect(s.item(name)).toBeInTheDocument();
+    for (const name of [/^Resistor/, /^LED/, /^Push button/, /^Potentiometer(?! module)/]) expect(s.item(name)).toBeInTheDocument();
   });
 });
 
@@ -336,7 +336,7 @@ describe('M4.3b the inspector (screen 02b) and Delete', () => {
     place(s, /^LED/, 'led', 'bb1.a1');
     fireEvent.click(within(inspector()).getByRole('radio', { name: 'Green' }));
     expect(props(s, 'led1')).toEqual({ color: 'green' });
-    place(s, /^Potentiometer/, 'potentiometer', 'bb1.a10');
+    place(s, /^Potentiometer(?! module)/, 'potentiometer', 'bb1.a10');
     fireEvent.click(within(inspector()).getByRole('radio', { name: '100kΩ' }));
     expect(props(s, 'pot1')).toEqual({ ohms: 100_000 });
   });

@@ -54,7 +54,7 @@ function setup(board = 'New Pico W project') {
 describe('M6.1 the inputs pack in the parts panel (screen 17)', () => {
   it('lists the RGB LED, the slide switch, the light sensor and the battery pack with the basics', () => {
     const s = setup();
-    for (const name of [/^Resistor/, /^LED/, /^RGB LED/, /^Push button/, /^Slide switch/, /^Potentiometer/, /^Light sensor \(LDR\)/, /^Battery pack/]) {
+    for (const name of [/^Resistor/, /^LED/, /^RGB LED/, /^Push button/, /^Slide switch/, /^Potentiometer(?! module)/, /^Light sensor \(LDR\)/, /^Battery pack/]) {
       expect(s.item(name)).toBeInTheDocument();
     }
   });
@@ -120,7 +120,7 @@ describe('M6.1 while running (screen 17)', () => {
 
   it('a knob is turned by dragging up (more) or down (less) from the middle', () => {
     const s = setup();
-    s.place(/^Potentiometer/, 'potentiometer', 'bb1.e21');
+    s.place(/^Potentiometer(?! module)/, 'potentiometer', 'bb1.e21');
     s.run();
     expect(s.part('pot1')).toHaveAttribute('data-position', '0.5');
     fireEvent.mouseDown(s.part('pot1'), s.client(0, 200));

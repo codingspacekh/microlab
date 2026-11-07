@@ -176,3 +176,15 @@ describe('M6.4c the modules in the editor', () => {
     expect(partKind('dht')).toMatchObject({ props: { kind: 'DHT11' } });
   });
 });
+
+/** M6.5a (screens 20, 20b): the kit's 14 input modules, in the parts panel's Modules group, pins as printed. */
+describe('M6.5a the kit\'s modules in the editor', () => {
+  it('in the Modules group, each with the legs its model has, in row f first', () => {
+    expect(PART_KINDS.filter((k) => k.group === 'Modules').map((k) => k.type)).toEqual([
+      'button-module', 'touch', 'vibration', 'ir-obstacle', 'hall', 'flame', 'raindrop', 'water-level', 'mq2',
+      'ldr-module', 'pot-module', 'joystick', 'rotary-encoder', 'speed-sensor',
+    ]);
+    expect(freeSpot(sceneOf(empty()), 'joystick')).toEqual({ gnd: 'bb1.f1', vcc: 'bb1.f2', vrx: 'bb1.f3', vry: 'bb1.f4', sw: 'bb1.f5' });
+    expect(snapPart(sceneOf(empty()), 'flame', at(empty(), 'bb1.f21'))).toEqual({ ao: 'bb1.f21', gnd: 'bb1.f22', vcc: 'bb1.f23', out: 'bb1.f24' });
+  });
+});

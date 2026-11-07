@@ -6,7 +6,7 @@ import type { Project } from '@lib/project';
 import { formatValue } from '@lib/units';
 import { Chips, Icon, Segmented, Stepper, Swatches } from '../ui';
 import { MESSAGES, wireColour, type Selection } from './Canvas';
-import { bands, LED_SWATCHES, PartIcon, WIRE_COLOURS } from './drawings';
+import { bands, KIT, LED_SWATCHES, PartIcon, WIRE_COLOURS } from './drawings';
 
 /**
  * The inspector (screen 02b, F-14): what the selected part, wire or breadboard is, and what can be set — a resistor's
@@ -28,6 +28,8 @@ const PRINTED: Record<string, [string, string][]> = {
   dht: [['vcc', 'VCC'], ['out', 'DATA'], ['gnd', 'GND']],
   'hc-sr04': [['vcc', 'VCC'], ['trig', 'Trig'], ['echo', 'Echo'], ['gnd', 'GND']],
   mpu6050: [['vcc', 'VCC'], ['gnd', 'GND'], ['scl', 'SCL'], ['sda', 'SDA'], ['xda', 'XDA'], ['xcl', 'XCL'], ['ad0', 'AD0'], ['int', 'INT']],
+  // the kit's modules (M6.5a): drawings.tsx KIT has their printed names
+  ...Object.fromEntries(Object.entries(KIT).map(([type, k]) => [type, k.legs.map((l, i): [string, string] => [l, k.labels[i]!])])),
 };
 const BUZZERS = [{ value: 'active', label: 'Active' }, { value: 'passive', label: 'Passive' }];
 const COMMONS = [{ value: 'cathode', label: '− cathode' }, { value: 'anode', label: '+ anode' }];
@@ -47,6 +49,20 @@ const TIPS: Record<string, string> = {
   dht: 'DATA to any pin — no resistor: the module has its pull-up. import dht; d = dht.DHT11(Pin(15)); d.measure(); then d.temperature(), d.humidity(). A DHT11 gives a new reading every second, a DHT22 every 2 s.',
   'hc-sr04': 'It needs 5 V (VBUS, VIN or 5V). A 10 µs pulse on Trig, then time_pulse_us on Echo: 58 µs per cm. Echo is 5 V: bring it down with 1 kΩ + 2 kΩ before the board\'s pin, or the pin is damaged.',
   mpu6050: 'SDA and SCL to the board\'s I²C pins (3.3 V or 5 V on VCC). It answers at 0x68 (AD0 high: 0x69) and starts asleep: write 0 to register 0x6B to wake it.',
+  'button-module': 'S is pulled up to VCC on the module: it reads 1, and 0 while the button is pressed.',
+  touch: 'SIG is 1 while a finger is on the pad, 0 otherwise. 2–5.5 V.',
+  vibration: 'DO is 1 while it is shaken, 0 when it is still. The blue screw sets how hard a knock it needs.',
+  'ir-obstacle': 'OUT is 0 when something is in front of it (a few cm), 1 when clear. The screw sets how far it sees.',
+  hall: 'S is 0 with a magnet near (its south pole to the sensor), 1 otherwise.',
+  flame: 'AO falls as a flame comes near (to an ADC pin); DO goes 0 past the screw\'s setting. It sees infrared: a lighter, a candle.',
+  raindrop: 'Its plate on two wires; AO falls as the plate gets wet; DO goes 0 past the screw\'s setting.',
+  'water-level': 'S to an ADC pin: 0 V dry, higher the deeper it is in water. Keep the board above the water line.',
+  mq2: 'Its heater needs 5 V (VBUS, VIN or 5V) and draws ≈ 150 mA. AO rises with gas or smoke — from 5 V it can pass 3.3 V: a divider keeps it in the ADC\'s range. DO goes 0 past the screw\'s setting.',
+  'ldr-module': 'S to an ADC pin: more light, more volts.',
+  'pot-module': 'S to an ADC pin: from 0 V at one end of its turn to VCC at the other.',
+  joystick: 'VRx and VRy to two ADC pins: the middle at rest. SW goes to GND when the stick is pressed — give it Pin.PULL_UP.',
+  'rotary-encoder': 'CLK and DT (pulled up on the module) close in turn as it is turned: when CLK falls, DT says which way. SW to GND when pressed — give it Pin.PULL_UP.',
+  'speed-sensor': 'A wheel with 20 slots turns in its gap: DO pulses 20 times a turn. Count them in a second for the speed.',
   battery: 'A supply of its own, not joined to the board. To use it with the board, join its − to the board\'s GND.',
 };
 const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({ value, name: value[0]!.toUpperCase() + value.slice(1), colour }));

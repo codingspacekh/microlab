@@ -7,12 +7,14 @@ import { PART_ART } from './library';
  * footprints are set here; the push button's, the potentiometer's and the slide switch's come from their art.json.
  */
 export type PartType = 'resistor' | 'led' | 'rgb-led' | 'button' | 'slide-switch' | 'potentiometer' | 'ldr' | 'buzzer' | 'battery'
-  | 'hc-sr04' | 'dht' | 'mpu6050' | 'pir' | 'line-sensor' | 'soil-moisture' | 'temp-sensor';
+  | 'hc-sr04' | 'dht' | 'mpu6050' | 'pir' | 'line-sensor' | 'soil-moisture' | 'temp-sensor'
+  | 'button-module' | 'touch' | 'vibration' | 'ir-obstacle' | 'hall' | 'flame' | 'raindrop' | 'water-level' | 'mq2'
+  | 'ldr-module' | 'pot-module' | 'joystick' | 'rotary-encoder' | 'speed-sensor';
 
 export interface PartKind {
   type: PartType;
   /** Its group in the parts panel (screen 02, design/build.py PARTS). */
-  group: 'Basics' | 'Sensors';
+  group: 'Basics' | 'Sensors' | 'Modules';
   name: string;
   detail: string;
   prefix: string;
@@ -57,6 +59,26 @@ export const PART_KINDS: PartKind[] = [
   { type: 'line-sensor', group: 'Sensors', name: 'Line sensor (IR)', detail: 'TCRT5000', prefix: 'line', legs: { out: [0, 0], gnd: [16, 0], vcc: [32, 0] }, props: {}, rows: MODULE_ROWS },
   { type: 'soil-moisture', group: 'Sensors', name: 'Soil moisture', detail: 'capacitive', prefix: 'soil', legs: { out: [0, 0], vcc: [16, 0], gnd: [32, 0] }, props: {}, rows: MODULE_ROWS },
   { type: 'temp-sensor', group: 'Sensors', name: 'Temperature', detail: 'TMP36 · LM35', prefix: 'tmp', legs: { vcc: [0, 0], out: [16, 0], gnd: [32, 0] }, props: { kind: 'TMP36' }, rows: MODULE_ROWS },
+  // the SunFounder kit's inputs on common modules (M6.5a, screens 20, 20b): pins as commonly printed, in row f
+  ...([
+    ['button-module', 'Button module', '', 'kbtn', ['out', 'vcc', 'gnd']],
+    ['touch', 'Touch (TTP223)', '', 'touch', ['out', 'vcc', 'gnd']],
+    ['vibration', 'Vibration (SW-420)', '', 'vib', ['vcc', 'gnd', 'out']],
+    ['ir-obstacle', 'IR obstacle', '', 'ir', ['out', 'gnd', 'vcc']],
+    ['hall', 'Hall', 'magnet', 'hall', ['out', 'vcc', 'gnd']],
+    ['flame', 'Flame', 'AO · DO', 'flame', ['ao', 'gnd', 'vcc', 'out']],
+    ['raindrop', 'Raindrop', 'AO · DO', 'rain', ['ao', 'out', 'gnd', 'vcc']],
+    ['water-level', 'Water level', '', 'water', ['out', 'vcc', 'gnd']],
+    ['mq2', 'Gas / smoke (MQ-2)', '5 V', 'gas', ['ao', 'out', 'gnd', 'vcc']],
+    ['ldr-module', 'Photoresistor module', '', 'photo', ['out', 'vcc', 'gnd']],
+    ['pot-module', 'Potentiometer module', '', 'knob', ['out', 'vcc', 'gnd']],
+    ['joystick', 'Joystick', 'X · Y · button', 'joy', ['gnd', 'vcc', 'vrx', 'vry', 'sw']],
+    ['rotary-encoder', 'Rotary encoder', 'KY-040', 'enc', ['clk', 'dt', 'sw', 'vcc', 'gnd']],
+    ['speed-sensor', 'IR speed sensor', '20-slot wheel', 'speed', ['vcc', 'gnd', 'out']],
+  ] as const).map(([type, name, detail, prefix, legs]): PartKind => ({
+    type, group: 'Modules', name, detail, prefix, props: {}, rows: MODULE_ROWS,
+    legs: Object.fromEntries(legs.map((l, i) => [l, [16 * i, 0] as [number, number]])),
+  })),
 ];
 
 export function partKind(type: string): PartKind {

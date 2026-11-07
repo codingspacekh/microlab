@@ -37,7 +37,7 @@ test('build part of Blink with the mouse: a resistor dragged onto a5–a8, a wir
 
   const a5 = await centre(win, '[data-point="bb1.a5"]');
   const a8 = await centre(win, '[data-point="bb1.a8"]');
-  const item = await centre(win, '.parts .pitem:has-text("Resistor")');
+  const item = await centre(win, '.parts .pitem:has-text("220 Ω")');
   await win.mouse.move(item.x, item.y);
   await win.mouse.down();
   await win.mouse.move((a5.x + a8.x) / 2 + 3, a5.y - 2, { steps: 8 });
@@ -125,7 +125,7 @@ test('M5.1 with the real keyboard and mouse: R turns, shift-click, ⌘D / Ctrl+D
 
   const a5 = await centre(win, '[data-point="bb1.a5"]');
   const a8 = await centre(win, '[data-point="bb1.a8"]');
-  const item = await centre(win, '.parts .pitem:has-text("Resistor")');
+  const item = await centre(win, '.parts .pitem:has-text("220 Ω")');
   await win.mouse.move(item.x, item.y);
   await win.mouse.down();
   await win.mouse.move((a5.x + a8.x) / 2 + 3, a5.y - 2, { steps: 8 });

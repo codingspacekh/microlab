@@ -28,38 +28,77 @@ export interface Live {
   /** A slot's value now: what was set in this run, or the sim's start value. */
   value: (slot: string) => number;
   set: (slot: string, v: number) => void;
-  /** A drag on a knob starts. */
+  /** A drag on a knob starts (a potentiometer, a potentiometer module). */
   turn: (id: string, e: { clientY: number }) => void;
+  /** A drag on a joystick's stick starts (M6.5a): it follows, springs back when let go; a click presses SW. */
+  stick: (id: string, e: { clientX: number; clientY: number }) => void;
+  /** A drag round a rotary encoder starts (M6.5a), `centre` its middle on screen: a step each 15°; a click presses it. */
+  dial: (id: string, e: { clientX: number; clientY: number }, centre: { x: number; y: number }) => void;
 }
+
+/** Pixels from the middle to the edge of a joystick's travel; degrees for an encoder's step; a click is shorter. */
+const STICK_PX = 60;
+const STEP_DEG = 15;
+const CLICK_PX = 4;
+const PRESS_MS = 200;
+
+type Drag =
+  | { kind: 'knob'; id: string; y: number; from: number }
+  | { kind: 'stick'; id: string; x: number; y: number; moved: boolean }
+  | { kind: 'dial'; id: string; x: number; y: number; cx: number; cy: number; last: number; total: number; from: number; moved: boolean };
 
 export function useLive(running: boolean, onInput?: (name: string, value: number) => void): Live {
   const [values, setValues] = useState<Record<string, number>>({});
-  const knob = useRef<{ id: string; y: number; from: number } | null>(null);
+  const drag = useRef<Drag | null>(null);
   const latest = useRef({ values, onInput });
   latest.current = { values, onInput };
 
   // each run starts from the sim's start values
-  useEffect(() => { if (running) setValues({}); else knob.current = null; }, [running]);
+  useEffect(() => { if (running) setValues({}); else drag.current = null; }, [running]);
 
-  const value = (slot: string) => values[slot] ?? (slot.startsWith('position:pot') ? KNOB_START : slot.startsWith('position:soil') ? SENSOR_START.moisture
-    : START[slot.slice(0, slot.indexOf(':'))] ?? 0);
-  const set = (slot: string, v: number) => {
+  const startOf = (slot: string) => (slot.startsWith('position:pot') || slot.startsWith('position:knob') || slot.startsWith('x:') || slot.startsWith('y:') ? KNOB_START
+    : slot.startsWith('position:soil') ? SENSOR_START.moisture : START[slot.slice(0, slot.indexOf(':'))] ?? 0);
+  const value = (slot: string) => values[slot] ?? startOf(slot);
+  /** Sets a slot (and tells the run) unless it already has that value. */
+  const put = (slot: string, v: number) => {
+    if ((latest.current.values[slot] ?? startOf(slot)) === v) return;
+    latest.current.values = { ...latest.current.values, [slot]: v };
     setValues((vs) => ({ ...vs, [slot]: v }));
     latest.current.onInput?.(slot, v);
   };
+  const press = (id: string) => {
+    latest.current.onInput?.(`pressed:${id}`, 1);
+    setTimeout(() => latest.current.onInput?.(`pressed:${id}`, 0), PRESS_MS);
+  };
 
   useEffect(() => {
+    const clamp = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 100) / 100;
     const move = (e: MouseEvent) => {
-      const k = knob.current;
-      if (!k) return;
-      const v = Math.round(Math.min(1, Math.max(0, k.from + (k.y - e.clientY) / KNOB_PX)) * 100) / 100;
-      const slot = `position:${k.id}`;
-      if (latest.current.values[slot] === v) return;
-      latest.current.values = { ...latest.current.values, [slot]: v };
-      setValues((vs) => ({ ...vs, [slot]: v }));
-      latest.current.onInput?.(slot, v);
+      const d = drag.current;
+      if (!d) return;
+      if (d.kind === 'knob') { put(`position:${d.id}`, clamp(d.from + (d.y - e.clientY) / KNOB_PX)); return; }
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) >= CLICK_PX) d.moved = true;
+      if (d.kind === 'stick') {
+        if (!d.moved) return;
+        put(`x:${d.id}`, clamp(0.5 + (e.clientX - d.x) / STICK_PX));
+        put(`y:${d.id}`, clamp(0.5 - (e.clientY - d.y) / STICK_PX));
+        return;
+      }
+      const a = Math.atan2(e.clientY - d.cy, e.clientX - d.cx) * (180 / Math.PI);
+      let delta = a - d.last;
+      if (delta > 180) delta -= 360;
+      if (delta < -180) delta += 360;
+      d.last = a;
+      d.total += delta;
+      put(`steps:${d.id}`, d.from + Math.trunc(d.total / STEP_DEG));   // clockwise on screen (y down): more steps
     };
-    const up = () => { knob.current = null; };
+    const up = () => {
+      const d = drag.current;
+      drag.current = null;
+      if (!d || d.kind === 'knob') return;
+      if (!d.moved) { press(d.id); return; }
+      if (d.kind === 'stick') { put(`x:${d.id}`, 0.5); put(`y:${d.id}`, 0.5); }   // it springs back
+    };
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
     return () => {
@@ -68,7 +107,15 @@ export function useLive(running: boolean, onInput?: (name: string, value: number
     };
   }, []);
 
-  return { value, set, turn: (id, e) => { knob.current = { id, y: e.clientY, from: value(`position:${id}`) }; } };
+  return {
+    value, set: put,
+    turn: (id, e) => { drag.current = { kind: 'knob', id, y: e.clientY, from: value(`position:${id}`) }; },
+    stick: (id, e) => { drag.current = { kind: 'stick', id, x: e.clientX, y: e.clientY, moved: false }; },
+    dial: (id, e, c) => {
+      const a = Math.atan2(e.clientY - c.y, e.clientX - c.x) * (180 / Math.PI);
+      drag.current = { kind: 'dial', id, x: e.clientX, y: e.clientY, cx: c.x, cy: c.y, last: a, total: 0, from: value(`steps:${id}`), moved: false };
+    },
+  };
 }
 
 /** A resistance in two figures: 1.4 kΩ, 380 kΩ, 100 Ω. */
@@ -88,7 +135,16 @@ const LOG = { min: -1, max: 5, step: 0.05 };
 const volts = (v: PartView | undefined, name: string) => (v?.kind !== 'sensor' ? '' : v.powered ? `${name} ${Number(v.volts.toFixed(2))} V` : 'not powered');
 
 /** The parts the Inputs card has a row for (screen 18): a light sensor, a soil moisture sensor, a temperature sensor. */
-export const SLIDER_PARTS = new Set(['ldr', 'soil-moisture', 'temp-sensor', 'dht', 'hc-sr04', 'mpu6050']);
+export const SLIDER_PARTS = new Set(['ldr', 'soil-moisture', 'temp-sensor', 'dht', 'hc-sr04', 'mpu6050',
+  'ldr-module', 'flame', 'raindrop', 'water-level', 'mq2', 'speed-sensor']);
+
+/** The kit's modules set with a 0–1 slider (M6.5a): its name on the card, the slider's label, its ends, its output's name. */
+const LEVELS: Record<string, { icon: string; kind: string; label: string; ticks: [string, string]; out: string }> = {
+  flame: { icon: 'bolt', kind: 'flame', label: 'Flame at', ticks: ['none', 'close'], out: 'AO' },
+  raindrop: { icon: 'drop', kind: 'rain', label: 'Rain on', ticks: ['dry', 'wet'], out: 'AO' },
+  'water-level': { icon: 'drop', kind: 'depth', label: 'Water at', ticks: ['dry', 'under'], out: 'S' },
+  mq2: { icon: 'alert', kind: 'gas', label: 'Gas at', ticks: ['clean air', 'smoke'], out: 'AO' },
+};
 
 /**
  * The Inputs card (screen 18, M6.3; it took the place of screen 17's light card): a row for every sensor set with a
@@ -109,7 +165,25 @@ export function InputsCard({ parts, live, views, onClose, style }: {
       </div>
       {parts.map((p) => {
         const name = p.id.toUpperCase();
-        if (p.type === 'ldr') {
+        if (LEVELS[p.type]) {
+          const l = LEVELS[p.type]!;
+          return (
+            <Row key={p.id} icon={l.icon} name={name} kind={l.kind} reading={volts(views[p.id], l.out)}>
+              <Slider label={`${l.label} ${name}`} value={Math.round(live.value(`position:${p.id}`) * 100)} min={0} max={100} step={1}
+                format={(v) => `${v} %`} ticks={l.ticks} onChange={(v) => live.set(`position:${p.id}`, v / 100)} />
+            </Row>
+          );
+        }
+        if (p.type === 'speed-sensor') {
+          const rpm = live.value(`rpm:${p.id}`);
+          return (
+            <Row key={p.id} icon="restart" name={name} kind="wheel" reading={`${Math.round((rpm / 60) * 20)} pulses/s`}>
+              <Slider label={`Speed of ${name}`} value={rpm} min={0} max={300} step={1} format={(v) => `${v} rpm`} ticks={['still', '300 rpm']}
+                onChange={(v) => live.set(`rpm:${p.id}`, v)} />
+            </Row>
+          );
+        }
+        if (p.type === 'ldr' || p.type === 'ldr-module') {
           const lux = live.value(`lux:${p.id}`);
           return (
             <Row key={p.id} icon="sun" name={name} kind="light" reading={ohmsText(ldrOhms(lux))}>
@@ -180,9 +254,25 @@ function Row({ icon, name, kind, reading, children }: { icon: string; name: stri
 const mA = (amps: number) => `${Number((amps * 1000).toFixed(1))} mA`;
 
 /** What an LED or an RGB LED says on hover while running: its current, each die's for an RGB LED. */
-export function PartTip({ id, type, common, views, overLine = false, style }: {
-  id: string; type: string; common?: string; views: Record<string, PartView>; overLine?: boolean; style: CSSProperties;
+export function PartTip({ id, type, common, views, overLine = false, values = {}, style }: {
+  id: string; type: string; common?: string; views: Record<string, PartView>; overLine?: boolean; values?: Record<string, number>; style: CSSProperties;
 }) {
+  if (type === 'joystick') {
+    return (
+      <div className="tip part-tip" role="tooltip" style={style}>
+        <b>{id.toUpperCase()} · x {(values.x ?? 0.5).toFixed(2)} · y {(values.y ?? 0.5).toFixed(2)}</b>
+        <div>Drag the stick; let go and it springs back. Click it to press SW.</div>
+      </div>
+    );
+  }
+  if (type === 'rotary-encoder') {
+    return (
+      <div className="tip part-tip" role="tooltip" style={style}>
+        <b>{id.toUpperCase()} · {values.steps ?? 0} steps</b>
+        <div>Drag round it to turn it, a step each 15°. Click it to press SW.</div>
+      </div>
+    );
+  }
   const led = (key: string) => {
     const v = views[key];
     return v?.kind === 'led' ? v : { amps: 0, brightness: 0 };

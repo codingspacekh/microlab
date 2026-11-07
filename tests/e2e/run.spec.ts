@@ -269,3 +269,39 @@ test('M6.4 (screen 19): a DHT22 and an HC-SR04 behind its divider, set on the In
   await expect(log).toContainText('60.0 C 50 % 2 cm', { timeout: 3000 });
   await expect(win.getByRole('status')).toContainText('Running at real speed');   // no damage: the divider works
 });
+
+test('M6.5a (screen 20): a joystick dragged and an IR obstacle sensor clicked, read by the real worker', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  // joystick in f2–f6: GND, VCC 3V3, VRx GP26; IR obstacle in f10–f12: OUT GP14, GND, VCC 3V3 (the Modules group is
+  // far down the parts panel: each item is scrolled into view first)
+  await win.locator('.parts .pitem:has-text("Joystick")').scrollIntoViewIfNeeded();
+  await drag(win, await centre(win, '.parts .pitem:has-text("Joystick")'), await centre(win, '[data-point="bb1.f4"]'));
+  await drag(win, await centre(win, '[data-point="board.GND@38"]'), await centre(win, '[data-point="bb1.j2"]'));
+  await drag(win, await centre(win, '[data-point="board.3V3"]'), await centre(win, '[data-point="bb1.j3"]'));
+  await drag(win, await centre(win, '[data-point="board.GP26"]'), await centre(win, '[data-point="bb1.j4"]'));
+  await win.locator('.parts .pitem:has-text("IR obstacle")').scrollIntoViewIfNeeded();
+  await drag(win, await centre(win, '.parts .pitem:has-text("IR obstacle")'), await centre(win, '[data-point="bb1.f11"]'));
+  await drag(win, await centre(win, '[data-point="board.GP14"]'), await centre(win, '[data-point="bb1.j10"]'));
+  await drag(win, await centre(win, '[data-point="board.GND@18"]'), await centre(win, '[data-point="bb1.j11"]'));
+  await drag(win, await centre(win, '[data-point="bb1.i3"]'), await centre(win, '[data-point="bb1.j12"]'));   // VCC from the joystick's 3V3
+  await win.keyboard.press('Escape');
+  await setCode(win, [
+    'from machine import Pin, ADC', 'import time', 'x = ADC(26)', 'ir = Pin(14, Pin.IN)', 'last = None', 'while True:',
+    "    now = ('right' if x.read_u16() > 50000 else 'middle', 'blocked' if not ir.value() else 'clear')",
+    '    if now != last:', '        print(*now)', '        last = now', '    time.sleep_ms(20)', '',
+  ].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const log = win.getByRole('log', { name: 'Console' });
+  await expect(log).toContainText('middle', { timeout: 5000 });
+  const stick = await centre(win, '[data-part="joy1"] .stick');
+  await win.mouse.move(stick.x, stick.y);
+  await win.mouse.down();
+  await win.mouse.move(stick.x + 50, stick.y, { steps: 5 });
+  await expect(log).toContainText('right', { timeout: 2000 });
+  await win.mouse.up();
+  await expect(log).toContainText(/right[^]*middle/, { timeout: 2000 });   // it springs back
+  const ir = await centre(win, '[data-part="ir1"] circle');   // its IR LED
+  await win.mouse.click(ir.x, ir.y);
+  await expect(log).toContainText('blocked', { timeout: 2000 });
+});

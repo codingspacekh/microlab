@@ -591,6 +591,155 @@ export function HcSr04({ vcc, trig, echo, gnd, sounding = false, upright = 0 }: 
   );
 }
 
+// ------------------------------------------------------------------ the SunFounder kit's modules (M6.5a, screens 20, 20b)
+const PCB: Record<string, [string, string]> = { blue: ['#2457a6', '#173c78'], red: ['#b8322a', '#7d1f19'], black: ['#26282c', '#0f1012'] };
+
+/** Each kit module's legs in printed order, the names printed by them, its board's colour and height. */
+export const KIT: Record<string, { legs: string[]; labels: string[]; pcb: string; h: number }> = {
+  'button-module': { legs: ['out', 'vcc', 'gnd'], labels: ['S', 'VCC', 'GND'], pcb: 'black', h: 64 },
+  touch: { legs: ['out', 'vcc', 'gnd'], labels: ['SIG', 'VCC', 'GND'], pcb: 'red', h: 64 },
+  vibration: { legs: ['vcc', 'gnd', 'out'], labels: ['VCC', 'GND', 'DO'], pcb: 'blue', h: 64 },
+  'ir-obstacle': { legs: ['out', 'gnd', 'vcc'], labels: ['OUT', 'GND', 'VCC'], pcb: 'blue', h: 64 },
+  hall: { legs: ['out', 'vcc', 'gnd'], labels: ['S', 'VCC', 'GND'], pcb: 'blue', h: 64 },
+  flame: { legs: ['ao', 'gnd', 'vcc', 'out'], labels: ['AO', 'GND', 'VCC', 'DO'], pcb: 'blue', h: 64 },
+  raindrop: { legs: ['ao', 'out', 'gnd', 'vcc'], labels: ['AO', 'DO', 'GND', 'VCC'], pcb: 'blue', h: 64 },
+  'water-level': { legs: ['out', 'vcc', 'gnd'], labels: ['S', 'VCC', 'GND'], pcb: 'red', h: 84 },
+  mq2: { legs: ['ao', 'out', 'gnd', 'vcc'], labels: ['AO', 'DO', 'GND', 'VCC'], pcb: 'blue', h: 64 },
+  'ldr-module': { legs: ['out', 'vcc', 'gnd'], labels: ['S', 'VCC', 'GND'], pcb: 'blue', h: 64 },
+  'pot-module': { legs: ['out', 'vcc', 'gnd'], labels: ['S', 'VCC', 'GND'], pcb: 'blue', h: 64 },
+  joystick: { legs: ['gnd', 'vcc', 'vrx', 'vry', 'sw'], labels: ['GND', 'VCC', 'VRx', 'VRy', 'SW'], pcb: 'black', h: 74 },
+  'rotary-encoder': { legs: ['clk', 'dt', 'sw', 'vcc', 'gnd'], labels: ['CLK', 'DT', 'SW', 'VCC', 'GND'], pcb: 'blue', h: 70 },
+  'speed-sensor': { legs: ['vcc', 'gnd', 'out'], labels: ['VCC', 'GND', 'DO'], pcb: 'blue', h: 64 },
+};
+
+function Trimpot({ x, y }: { x: number; y: number }) {
+  return (
+    <>
+      <rect x={x - 5} y={y - 5} width={10} height={10} rx={1.5} fill="#2f74d8" stroke="#1d4f9e" />
+      <circle cx={x} cy={y} r={3} fill="#e9ebee" /><line x1={x - 2} y1={y} x2={x + 2} y2={y} stroke="#6b7280" />
+    </>
+  );
+}
+
+/** A module's power LED (red, dark without power) and its DO LED (green, lit when `on`). */
+function ModuleLeds({ x, y, on, powered = true }: { x: number; y: number; on: boolean; powered?: boolean }) {
+  on = on && powered;
+  return (
+    <>
+      <rect className={powered ? 'power on' : 'power'} x={x - 9} y={y} width={6} height={3.5} rx={1} fill={powered ? '#ff5a4a' : '#5a2a27'} />
+      <rect className={on ? 'do on' : 'do'} x={x + 3} y={y} width={6} height={3.5} rx={1} fill={on ? '#34d058' : '#3a3d42'} />
+      {on && <circle cx={x + 6} cy={y + 2} r={6} fill="url(#glow-green)" />}
+    </>
+  );
+}
+
+/** What a kit module shows while running: held, its level 0–1, a joystick's axes, an encoder turning, a wheel's rpm,
+ *  a potentiometer module's knob 0–1, the MQ-2's heater hot. */
+export interface KitLook { pressed?: boolean; level?: number; x?: number; y?: number; turning?: boolean; rpm?: number; knob?: number; hot?: boolean; powered?: boolean }
+
+/** One of the kit's modules (M6.5a, screen 20b): its board standing over its pins, 7 px beyond them each side, its
+ *  element on it and — what it senses — over its top edge. */
+export function KitModule({ type, pins, look = {}, upright = 0 }: { type: string; pins: Point[]; look?: KitLook; upright?: number }) {
+  const k = KIT[type]!;
+  const [fill, stroke] = PCB[k.pcb]!;
+  const cx = (pins[0]!.x + pins[pins.length - 1]!.x) / 2;
+  const w = pins[pins.length - 1]!.x - pins[0]!.x + 14;
+  const top = pins[0]!.y - 16 - k.h;
+  const lvl = Math.min(1, Math.max(0, look.level ?? 0));
+  let el: React.ReactNode = null;
+  let above: React.ReactNode = null;
+  switch (type) {
+    case 'button-module':
+      el = (<><rect x={cx - 9} y={top + 12} width={18} height={18} rx={2} fill="#8d949c" stroke="#5e656d" />
+        <circle cx={cx} cy={top + 21 + (look.pressed ? 1 : 0)} r={look.pressed ? 5.5 : 6} fill={look.pressed ? '#1f4c96' : '#2f6fd6'} /></>);
+      break;
+    case 'touch':
+      el = (<><circle cx={cx} cy={top + 22} r={13} fill="none" stroke="#e8c26a" strokeWidth={2} />
+        <text x={cx} y={top + 46} fontSize={5.5} fontWeight={700} fill="#f6d9d6" textAnchor="middle" pointerEvents="none">TOUCH</text>
+        {look.pressed && <ellipse className="finger" cx={cx + 2} cy={top + 20} rx={11} ry={13} fill="#e9b48f" opacity={0.85} stroke="#c98b63" />}</>);
+      break;
+    case 'vibration':
+      el = (<><rect x={cx - 12} y={top + 8} width={24} height={10} rx={5} fill="#c7ccd2" stroke="#8f969f" /><Trimpot x={cx} y={top + 32} /><ModuleLeds x={cx} y={top + 48} powered={look.powered ?? true} on={!!look.pressed} />
+        {look.pressed && [-1, 1].map((d) => <path key={d} d={`M${cx + d * 16},${top + 6} q${d * 3},5 0,10 q${-d * 3},5 0,10`} stroke="#e8590c" strokeWidth={1.5} fill="none" />)}</>);
+      break;
+    case 'ir-obstacle':
+      el = (<><circle cx={cx - 8} cy={top + 9} r={5.5} fill="#e9f0fa" stroke="#9aa1a9" /><circle cx={cx + 8} cy={top + 9} r={5.5} fill="#1c1e21" />
+        <Trimpot x={cx} y={top + 30} /><ModuleLeds x={cx} y={top + 48} powered={look.powered ?? true} on={lvl >= 0.5} /></>);
+      if (lvl >= 0.5) above = <rect className="obstacle" x={cx - 18} y={top - 26} width={36} height={16} rx={2} fill="#c08a52" stroke="#8a5c2e" />;
+      break;
+    case 'hall':
+      el = (<><path d={`M${cx - 6},${top + 22} v-8 a6,4 0 0 1 12,0 v8 z`} fill="#1f2125" />
+        <text x={cx} y={top + 30} fontSize={4.5} fill="#cfd3d8" textAnchor="middle" pointerEvents="none">3144</text><ModuleLeds x={cx} y={top + 48} powered={look.powered ?? true} on={lvl >= 0.5} /></>);
+      if (lvl >= 0.5) above = (<g className="magnet"><rect x={cx - 18} y={top - 22} width={18} height={12} fill="#d94545" /><rect x={cx} y={top - 22} width={18} height={12} fill="#3b6fd8" />
+        <g fontSize={7} fontWeight={700} fill="#fff" textAnchor="middle" pointerEvents="none"><text x={cx - 9} y={top - 13}>N</text><text x={cx + 9} y={top - 13}>S</text></g></g>);
+      break;
+    case 'flame':
+      el = <><circle cx={cx} cy={top + 10} r={6} fill="#1c1e21" /><Trimpot x={cx} y={top + 30} /><ModuleLeds x={cx} y={top + 48} powered={look.powered ?? true} on={lvl >= 0.5} /></>;
+      if (lvl > 0) above = (<g className="fire"><path d={`M${cx},${top - 34} q12,14 6,26 q-6,8 -12,0 q-6,-12 6,-26z`} fill="#ff8a00" opacity={f(0.4 + 0.6 * lvl)} />
+        <path d={`M${cx},${top - 22} q6,8 3,14 q-3,4 -6,0 q-3,-6 3,-14z`} fill="#ffd43b" /></g>);
+      break;
+    case 'raindrop':
+      el = <><Trimpot x={cx} y={top + 30} /><ModuleLeds x={cx} y={top + 48} powered={look.powered ?? true} on={lvl >= 0.4} /></>;
+      above = (<g className="plate"><rect x={cx - 26} y={top - 40} width={52} height={34} rx={2} fill="#2f7d3f" stroke="#1f5a2b" />
+        <path d={[34, 28, 22, 16].map((d) => `M${cx - 20},${top - d} h40`).join(' ')} stroke="#d6b24c" strokeWidth={1.6} />
+        <path d={`M${cx - 8},${top - 6} v6 M${cx + 8},${top - 6} v6`} stroke="#a5abb2" strokeWidth={1.6} />
+        {[[-14, -36], [6, -30], [-2, -24], [16, -20], [-18, -18]].slice(0, Math.round(lvl * 5)).map(([dx, dy], i) => (
+          <path key={i} d={`M${cx + dx!},${top + dy!} q3,5 0,7 q-3,-2 0,-7z`} fill="#7fb4ff" />
+        ))}</g>);
+      break;
+    case 'water-level':
+      el = (<>{[0, 1, 2, 3, 4].map((i) => <line key={i} x1={cx - 10 + i * 5} y1={top + 6} x2={cx - 10 + i * 5} y2={top + 66} stroke="#e8c26a" strokeWidth={1.6} />)}
+        {lvl > 0 && <rect className="water" x={cx - w / 2 - 4} y={top - 2} width={w + 8} height={f(70 * lvl)} fill="#7fb4ff" opacity={0.55} />}</>);
+      break;
+    case 'mq2':
+      el = (<>{look.hot && <circle className="hot" cx={cx} cy={top + 20} r={20} fill="url(#glow-amber)" opacity={0.7} />}
+        <circle cx={cx} cy={top + 20} r={15} fill="#c7ccd2" stroke="#8f969f" /><circle cx={cx} cy={top + 20} r={11} fill="#6d747c" stroke="#9aa1a9" />
+        <path d={`M${cx - 8},${top + 16} h16 M${cx - 9},${top + 20} h18 M${cx - 8},${top + 24} h16`} stroke="#9aa1a9" strokeWidth={1} />
+        <ModuleLeds x={cx} y={top + 48} powered={look.powered ?? true} on={lvl >= 0.4} /></>);
+      if (lvl > 0) above = <g className="smoke">{[[-10, 10, 8], [6, 16, 10], [16, 6, 7]].map(([dx, dy, r]) => <circle key={dx} cx={cx + dx!} cy={top - dy!} r={r} fill="#9aa1a9" opacity={f(0.25 + 0.4 * lvl)} />)}</g>;
+      break;
+    case 'ldr-module':
+      el = (<><circle cx={cx} cy={top + 18} r={9} fill="#f2d7a6" stroke="#c9a46a" />
+        <path d={`M${cx - 5},${top + 14} h10 v3 h-10 v3 h10 v3 h-10`} stroke="#a5582d" strokeWidth={1.1} fill="none" /><ModuleLeds x={cx} y={top + 48} powered={look.powered ?? true} on={false} /></>);
+      break;
+    case 'pot-module': {
+      const a = (((look.knob ?? 0.5) - 0.5) * 270 - 90) * (Math.PI / 180);
+      el = (<><rect x={cx - 15} y={top + 6} width={30} height={30} rx={3} fill="#2b5fa8" stroke="#1b3f73" />
+        <circle cx={cx} cy={top + 21} r={11} fill="#e9ebee" stroke="#9ba2aa" />
+        <line x1={cx} y1={top + 21} x2={f(cx + 9 * Math.cos(a))} y2={f(top + 21 + 9 * Math.sin(a))} stroke="#2d3136" strokeWidth={2.2} strokeLinecap="round" /></>);
+      break;
+    }
+    case 'joystick': {
+      const dx = ((look.x ?? 0.5) - 0.5) * 22;
+      const dy = (0.5 - (look.y ?? 0.5)) * 22;
+      el = (<><circle cx={cx} cy={top + 34} r={27} fill="#c7ccd2" stroke="#8f969f" />
+        <circle className="stick" cx={f(cx + dx)} cy={f(top + 34 + dy)} r={17} fill="#2d3136" stroke="#0f1012" />
+        <circle cx={f(cx + dx)} cy={f(top + 34 + dy)} r={12} fill="none" stroke="#4a4e54" strokeDasharray="2 2" /></>);
+      break;
+    }
+    case 'rotary-encoder':
+      el = (<><rect x={cx - 17} y={top + 12} width={34} height={34} rx={3} fill="#8d949c" stroke="#5e656d" />
+        <circle cx={cx} cy={top + 29} r={13} fill="#c7ccd2" stroke="#8f969f" /><path d={`M${cx - 9},${top + 24} h18`} stroke="#6d747c" strokeWidth={2} />
+        {look.turning && <path className="turning" d={`M${cx + 22},${top + 14} A26 26 0 0 1 ${cx + 22},${top + 44} M${cx + 18},${top + 42} l4,3 l3,-4`} stroke="#e8590c" strokeWidth={2} fill="none" />}</>);
+      break;
+    case 'speed-sensor':
+      el = <><rect x={cx - 14} y={top + 4} width={9} height={22} rx={1} fill="#1c1e21" /><rect x={cx + 5} y={top + 4} width={9} height={22} rx={1} fill="#1c1e21" /><ModuleLeds x={cx} y={top + 48} powered={look.powered ?? true} on={(look.rpm ?? 0) > 0} /></>;
+      above = (<g className="wheel"><circle cx={cx} cy={top - 12} r={26} fill="#e8b10f" stroke="#a87e08" />
+        {Array.from({ length: 20 }, (_, i) => <rect key={i} x={cx - 2} y={top - 36} width={4} height={7} fill="#f6f4ef" transform={`rotate(${i * 18} ${cx} ${top - 12})`} />)}
+        <circle cx={cx} cy={top - 12} r={5} fill="#a87e08" />
+        {(look.rpm ?? 0) > 0 && <path d={`M${cx - 32},${top - 30} A34 34 0 0 1 ${cx - 10},${top - 44}`} stroke="#e8590c" strokeWidth={2} fill="none" />}</g>);
+      break;
+  }
+  return (
+    <>
+      {above}
+      <rect x={cx - w / 2} y={top} width={w} height={k.h} rx={3} fill={fill} stroke={stroke} filter="url(#lift)" />
+      {el}
+      <Header pins={pins} labels={k.labels} bodyY={top + k.h} upright={upright} />
+    </>
+  );
+}
+
 /** A part from its type and the places of its legs. */
 export interface PartLook {
   /** An LED's brightness, 0–1, while running (M4.5). */
@@ -608,6 +757,8 @@ export interface PartLook {
   moisture?: number;
   /** An MPU6050's tilt, degrees about Y and X (M6.4b). */
   tilt?: [number, number];
+  /** A kit module's state while running (M6.5a). */
+  kit?: KitLook;
 }
 
 export function PartDrawing({ type, legs, props, look = {} }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown>; look?: PartLook }) {
@@ -616,12 +767,14 @@ export function PartDrawing({ type, legs, props, look = {} }: { type: string; le
     case 'button': return <PushButton legs={[legs['1a']!, legs['2a']!, legs['1b']!, legs['2b']!]} pressed={look.pressed} />;
     case 'battery': return <Battery plus={legs['+']!} minus={legs['-']!} kind={String(props?.kind ?? '2xAA')} />;
     case 'led': case 'potentiometer': case 'slide-switch': case 'ldr': case 'rgb-led': case 'buzzer':
-    case 'pir': case 'line-sensor': case 'soil-moisture': case 'temp-sensor': case 'dht': case 'hc-sr04': case 'mpu6050': {
+    case 'pir': case 'line-sensor': case 'soil-moisture': case 'temp-sensor': case 'dht': case 'hc-sr04': case 'mpu6050':
+    case 'button-module': case 'touch': case 'vibration': case 'ir-obstacle': case 'hall': case 'flame': case 'raindrop': case 'water-level':
+    case 'mq2': case 'ldr-module': case 'pot-module': case 'joystick': case 'rotary-encoder': case 'speed-sensor': {
       // drawn as if not turned, then turned about the legs' middle (M5.1); the letters and signs stay upright
       const t = partTurns(type, legs);
       const { local, transform } = unturned(legs, t);
       const up = -90 * t;
-      const body = {
+      const body = KIT[type] ? <KitModule type={type} pins={KIT[type]!.legs.map((l) => local[l]!)} look={look.kit} upright={up} /> : ({
         led: () => <Led a={local.a!} k={local.k!} colour={String(props?.color ?? 'red')} glow={look.glow} upright={up} />,
         potentiometer: () => <Potentiometer l={local['1']!} w={local['2']!} r={local['3']!} angle={((look.position ?? 0.5) - 0.5) * 270} />,
         'slide-switch': () => <SlideSwitch l={local['1']!} m={local['2']!} r={local['3']!} position={look.position} upright={up} />,
@@ -635,7 +788,7 @@ export function PartDrawing({ type, legs, props, look = {} }: { type: string; le
         mpu6050: () => <Gy521 pins={['vcc', 'gnd', 'scl', 'sda', 'xda', 'xcl', 'ad0', 'int'].map((l) => local[l]!)} tilt={look.tilt} upright={up} />,
         'temp-sensor': () => <TempSensor vs={local.vcc!} vout={local.out!} gnd={local.gnd!} kind={String(props?.kind ?? 'TMP36')} upright={up} />,
         'rgb-led': () => <RgbLed r={local.r!} c={local.common!} g={local.g!} b={local.b!} dies={look.dies} common={String(props?.common ?? 'cathode')} upright={up} />,
-      }[type]();
+      } as Record<string, () => React.ReactNode>)[type]!();
       return t ? <g transform={transform}>{body}</g> : body;
     }
     default: return null;
@@ -694,7 +847,26 @@ export function MicrobitDisplay({ at, pixels }: { at: Point[]; pixels: string })
 }
 
 // ------------------------------------------------------------------ parts panel icons (design/build.py ICON_PARTS)
+/** The kit's modules' icons as the prototype draws them (design/svgparts.py ICON_PARTS k…): our own constant markup. */
+const KIT_ICONS: Record<string, string> = {
+  "button-module": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#26282c\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><rect x=\"11\" y=\"12\" width=\"10\" height=\"10\" rx=\"1\" fill=\"#8d949c\"/><circle cx=\"16\" cy=\"17\" r=\"3.5\" fill=\"#2f6fd6\"/>",
+  "touch": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#b8322a\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><circle cx=\"16\" cy=\"17\" r=\"5.5\" fill=\"none\" stroke=\"#e8c26a\" stroke-width=\"1.6\"/>",
+  "vibration": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><rect x=\"9\" y=\"12\" width=\"14\" height=\"6\" rx=\"3\" fill=\"#c7ccd2\"/>",
+  "ir-obstacle": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><circle cx=\"12\" cy=\"14\" r=\"3.2\" fill=\"#e9f0fa\"/><circle cx=\"20\" cy=\"14\" r=\"3.2\" fill=\"#1c1e21\"/>",
+  "hall": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><path d=\"M13,20 v-5 a3,2.5 0 0 1 6,0 v5z\" fill=\"#1f2125\"/><rect x=\"9\" y=\"3\" width=\"7\" height=\"5\" fill=\"#d94545\"/><rect x=\"16\" y=\"3\" width=\"7\" height=\"5\" fill=\"#3b6fd8\"/>",
+  "flame": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><path d=\"M16,3 q6,6 3,12 q-3,4 -6,0 q-3,-6 3,-12z\" fill=\"#ff8a00\"/>",
+  "raindrop": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><rect x=\"7\" y=\"2\" width=\"18\" height=\"8\" rx=\"1\" fill=\"#2f7d3f\"/><path d=\"M9,4.5 h14 M9,7.5 h14\" stroke=\"#d6b24c\" stroke-width=\"1\"/>",
+  "water-level": "<rect x=\"11\" y=\"2\" width=\"10\" height=\"24\" rx=\"1.5\" fill=\"#b8322a\"/><path d=\"M13,3 v14 M16,3 v14 M19,3 v14\" stroke=\"#e8c26a\" stroke-width=\"1\"/><rect x=\"9\" y=\"2\" width=\"14\" height=\"9\" fill=\"#7fb4ff\" opacity=\".6\"/><path d=\"M13,26 v4 M16,26 v4 M19,26 v4\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/>",
+  "mq2": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><circle cx=\"16\" cy=\"16\" r=\"6\" fill=\"#c7ccd2\" stroke=\"#8f969f\"/><circle cx=\"16\" cy=\"16\" r=\"3.5\" fill=\"#6d747c\"/>",
+  "ldr-module": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><circle cx=\"16\" cy=\"16\" r=\"5\" fill=\"#f2d7a6\" stroke=\"#c9a46a\"/>",
+  "pot-module": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><circle cx=\"16\" cy=\"16\" r=\"5.5\" fill=\"#e9ebee\"/><line x1=\"16\" y1=\"16\" x2=\"18\" y2=\"12\" stroke=\"#2d3136\" stroke-width=\"1.6\"/>",
+  "joystick": "<rect x=\"4\" y=\"6\" width=\"24\" height=\"20\" rx=\"2\" fill=\"#26282c\"/><circle cx=\"16\" cy=\"16\" r=\"8\" fill=\"#c7ccd2\"/><circle cx=\"17\" cy=\"15\" r=\"5\" fill=\"#2d3136\"/>",
+  "rotary-encoder": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><circle cx=\"16\" cy=\"16\" r=\"6\" fill=\"#c7ccd2\" stroke=\"#8f969f\"/><path d=\"M12,14 h8\" stroke=\"#6d747c\" stroke-width=\"1.4\"/>",
+  "speed-sensor": "<rect x=\"5\" y=\"9\" width=\"22\" height=\"16\" rx=\"2\" fill=\"#2457a6\"/><path d=\"M10,25 v5 M16,25 v5 M22,25 v5\" stroke=\"#a5abb2\" stroke-width=\"1.3\"/><circle cx=\"16\" cy=\"8\" r=\"7\" fill=\"#e8b10f\"/><rect x=\"11\" y=\"12\" width=\"3\" height=\"8\" fill=\"#1c1e21\"/><rect x=\"18\" y=\"12\" width=\"3\" height=\"8\" fill=\"#1c1e21\"/>"
+};
+
 export function PartIcon({ type }: { type: string }) {
+  if (KIT_ICONS[type]) return <svg viewBox="0 0 32 32" aria-hidden="true" dangerouslySetInnerHTML={{ __html: KIT_ICONS[type]! }} />;
   const body = {
     resistor: (
       <>
