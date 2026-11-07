@@ -1,5 +1,5 @@
 import type { BoardData } from '@lib/boards';
-import { BUZZER, findFaults, LED, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
+import { BUZZER, findFaults, isSensor, LED, SENSORS, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
 
@@ -9,7 +9,8 @@ import type { PinBank } from './pins';
  * not on every write, so a tight `toggle()` loop stays fast — and the solved voltages are what the pins read.
  */
 
-/** From `atUs` on, a part's input: a button pressed, a knob's position (0–1 from leg 1), the light on an LDR. */
+/** From `atUs` on, a part's input: a button pressed (a PIR seeing motion), a knob's position (0–1 from leg 1; the
+ *  surface under a line sensor, a soil sensor's moisture), the light on an LDR, a temperature sensor's °C. */
 export interface PartChange {
   atUs: number;
   /** A part id, or the board's own (board.A, board.B on the micro:bit). */
@@ -17,6 +18,7 @@ export interface PartChange {
   pressed?: boolean;
   position?: number;
   lux?: number;
+  celsius?: number;
 }
 
 /** Up to this many PWM pins are averaged exactly (2^n solves: an RGB LED is 3); beyond, their DC average. */
@@ -107,6 +109,7 @@ export class CircuitHost {
       if (c.pressed !== undefined) s.pressed = c.pressed;
       if (c.position !== undefined) s.position = c.position;
       if (c.lux !== undefined) s.lux = c.lux;
+      if (c.celsius !== undefined) s.celsius = c.celsius;
       changed = true;
     }
     if (this.live) changed = this.readLive(this.live) || changed;
@@ -115,12 +118,12 @@ export class CircuitHost {
 
   private readonly liveSeen: number[] = [];
 
-  /** Live slots 'pressed:btn1' (0 / 1), 'position:pot1' (0–1), 'lux:ldr1'. */
+  /** Live slots 'pressed:btn1' (0 / 1), 'position:pot1' (0–1), 'lux:ldr1', 'celsius:tmp1'. */
   private readLive(live: Control): boolean {
     let changed = false;
     live.names.forEach((name, i) => {
       const [kind, part] = name.split(':') as [string, string];
-      if (kind !== 'pressed' && kind !== 'position' && kind !== 'lux') return;
+      if (kind !== 'pressed' && kind !== 'position' && kind !== 'lux' && kind !== 'celsius') return;
       const v = live.input(i);
       if (this.liveSeen[i] === v || (Number.isNaN(v) && this.liveSeen[i] === undefined)) return;
       this.liveSeen[i] = v;
@@ -134,7 +137,36 @@ export class CircuitHost {
 
   /** When the next scripted part input is due (µs), or Infinity: a sleep wakes for it. */
   nextChangeUs(): number {
-    return this.script[this.next]?.atUs ?? Infinity;
+    let next = this.script[this.next]?.atUs ?? Infinity;
+    for (const until of this.pirHold.values()) if (until > this.now() && until < next) next = until;   // a PIR's hold ends
+    return next;
+  }
+
+  /** When each PIR's output falls: Infinity while it sees motion, then its hold time after the motion ends. */
+  private readonly pirHold = new Map<string, number>();
+
+  /** Works out what drives each sensor module's OUT (M6.3) from its input and its supply in the last solve; true if
+   *  any changed (the circuit must be solved again). */
+  private updateDrives(): boolean {
+    let changed = false;
+    const t = this.now();
+    for (const part of this.spec.parts) {
+      if (!isSensor(part.type)) continue;
+      const s = (this.parts[part.id] ??= {});
+      let motion = false;
+      if (part.type === 'pir') {
+        const hold = this.pirHold.get(part.id);
+        if (s.pressed) this.pirHold.set(part.id, Infinity);
+        else if (hold === Infinity) this.pirHold.set(part.id, t + SENSORS.pir.holdS * 1e6);
+        motion = (this.pirHold.get(part.id) ?? -1) > t;
+      }
+      const v = (leg: string) => this.solution?.volts[this.connectivity.netOf(`${part.id}.${leg}`) ?? ''] ?? 0;
+      const drive = sensorDrive(part.type, part.props ?? {}, { motion, position: s.position, celsius: s.celsius }, v('vcc') - v('gnd'));
+      if (s.drive && Math.abs(s.drive.volts - drive.volts) < 1e-6 && s.drive.ohms === drive.ohms) continue;
+      s.drive = drive;
+      changed = true;
+    }
+    return changed;
   }
 
   private readonly previous = new Map<number, Solution>();   // the last solution of each on / off combination
@@ -145,8 +177,22 @@ export class CircuitHost {
    *  would stay below its forward voltage). Faults are found in every combination: the peaks are what burn. */
   update(): void {
     if (this.updateParts()) this.dirty = true;
+    if (this.updateDrives()) this.dirty = true;
     if (!this.dirty) return;
+    // a sensor's supply comes from the solve, its output goes into it: solve again while a sensor changes (twice at
+    // most — supplies don't depend on what sensors output)
+    for (let i = 0; i < 3 && this.dirty; i++) {
+      this.dirty = false;
+      this.solveOnce();
+      if (this.updateDrives()) this.dirty = true;
+    }
     this.dirty = false;
+    this.noteFaults();
+    for (const pin of this.netOfPin.keys()) this.pins.recheck(pin);
+    this.traceViews();
+  }
+
+  private solveOnce(): void {
     const state = this.state();
     const pwm: [string, number][] = [];
     for (const [label, p] of Object.entries(state.pins!)) {
@@ -164,9 +210,6 @@ export class CircuitHost {
     } else {
       this.averagePwm(state, pwm);
     }
-    this.noteFaults();
-    for (const pin of this.netOfPin.keys()) this.pins.recheck(pin);
-    this.traceViews();
   }
 
   private noteFaults(): void {

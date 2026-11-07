@@ -34,8 +34,12 @@ export interface RunHandle {
 export const STOP_GRACE_MS = 300;
 
 /** The live input each kind of part takes: a push button is pressed or not, a knob has a position (0–1), a slide
- *  switch is at 0 or 1 (M6.1), a light sensor has the light on it in lux. */
-const SLOT: Record<string, string> = { button: 'pressed', potentiometer: 'position', 'slide-switch': 'position', ldr: 'lux' };
+ *  switch is at 0 or 1 (M6.1), a light sensor has the light on it in lux; a PIR sees motion or not, a line sensor is
+ *  over white (0) or the line (1), a soil sensor's moisture is 0–1, a temperature sensor has °C (M6.3). */
+const SLOT: Record<string, string> = {
+  button: 'pressed', potentiometer: 'position', 'slide-switch': 'position', ldr: 'lux',
+  pir: 'pressed', 'line-sensor': 'position', 'soil-moisture': 'position', 'temp-sensor': 'celsius',
+};
 
 export function inputSlots(project: Project): string[] {
   return project.parts.flatMap((p) => (SLOT[p.type] ? [`${SLOT[p.type]}:${p.id}`] : []));

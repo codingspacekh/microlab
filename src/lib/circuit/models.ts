@@ -1,4 +1,5 @@
 import { BATTERIES, BUZZER, RGB_DIES, SERVO_IDLE_OHMS, type Device } from './devices';
+import { SENSORS } from './sensors';
 
 /** What a part's devices are built from: its id, the net each leg is in, its properties. */
 export interface PartContext {
@@ -42,6 +43,12 @@ export const MODELS: Record<string, PartModel> = {
     legs: ['+', '-'],
     devices: ({ id, leg, props }) => [{ kind: 'resistor', id, a: leg('+'), b: leg('-'), ohms: BUZZER[props.kind === 'passive' ? 'passive' : 'active'].ohms }],
   },
+  /** Sensor modules (M6.3, sensors.ts): VCC, OUT, GND — a small load across the supply, OUT driven by the sim. */
+  pir: sensorModel(SENSORS.pir.loadOhms),
+  'line-sensor': sensorModel(SENSORS['line-sensor'].loadOhms),
+  'soil-moisture': sensorModel(SENSORS['soil-moisture'].loadOhms),
+  /** TMP36 or LM35 (`kind`), flat face towards you: +Vs, Vout, GND. */
+  'temp-sensor': sensorModel(SENSORS['temp-sensor'].loadOhms),
   /** Across the channel: 1a–1b and 2a–2b are joined inside; pressing joins 1 and 2. */
   button: {
     legs: ['1a', '1b', '2a', '2b'],
@@ -78,3 +85,13 @@ export const MODELS: Record<string, PartModel> = {
     devices: ({ id, leg }) => [{ kind: 'resistor', id, a: leg('vcc'), b: leg('gnd'), ohms: SERVO_IDLE_OHMS }],
   },
 };
+
+function sensorModel(loadOhms: number): PartModel {
+  return {
+    legs: ['vcc', 'out', 'gnd'],
+    devices: ({ id, leg }) => [
+      { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: loadOhms },
+      { kind: 'drive', id: `${id}:out`, out: leg('out'), gnd: leg('gnd'), part: id },
+    ],
+  };
+}

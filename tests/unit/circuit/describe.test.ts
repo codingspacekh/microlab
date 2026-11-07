@@ -12,6 +12,7 @@ describe('M3.5 describeFault: one line per fault, with its numbers', () => {
     [{ kind: 'over-voltage', severity: 'damage', on: 'GP2', volts: 5, limitV: 3.6 }, 'GP2: 5.0 V on a pin that takes 3.6 V at most'],
     [{ kind: 'floating', severity: 'warning', on: 'GP14' }, 'GP14: an input connected to nothing — what it reads is chance'],
     [{ kind: 'servo-underpowered', severity: 'warning', on: 's1', volts: 3.3 }, 's1: the servo has 3.3 V, it needs 4.8–6 V'],
+    [{ kind: 'sensor-underpowered', severity: 'warning', on: 'pir1', volts: 3.3, limitV: 4.5 }, 'pir1: the sensor has 3.3 V, it needs 4.5 V at least'],
     [{ kind: 'short', severity: 'damage', on: 'X' }, 'X: a short circuit — 0 mA, as much as it can give'],
     // M6.1: an RGB LED's die by its colour
     [{ kind: 'led-burnt', severity: 'damage', on: 'rgb1:g', amps: 0.048, limitA: 0.03 }, 'rgb1 (green): the LED burnt out — 48 mA through it, it takes 30 mA at most'],

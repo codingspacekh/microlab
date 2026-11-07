@@ -24,7 +24,10 @@ export type Device =
   /** Ends e1, e2 and wiper w; position 0–1 from e1 (state), 0.5 when not set. */
   | { kind: 'pot'; id: string; e1: string; w: string; e2: string; ohms: number; part: string }
   /** Resistance from the light level (state lux), 300 lux when not set. */
-  | { kind: 'ldr'; id: string; a: string; b: string; part: string };
+  | { kind: 'ldr'; id: string; a: string; b: string; part: string }
+  /** A sensor module's output (M6.3): OUT driven from GND by the part's `drive` (state; the sim works it out, see
+   *  sensors.ts), weakly to GND when not set. */
+  | { kind: 'drive'; id: string; out: string; gnd: string; part: string };
 
 export interface Netlist {
   nets: string[];
@@ -45,6 +48,10 @@ export interface PartState {
   /** Potentiometer 0–1 from leg 1; slide switch 0 (2 joined to 1) or 1 (2 joined to 3). */
   position?: number;
   lux?: number;
+  /** A temperature sensor's °C (M6.3). */
+  celsius?: number;
+  /** What drives a sensor module's OUT now (M6.3): worked out by the sim from its input and its supply. */
+  drive?: { volts: number; ohms: number };
 }
 
 /** What changes while the program runs. A pin with no state is an input with no pull. */

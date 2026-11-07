@@ -52,6 +52,16 @@ describe('M4.5 starting a run', () => {
     expect(inputSlots(p)).toEqual(['position:sw1', 'lux:ldr1']);
   });
 
+  it('M6.3: a PIR sees motion (pressed), a line sensor its surface and a soil sensor its moisture (position), a temperature sensor °C', () => {
+    const p = newProject('pico-w').project;
+    const legs = { vcc: 'bb1.a1', out: 'bb1.a2', gnd: 'bb1.a3' };
+    p.parts = [
+      { id: 'pir1', type: 'pir', legs }, { id: 'line1', type: 'line-sensor', legs }, { id: 'soil1', type: 'soil-moisture', legs },
+      { id: 'tmp1', type: 'temp-sensor', props: { kind: 'TMP36' }, legs },
+    ];
+    expect(inputSlots(p)).toEqual(['pressed:pir1', 'position:line1', 'position:soil1', 'celsius:tmp1']);
+  });
+
   it('passes on what the worker says, and ends the worker with the run', () => {
     const w = new FakeWorker();
     const e = events();

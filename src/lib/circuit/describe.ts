@@ -21,5 +21,6 @@ export function describeFault(f: Fault): string {
     case 'over-voltage': return `${f.on}: ${V(f.volts)} on a pin that takes ${V(f.limitV)} at most`;
     case 'floating': return `${f.on}: an input connected to nothing — what it reads is chance`;
     case 'servo-underpowered': return `${f.on}: the servo has ${V(f.volts)}, it needs 4.8–6 V`;
+    case 'sensor-underpowered': return `${f.on}: the sensor has ${V(f.volts)}, it needs ${V(f.limitV)} at least`;
   }
 }
