@@ -22,6 +22,8 @@ export const START: Record<string, number> = {
   hpa: 1013, bpm: 72, spo2: 98,
 };
 const KNOB_START = 0.5;
+/** A micro:bit's own inputs as the sim starts them (src/sim/run.ts): 25 °C, a light level of 128, silence. */
+const BOARD_START: Record<string, number> = { 'board:celsius': 25, 'board:light': 128, 'board:sound': 0, 'board:accelx': 0, 'board:accely': 0, 'board:shake': 0 };
 /** Pixels of drag from one end of a knob's turn to the other. */
 const KNOB_PX = 150;
 
@@ -57,7 +59,7 @@ export function useLive(running: boolean, onInput?: (name: string, value: number
   // each run starts from the sim's start values
   useEffect(() => { if (running) setValues({}); else drag.current = null; }, [running]);
 
-  const startOf = (slot: string) => (slot.startsWith('position:pot') || slot.startsWith('position:knob') || slot.startsWith('x:') || slot.startsWith('y:') ? KNOB_START
+  const startOf = (slot: string) => (slot in BOARD_START ? BOARD_START[slot]! : slot.startsWith('position:pot') || slot.startsWith('position:knob') || slot.startsWith('x:') || slot.startsWith('y:') ? KNOB_START
     : slot.startsWith('position:soil') ? SENSOR_START.moisture : slot.startsWith('position:pulse') ? 1   // a finger on it
       : START[slot.slice(0, slot.indexOf(':'))] ?? 0);
   const value = (slot: string) => values[slot] ?? startOf(slot);
@@ -272,6 +274,114 @@ export function InputsCard({ parts, live, views, onClose, style }: {
           </Row>
         );
       })}
+    </div>
+  );
+}
+
+/** The tilt pad's size (px) and the accelerometer's reach either way (mg, 1 g); an arrow key tilts it 64 mg. */
+const PAD = 62;
+const G_MG = 1024;
+const TILT_STEP = 64;
+
+/**
+ * The micro:bit inputs card (screen 06, M6.6, F-35): the board's own inputs while a micro:bit program runs — A, B,
+ * A+B and the touch logo held down to press them, the tilt dragged on its pad (x and y in mg, held where it is let
+ * go), a shake, the light level and the sound level (0–255) and the temperature. Each is a live slot of the run
+ * ('pressed:board.A', 'touch:LOGO', 'board:accelx' …), read by the sim's `microbit` module.
+ */
+export function MicrobitCard({ live, onClose, style }: { live: Live; onClose: () => void; style: CSSProperties }) {
+  const [held, setHeld] = useState<string[]>([]);
+  const pad = useRef<{ left: number; top: number } | null>(null);
+  const heldRef = useRef(held);
+  heldRef.current = held;
+  const liveRef = useRef(live);
+  liveRef.current = live;
+
+  const clampMg = (v: number) => Math.round(Math.min(G_MG, Math.max(-G_MG, v)));
+  const tiltTo = (clientX: number, clientY: number) => {
+    const p = pad.current;
+    if (!p) return;
+    const half = PAD / 2;
+    liveRef.current.set('board:accelx', clampMg(((clientX - p.left - half) / half) * G_MG));
+    liveRef.current.set('board:accely', clampMg(((clientY - p.top - half) / half) * G_MG));
+  };
+  const hold = (slots: string[]) => {
+    for (const s of slots) liveRef.current.set(s, 1);
+    setHeld(slots);
+  };
+  const release = () => {
+    for (const s of heldRef.current) liveRef.current.set(s, 0);
+    setHeld([]);
+  };
+
+  useEffect(() => {
+    const move = (e: MouseEvent) => { if (pad.current) tiltTo(e.clientX, e.clientY); };
+    const up = () => {
+      pad.current = null;
+      if (heldRef.current.length) release();
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+  }, []);
+
+  const x = live.value('board:accelx');
+  const y = live.value('board:accely');
+  const button = (label: string, slots: string[], icon?: string) => (
+    <button type="button" className={held.join() === slots.join() ? 'btn sm on' : 'btn sm'} aria-pressed={held.join() === slots.join()}
+      onMouseDown={(e) => { if (e.button === 0) { e.preventDefault(); hold(slots); } }}
+      onKeyDown={(e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); hold(slots); } }}
+      onKeyUp={(e) => { if (e.key === ' ' || e.key === 'Enter') release(); }}
+      onBlur={() => { if (heldRef.current.length) release(); }}>
+      {icon && <Icon name={icon} size={12} />}{icon && ' '}{label}
+    </button>
+  );
+  const mg = (v: number) => String(v).replace('-', '−');
+  return (
+    <div className="float inputs mbit" role="group" aria-label="micro:bit inputs" style={style}>
+      <div className="ih">
+        <Icon name="cpu" size={14} /> <b>micro:bit inputs</b>
+        <span className="spacer" />
+        <button type="button" className="btn ghost sm icon" aria-label="Close the micro:bit inputs card" title="Close" onClick={onClose}><Icon name="x" size={14} /></button>
+      </div>
+      <div className="mb-buttons">
+        {button('A', ['pressed:board.A'])}
+        {button('B', ['pressed:board.B'])}
+        {button('A+B', ['pressed:board.A', 'pressed:board.B'])}
+        {button('Logo', ['touch:LOGO'], 'touch')}
+      </div>
+      <div className="mb-tilt">
+        <span className="pad" role="slider" tabIndex={0} aria-label="Tilt" title="Drag to tilt"
+          aria-valuenow={x} aria-valuemin={-G_MG} aria-valuemax={G_MG} aria-valuetext={`x ${x} mg, y ${y} mg`}
+          onMouseDown={(e) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            const r = e.currentTarget.getBoundingClientRect();
+            pad.current = { left: r.left, top: r.top };
+            tiltTo(e.clientX, e.clientY);
+          }}
+          onKeyDown={(e) => {
+            const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+            if (e.key === 'Home') { e.preventDefault(); live.set('board:accelx', 0); live.set('board:accely', 0); return; }
+            if (!d) return;
+            e.preventDefault();
+            if (d[0]) live.set('board:accelx', clampMg(x + d[0] * TILT_STEP));
+            if (d[1]) live.set('board:accely', clampMg(y + d[1] * TILT_STEP));
+          }}>
+          <i style={{ left: `${50 + (x / G_MG) * 50}%`, top: `${50 + (y / G_MG) * 50}%` }} />
+        </span>
+        <span className="col">
+          <span className="small"><b>Tilt</b></span>
+          <span className="tiny muted mono">x {mg(x)} · y {mg(y)}</span>
+          <button type="button" className="btn sm" onClick={() => live.set('board:shake', live.value('board:shake') + 1)}><Icon name="shake" size={12} /> Shake</button>
+        </span>
+      </div>
+      <Slider label="Light level" icon="sun" value={live.value('board:light')} min={0} max={255} step={1} onChange={(v) => live.set('board:light', v)} />
+      <Slider label="Temperature" icon="therm" value={live.value('board:celsius')} min={-10} max={50} step={1} format={(v) => `${v} °C`} onChange={(v) => live.set('board:celsius', v)} />
+      <Slider label="Sound level" icon="mic" value={live.value('board:sound')} min={0} max={255} step={1} onChange={(v) => live.set('board:sound', v)} />
     </div>
   );
 }

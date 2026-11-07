@@ -356,6 +356,17 @@ Accelerometer.is_gesture(name) — True if that gesture is happening now.
 Accelerometer.was_gesture(name) — True if that gesture happened since the last time you asked.
 Accelerometer.get_gestures() — Every gesture since the last time you asked.
 Accelerometer.set_range(value) — The largest force it measures, in g: 2, 4 or 8.
+microphone: Microphone — Hears how loud it is around the micro:bit (V2).
+~Microphone — The microphone next to the logo.
+Microphone.sound_level() — How loud it is now: 0 (silent) to 255.
+Microphone.current_event() — SoundEvent.LOUD or SoundEvent.QUIET, what it heard last; None if nothing yet.
+Microphone.is_event(event) — True if that is what it hears now.
+Microphone.was_event(event) — True if it heard that since the last time you asked.
+Microphone.get_events() — Every sound event since the last time you asked.
+Microphone.set_threshold(event, value) — The level (0–255) that counts as loud, or as quiet again.
+SoundEvent — A sound event: SoundEvent.LOUD or SoundEvent.QUIET.
+SoundEvent.LOUD — The sound got louder than the loud level.
+SoundEvent.QUIET — The sound fell back under the quiet level.
 i2c: I2CBus — The I2C bus on pins 19 (SCL) and 20 (SDA).
 ~I2CBus — The I2C bus.
 I2CBus.init(freq=100000, sda=pin20, scl=pin19) — Sets the bus up.

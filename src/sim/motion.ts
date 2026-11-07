@@ -67,6 +67,21 @@ export class Motion {
     }
   }
 
+  /** The window's tilt (M6.6): this vector from now on. */
+  live(v: Vector): void {
+    this.update();
+    this.vector = v;
+    if (this.shakeUntil < 0) this.set(posture(v));
+  }
+
+  /** The window's Shake (M6.6): a shake now. */
+  shake(): void {
+    this.update();
+    this.events.push('shake');
+    this.current = 'shake';
+    this.shakeUntil = this.now() + SHAKE_MS * 1000;
+  }
+
   private set(p: Gesture): void {
     if (p === this.current) return;
     this.current = p;

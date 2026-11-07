@@ -90,6 +90,12 @@ describe('M4.5 starting a run', () => {
     ]);
   });
 
+  it('M6.6: a micro:bit project has its own inputs too — A, B, the logo, the tilt, a shake, the temperature, the light, the sound', () => {
+    expect(inputSlots(newProject('microbit-v2').project)).toEqual([
+      'pressed:board.A', 'pressed:board.B', 'touch:LOGO', 'board:accelx', 'board:accely', 'board:shake', 'board:celsius', 'board:light', 'board:sound',
+    ]);
+  });
+
   it('M6.5b: a BMP280 has the air\'s temperature and pressure, a DS18B20 °C; a PCF8591 and a DS1302 take none (they read the circuit, the clock)', () => {
     const p = newProject('pico-w').project;
     p.parts = [

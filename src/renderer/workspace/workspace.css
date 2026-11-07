@@ -147,3 +147,18 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .scene.running .part.slide-switch, .scene.running .part.ldr { cursor: pointer; }
 .scene.running .part.potentiometer { cursor: ns-resize; }
 .prop.stack { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+
+/* ---------- M6.6: the micro:bit inputs card (screen 06) ---------- */
+.inputs.mbit { width: 236px; }
+.inputs.mbit .slider { grid-template-columns: 92px minmax(0, 1fr) 40px; }
+.inputs.mbit .slider > span:first-child { position: static; width: auto; height: auto; overflow: hidden; clip: auto; }
+.inputs.mbit .slider .v { text-align: right; font-variant-numeric: tabular-nums; }
+.mb-buttons { display: flex; flex-wrap: wrap; gap: 5px; }
+.mb-buttons .btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
+.mb-tilt { display: flex; gap: 8px; margin: 8px 0 4px; }
+.mb-tilt .pad { width: 62px; height: 62px; flex: none; border-radius: 9px; background: var(--bg-2); position: relative; cursor: grab;
+  background-image: linear-gradient(var(--line-strong), var(--line-strong)), linear-gradient(var(--line-strong), var(--line-strong));
+  background-size: 1px 100%, 100% 1px; background-position: center; background-repeat: no-repeat; }
+.mb-tilt .pad:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.mb-tilt .pad i { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; box-shadow: var(--shadow); pointer-events: none; }
+.mb-tilt .col { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }

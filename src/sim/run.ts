@@ -221,6 +221,30 @@ function stopper(mp: MicroPython, control: Control | undefined, faulted: () => b
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
   const { display, sound, motion, bus, stop, quiet, circuit, asOf } = mb;
   const log = (entry: string) => bus.push([clock.nowUs(), entry]);
+  // the micro:bit's own inputs from the window (M6.6, screen 06): 'board:…' slots, NaN until the window sets them
+  const slot = (name: string): number => {
+    const c = options.control;
+    const i = c ? c.names.indexOf(name) : -1;
+    return c && i >= 0 ? c.input(i) : NaN;
+  };
+  let tilt: [number, number] | undefined;
+  let shakes = 0;
+  /** The window's tilt (mg; z what is left of 1 g, face up) and its Shake count, into the accelerometer. */
+  const fromWindow = () => {
+    const x = slot('board:accelx');
+    const y = slot('board:accely');
+    if (!Number.isNaN(x) || !Number.isNaN(y)) {
+      const xx = Number.isNaN(x) ? 0 : x;
+      const yy = Number.isNaN(y) ? 0 : y;
+      if (!tilt || tilt[0] !== xx || tilt[1] !== yy) {
+        tilt = [xx, yy];
+        motion.live([xx, yy, -Math.round(Math.sqrt(Math.max(0, 1024 * 1024 - xx * xx - yy * yy)))]);
+      }
+    }
+    const s = slot('board:shake');
+    if (!Number.isNaN(s) && s > shakes) { shakes = s; motion.shake(); }
+  };
+  const or = (v: number, otherwise: number) => (Number.isNaN(v) ? otherwise : v);
   return {
     ticks_us: () => clock.ticksUs(),
     /** Sleeps; returns early, with the µs left, when an IRQ or timer callback is due (it is scheduled first, and
@@ -262,7 +286,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     /** µs now, for a board module that aligns a timer to its own tick. */
     now_us: (): number => clock.nowUs(),
     timer_stop: (id: number) => timers.stop(id),
-    temperature: (): number => options.temperatureC ?? 25,
+    temperature: (): number => or(slot('board:celsius'), options.temperatureC ?? 25),
     /** True when the run is being stopped by a fault: the runner prints no KeyboardInterrupt traceback then. */
     quiet_stop: (): boolean => quiet(),
     dac_out: (pin: string, volts: number) => pins.setAnalog(pin, volts),
@@ -274,7 +298,9 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
         options.onDisplay?.(pixels);
       }
     },
-    light: (): number => options.lightLevel ?? 128,
+    light: (): number => or(slot('board:light'), options.lightLevel ?? 128),
+    /** The microphone's sound level, 0–255 (M6.6): the window's slider; 0 in a silent room. */
+    sound_level: (): number => or(slot('board:sound'), 0),
     /** Several changes at one moment (a note switches on, then gets its pitch) are one change. */
     sound: (hz: number) => {
       const t = clock.nowUs();
@@ -287,9 +313,9 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
       }
       options.onSound?.(hz);
     },
-    accel_values: (): string => { clock.ticksUs(); return motion.values().join(' '); },
-    accel_gesture: (): string => motion.gesture(),
-    accel_events: (): string => motion.takeEvents().join(','),
+    accel_values: (): string => { clock.ticksUs(); fromWindow(); return motion.values().join(' '); },
+    accel_gesture: (): string => { fromWindow(); return motion.gesture(); },
+    accel_events: (): string => { fromWindow(); return motion.takeEvents().join(','); },
 
     // --- buses (M2.7): transaction level; the parts on the nets answer (M6.4b: an MPU6050) ---
     /** Addresses that answer on this bus, comma-separated hex. */

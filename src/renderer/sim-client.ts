@@ -48,8 +48,13 @@ const SLOT: Record<string, string[]> = {
   bmp280: ['celsius', 'hpa'], ds18b20: ['celsius'], vl53l0x: ['cm'], max30102: ['bpm', 'spo2', 'position'],                          // M6.5b: the air (the PCF8591 reads the circuit)
 };
 
+/** The micro:bit's own inputs (M6.6, screen 06): buttons A and B, the touch logo, its tilt (mg), a shake (a count),
+ *  its temperature, light level and sound level. */
+export const MICROBIT_SLOTS = ['pressed:board.A', 'pressed:board.B', 'touch:LOGO', 'board:accelx', 'board:accely', 'board:shake', 'board:celsius', 'board:light', 'board:sound'];
+
 export function inputSlots(project: Project): string[] {
-  return project.parts.flatMap((p) => (SLOT[p.type] ?? []).map((kind) => `${kind}:${p.id}`));
+  const own = project.board === 'microbit-v2' ? MICROBIT_SLOTS : [];
+  return [...own, ...project.parts.flatMap((p) => (SLOT[p.type] ?? []).map((kind) => `${kind}:${p.id}`))];
 }
 
 const newWorker = (): WorkerLike => new Worker(new URL('../sim/worker.ts', import.meta.url), { type: 'module' }) as unknown as WorkerLike;

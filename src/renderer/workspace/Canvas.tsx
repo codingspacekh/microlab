@@ -11,7 +11,7 @@ import type { PartView } from '../../sim/circuit';
 import type { BoardOutputs } from '../app/useRun';
 import { Icon } from '../ui/Icon';
 import { batteryBox, KIT, BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, partTurns, polyline, Wire } from './drawings';
-import { InputsCard, PartTip, SLIDER_PARTS, UsbSocket, UsbTip, useLive } from './live';
+import { InputsCard, MicrobitCard, PartTip, SLIDER_PARTS, UsbSocket, UsbTip, useLive } from './live';
 
 /**
  * The circuit canvas (screens 02, 02b, 03; F-10–F-14). Everything is drawn from the project: the board's picture and
@@ -104,7 +104,8 @@ export function Canvas({
   const [tipOf, setTipOf] = useState<string | null>(null);
   /** The Inputs card (screen 18): open when a run starts, closed with its ×, opened again by clicking a sensor on it. */
   const [inputsOpen, setInputsOpen] = useState(false);
-  useEffect(() => { setInputsOpen(running); setTipOf(null); }, [running]);
+  const [boardOpen, setBoardOpen] = useState(false);
+  useEffect(() => { setInputsOpen(running); setBoardOpen(running); setTipOf(null); }, [running]);
   const [gesture, setGesture] = useState<Gesture | null>(null);
   const [placeAt, setPlaceAt] = useState<Point | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -669,6 +670,7 @@ export function Canvas({
         const tipPart = running && tipOf && tipOf !== 'usb' ? project.parts.find((p) => p.id === tipOf) : undefined;
         return (
           <>
+            {running && boardOpen && project.board === 'microbit-v2' && <MicrobitCard live={live} onClose={() => setBoardOpen(false)} style={{ right: 14, top: 14 }} />}
             {sliders.length > 0 && <InputsCard parts={sliders} live={live} views={outputs.parts} onClose={() => setInputsOpen(false)} style={{ right: 14, bottom: 14 }} />}
             {tipPart && (
               <PartTip id={tipPart.id} type={tipPart.type} common={String(tipPart.props?.common ?? 'cathode')} views={outputs.parts}

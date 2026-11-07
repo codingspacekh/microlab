@@ -329,3 +329,27 @@ test('M6.5b (screen 21): a DS18B20 read with onewire and ds18x20 by the real wor
   await win.keyboard.press('End');
   await expect(log).toContainText('100.0 C', { timeout: 3000 });
 });
+
+test('M6.6 (screen 06): the micro:bit inputs card — button A held, the temperature and the tilt set, read by the real worker', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New micro:bit project' }).click();
+  await setCode(win, [
+    'from microbit import *', 'while True:',
+    "    print('A' if button_a.is_pressed() else '-', temperature(), accelerometer.get_x())", '    sleep(100)', '',
+  ].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const log = win.getByRole('log', { name: 'Console' });
+  await expect(log).toContainText('- 25 0', { timeout: 5000 });
+  const card = win.getByRole('group', { name: 'micro:bit inputs' });
+  const a = card.getByRole('button', { name: 'A', exact: true });
+  const box = (await a.boundingBox())!;
+  await win.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await win.mouse.down();
+  await expect(log).toContainText('A 25 0', { timeout: 3000 });
+  await win.mouse.up();
+  await card.getByRole('slider', { name: 'Temperature' }).focus();
+  await win.keyboard.press('End');
+  await card.getByRole('slider', { name: 'Tilt' }).focus();
+  await win.keyboard.press('ArrowRight');
+  await expect(log).toContainText('- 50 64', { timeout: 3000 });
+});
