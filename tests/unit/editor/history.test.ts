@@ -3,7 +3,8 @@ import {
   addPart, addWire, deleteMany, deletePart, deleteWire, duplicate, EMPTY_HISTORY, moveBoard, moveBreadboard, moveParts, movePart,
   record, redo, rotateParts, setBreadboardSize, setPartProp, setWireColour, undo, type History,
 } from '@lib/editor';
-import { newProject, type Project } from '@lib/project';
+import { type Project } from '@lib/project';
+import { newProject } from './with-breadboard';
 
 /** M5.1 F-16: undo / redo for every command — a history of whole projects, so each one undoes the same way. */
 const start = (): Project => {

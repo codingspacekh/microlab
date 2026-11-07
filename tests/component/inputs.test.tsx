@@ -6,6 +6,7 @@ import { App } from '../../src/renderer/app/App';
 import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
+import { startBuilding } from './start-building';
 
 /** M6.1 the inputs pack (screens 17, 17b): the slide switch, the light sensor, the RGB LED and the battery pack in
  *  the parts panel, drawn and set in the inspector; while running a switch is clicked, a knob dragged, the light on
@@ -26,6 +27,7 @@ function setup(board = 'New Pico W project') {
   const sim = fakeSim();
   render(<App api={fakeApi()} width={1440} startRun={sim.start} />);
   fireEvent.click(screen.getByRole('button', { name: board }));
+  startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
   const client = (x: number, y: number) => ({ clientX: x - vx, clientY: y - vy, button: 0 });
@@ -192,6 +194,7 @@ describe('M6.1 while running (screen 17)', () => {
   it('the note in the parts panel says what can be done while running', () => {
     const s = setup();
     s.run();
+    if (!screen.queryByRole('region', { name: 'Parts' })) fireEvent.click(screen.getByRole('button', { name: 'Parts' }));   // folded when it ran (M6.8)
     expect(screen.getByRole('note')).toHaveTextContent(/click a slide switch/);
     expect(screen.getByRole('note')).toHaveTextContent(/drag a knob/);
   });

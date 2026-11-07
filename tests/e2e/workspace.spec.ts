@@ -3,6 +3,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
 
+/** M6.8: a new project is the board alone and the parts panel is folded — put down a half breadboard (where new
+ *  projects had theirs) and open the panel, as building a circuit starts. */
+const startBuilding = async (win: Page) => {
+  await win.getByRole('button', { name: 'Add a breadboard' }).click();
+  await win.getByRole('button', { name: 'Parts', exact: true }).click();
+  // opening it fits the circuit beside it again: let that be drawn before anything is measured
+  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+};
+
 /** M4.3 with the real mouse: a part dragged from the panel snaps to holes; a wire from a pin to a hole; the circuit
  *  fits the canvas at the smallest window (N-13). */
 let app: ElectronApplication;
@@ -34,6 +43,7 @@ test('build part of Blink with the mouse: a resistor dragged onto a5–a8, a wir
   const win = await app.firstWindow();
   await resize(win, 1440, 900);
   await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
 
   const a5 = await centre(win, '[data-point="bb1.a5"]');
   const a8 = await centre(win, '[data-point="bb1.a8"]');
@@ -74,6 +84,7 @@ test('at 1280 × 720 the micro:bit and its breadboard fit in the canvas', async 
   const win = await app.firstWindow();
   await resize(win, 1280, 720);
   await win.getByRole('button', { name: 'New micro:bit project' }).click();
+  await startBuilding(win);
   const canvas = (await win.getByRole('region', { name: 'Circuit' }).boundingBox())!;
   for (const name of ['BBC micro:bit V2', 'Breadboard bb1 (half)']) {
     const b = (await win.getByRole('img', { name }).boundingBox())!;
@@ -88,6 +99,7 @@ test('M4.3b with the real mouse: a part clicked then placed, a wire with two ben
   const win = await app.firstWindow();
   await resize(win, 1440, 900);
   await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
 
   // click the LED in the panel, then click on the breadboard
   await win.locator('.parts .pitem:has-text("red, 5 mm")').click();
@@ -120,6 +132,7 @@ test('M5.1 with the real keyboard and mouse: R turns, shift-click, ⌘D / Ctrl+D
   const win = await app.firstWindow();
   await resize(win, 1440, 900);
   await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
   const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
   const legs = (id: string) => win.locator(`[data-part="${id}"]`);
 
@@ -166,6 +179,7 @@ test('M5.2 with the real mouse: hover lights a strip, the wheel zooms at the poi
   const win = await app.firstWindow();
   await resize(win, 1440, 900);
   await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
   const zoom = win.getByRole('button', { name: 'Zoom to 100 %' });
   const pct = async () => Number((await zoom.textContent())!.replace('%', ''));
   const fitted = await pct();
@@ -208,6 +222,7 @@ test('M5.3 with the real mouse: GP15\'s card, a hole\'s card, a bend dragged and
   const win = await app.firstWindow();
   await resize(win, 1440, 900);
   await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
   const gp15 = await centre(win, '[data-point="board.GP15"]');
   await win.mouse.move(gp15.x, gp15.y);
   await expect(win.getByRole('tooltip')).toContainText('GP15 · pin 20');

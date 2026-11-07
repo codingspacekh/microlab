@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addPart, addWire, freeSpot, legsCentre, PART_KINDS, partKind, pointAt, sceneOf, snapPart, usedPoints } from '@lib/editor';
-import { newProject, type Project } from '@lib/project';
+import { type Project } from '@lib/project';
+import { newProject } from './with-breadboard';
 
 /** M4.3 F-10, F-11, F-12: a part snaps to holes; every leg needs an empty hole on the breadboard. */
 const empty = () => newProject('pico-w').project;

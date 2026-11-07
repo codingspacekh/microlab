@@ -13,7 +13,7 @@ export const projectSchema = z.object({
   format: z.literal(1),
   title: z.string().optional(),
   board: z.string(),
-  breadboards: z.array(z.object({ id: z.string(), size: z.enum(['half', 'full']) })),
+  breadboards: z.array(z.object({ id: z.string(), size: z.enum(['mini', 'half', 'full']) })),
   parts: z.array(z.object({
     id: z.string(),
     type: z.string(),

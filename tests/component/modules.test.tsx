@@ -6,6 +6,7 @@ import { App } from '../../src/renderer/app/App';
 import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
+import { startBuilding } from './start-building';
 
 /** M6.4c (screen 19, approved 2026-11-07): the DHT11 / DHT22, the HC-SR04 and the GY-521 (MPU6050) in the editor;
  *  while running the Inputs card sets the DHT's air, the object's distance and the MPU6050's tilt. */
@@ -24,6 +25,7 @@ function setup() {
   const sim = fakeSim();
   render(<App api={fakeApi()} width={1440} startRun={sim.start} audio={() => null} />);
   fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
   const client = (x: number, y: number) => ({ clientX: x - vx, clientY: y - vy, button: 0 });

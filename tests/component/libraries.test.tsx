@@ -8,6 +8,7 @@ import { App } from '../../src/renderer/app/App';
 import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
+import { startBuilding } from './start-building';
 
 /** M6.7b (screens 22 and 22b, approved 2026-11-08): Add a library — from the + menu and the files panel — and the
  *  inspector's Library line. Run hands the project's files to the (fake) simulation: the test reads them there. */
@@ -19,6 +20,7 @@ function setup(board = 'New Pico W project') {
   const api = fakeApi();
   render(<App api={api} width={1440} startRun={start} audio={() => null} />);
   fireEvent.click(screen.getByRole('button', { name: board }));
+  startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
   const parts = screen.getByRole('region', { name: 'Parts' });

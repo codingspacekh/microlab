@@ -15,6 +15,7 @@ import { bands, KIT, LED_SWATCHES, PartIcon, WIRE_COLOURS } from './drawings';
  * leg and a battery pack's kind (M6.1, screens 17, 17b), a wire's colour, the breadboard's size. Delete removes a part or a wire (F-11). Only the kit's controls (N-14).
  */
 export const SHRINK = 'Parts or wires use columns 31–63: move them first.';
+export const SHRINK_MINI = 'A mini breadboard has 17 columns and no rails: move what is past column 17 or on a rail first.';
 const QUICK_OHMS = [100, 220, 330, 1000, 4700, 10_000];
 const POTS = [1000, 10_000, 100_000];
 const PACKS = [{ value: '2xAA', label: '2×AA · 3 V' }, { value: '4xAA', label: '4×AA · 6 V' }, { value: '9V', label: '9 V' }];
@@ -257,10 +258,10 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
       <>
         <Row name="Size">
           <Segmented<BreadboardSize> label="Breadboard size" hideLabel value={bb.size}
-            options={[{ value: 'half', label: 'Half · 30' }, { value: 'full', label: 'Full · 63' }]}
+            options={[{ value: 'mini', label: 'Mini · 17' }, { value: 'half', label: 'Half · 30' }, { value: 'full', label: 'Full · 63' }]}
             onChange={(size) => {
               const next = setBreadboardSize(project, bb.id, size);
-              if (!next) { setError(SHRINK); return; }
+              if (!next) { setError(size === 'mini' ? SHRINK_MINI : SHRINK); return; }
               setError(null);
               onChange(next);
             }} />

@@ -1,10 +1,11 @@
 import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import {
-  addPart, addWire, allPoints, boardArt, boardData, BREADBOARD, deleteBend, deleteMany, duplicate, fitBox, footprint, freeSpot, holeCard,
+  addBreadboard, addPart, addWire, allPoints, boardArt, boardData, BREADBOARD, deleteBend, deleteMany, duplicate, fitBox, footprint, freeSpot, holeCard,
   insertBend, joined, moveBend, pinCard, type HoleCard, type PinCard,
   legsCentre, moveBoard, moveBreadboard, moveParts, nearestPoint, panBy, partKind, PITCH, pointAt, rotateParts, sceneOf,
   setUsb, snapPart, snapToGrid, usedPoints, zoomAt, ZOOM, type Box, type Legs, type Point, type Scene,
 } from '@lib/editor';
+import type { BreadboardSize } from '@lib/circuit';
 import type { Project } from '@lib/project';
 import { BOARD_ART, BOARD_NAMES } from '../app/boards';
 import type { PartView } from '../../sim/circuit';
@@ -40,6 +41,7 @@ import { InputsCard, MicrobitCard, PartTip, SLIDER_PARTS, UsbSocket, UsbTip, use
  */
 export const MESSAGES = {
   noRoom: 'No room there: every leg needs an empty hole on the breadboard.',
+  breadboardCame: 'A half breadboard came with it: parts stand in a breadboard\'s holes. Its size is in the inspector.',
   wireEnd: 'A wire must end on a hole or a pin.',
   used: 'That hole is in use: each hole holds one leg or one wire.',
   full: 'The breadboard is full: there is no free place for that part.',
@@ -60,6 +62,10 @@ export type Placing = (
 ) & { /** Quarter turns clockwise, R while placing (M5.1). */ turns?: number };
 
 export type Selection = { kind: 'part' | 'wire' | 'breadboard'; id: string };
+
+/** A breadboard from the parts panel is placed like a part (M6.8): its "type" is 'breadboard:mini' and so on. */
+export const BREADBOARD_TYPE = 'breadboard:';
+const breadboardSize = (type: string) => (type.startsWith(BREADBOARD_TYPE) ? type.slice(BREADBOARD_TYPE.length) as BreadboardSize : undefined);
 
 type Gesture =
   | { kind: 'parts'; id: string; ids: string[]; start: Point; at: Point }   // `id` was pressed; `ids` move together
@@ -86,6 +92,20 @@ export interface CanvasProps {
   /** What the run shows: each part's state, the board's own outputs. */
   outputs?: { parts: Record<string, PartView>; board: BoardOutputs };
   onInput?: (name: string, value: number) => void;
+  /** Open the parts panel (M6.8: the Start building card's Add parts). */
+  onOpenParts?: () => void;
+  /** Screen pixels at the left covered by the open parts panel (M6.8): the drawing is fitted beside it. */
+  inset?: number;
+}
+
+/** `box` fitted into the part of a `w` × `h` canvas right of `inset` px, as a viewBox for the whole canvas; just
+ *  `box` when the canvas has no size yet (jsdom) or no room is covered. */
+function fitBeside(box: Box, w: number, h: number, inset: number): Box {
+  if (!inset || w <= inset || h <= 0) return box;
+  const s = Math.min((w - inset) / box.w, h / box.h);
+  const vw = w / s;
+  const vh = h / s;
+  return { x: box.x - inset / s - ((w - inset) / s - box.w) / 2, y: box.y - (vh - box.h) / 2, w: vw, h: vh };
 }
 
 const MOVED = 4;   // a smaller drag is a click
@@ -95,7 +115,7 @@ const NO_OUTPUTS = { parts: {}, board: { pins: {} } };
 
 export function Canvas({
   project, onChange, placing, onPlacing, selection, onSelect, running = false, outputs = NO_OUTPUTS, onInput,
-  onUndo, onRedo,
+  onUndo, onRedo, onOpenParts, inset = 0,
 }: CanvasProps) {
   const svg = useRef<SVGSVGElement>(null);
   const [pressed, setPressed] = useState<string | null>(null);
@@ -111,12 +131,24 @@ export function Canvas({
   const [problem, setProblem] = useState<string | null>(null);
   const sizes = project.breadboards.map((b) => b.size).join();
   const [viewBox, setViewBox] = useState<Box>(() => fitBox(sceneOf(project)));
-  const fitted = useRef(sizes);
+  /** The drawing fitted to what can be seen of the canvas (beside the parts panel when it is open). */
+  const fitted = (p: Project) => {
+    const r = svg.current?.getBoundingClientRect();
+    return fitBeside(fitBox(sceneOf(p)), r?.width ?? 0, r?.height ?? 0, inset);
+  };
+  const sized = useRef(sizes);
   useEffect(() => {
-    if (fitted.current === sizes) return;
-    fitted.current = sizes;
-    setViewBox(fitBox(sceneOf(project)));
+    if (sized.current === sizes) return;
+    sized.current = sizes;
+    setViewBox(fitted(project));
   }, [sizes, project]);
+  // the parts panel opened or folded: fit again beside it
+  const insetBefore = useRef(inset);
+  useEffect(() => {
+    if (insetBefore.current === inset) return;
+    insetBefore.current = inset;
+    setViewBox(fitted(latest.current.project));
+  }, [inset]);
   // screen pixels per drawing unit (1 = 100 %), measured after each change and when the panel is resized
   const [scale, setScale] = useState(1);
   useLayoutEffect(() => {
@@ -170,12 +202,23 @@ export function Canvas({
   const say = (text: string | null) => setProblem(text);
   const endPlacing = () => { setPlaceAt(null); onPlacing(null); };
 
-  /** Put the part with its legs' middle at `at`; false (and why) if it can't go there. */
-  const drop = (proj: Project, type: string, at: Point, turns = 0): boolean => {
+  /** Put the part with its legs' middle at `at`; false (and why) if it can't go there. A breadboard goes under the
+   *  board (the first) or where it is dropped; a part dropped while there is no breadboard brings one with it. */
+  const drop = (proj: Project, type: string, at: Point | undefined, turns = 0, select = true): boolean => {
+    const size = breadboardSize(type);
+    if (size) {
+      const r = addBreadboard(proj, size, proj.breadboards.length ? at : undefined);
+      say(null);
+      onChange(r.project);
+      if (select) onSelect([{ kind: 'breadboard', id: r.id }]);
+      return true;
+    }
+    const came = !proj.breadboards.length;
+    if (came) proj = addBreadboard(proj, 'half').project;
     const [cx, cy] = legsCentre(type, turns);
-    const legs = snapPart(sceneOf(proj), type, { x: at.x - cx, y: at.y - cy }, undefined, turns);
-    if (!legs) { say(MESSAGES.noRoom); return false; }
-    say(null);
+    const legs = (at && snapPart(sceneOf(proj), type, { x: at.x - cx, y: at.y - cy }, undefined, turns)) || (came ? freeSpot(sceneOf(proj), type) : undefined);
+    if (!legs) { say(at ? MESSAGES.noRoom : MESSAGES.full); return false; }
+    say(came ? MESSAGES.breadboardCame : null);
     const r = addPart(proj, type, legs);
     onChange(r.project);
     onSelect([{ kind: 'part', id: r.id }]);
@@ -272,7 +315,7 @@ export function Canvas({
     const vb = latest.current.viewBox;
     setViewBox(zoomAt(vb, at ?? { x: vb.x + vb.w / 2, y: vb.y + vb.h / 2 }, k, latest.current.scale));
   };
-  const fitView = () => setViewBox(fitBox(sceneOf(latest.current.project)));
+  const fitView = () => setViewBox(fitted(latest.current.project));
 
   // the wheel (and a pinch) zooms at the pointer, as in Tinkercad (the M5 gate); Shift + wheel pans
   // (a native listener: React's is passive)
@@ -293,6 +336,8 @@ export function Canvas({
   // Keyboard placing starts where the part would go first.
   useEffect(() => {
     if (placing?.how !== 'keys' || placeAt) return;
+    // a breadboard, or the first part (it brings one): put down at once, where they go first
+    if (breadboardSize(placing.type) || !project.breadboards.length) { drop(project, placing.type, undefined, placing.turns); endPlacing(); return; }
     const legs = freeSpot(sceneOf(project), placing.type);
     if (!legs) { say(MESSAGES.full); endPlacing(); return; }
     const pts = Object.values(legs).map((ref) => pointAt(sceneOf(project), ref)!);
@@ -520,7 +565,7 @@ export function Canvas({
             <g key={bb.id}>
               <Breadboard id={bb.id} size={bb.size} at={at} onMouseDown={begin((p) => ({ kind: 'breadboard', id: bb.id, start: p, at: p }))} />
               {isOn('breadboard', bb.id) && (
-                <rect className="sel" x={at.x - 5} y={at.y - 5} width={s.width + 10} height={s.height + 10} rx={10} />
+                <rect className="sel" x={at.x - 5} y={at.y + s.top - 5} width={s.width + 10} height={s.height + 10} rx={10} />
               )}
             </g>
           );
@@ -657,6 +702,18 @@ export function Canvas({
         )}
       </svg>
       {hint && <div className={problem ? 'canvas-hint warn' : 'canvas-hint'} aria-live="polite">{hint}</div>}
+      {!running && !placing && !project.breadboards.length && !project.parts.length && (
+        // screen 23: a new project is the board alone
+        <div className="float start-card" role="group" aria-label="Start building">
+          <b>Start building</b>
+          <p>Put a breadboard under the board, then parts in it. Wire them to the board's pins.</p>
+          <span className="row">
+            <button type="button" className="btn sm" onClick={() => drop(project, `${BREADBOARD_TYPE}half`, undefined, 0, false)}>Add a breadboard</button>
+            {onOpenParts && <button type="button" className="btn primary sm" onClick={onOpenParts}><Icon name="grid" size={14} /> Add parts</button>}
+            <span className="tiny muted">or press P</span>
+          </span>
+        </div>
+      )}
       {(() => {
         // the running cards (M6.1): beside what they belong to, inside the panel
         const near = (refs: string[], dy = 30): CSSProperties => {
@@ -776,6 +833,15 @@ function SelectBox({ type, legs: placedLegs, props }: { type: string; legs: Reco
 
 /** The part being placed, where it would go — or, faded, where the pointer is when it can't go there. */
 function Ghost({ scene, type, at, turns }: { scene: Scene; type: string; at: Point; turns: number }) {
+  const size = breadboardSize(type);
+  if (size) {
+    const s = BREADBOARD.size(size);
+    return (
+      <g data-ghost="ok" className="ghost" pointerEvents="none" opacity={0.55}>
+        <Breadboard id="new" size={size} at={{ x: at.x - s.width / 2, y: at.y - s.top - s.height / 2 }} />
+      </g>
+    );
+  }
   const [cx, cy] = legsCentre(type, turns);
   const first = { x: at.x - cx, y: at.y - cy };
   const legs = snapPart(scene, type, first, undefined, turns);

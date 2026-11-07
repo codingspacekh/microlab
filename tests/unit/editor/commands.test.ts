@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { parseBoard } from '@lib/boards';
 import { connect } from '@lib/circuit';
 import { addPart, addWire, deletePart, deleteWire, moveBoard, moveBreadboard, movePart, sceneOf, setBreadboardSize, setPartProp, setWireColour, snapToGrid } from '@lib/editor';
-import { newProject, parseProject, toCircuit } from '@lib/project';
+import { parseProject, toCircuit } from '@lib/project';
+import { newProject } from './with-breadboard';
 import picoJson from '../../../library/boards/pico-w/board.json';
 
 /** M4.3 F-10, F-11, F-13: the edits, as pure functions on the project (undo comes in M5). */

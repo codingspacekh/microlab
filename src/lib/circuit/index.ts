@@ -1,4 +1,4 @@
-export { holes, strips, railHole, COLUMNS, RAILS } from './breadboard';
+export { holes, strips, railHole, hasRails, COLUMNS, RAILS, BREADBOARD_SIZES } from './breadboard';
 export type { BreadboardSize } from './breadboard';
 export { connect } from './connectivity';
 export type { Connectivity, Net } from './connectivity';

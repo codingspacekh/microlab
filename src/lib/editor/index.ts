@@ -6,7 +6,7 @@ export { PART_KINDS, legsCentre, partKind } from './parts';
 export type { PartKind, PartType } from './parts';
 export { freeSpot, snapPart, usedPoints } from './place';
 export type { Legs } from './place';
-export { addPart, addWire, deletePart, deleteWire, moveBoard, moveBreadboard, movePart, setBreadboardSize, setPartProp, setUsb, setWireColour } from './commands';
+export { addBreadboard, addPart, addWire, deletePart, deleteWire, moveBoard, moveBreadboard, movePart, setBreadboardSize, setPartProp, setUsb, setWireColour } from './commands';
 export { footprint, turnsOf } from './parts';
 export { deleteMany, duplicate, moveParts, rotateParts } from './arrange';
 export type { Chosen } from './arrange';

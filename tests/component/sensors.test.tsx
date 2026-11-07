@@ -6,6 +6,7 @@ import { App } from '../../src/renderer/app/App';
 import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
+import { startBuilding } from './start-building';
 
 /** M6.3 (screen 18, approved 2026-11-07): the PIR, the line sensor, the soil moisture sensor and the TMP36 / LM35 in
  *  the parts panel's Sensors group, standing in the breadboard; while running the PIR is held to see motion, the line
@@ -25,6 +26,7 @@ function setup() {
   const sim = fakeSim();
   render(<App api={fakeApi()} width={1440} startRun={sim.start} audio={() => null} />);
   fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
   const client = (x: number, y: number) => ({ clientX: x - vx, clientY: y - vy, button: 0 });
@@ -52,7 +54,7 @@ describe('M6.3 the sensors in the editor (screen 18)', () => {
       'Ultrasonic HC-SR04distance · 5 V', 'DHT11 / DHT22temperature, humidity', 'MPU6050 motionaccelerometer · I²C',
       'PIR motionHC-SR501 · 5 V', 'Line sensor (IR)TCRT5000', 'Soil moisturecapacitive', 'TemperatureTMP36 · LM35',
     ]);
-    expect(within(within(s.panel).getByRole('group', { name: 'Basics' })).getAllByRole('button')).toHaveLength(9);
+    expect(within(within(s.panel).getByRole('group', { name: 'Basics' })).getAllByRole('button')).toHaveLength(12);   // 3 breadboards (M6.8) and 9 parts
   });
 
   it('each stands in row f, drawn from its pins; the inspector names them in their printed order', () => {

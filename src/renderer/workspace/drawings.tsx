@@ -1,5 +1,5 @@
 import { BREADBOARD, holeOffset, turnsOf, type Point } from '@lib/editor';
-import { COLUMNS, railHole, type BreadboardSize } from '@lib/circuit';
+import { COLUMNS, hasRails, railHole, type BreadboardSize } from '@lib/circuit';
 
 /**
  * The circuit's pictures, as in the approved prototype (design/svgparts.py): the breadboard, wires, resistors, LEDs,
@@ -27,21 +27,22 @@ const RAIL_LINES: [number, string][] = [[7, '#3b6fd8'], [45, '#d94545'], [253, '
 const RAIL_SIGNS: [number, string, string][] = [[21, '−', '#3b6fd8'], [37, '+', '#d94545'], [267, '+', '#d94545'], [283, '−', '#3b6fd8']];
 
 export function Breadboard({ id, size, at, onMouseDown }: { id: string; size: BreadboardSize; at: Point; onMouseDown?: (e: React.MouseEvent) => void }) {
-  const { width: w, height: h } = BREADBOARD.size(size);
+  const { width: w, height: h, top } = BREADBOARD.size(size);
+  const rails = hasRails(size);   // a mini breadboard has none: its body is the rows a–j
   const cols = COLUMNS[size];
   const holes: Point[] = [];
   for (let c = 1; c <= cols; c++) {
     for (const r of 'abcdefghij') holes.push(holeOffset(`${r}${c}`, size)!);
-    if (railHole(c)) for (const r of ['T-', 'T+', 'B+', 'B-']) holes.push(holeOffset(`${r}${c}`, size)!);
+    if (rails && railHole(c)) for (const r of ['T-', 'T+', 'B+', 'B-']) holes.push(holeOffset(`${r}${c}`, size)!);
   }
   const label = { fontSize: 7.5, fill: '#a39c8c', textAnchor: 'middle' as const, fontFamily: 'JetBrains Mono Variable, monospace' };
   return (
     <g className="bb" transform={`translate(${at.x},${at.y})`}>
-      <rect role="img" aria-label={`Breadboard ${id} (${size})`} className="body" width={w} height={h} rx={7} fill="#f6f4ef" stroke="#d6d0c2" filter="url(#lift)" onMouseDown={onMouseDown} />
+      <rect role="img" aria-label={`Breadboard ${id} (${size})`} className="body" y={top} width={w} height={h} rx={7} fill="#f6f4ef" stroke="#d6d0c2" filter="url(#lift)" onMouseDown={onMouseDown} />
       <g pointerEvents="none">
-        {RAIL_LINES.map(([y, c]) => <line key={y} x1={14} y1={y} x2={w - 14} y2={y} stroke={c} strokeWidth={1.6} opacity={0.75} />)}
+        {rails && RAIL_LINES.map(([y, c]) => <line key={y} x1={14} y1={y} x2={w - 14} y2={y} stroke={c} strokeWidth={1.6} opacity={0.75} />)}
         <rect x={8} y={142} width={w - 16} height={16} rx={2} fill="#ebe7dd" />
-        {RAIL_SIGNS.map(([y, s, c]) => (
+        {rails && RAIL_SIGNS.map(([y, s, c]) => (
           <g key={y} fontSize={10} fontWeight={700} fill={c} textAnchor="middle">
             <text x={9} y={y}>{s}</text><text x={w - 9} y={y}>{s}</text>
           </g>
@@ -938,6 +939,22 @@ const KIT_ICONS: Record<string, string> = {
   "vl53l0x": "<rect x=\"6\" y=\"9\" width=\"20\" height=\"15\" rx=\"2\" fill=\"#5b3fa0\"/><rect x=\"11\" y=\"12\" width=\"10\" height=\"5\" rx=\"1\" fill=\"#1c1e21\"/><path d=\"M14,8 v-6\" stroke=\"#e8432a\" stroke-width=\"1.4\" stroke-dasharray=\"2 1.5\"/>",
   "max30102": "<rect x=\"6\" y=\"9\" width=\"20\" height=\"15\" rx=\"2\" fill=\"#5b3fa0\"/><rect x=\"12\" y=\"12\" width=\"8\" height=\"6\" rx=\"1\" fill=\"#1c1e21\"/><rect x=\"13\" y=\"13\" width=\"3\" height=\"4\" fill=\"#8a1d1d\"/>"
 };
+
+/** A breadboard in the parts panel (M6.8): mini (no rails), half, full — wider as it grows. */
+export function BreadboardIcon({ size }: { size: 'mini' | 'half' | 'full' }) {
+  const w = { mini: 16, half: 24, full: 30 }[size];
+  const x = (32 - w) / 2;
+  const cols = { mini: 3, half: 5, full: 6 }[size];
+  const dots = [];
+  for (let c = 0; c < cols; c++) for (const y of [13, 16, 19]) dots.push(<rect key={`${c}-${y}`} x={x + 3 + c * ((w - 6) / Math.max(1, cols - 1)) - 0.7} y={y - 0.7} width={1.4} height={1.4} fill="#4a463e" />);
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <rect x={x} y={size === 'mini' ? 10 : 7} width={w} height={size === 'mini' ? 12 : 18} rx={2} fill="#f6f4ef" stroke="#cfc8b8" />
+      {size !== 'mini' && <><line x1={x + 2} y1={9.5} x2={x + w - 2} y2={9.5} stroke="#d94545" strokeWidth={0.8} /><line x1={x + 2} y1={22.5} x2={x + w - 2} y2={22.5} stroke="#3b6fd8" strokeWidth={0.8} /></>}
+      {dots}
+    </svg>
+  );
+}
 
 export function PartIcon({ type }: { type: string }) {
   if (KIT_ICONS[type]) return <svg viewBox="0 0 32 32" aria-hidden="true" dangerouslySetInnerHTML={{ __html: KIT_ICONS[type]! }} />;

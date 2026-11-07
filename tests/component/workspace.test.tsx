@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { legsCentre, partKind } from '@lib/editor';
 import { App } from '../../src/renderer/app/App';
 import { fakeApi } from './fake-api';
+import { startBuilding } from './start-building';
 
 /** M4.3 the workspace (screens 02, 03): the board and breadboard drawn, parts dragged in (F-10), moved (F-11),
  *  wires from pin to pin (F-13, basic). In jsdom the canvas has no screen matrix: client = world − viewBox corner. */
@@ -10,6 +11,7 @@ import { fakeApi } from './fake-api';
 function setup(board = 'New Pico W project') {
   render(<App api={fakeApi()} width={1440} />);
   fireEvent.click(screen.getByRole('button', { name: board }));
+  startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' }) as unknown as SVGSVGElement;
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
   /** The client position of a world point. */
@@ -53,10 +55,9 @@ describe('M4.3 the workspace draws the project', () => {
     expect(s.svg.querySelectorAll('[data-point^="board."]').length).toBeGreaterThanOrEqual(30);
   });
 
-  it('the parts panel names the board and lists the parts of M4', () => {
+  it('the rail names the board; the parts panel lists the parts of M4', () => {
     const s = setup();
-    const panel = screen.getByRole('region', { name: 'Parts' });
-    expect(within(panel).getByText('Raspberry Pi Pico W')).toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Board and parts' })).getByTitle('Raspberry Pi Pico W')).toBeInTheDocument();
     for (const name of [/^Resistor/, /^LED/, /^Push button/, /^Potentiometer(?! module)/]) expect(s.item(name)).toBeInTheDocument();
   });
 });
@@ -447,7 +448,9 @@ describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', ()
     expect(s.parts()).toEqual(['r1 bb1.a5 bb1.a8']);
     fireEvent.click(tool('Undo'));
     expect(s.parts()).toEqual([]);
+    fireEvent.click(tool('Undo'));   // the breadboard put down first (M6.8: a new project is the board alone)
     expect(tool('Undo')).toBeDisabled();
+    key('y', { ctrlKey: true });
     key('y', { ctrlKey: true });
     expect(s.parts()).toEqual(['r1 bb1.a5 bb1.a8']);
     key('z', { metaKey: true, shiftKey: true });
@@ -544,7 +547,7 @@ describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', ()
 
   it('nothing selected: Rotate, Duplicate and Delete are off; a part with no room to turn says so', () => {
     const s = setup();
-    for (const name of ['Rotate', 'Duplicate', 'Delete', 'Undo', 'Redo']) expect(tool(name)).toBeDisabled();
+    for (const name of ['Rotate', 'Duplicate', 'Delete', 'Redo']) expect(tool(name)).toBeDisabled();   // Undo: the breadboard put down
     place(s, /^LED/, 'led', 'bb1.T-1');
     expect(s.parts()).toEqual(['led1 bb1.T-1 bb1.T-3']);
     key('r');

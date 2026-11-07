@@ -6,6 +6,7 @@ import { App } from '../../src/renderer/app/App';
 import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
+import { startBuilding } from './start-building';
 
 /** M6.5a (screens 20, 20b, approved 2026-11-07): the SunFounder kit's input modules in the editor and while running —
  *  held, clicked, dragged, turned, and set on the Inputs card. */
@@ -18,6 +19,7 @@ function setup() {
   };
   render(<App api={fakeApi()} width={1440} startRun={start} audio={() => null} />);
   fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
   const client = (x: number, y: number) => ({ clientX: x - vx, clientY: y - vy, button: 0 });

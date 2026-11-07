@@ -7,6 +7,7 @@ import type { MicrolabApi } from '../../src/renderer/app/api';
 import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
+import { startBuilding } from './start-building';
 
 /** M4.5 F-22, F-23 (screen 03): Run, Stop, Restart, the console, LEDs glowing and buttons pressed while running.
  *  The simulation is a fake here (the real worker runs in the e2e tests): the test says what the worker says. */
@@ -30,6 +31,7 @@ function setup(board = 'New Pico W project') {
   const sim = fakeSim();
   render(<App api={api()} width={1440} startRun={sim.start} />);
   fireEvent.click(screen.getByRole('button', { name: board }));
+  startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
   const client = (x: number, y: number) => ({ clientX: x - vx, clientY: y - vy, button: 0 });
@@ -94,6 +96,8 @@ describe('M4.5 Run and Stop (F-22)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     fireEvent.click(screen.getByRole('button', { name: 'Project menu' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'New project…' }));
+    const ask = screen.queryByRole('alertdialog');   // the breadboard put down is a change: asked first (M4.6)
+    if (ask) fireEvent.click(within(ask).getByRole('button', { name: "Don't save" }));
     expect(s.sim.runs[0]!.stop).toHaveBeenCalled();
   });
 });
@@ -150,6 +154,7 @@ describe('M4.5 while running (screen 03)', () => {
     expect(screen.getByRole('complementary', { name: 'Inspector' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     expect(screen.queryByRole('complementary', { name: 'Inspector' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Parts' }));   // it folded away when the program started (M6.8)
     expect(screen.getByRole('note')).toHaveTextContent('Stop the program to change the circuit');
     const part = s.svg.querySelector('[data-part="r1"]')!;
     fireEvent.mouseDown(part, s.client(100, 100));

@@ -1,5 +1,5 @@
 import { isBoardId, type BoardId } from '../boards';
-import { COLUMNS, railHole, type BreadboardSize } from '../circuit';
+import { COLUMNS, hasRails, railHole, type BreadboardSize } from '../circuit';
 import type { Project } from '../project';
 import { boardArt, boardData } from './library';
 
@@ -22,7 +22,8 @@ const HOLE = /^(T-|T\+|B\+|B-|[a-j])(\d+)$/;
 export const BREADBOARD = {
   rows: ROWS,
   edge: EDGE,
-  size: (size: BreadboardSize) => ({ width: (COLUMNS[size] - 1) * PITCH + 2 * EDGE, height: 298 }),
+  /** Its body: a mini breadboard (no rails) is the rows a–j only, `top` below the corner its holes are measured from. */
+  size: (size: BreadboardSize) => ({ width: (COLUMNS[size] - 1) * PITCH + 2 * EDGE, ...(hasRails(size) ? { top: 0, height: 298 } : { top: 44, height: 212 }) }),
 };
 
 /** A hole's place from its breadboard's corner: a1, j30, T-1, B+5; undefined if there is no such hole. */
@@ -32,7 +33,7 @@ export function holeOffset(hole: string, size: BreadboardSize): Point | undefine
   const row = m[1]!;
   const col = Number(m[2]);
   if (col < 1 || col > COLUMNS[size]) return undefined;
-  if (row.length === 2 && !railHole(col)) return undefined;
+  if (row.length === 2 && (!railHole(col) || !hasRails(size))) return undefined;
   return { x: EDGE + (col - 1) * PITCH, y: ROWS[row]! };
 }
 
@@ -65,7 +66,8 @@ export function defaultView(project: Project): View {
   let y = art.height + GAP;
   for (const bb of project.breadboards) {
     breadboards[bb.id] = snapToGrid({ x: 0, y });
-    y = breadboards[bb.id]!.y + BREADBOARD.size(bb.size).height + GAP;
+    const s = BREADBOARD.size(bb.size);
+    y = breadboards[bb.id]!.y + s.top + s.height + GAP;
   }
   return { board: snapToGrid({ x: (bbWidth - art.width) / 2, y: 0 }), breadboards };
 }
@@ -96,7 +98,7 @@ export interface PlacedPoint extends Point {
 const HOLE_NAMES = (size: BreadboardSize): string[] => {
   const out: string[] = [];
   for (let c = 1; c <= COLUMNS[size]; c++) {
-    for (const r of Object.keys(ROWS)) if (r.length === 1 || railHole(c)) out.push(`${r}${c}`);
+    for (const r of Object.keys(ROWS)) if (r.length === 1 || (railHole(c) && hasRails(size))) out.push(`${r}${c}`);
   }
   return out;
 };

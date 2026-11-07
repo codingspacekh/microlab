@@ -1,6 +1,7 @@
-import { COLUMNS, type BreadboardSize } from '../circuit';
+import { COLUMNS, hasRails, type BreadboardSize } from '../circuit';
 import type { Project } from '../project';
-import { sceneOf, snapToGrid, type Point } from './geometry';
+import { boardArt } from './library';
+import { BREADBOARD, sceneOf, snapToGrid, type Point } from './geometry';
 import { partKind } from './parts';
 import { usedPoints, type Legs } from './place';
 
@@ -49,13 +50,41 @@ export function setPartProp(project: Project, id: string, key: string, value: nu
   return { ...project, parts: project.parts.map((p) => (p.id === id ? { ...p, props: { ...p.props, [key]: value } } : p)) };
 }
 
-/** Half or full; undefined when a smaller one would leave a leg or a wire end off its end. */
+/** Mini, half or full; undefined when a smaller one would leave a leg or a wire end off its end (or on a rail a
+ *  mini breadboard hasn't got). */
 export function setBreadboardSize(project: Project, id: string, size: BreadboardSize): Project | undefined {
   const prefix = `${id}.`;
   const ends = [...project.parts.flatMap((p) => Object.values(p.legs)), ...project.wires.flatMap((w) => [w.a, w.b])];
-  const tooFar = ends.some((e) => e.startsWith(prefix) && Number(/\d+$/.exec(e)?.[0] ?? 0) > COLUMNS[size]);
+  const tooFar = ends.some((e) => e.startsWith(prefix) && (Number(/\d+$/.exec(e)?.[0] ?? 0) > COLUMNS[size]
+    || (!hasRails(size) && /^[TB][+-]/.test(e.slice(prefix.length)))));
   if (tooFar) return undefined;
   return { ...project, breadboards: project.breadboards.map((b) => (b.id === id ? { ...b, size } : b)) };
+}
+
+const GAP = 40;
+
+/**
+ * M6.8 (screen 23b): a breadboard from the parts panel. The first goes under the board (where a new project used to
+ * have it: the board centred over it); another one at `at` (its middle), or under the last one.
+ */
+export function addBreadboard(project: Project, size: BreadboardSize, at?: Point): { project: Project; id: string } {
+  const id = nextId('bb', project.breadboards.map((b) => b.id));
+  const breadboards = [...project.breadboards, { id, size }];
+  if (!project.breadboards.length && !project.view) return { id, project: { ...project, breadboards } };   // laid out as a new project's
+  const view = sceneOf(project).view;
+  const s = BREADBOARD.size(size);
+  let corner: Point;
+  if (at) corner = { x: at.x - s.width / 2, y: at.y - s.top - s.height / 2 };
+  else if (!project.breadboards.length) {
+    const art = boardArt(sceneOf(project).boardId);
+    corner = { x: view.board.x + (art.width - s.width) / 2, y: view.board.y + art.height + GAP - s.top };
+  } else {
+    const last = project.breadboards.at(-1)!;
+    const ls = BREADBOARD.size(last.size);
+    const l = view.breadboards[last.id]!;
+    corner = { x: l.x, y: l.y + ls.top + ls.height + GAP - s.top };
+  }
+  return { id, project: { ...project, breadboards, view: { ...view, breadboards: { ...view.breadboards, [id]: snapToGrid(corner) } } } };
 }
 
 /** Wires with both ends on `owner` ('board' or a breadboard) move their bends with it. */

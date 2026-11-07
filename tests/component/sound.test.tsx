@@ -8,6 +8,7 @@ import type { StartRun } from '../../src/renderer/app/useRun';
 import type { AudioLike } from '../../src/renderer/audio';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
+import { startBuilding } from './start-building';
 
 /** M6.2 (F-33, F-36; screen 06): the active and the passive buzzer in the parts panel and the inspector; while running
  *  a buzzer that sounds shows its sound waves and its note, and is heard (Web Audio, a fake here) with the micro:bit's
@@ -45,6 +46,7 @@ function setup(board = 'New Pico W project', api: MicrolabApi = fakeApi()) {
   const audio = fakeAudio();
   render(<App api={api} width={1440} startRun={sim.start} audio={audio.make} />);
   fireEvent.click(screen.getByRole('button', { name: board }));
+  startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
   const client = (x: number, y: number) => ({ clientX: x - vx, clientY: y - vy, button: 0 });

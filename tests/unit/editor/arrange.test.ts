@@ -4,7 +4,8 @@ import { connect } from '@lib/circuit';
 import {
   addPart, addWire, deleteMany, duplicate, footprint, moveParts, partKind, pointAt, rotateParts, sceneOf, snapPart, usedPoints,
 } from '@lib/editor';
-import { newProject, toCircuit, type Project } from '@lib/project';
+import { toCircuit, type Project } from '@lib/project';
+import { newProject } from './with-breadboard';
 import picoJson from '../../../library/boards/pico-w/board.json';
 
 /** M5.1 F-11: rotate, duplicate and select several — whole parts on whole holes, as one rigid group. */

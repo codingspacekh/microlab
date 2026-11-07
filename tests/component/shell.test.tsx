@@ -24,16 +24,21 @@ describe('M4.1 the shell (screens 01–03): top bar, modes, panels, status bar',
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
-  it('the workspace has the parts panel, the canvas and the code side, with two dividers', async () => {
+  it('the workspace has the rail, the canvas and the code side; the parts panel slides out with its own divider (M6.8)', async () => {
     renderWorkspace(fakeApi(), 1440);
-    expect(screen.getByRole('region', { name: 'Parts' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Board and parts' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Circuit' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Code' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Parts' })).toBeNull();
+    expect(screen.getAllByRole('separator')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Parts' }));
+    expect(screen.getByRole('region', { name: 'Parts' })).toBeInTheDocument();
     expect(screen.getAllByRole('separator')).toHaveLength(2);
   });
 
   it('panel widths are proportions of the window, within limits: 17 % and 34 % by default', async () => {
     renderWorkspace(fakeApi(), 1440);
+    fireEvent.click(screen.getByRole('button', { name: 'Parts' }));
     expect(screen.getByRole('separator', { name: 'Parts panel width' })).toHaveAttribute('aria-valuenow', String(Math.round(1440 * 0.17)));
     expect(screen.getByRole('separator', { name: 'Code panel width' })).toHaveAttribute('aria-valuenow', String(Math.round(1440 * 0.34)));
   });
@@ -41,11 +46,13 @@ describe('M4.1 the shell (screens 01–03): top bar, modes, panels, status bar',
   it('a moved divider is saved as a proportion, and read back on the next start', async () => {
     const api = fakeApi();
     const { unmount } = renderWorkspace(api, 1600);
+    fireEvent.click(screen.getByRole('button', { name: 'Parts' }));
     const sep = screen.getByRole('separator', { name: 'Parts panel width' });
     fireEvent.keyDown(sep, { key: 'ArrowRight' });   // 272 → 288 px
     expect(api.set).toHaveBeenCalledWith('layout', expect.objectContaining({ parts: expect.closeTo(288 / 1600, 4) }));
     unmount();
     renderWorkspace(api, 1600);
+    fireEvent.click(screen.getByRole('button', { name: 'Parts' }));
     await vi.waitFor(() => expect(screen.getByRole('separator', { name: 'Parts panel width' })).toHaveAttribute('aria-valuenow', '288'));
   });
 

@@ -25,6 +25,7 @@ test.afterEach(async () => {
 });
 
 const centre = async (win: Page, selector: string) => {
+  if (selector.includes('.pitem')) await win.locator(selector).first().scrollIntoViewIfNeeded();   // the panel scrolls
   const b = (await win.locator(selector).first().boundingBox())!;
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 };
@@ -44,6 +45,8 @@ async function choose(path: string) {
 }
 
 async function circuit(win: Page) {
+  await win.getByRole('button', { name: 'Add a breadboard' }).click();   // M6.8: a new project is the board alone
+  await win.getByRole('button', { name: 'Parts', exact: true }).click();
   const p = await centre(win, '[data-point="bb1.a5"]');
   const q = await centre(win, '[data-point="bb1.a8"]');
   await drag(win, await centre(win, '.parts .pitem:has-text("Resistor")'), { x: (p.x + q.x) / 2, y: p.y });
