@@ -331,7 +331,8 @@ def _header(pins, labels, y_body):
         o.append(f'<line x1="{x}" y1="{yy}" x2="{x}" y2="{f(y - 7)}" stroke="#c7ccd2" stroke-width="1.8"/>'
                  f'<line x1="{x}" y1="{f(y - 14)}" x2="{x}" y2="{f(y_body)}" stroke="#c7ccd2" stroke-width="1.8"/>')
     for (x, _), lab in zip(pins, labels):
-        o.append(f'<text x="{x}" y="{f(y - 18)}" font-size="5.5" font-weight="700" fill="#e9edf2" text-anchor="middle" font-family="Inter">{lab}</text>')
+        size = 5.5 if len(lab) <= 4 else 4.2   # GPIO1, XSHUT: smaller, so they don't meet
+        o.append(f'<text x="{x}" y="{f(y - 18)}" font-size="{size}" font-weight="700" fill="#e9edf2" text-anchor="middle" font-family="Inter">{lab}</text>')
     return "".join(o)
 
 
@@ -660,6 +661,78 @@ def kit_speed(pins, rpm=0):
     if rpm:
         wheel += f'<path d="M{f(cx - 32)},{f(t - 30)} A34 34 0 0 1 {f(cx - 10)},{f(t - 44)}" stroke="#e8590c" stroke-width="2" fill="none"/>'
     return kit_module(pins, ("VCC", "GND", "DO"), element=el, above=wheel)
+
+
+PCB_PURPLE, PCB_GREEN = ("#5b3fa0", "#3b2875"), ("#2f7d3f", "#1f5a2b")
+
+
+def _soic(cx, y, w=16, h=10, label=""):
+    o = f'<rect x="{f(cx - w / 2)}" y="{f(y)}" width="{w}" height="{h}" rx="1" fill="#1c1e21"/>'
+    o += "".join(f'<rect x="{f(cx - w / 2 + 2 + i * (w - 4) / 3 - 1)}" y="{f(y - 2)}" width="2" height="2" fill="#c7ccd2"/><rect x="{f(cx - w / 2 + 2 + i * (w - 4) / 3 - 1)}" y="{f(y + h)}" width="2" height="2" fill="#c7ccd2"/>' for i in range(4))
+    if label:
+        o += f'<text x="{f(cx)}" y="{f(y + h / 2 + 2)}" font-size="3.6" fill="#9aa1a9" text-anchor="middle" font-family="JetBrains Mono">{label}</text>'
+    return o
+
+
+def chip_pcf8591(pins, aout=0.0):
+    def el(cx, top, w, h):
+        o = _soic(cx, top + 12, 20, 12, "PCF8591")
+        o += "".join(f'<rect x="{f(cx - 40 + i * 12)}" y="{f(top + 34)}" width="6" height="9" rx="1" fill="#1c1e21"/><rect x="{f(cx - 39 + i * 12)}" y="{f(top + 35)}" width="4" height="4" fill="#e8b10f"/>' for i in range(3))
+        o += f'<rect x="{f(cx + 26)}" y="{f(top + 36)}" width="6" height="3.5" rx="1" fill="{"#ff5a4a" if aout > 0 else "#5a2a27"}"/>'
+        if aout > 0:
+            o += f'<circle cx="{f(cx + 29)}" cy="{f(top + 38)}" r="{f(4 + 6 * aout)}" fill="url(#glow-red)"/>'
+        return o
+    return kit_module(pins, ("AOUT", "AIN3", "AIN2", "AIN1", "AIN0", "SCL", "SDA", "GND", "VCC"), PCB_BLUE, h=58, element=el)
+
+
+def chip_bmp280(pins):
+    def el(cx, top, w, h):
+        return (f'<rect x="{f(cx - 7)}" y="{f(top + 14)}" width="14" height="14" rx="1.5" fill="#c7ccd2" stroke="#8f969f"/>'
+                f'<circle cx="{f(cx + 3.5)}" cy="{f(top + 17.5)}" r="1.2" fill="#6d747c"/>'
+                f'<text x="{f(cx)}" y="{f(top + 44)}" font-size="5" font-weight="700" fill="#e3dff5" text-anchor="middle" font-family="Inter">BMP280</text>')
+    return kit_module(pins, ("VCC", "GND", "SCL", "SDA", "CSB", "SDO"), PCB_PURPLE, h=58, element=el)
+
+
+def chip_ds18b20(pins):
+    def el(cx, top, w, h):
+        return (f'<path d="M{f(cx - 9)},{f(top + 34)} v-14 a9,6 0 0 1 18,0 v14 z" fill="#1f2125"/>'
+                f'<text x="{f(cx)}" y="{f(top + 29)}" font-size="3.6" fill="#cfd3d8" text-anchor="middle" font-family="JetBrains Mono">18B20</text>'
+                f'<rect x="{f(cx + 9)}" y="{f(top + 40)}" width="8" height="4" rx="1" fill="#e3cb98"/>')
+    return kit_module(pins, ("S", "VCC", "GND"), PCB_BLUE, h=58, element=el)
+
+
+def chip_ds1302(pins):
+    def el(cx, top, w, h):
+        return (f'<circle cx="{f(cx)}" cy="{f(top + 22)}" r="17" fill="#c7ccd2" stroke="#8f969f"/>'
+                f'<text x="{f(cx)}" y="{f(top + 24)}" font-size="5" font-weight="700" fill="#6d747c" text-anchor="middle" font-family="Inter">CR2032</text>'
+                f'{_soic(cx - 14, top + 46, 14, 8)}'
+                f'<rect x="{f(cx + 6)}" y="{f(top + 46)}" width="16" height="6" rx="3" fill="#c7ccd2" stroke="#8f969f"/>')
+    return kit_module(pins, ("VCC", "GND", "CLK", "DAT", "RST"), PCB_GREEN, h=64, element=el)
+
+
+def chip_vl53l0x(pins, measuring=False):
+    def el(cx, top, w, h):
+        return (f'<rect x="{f(cx - 9)}" y="{f(top + 12)}" width="18" height="9" rx="1.5" fill="#1c1e21"/>'
+                f'<circle cx="{f(cx - 4)}" cy="{f(top + 16.5)}" r="2" fill="#3a3d42"/><circle cx="{f(cx + 4)}" cy="{f(top + 16.5)}" r="2" fill="#3a3d42"/>'
+                f'<text x="{f(cx)}" y="{f(top + 44)}" font-size="5" font-weight="700" fill="#e3dff5" text-anchor="middle" font-family="Inter">VL53L0X</text>')
+    cx = (pins[0][0] + pins[-1][0]) / 2
+    t = pins[0][1] - 16 - 58
+    beam = (f'<path d="M{f(cx - 4)},{f(t + 12)} L{f(cx - 4)},{f(t - 46)}" stroke="#e8432a" stroke-width="1.6" stroke-dasharray="3 3"/>'
+            f'<rect x="{f(cx - 22)}" y="{f(t - 56)}" width="44" height="10" rx="2" fill="#c08a52" stroke="#8a5c2e"/>') if measuring else ""
+    return kit_module(pins, ("VIN", "GND", "SCL", "SDA", "GPIO1", "XSHUT"), PCB_PURPLE, h=58, element=el, above=beam)
+
+
+def chip_max30102(pins, finger=False):
+    def el(cx, top, w, h):
+        o = (f'<rect x="{f(cx - 8)}" y="{f(top + 12)}" width="16" height="12" rx="2" fill="#1c1e21"/>'
+             f'<rect x="{f(cx - 6)}" y="{f(top + 14)}" width="5" height="8" rx="1" fill="#8a1d1d"/><rect x="{f(cx + 1)}" y="{f(top + 14)}" width="5" height="8" rx="1" fill="#2a2d33"/>'
+             f'<text x="{f(cx)}" y="{f(top + 44)}" font-size="5" font-weight="700" fill="#e3dff5" text-anchor="middle" font-family="Inter">MAX30102</text>')
+        if finger:
+            o += (f'<path d="M{f(cx - 14)},{f(top + 40)} q-2,-30 14,-34 q16,4 14,34 z" fill="#e9b48f" opacity=".92" stroke="#c98b63"/>'
+                  f'<ellipse cx="{f(cx)}" cy="{f(top + 12)}" rx="8" ry="4" fill="#f4d3bd" opacity=".9"/>'
+                  f'<circle cx="{f(cx)}" cy="{f(top + 22)}" r="14" fill="url(#glow-red)" opacity=".6"/>')
+        return o
+    return kit_module(pins, ("VIN", "SCL", "SDA", "INT", "GND"), PCB_PURPLE, h=58, element=el)
 
 
 def usb_plug(x, y) -> str:
@@ -1055,6 +1128,12 @@ ICON_PARTS = {
     "kjoystick": '<rect x="4" y="6" width="24" height="20" rx="2" fill="#26282c"/><circle cx="16" cy="16" r="8" fill="#c7ccd2"/><circle cx="17" cy="15" r="5" fill="#2d3136"/>',
     "kencoder": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#2457a6"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><circle cx="16" cy="16" r="6" fill="#c7ccd2" stroke="#8f969f"/><path d="M12,14 h8" stroke="#6d747c" stroke-width="1.4"/>',
     "kspeed": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#2457a6"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><circle cx="16" cy="8" r="7" fill="#e8b10f"/><rect x="11" y="12" width="3" height="8" fill="#1c1e21"/><rect x="18" y="12" width="3" height="8" fill="#1c1e21"/>',
+    "pcf8591": '<rect x="2" y="9" width="28" height="15" rx="2" fill="#2457a6"/><rect x="11" y="12" width="10" height="7" rx="1" fill="#1c1e21"/><path d="M5,24 v5 M9,24 v5 M13,24 v5 M17,24 v5 M21,24 v5 M25,24 v5" stroke="#a5abb2" stroke-width="1.2"/>',
+    "bmp280": '<rect x="6" y="9" width="20" height="15" rx="2" fill="#5b3fa0"/><rect x="12" y="12" width="8" height="8" rx="1" fill="#c7ccd2"/><path d="M9,24 v5 M13,24 v5 M17,24 v5 M21,24 v5" stroke="#a5abb2" stroke-width="1.2"/>',
+    "ds18b20": '<rect x="8" y="9" width="16" height="15" rx="2" fill="#2457a6"/><path d="M12,21 v-6 a4,3 0 0 1 8,0 v6z" fill="#1f2125"/><path d="M12,24 v5 M16,24 v5 M20,24 v5" stroke="#a5abb2" stroke-width="1.3"/>',
+    "ds1302": '<rect x="5" y="6" width="22" height="18" rx="2" fill="#2f7d3f"/><circle cx="16" cy="14" r="6" fill="#c7ccd2"/><path d="M8,24 v5 M12,24 v5 M16,24 v5 M20,24 v5 M24,24 v5" stroke="#a5abb2" stroke-width="1.2"/>',
+    "vl53l0x": '<rect x="6" y="9" width="20" height="15" rx="2" fill="#5b3fa0"/><rect x="11" y="12" width="10" height="5" rx="1" fill="#1c1e21"/><path d="M14,8 v-6" stroke="#e8432a" stroke-width="1.4" stroke-dasharray="2 1.5"/>',
+    "max30102": '<rect x="6" y="9" width="20" height="15" rx="2" fill="#5b3fa0"/><rect x="12" y="12" width="8" height="6" rx="1" fill="#1c1e21"/><rect x="13" y="13" width="3" height="4" fill="#8a1d1d"/>',
     "mpu6050": '<rect x="4" y="8" width="24" height="16" rx="2" fill="#3b5bb7"/><rect x="12" y="11" width="8" height="8" rx="1" fill="#1c1e21"/><path d="M6,27 v3 M9,27 v3 M12,27 v3 M15,27 v3 M18,27 v3 M21,27 v3 M24,27 v3 M27,27 v3" stroke="#a5abb2" stroke-width="1.2"/>',
     "dht": '<rect x="9" y="4" width="14" height="20" rx="2" fill="#3f8fe0"/>' + "".join(f'<rect x="{11 + c * 3.5}" y="{7 + r * 3.5}" width="2" height="2" fill="#1f5ea8"/>' for c in range(3) for r in range(4)) + '<path d="M12,24 v5 M15,24 v5 M18,24 v5 M21,24 v5" stroke="#a5abb2" stroke-width="1.3"/>',
     "pir": '<rect x="5" y="17" width="22" height="9" rx="2" fill="#2f8f4f"/><path d="M8,18 a8,8 0 0 1 16,0Z" fill="#f2f3f5" stroke="#c9d0d8"/>',

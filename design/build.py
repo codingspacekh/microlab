@@ -138,6 +138,19 @@ while True:
     green.value(on and not dark)
     print(light.read_u16())
     time.sleep(0.5)''',
+    "chips": '''from machine import I2C, Pin
+import time
+from ds1302 import DS1302
+
+i2c = I2C(0, sda=Pin(4), scl=Pin(5))
+rtc = DS1302(Pin(13), Pin(14), Pin(16))
+print(i2c.scan())            # [41, 72, 87, 118]
+
+while True:
+    h, m, s = rtc.time()[3:]
+    print('%02d:%02d:%02d' % (h, m, s),
+          distance(), 'mm', pressure(), 'hPa')
+    time.sleep(1)''',
     "kit": '''from machine import Pin, ADC
 import time
 
@@ -326,6 +339,8 @@ PARTS = [
                  ("kwater", "Water level", ""), ("kgas", "Gas / smoke (MQ-2)", "5 V"), ("kldr", "Photoresistor module", ""),
                  ("kpot", "Potentiometer module", ""), ("kjoystick", "Joystick", "X · Y · button"), ("kencoder", "Rotary encoder", "KY-040"),
                  ("kspeed", "IR speed sensor", "20-slot wheel")]),
+    ("Chips", [("pcf8591", "PCF8591", "ADC · DAC · I²C"), ("bmp280", "BMP280", "pressure · I²C"), ("ds18b20", "DS18B20", "temperature · 1-Wire"),
+               ("ds1302", "DS1302 clock", "real-time clock"), ("vl53l0x", "VL53L0X", "laser distance · I²C"), ("max30102", "MAX30102", "pulse · SpO2 · I²C")]),
     ("Actuators", [("servo", "Servo SG90", "0–180°"), ("motor", "DC motor", "TT gear motor"), ("driver", "Motor driver", "L298N · L9110S"),
                    ("relay", "Relay module", "")]),
     ("Displays", [("oled", "OLED SSD1306", "128×64 · I²C"), ("lcd", "LCD 16×2", "I²C"), ("seg7", "7-segment digit", ""),

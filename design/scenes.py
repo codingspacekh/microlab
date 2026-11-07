@@ -10,7 +10,8 @@ from svgparts import (P, f, Breadboard, defs, wire, led, resistor, button, buzze
                       microbit, oled, hcsr04, servo, HEART, slide_switch, ldr, rgb_led, battery,
                       pir, line_sensor, soil_sensor, temp_sensor, dht, mpu6050, hcsr04_in,
                       kit_button, kit_touch, kit_vibration, kit_ir_obstacle, kit_hall, kit_flame, kit_raindrop, kit_water, kit_mq2,
-                      kit_ldr, kit_pot, kit_joystick, kit_encoder, kit_speed)
+                      kit_ldr, kit_pot, kit_joystick, kit_encoder, kit_speed,
+                      chip_pcf8591, chip_bmp280, chip_ds18b20, chip_ds1302, chip_vl53l0x, chip_max30102)
 
 W, H = 692, 820
 
@@ -185,6 +186,23 @@ def kit() -> str:
     jx, jy = bb.xy(50, "f")
     o.append(cursor(jx + 4, jy - 58, "hand"))
     return _svg("".join(o), w=692, h=410, vb="40 96 1110 658")
+
+
+def chips() -> str:
+    """The kit's six chips (M6.5b design) standing in row f: the PCF8591 (its AOUT LED lit), the BMP280, the DS18B20,
+    the DS1302 with its coin cell, the VL53L0X measuring (its laser on something), the MAX30102 with a finger on it."""
+    bb = Breadboard(84, 300, cols=63)
+    o = [bb.svg()]
+    psvg, _ = pico(250, 236)
+    o.append(psvg)
+    row = lambda c0, n: [bb.xy(c, "f") for c in range(c0, c0 + n)]
+    o.append(chip_pcf8591(row(1, 9), aout=.6))
+    o.append(chip_bmp280(row(11, 6)))
+    o.append(chip_ds18b20(row(18, 3)))
+    o.append(chip_ds1302(row(22, 5)))
+    o.append(chip_vl53l0x(row(28, 6), measuring=True))
+    o.append(chip_max30102(row(35, 5), finger=True))
+    return _svg("".join(o), w=692, h=420, vb="40 96 740 470")
 
 
 def kit_sheet() -> str:
@@ -447,7 +465,7 @@ def led_states() -> str:
     return _svg("".join(o), 280, 96, "0 -10 280 106")
 
 
-SCENES = {"kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
+SCENES = {"chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
           "servowiring": servo_wiring, "servopulses": servo_pulses, "plot": plot}
 
 
