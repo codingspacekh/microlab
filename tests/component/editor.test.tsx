@@ -104,6 +104,20 @@ describe('M5.5 F-20 help while typing (screen 02b)', () => {
     await waitFor(() => expect(offered(view)).toContain('Pin(id, mode=-1, pull=-1, …)'));
   });
 
+  it('Tab takes the chosen completion (as Enter does); with no list open, Tab indents', async () => {
+    const view = setup('pico-w', 'import machine\n');
+    type(view, 'machine.Pi');
+    act(() => { startCompletion(view); });
+    await waitFor(() => expect(offered(view).length).toBeGreaterThan(0));
+    await act(() => new Promise((r) => setTimeout(r, 100)));   // CodeMirror takes no key for 75 ms after the list opens
+    fireEvent.keyDown(view.contentDOM, { key: 'Tab', code: 'Tab', keyCode: 9 });
+    expect(view.state.doc.toString()).toMatch(/machine\.Pin\(?\)?$/);
+    const before = view.state.doc.length;
+    act(() => { view.dispatch({ changes: { from: before, insert: '\nx' }, selection: { anchor: before + 2 } }); });
+    fireEvent.keyDown(view.contentDOM, { key: 'Tab', code: 'Tab', keyCode: 9 });
+    expect(view.state.doc.toString().endsWith('\n    x')).toBe(true);
+  });
+
   it('on the micro:bit, pin offers pin0, pin1, …; inside a string nothing is offered', async () => {
     const view = setup('microbit-v2', 'from microbit import *\n');
     type(view, 'pin');

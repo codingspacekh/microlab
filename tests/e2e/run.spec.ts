@@ -371,4 +371,10 @@ test('M6.7 (screen 22): Add a library from the + menu puts bmp280 in lib/ with i
   const files = win.getByRole('complementary', { name: 'Project files' });
   await expect(files.getByRole('treeitem', { name: /bmp280\.py/ })).toBeVisible();
   await expect(files.getByRole('treeitem', { name: /LICENSE-bmp280\.txt/ })).toBeVisible();
+  // its buttons stay inside it (issues/layout-1.png: Delete went past its edge)
+  const panel = (await files.boundingBox())!;
+  for (const b of await files.locator('.fbar button').all()) {
+    const box = (await b.boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(panel.x + panel.width);
+  }
 });

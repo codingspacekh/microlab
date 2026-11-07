@@ -80,7 +80,7 @@ export function FilesPanel({ doc, onDoc, onOpen, onRenamed, onDeleted, onClose, 
         <button type="button" className="btn sm" onClick={() => begin({ kind: 'new' })}><Icon name="plus" size={14} /> New file</button>
         {onAddLibrary && <button type="button" className="btn sm" onClick={onAddLibrary}><Icon name="book" size={14} /> Add library</button>}
         <button type="button" className="btn sm" disabled={!sel} onClick={() => sel && begin({ kind: 'rename', path: sel })}>Rename</button>
-        <button type="button" className="btn sm danger" disabled={!sel} onClick={() => sel && begin({ kind: 'delete', path: sel })}><Icon name="trash" size={14} /> Delete</button>
+        <button type="button" className="btn sm icon danger" aria-label="Delete" title="Delete" disabled={!sel} onClick={() => sel && begin({ kind: 'delete', path: sel })}><Icon name="trash" size={14} /></button>
       </div>
       <FileTree label="Files in this project" nodes={buildTree(paths.map((p) => ({ path: p, size: bytes(doc.files[p]!) })), [])}
         selected={sel} onSelect={setSel} opened={opened} onOpened={setOpened} onActivate={(n) => onOpen(n.path)} />

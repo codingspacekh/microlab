@@ -113,7 +113,7 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .files-panel .fh { display: flex; align-items: baseline; gap: 8px; }
 .files-panel .fh b { font-size: 13px; }
 .files-panel .fh .spacer { flex: 1; }
-.files-panel .fbar { display: flex; gap: 6px; }
+.files-panel .fbar { display: flex; flex-wrap: wrap; gap: 6px; }   /* never wider than the panel (issues/layout-1.png) */
 .files-panel .tree { min-height: 80px; max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
 .files-panel .tree .r { grid-template-columns: 18px minmax(0, 1fr) auto; }
 .files-panel .tree .diff { display: none; }

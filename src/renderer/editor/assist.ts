@@ -1,8 +1,8 @@
-import { autocompletion, completionStatus, type Completion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
+import { acceptCompletion, autocompletion, completionStatus, type Completion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
 import { pythonLanguage } from '@codemirror/lang-python';
 import { syntaxTree } from '@codemirror/language';
-import { StateField, type EditorState, type Extension } from '@codemirror/state';
-import { EditorView, showTooltip, type Tooltip } from '@codemirror/view';
+import { Prec, StateField, type EditorState, type Extension } from '@codemirror/state';
+import { EditorView, keymap, showTooltip, type Tooltip } from '@codemirror/view';
 import { completeAt, signatureAt, type ApiKind } from '@lib/editor';
 
 /**
@@ -128,6 +128,8 @@ export function boardAssist(board: string): Extension {
     look,
     pythonLanguage.data.of({ autocomplete: source(board) }),
     autocompletion({ icons: true, maxRenderedOptions: 60 }),
+    // Tab takes the chosen completion, as Enter does (the teacher, 2026-11-08); with no list open it indents
+    Prec.highest(keymap.of([{ key: 'Tab', run: acceptCompletion }])),
     signatureTooltip(board),
   ];
 }
