@@ -215,3 +215,11 @@ h3 { font-size: 13px; font-weight: 650; }
 .statusbar .st.bad { color: var(--danger); }
 .statusbar .st.saved { color: var(--success); }
 .topbar .undo { display: flex; align-items: center; gap: 2px; }
+
+/* Run names its file; its ⌄ runs main.py (M5.6, F-22, Q19) */
+.runsplit { display: inline-flex; align-items: stretch; }
+.runsplit > .btn.run { border-radius: 8px 0 0 8px; max-width: 240px; }
+.runsplit .runfile { font-family: var(--mono); font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.runsplit .menuwrap { display: inline-flex; }
+.runsplit .menuwrap > .split { height: auto; width: 28px; padding: 0; justify-content: center; border: 1px solid var(--run); border-left: 1px solid rgba(255, 255, 255, .35); border-radius: 0 8px 8px 0; background: var(--run); color: var(--run-ink); }
+.runsplit .menuwrap .menu { top: calc(100% + 6px); }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NewProjectBoard } from '@lib/boards';
-import { newProject, type ProjectDoc } from '@lib/project';
+import { newProject, runTarget, type ProjectDoc } from '@lib/project';
 import { EMPTY_HISTORY, redo, undo, type History } from '@lib/editor';
 import { Icon, Logo } from '../ui/Icon';
 import { Dialog } from '../ui/Dialog';
@@ -42,6 +42,10 @@ export interface OpenProject {
   savedNote?: string;
   /** The circuit's undo / redo (M5.1, F-16): while the project is open, through Learn and back. */
   history?: History;
+  /** The file in the editor (M5.6, F-21): main.py when a project opens. */
+  file?: string;
+  /** The last Python file run, for Run while a file that isn't Python is open (Q19). */
+  lastRun?: string;
 }
 
 let opened = 0;
@@ -54,8 +58,6 @@ export interface AppProps {
   startRun?: StartRun;
 }
 
-/** The file Run runs (requirements Rev 7, Q19): the open file — main.py while a project has only that (M5.6). */
-const ENTRY = 'main.py';
 
 export function App({ api, width, startRun }: AppProps) {
   const [mode, setMode] = useState<Mode>('workspace');
@@ -67,9 +69,18 @@ export function App({ api, width, startRun }: AppProps) {
   latest.current = open;
   const boardName = (o: OpenProject) => BOARD_NAMES[o.doc.project.board as keyof typeof BOARD_NAMES] ?? o.doc.project.board;
   const running = sim.state.status !== 'idle';
+  // what Run runs (F-22, Q19): the file in the editor, as Thonny does; main.py from its menu
+  const target = open ? runTarget(open.doc.files, open.file ?? 'main.py', open.lastRun) : 'main.py';
+  const runFile = (entry: string) => {
+    if (!open) return;
+    setOpen((cur) => (cur ? { ...cur, lastRun: entry } : cur));
+    sim.run(open.doc, entry, boardName(open));
+  };
   const runControls: RunControls = {
     state: sim.state,
-    onRun: () => { if (open) sim.run(open.doc, ENTRY, boardName(open)); },
+    target,
+    onRun: () => runFile(target),
+    onRunMain: () => runFile('main.py'),
     onStop: sim.stop,
     onRestart: () => sim.restart(() => latest.current!.doc),
   };
@@ -202,9 +213,9 @@ export function App({ api, width, startRun }: AppProps) {
     if (!open) return;
     if (running) sim.stop();
     if (!await openConsole(id)) return;
-    const code = open.doc.files[ENTRY];
-    bc.note(id, [{ kind: 'sys', text: `Running ${ENTRY} from the editor on the board — its own main.py is unchanged.\n` }]);
-    await api.boards.console.do(id, { do: 'run', name: ENTRY, code: typeof code === 'string' ? code : new TextDecoder().decode(code) });
+    const code = open.doc.files[target];
+    bc.note(id, [{ kind: 'sys', text: `Running ${target} from the editor on the board — its own main.py is unchanged.\n` }]);
+    await api.boards.console.do(id, { do: 'run', name: target, code: typeof code === 'string' ? code : new TextDecoder().decode(code ?? new Uint8Array()) });
   };
   // the connection helper (F-56), installing MicroPython (F-52): while open
   const [helping, setHelping] = useState(false);
@@ -219,7 +230,7 @@ export function App({ api, width, startRun }: AppProps) {
         onChoose={(id) => { setChosen(id); void api.settings.set('board.chosen', id); }} onCheck={(id) => void api.boards.check(id)}
         onHelp={() => setHelping(true)} onInstall={setInstalling} />
       <SendToBoard detection={boards} project={open.doc.project.board as BoardId} chosen={chosen} files={open.doc.files}
-        entry={ENTRY} busy={sending} onSend={(id, req) => void send(id, req)}
+        entry={target} busy={sending} onSend={(id, req) => void send(id, req)}
         onRunFile={(id) => void runOnBoard(id)} onOpenConsole={(id) => void openConsole(id)}
         onBoardFiles={(id) => { if (running) sim.stop(); setFilesOf({ id, name: nameOf(id) }); }}
         onHelp={() => setHelping(true)} />
@@ -238,6 +249,8 @@ export function App({ api, width, startRun }: AppProps) {
     : open ? <Workspace key={open.key} api={api} width={width} doc={open.doc} onChange={(doc) => setOpen((cur) => (cur ? { ...cur, doc, savedNote: undefined } : cur))}
         history={open.history ?? EMPTY_HISTORY} onHistory={(h) => setOpen((cur) => (cur ? { ...cur, history: h } : cur))}
         onUndo={() => step(undo)} onRedo={() => step(redo)}
+        file={open.file ?? 'main.py'} onFile={(p) => setOpen((cur) => (cur ? { ...cur, file: p } : cur))}
+        runFile={running ? open.lastRun ?? target : target}
         run={sim.state} running={running} onInput={sim.setInput} onClearConsole={sim.clear}
         consoleTab={bc.tab} onConsoleTab={bc.setTab}
         board={bc.shown ? {
@@ -346,7 +359,11 @@ interface TopBarProps {
 
 interface RunControls {
   state: RunState;
+  /** The file Run runs: its name is on the button. */
+  target: string;
   onRun: () => void;
+  /** Run main.py, as the board does when switched on (Run's ⌄ menu). */
+  onRunMain: () => void;
   onStop: () => void;
   onRestart: () => void;
 }
@@ -406,7 +423,14 @@ function RunBox({ run }: { run: RunControls }) {
   if (status === 'idle') {
     return (
       <div className="runbox">
-        <button type="button" className="btn run" onClick={run.onRun} title="Run main.py"><Icon name="play" size={14} /> Run</button>
+        <span className="runsplit">
+          <button type="button" className="btn run" onClick={run.onRun} title={`Run ${run.target} on the simulated board`}>
+            <Icon name="play" size={14} /> Run <span className="runfile">{run.target.split('/').pop()}</span>
+          </button>
+          <MenuButton label="More ways to run" className="split" items={[
+            { label: 'Run main.py', icon: 'play', description: 'As when the board is switched on: main.py is the file a board runs by itself.', onSelect: run.onRunMain },
+          ]} />
+        </span>
         <button type="button" className="btn icon" disabled title="Stop" aria-label="Stop"><Icon name="stop" size={14} /></button>
       </div>
     );

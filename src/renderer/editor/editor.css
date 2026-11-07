@@ -13,8 +13,19 @@
 .code-editor .cm-selectionBackground, .code-editor .cm-focused .cm-selectionBackground { background: rgba(37, 99, 217, .18) !important; }
 .code-editor .cm-matchingBracket { background: rgba(26, 127, 55, .14); outline: 1px solid rgba(26, 127, 55, .35); }
 
-/* the file tabs above it (one file in M4; the file tree is M5) */
+/* the file tabs above it (M5.6, F-21): the open files, each closable; + (new file) and ⋯ (the project's files) */
 .ftabs { height: 36px; flex: none; display: flex; align-items: stretch; border-bottom: 1px solid var(--line); background: var(--bg); padding-left: 4px; }
-.ftabs [role="tab"] { display: flex; align-items: center; gap: 7px; padding: 0 12px; color: var(--tx-2); font-family: var(--mono); font-size: 12px; border-right: 1px solid var(--line); background: none; border-top: 0; border-bottom: 0; border-left: 0; }
-.ftabs [role="tab"][aria-selected="true"] { background: var(--code-bg); color: var(--tx-1); box-shadow: inset 0 2px 0 var(--accent); }
-
+.ftabs .tabs { display: flex; align-items: stretch; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.ftabs .ftab { display: flex; align-items: center; border-right: 1px solid var(--line); flex: 0 1 auto; min-width: 84px; }
+.ftabs .ftab.on { flex-shrink: 0; background: var(--code-bg); box-shadow: inset 0 2px 0 var(--accent); }
+.ftabs [role="tab"] { display: flex; align-items: center; gap: 7px; height: 100%; min-width: 0; padding: 0 12px; color: var(--tx-2); font-family: var(--mono); font-size: 12px; background: none; border: 0; cursor: pointer; }
+.ftabs [role="tab"] .ico { flex: none; }
+.ftabs [role="tab"] .fname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ftabs .ftab.on [role="tab"] { color: var(--tx-1); }
+.ftabs .ftab .x { flex: none; width: 20px; height: 20px; margin-right: 6px; margin-left: -6px; display: grid; place-items: center; border: 0; border-radius: 4px; background: none; color: var(--tx-3); cursor: pointer; }
+.ftabs .ftab .x:hover { background: var(--bg-2); color: var(--tx-1); }
+.ftabs .libtag { font-family: var(--font); font-size: 10.5px; color: var(--tx-3); flex: none; }
+.ftabs .r { margin-left: auto; display: flex; align-items: center; gap: 2px; padding: 0 6px; flex: none; }
+.space-warn { flex: none; display: flex; gap: 6px; align-items: center; margin: 0; padding: 6px 12px; font-size: 12px; border-bottom: 1px solid var(--warn-line, #f0d08a); background: var(--warn-soft, #fff7e6); color: var(--tx-1); }
+.space-warn.over { border-color: var(--danger-line); background: var(--danger-soft, #fdecec); }
+.not-text { flex: 1; margin: 0; padding: 20px; background: var(--code-bg); }

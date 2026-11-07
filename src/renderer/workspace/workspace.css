@@ -106,3 +106,20 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .canvas .hole-card b { color: var(--success, #1f9d55); }
 .canvas .hole-card .small { color: var(--tx-2); }
 .inspector .bends-row { display: inline-flex; align-items: center; gap: 10px; }
+
+/* ---------- M5.6: the project's files (F-21) ---------- */
+.ws .side { position: relative; }
+.files-panel { top: 42px; right: 8px; width: min(340px, calc(100% - 16px)); max-height: calc(100% - 56px); display: flex; flex-direction: column; z-index: 6; padding: 10px; gap: 8px; }
+.files-panel .fh { display: flex; align-items: baseline; gap: 8px; }
+.files-panel .fh b { font-size: 13px; }
+.files-panel .fh .spacer { flex: 1; }
+.files-panel .fbar { display: flex; gap: 6px; }
+.files-panel .tree { min-height: 80px; max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
+.files-panel .tree .r { grid-template-columns: 18px minmax(0, 1fr) auto; }
+.files-panel .tree .diff { display: none; }
+.files-panel .fask { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 8px; background: var(--bg); }
+.files-panel .fask p { margin: 0; line-height: 1.45; }
+.files-panel .fask .row { display: flex; gap: 6px; justify-content: flex-end; }
+.files-panel .fspace { margin: 0; color: var(--tx-2); }
+.files-panel .fspace.near { color: var(--warn-ink, #8a5a00); font-weight: 600; }
+.files-panel .fspace.over { color: var(--danger); font-weight: 600; }

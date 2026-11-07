@@ -48,7 +48,7 @@ function setup(board = 'New Pico W project') {
 describe('M4.5 Run and Stop (F-22)', () => {
   it('Run starts main.py with the project as it is; the top bar shows the time, Stop and Restart', () => {
     const s = setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     expect(s.sim.runs).toHaveLength(1);
     expect(s.sim.runs[0]!).toMatchObject({ entry: 'main.py', doc: { project: { board: 'pico-w' } } });
     expect(screen.getByRole('timer', { name: 'Running for' })).toHaveTextContent('Running 00:00');
@@ -61,13 +61,13 @@ describe('M4.5 Run and Stop (F-22)', () => {
   it('Stop asks the run to stop; once it has, Run is back, the parts go dark, the console says so', () => {
     const s = setup();
     s.place(/^LED/, 'led', 'bb1.c10');
-    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     s.sim.say((e) => e.onParts({ led1: { kind: 'led', amps: 0.012, brightness: 0.6 } }));
     expect(s.svg.querySelector('[data-part="led1"]')).toHaveAttribute('data-lit', '1');
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
     expect(s.sim.runs[0]!.stop).toHaveBeenCalled();
     s.sim.end('stopped');
-    expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Run main.py' })).toBeEnabled();
     expect(s.svg.querySelector('[data-part="led1"]')).toHaveAttribute('data-lit', '0');
     expect(s.consoleText()).toMatch(/Stopped\.\n$/);
     expect(screen.getByRole('status')).toHaveTextContent('Ready');
@@ -77,7 +77,7 @@ describe('M4.5 Run and Stop (F-22)', () => {
     vi.useFakeTimers();
     try {
       const s = setup();
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
       fireEvent.click(screen.getByRole('button', { name: 'Restart' }));
       expect(s.sim.runs[0]!.stop).toHaveBeenCalled();
       s.sim.end('stopped');
@@ -91,7 +91,7 @@ describe('M4.5 Run and Stop (F-22)', () => {
 
   it('a new project stops what runs', () => {
     const s = setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     fireEvent.click(screen.getByRole('button', { name: 'Project menu' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'New project…' }));
     expect(s.sim.runs[0]!.stop).toHaveBeenCalled();
@@ -101,7 +101,7 @@ describe('M4.5 Run and Stop (F-22)', () => {
 describe('M4.5 the console (F-23)', () => {
   it('shows what the board prints; the end of the program; Clear empties it', () => {
     const s = setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     s.sim.say((e) => e.onOutput('Hello\n'));
     s.sim.say((e) => e.onOutput('24 °C\n'));
     s.sim.end('done');
@@ -113,7 +113,7 @@ describe('M4.5 the console (F-23)', () => {
 
   it('an error: the traceback as the board prints it, a red line saying where, and the status bar', () => {
     const s = setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     s.sim.say((e) => e.onOutput('Traceback (most recent call last):\n  File "main.py", line 3, in <module>\nNameError: name \'y\' isn\'t defined\n'));
     s.sim.end('error', { error: { type: 'NameError', message: "name 'y' isn't defined", file: 'main.py', line: 3 } });
     const err = screen.getByRole('log', { name: 'Console' }).querySelector('.err')!;
@@ -123,7 +123,7 @@ describe('M4.5 the console (F-23)', () => {
 
   it('a damaged circuit: the fault\'s message, in red', () => {
     const s = setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     s.sim.end('fault', { fault: { kind: 'led-burnt', part: 'led1', message: 'LED1 burnt out: 95 mA through it (it takes 30 mA at most).' } });
     expect(screen.getByRole('log', { name: 'Console' }).querySelector('.err')).toHaveTextContent('LED1 burnt out');
     expect(screen.getByRole('status')).toHaveTextContent('Stopped: the circuit was damaged');
@@ -134,7 +134,7 @@ describe('M4.5 while running (screen 03)', () => {
   it('a push button is pressed by holding the mouse on it, and let go', () => {
     const s = setup();
     s.place(/^Push button/, 'button', 'bb1.e20');
-    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     const btn = s.svg.querySelector('[data-part="btn1"]')!;
     fireEvent.mouseDown(btn, s.client(0, 0));
     expect(s.sim.runs[0]!.setInput).toHaveBeenLastCalledWith('pressed:btn1', 1);
@@ -148,7 +148,7 @@ describe('M4.5 while running (screen 03)', () => {
     const s = setup();
     s.place(/^Resistor/, 'resistor', 'bb1.a1');
     expect(screen.getByRole('complementary', { name: 'Inspector' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     expect(screen.queryByRole('complementary', { name: 'Inspector' })).toBeNull();
     expect(screen.getByRole('note')).toHaveTextContent('Stop the program to change the circuit');
     const part = s.svg.querySelector('[data-part="r1"]')!;
@@ -165,7 +165,7 @@ describe('M4.5 while running (screen 03)', () => {
 
   it('the Pico W\'s own LED lights from its LED pin', () => {
     const s = setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     expect(s.svg.querySelector('[data-board-led]')).toBeNull();
     s.sim.say((e) => e.onBoard({ pins: { LED: 1 } }));
     expect(s.svg.querySelector('[data-board-led]')).not.toBeNull();
@@ -175,14 +175,14 @@ describe('M4.5 while running (screen 03)', () => {
 
   it('the ESP32\'s blue LED lights from its current (a part of the board\'s circuit)', () => {
     const s = setup('New ESP32 project');
-    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     s.sim.say((e) => e.onParts({ 'board.LED': { kind: 'led', amps: 0.0012, brightness: 0.06 } }));
     expect(s.svg.querySelector('[data-board-led]')).not.toBeNull();
   });
 
   it('the micro:bit\'s display shows each frame, each pixel as bright as it is', () => {
     const s = setup('New micro:bit project');
-    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     expect(s.consoleText()).toMatch(/^micro:bit MicroPython v2\.1\.2 \(MicroPython v1\.18\) on BBC micro:bit V2 \(simulated\)/);
     s.sim.say((e) => e.onBoard({ pins: {}, display: '0909099999999990999000900' }));
     const d = s.svg.querySelector('[data-display]')!;

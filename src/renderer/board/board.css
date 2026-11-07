@@ -67,18 +67,6 @@
 .bfiles .tb { display: flex; gap: 6px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .bfiles .spacer { flex: 1; }
 .bfiles .tree { height: clamp(220px, 40vh, 420px); overflow: auto; padding: 4px; }
-.bfiles .tree .r { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto 128px; gap: 6px; align-items: center; height: 28px; padding-right: 8px; border-radius: 6px; font-size: 12.5px; color: var(--tx-1); cursor: default; outline: none; }
-.bfiles .tree .r:hover { background: var(--bg); }
-.bfiles .tree .r.sel { background: var(--accent-soft); }
-.bfiles .tree .r:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
-.bfiles .tree .tw { width: 18px; height: 18px; display: grid; place-items: center; border: 0; background: none; padding: 0; color: var(--tx-3); cursor: pointer; }
-.bfiles .tree .nm { display: flex; gap: 6px; align-items: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bfiles .tree .nm .ico { color: var(--tx-3); flex: none; }
-.bfiles .tree .sz { color: var(--tx-3); font-size: 11.5px; white-space: nowrap; text-align: right; }
-.bfiles .tree .diff { font-size: 11px; white-space: nowrap; text-align: right; color: var(--tx-3); }
-.bfiles .tree .diff.differs { color: var(--warn-ink, #8a5a00); font-weight: 600; }
-.bfiles .tree .diff.not-on-the-board { color: var(--accent); }
-.bfiles .tree .diff.only-on-the-board { color: var(--tx-3); }
 .bfiles .pad { padding: 12px; margin: 0; }
 .bfiles .viewer { display: flex; flex-direction: column; height: clamp(220px, 40vh, 420px); }
 .bfiles .viewer .vh { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--line); }
