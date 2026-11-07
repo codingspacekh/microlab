@@ -219,6 +219,7 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 | Sensors | HC-SR04 ultrasonic, DHT11 / DHT22, PIR motion, IR line sensor, soil moisture, TMP36 / LM35 temperature, MPU6050 accelerometer (S) |
 | Actuators | SG90 servo, DC motor + L298N / L9110S driver, relay module (S), 28BYJ-48 stepper + ULN2003 (S) |
 | Displays | SSD1306 OLED (I²C), 16×2 LCD (I²C), 7-segment digit, WS2812 NeoPixel strip / ring, MAX7219 8×8 matrix (C) |
+| *(Rev 8, the teacher, 2026-11-07)* The SunFounder Universal Maker Sensor Kit's list too — modelled on common modules, not on SunFounder's boards exactly | **Modules:** button, photoresistor, potentiometer, RGB LED, passive buzzer and traffic light modules (3–4 pins, their resistors on board); touch (TTP223), vibration (SW-420), IR obstacle avoidance, Hall, flame, raindrop, water level, gas/smoke (MQ-2), joystick, rotary encoder, IR speed sensor; **chips:** PCF8591 ADC/DAC, BMP280, DS18B20 (1-Wire), DS1302 RTC, VL53L0X time-of-flight, MAX30102 pulse oximeter; **outputs:** 5 V relay, centrifugal pump, L9110 driver, TT motor; breadboard power supply module (3.3 / 5 V); **wireless:** ESP8266 (AT over UART), JDY-31 Bluetooth (UART) — in the IoT phase |
 
 ## 1.5 Non-functional requirements
 

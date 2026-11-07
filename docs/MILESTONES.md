@@ -192,7 +192,8 @@ M6 Parts pack 1: inputs ─► M7 Parts pack 2: outputs & displays ─► M8 Lea
         ┌──────────────────────────────────────────────────────────────┘
         ▼
 M9 Errors, faults & multimeter ─► M10 Real boards ─► M11 Hardening & v1.0
-        └─► later phases: guided projects (Q7) · robot arena (F-70) · IoT & Wi-Fi (F-80–F-82) · Arduino (Q13)
+        └─► later phases: guided projects (Q7) · robot arena (F-70) · IoT & Wi-Fi (F-80–F-82; Rev 8: the ESP8266 and the
+            JDY-31 Bluetooth modules, over UART) · Arduino (Q13)
 ```
 
 | # | Milestone | Main requirements | Size | Rough part-time weeks* |
@@ -427,8 +428,14 @@ boards and the library-pack file it needs.
 2. Active and passive buzzer with sound (Web Audio) (F-36).
 3. PIR (a *motion* button), IR line sensor, soil moisture, TMP36 / LM35 (temperature slider).
 4. DHT11 / DHT22 (the `dht` module), HC-SR04 (`time_pulse_us`, distance slider, screen 07), MPU6050 (S).
-5. micro:bit buttons A/B, touch logo, tilt / shake, temperature, light level (screen 06) (F-35).
-6. Library pack files for these parts, with licences (F-54).
+5. *(Rev 8)* The SunFounder Universal Maker Sensor Kit's inputs, on common modules (requirements §1.4, Rev 8):
+   a. modules with a digital and/or analog output — button, photoresistor and potentiometer modules; touch (TTP223),
+      vibration (SW-420), IR obstacle avoidance, Hall, flame, raindrop, water level, gas/smoke (MQ-2, its heater's
+      current); joystick (two axes and a button), rotary encoder (quadrature), IR speed sensor (pulses);
+   b. chips: PCF8591 (I²C ADC/DAC), BMP280 (I²C, its compensation), DS18B20 (`onewire`, `ds18x20`), DS1302 (three
+      pins followed edge by edge), VL53L0X and MAX30102 (I²C; the hardest — last); a design screen before the UI.
+6. micro:bit buttons A/B, touch logo, tilt / shake, temperature, light level (screen 06) (F-35).
+7. Library pack files for these parts, with licences (F-54).
 
 **Tests first**
 - Each behaviour against its datasheet (HC-SR04: 58 µs per cm; DHT22: the bytes and checksum).
@@ -445,7 +452,8 @@ boards and the library-pack file it needs.
 
 **Build order**
 1. SG90 servo (pulse width → angle, the arm turns over time); DC motor with L298N / L9110S; relay (S);
-   28BYJ-48 + ULN2003 (S).
+   28BYJ-48 + ULN2003 (S); *(Rev 8, SunFounder's kit)* TT motor, centrifugal pump (through the relay or the driver),
+   RGB LED, passive buzzer and traffic light modules, the breadboard power supply module (3.3 / 5 V).
 2. SSD1306 OLED (I²C, screen 07) and its library-pack driver; 16×2 LCD over I²C; 7-segment digit.
 3. WS2812 NeoPixel strip and ring (`neopixel`, `bitstream`); MAX7219 (C).
 4. micro:bit 5×5 display and speaker, `music` on pin 0 (screen 06).
