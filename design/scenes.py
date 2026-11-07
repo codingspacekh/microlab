@@ -465,7 +465,20 @@ def led_states() -> str:
     return _svg("".join(o), 280, 96, "0 -10 280 106")
 
 
-SCENES = {"chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
+def bare() -> str:
+    """A new project (screen 23): the board alone; a breadboard comes from the parts panel."""
+    svg, _ = pico(250, 236)
+    return _svg(svg, w=692, h=420, vb="70 40 640 400")
+
+
+def place_breadboard() -> str:
+    """Screen 23b: a half breadboard being placed under the board, following the mouse (drawn faint)."""
+    bb = Breadboard(150, 300, cols=30)
+    svg, _ = pico(250, 236)
+    return _svg(svg + f'<g opacity=".55">{bb.svg()}</g>' + cursor(520, 470, "hand"), w=692, h=420, vb="-200 96 900 470")
+
+
+SCENES = {"bare": bare, "placebb": place_breadboard, "chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
           "servowiring": servo_wiring, "servopulses": servo_pulses, "plot": plot}
 
 
