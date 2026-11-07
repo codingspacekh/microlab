@@ -18,6 +18,8 @@ describe('M3.6 checking a run against expect.json', () => {
   it('inputs in seconds become part changes in µs', () => {
     expect(inputsOf(expectSchema.parse({ seconds: 1, inputs: [{ at: 0.5, part: 'btn1', pressed: true }] }))).toEqual([{ atUs: 500_000, part: 'btn1', pressed: true }]);
     expect(inputsOf(expectSchema.parse({ seconds: 1, inputs: [{ at: 0, part: 'tmp1', celsius: 30 }] }))).toEqual([{ atUs: 0, part: 'tmp1', celsius: 30 }]);   // M6.3
+    expect(inputsOf(expectSchema.parse({ seconds: 1, inputs: [{ at: 0, part: 'dht1', humidity: 70 }, { at: 1, part: 'sonar1', cm: 12 }] })))
+      .toEqual([{ atUs: 0, part: 'dht1', humidity: 70 }, { atUs: 1_000_000, part: 'sonar1', cm: 12 }]);   // M6.4
   });
 
   it('a good blink passes; too slow, too few, or an LED not in the circuit are said in words', () => {

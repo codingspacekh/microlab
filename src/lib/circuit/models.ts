@@ -47,6 +47,22 @@ export const MODELS: Record<string, PartModel> = {
   pir: sensorModel(SENSORS.pir.loadOhms),
   'line-sensor': sensorModel(SENSORS['line-sensor'].loadOhms),
   'soil-moisture': sensorModel(SENSORS['soil-moisture'].loadOhms),
+  /** DHT11 / DHT22 module (`kind`, M6.4): VCC, DATA (leg `out`), GND; its 10 kΩ pull-up on the board. */
+  dht: {
+    legs: ['vcc', 'out', 'gnd'],
+    devices: ({ id, leg }) => [
+      { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: SENSORS.dht.loadOhms },
+      { kind: 'resistor', id: `${id}:pull`, a: leg('vcc'), b: leg('out'), ohms: SENSORS.dht.pullOhms },
+    ],
+  },
+  /** HC-SR04 (M6.4): VCC, Trig, Echo, GND — Echo driven by the sim after a trigger pulse. */
+  'hc-sr04': {
+    legs: ['vcc', 'trig', 'echo', 'gnd'],
+    devices: ({ id, leg }) => [
+      { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: SENSORS['hc-sr04'].loadOhms },
+      { kind: 'drive', id: `${id}:out`, out: leg('echo'), gnd: leg('gnd'), part: id },
+    ],
+  },
   /** TMP36 or LM35 (`kind`), flat face towards you: +Vs, Vout, GND. */
   'temp-sensor': sensorModel(SENSORS['temp-sensor'].loadOhms),
   /** Across the channel: 1a–1b and 2a–2b are joined inside; pressing joins 1 and 2. */

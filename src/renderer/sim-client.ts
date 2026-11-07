@@ -36,13 +36,14 @@ export const STOP_GRACE_MS = 300;
 /** The live input each kind of part takes: a push button is pressed or not, a knob has a position (0–1), a slide
  *  switch is at 0 or 1 (M6.1), a light sensor has the light on it in lux; a PIR sees motion or not, a line sensor is
  *  over white (0) or the line (1), a soil sensor's moisture is 0–1, a temperature sensor has °C (M6.3). */
-const SLOT: Record<string, string> = {
-  button: 'pressed', potentiometer: 'position', 'slide-switch': 'position', ldr: 'lux',
-  pir: 'pressed', 'line-sensor': 'position', 'soil-moisture': 'position', 'temp-sensor': 'celsius',
+const SLOT: Record<string, string[]> = {
+  button: ['pressed'], potentiometer: ['position'], 'slide-switch': ['position'], ldr: ['lux'],
+  pir: ['pressed'], 'line-sensor': ['position'], 'soil-moisture': ['position'], 'temp-sensor': ['celsius'],
+  dht: ['celsius', 'humidity'], 'hc-sr04': ['cm'],   // M6.4: a DHT's air, how far an HC-SR04's object is
 };
 
 export function inputSlots(project: Project): string[] {
-  return project.parts.flatMap((p) => (SLOT[p.type] ? [`${SLOT[p.type]}:${p.id}`] : []));
+  return project.parts.flatMap((p) => (SLOT[p.type] ?? []).map((kind) => `${kind}:${p.id}`));
 }
 
 const newWorker = (): WorkerLike => new Worker(new URL('../sim/worker.ts', import.meta.url), { type: 'module' }) as unknown as WorkerLike;

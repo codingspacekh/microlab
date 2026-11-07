@@ -1,5 +1,5 @@
 import type { BoardData } from '@lib/boards';
-import { BUZZER, findFaults, isSensor, LED, minVolts, SENSORS, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
+import { BUZZER, dhtBytes, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
 
@@ -19,6 +19,8 @@ export interface PartChange {
   position?: number;
   lux?: number;
   celsius?: number;
+  humidity?: number;
+  cm?: number;
 }
 
 /** Up to this many PWM pins are averaged exactly (2^n solves: an RGB LED is 3); beyond, their DC average. */
@@ -37,6 +39,9 @@ export type PartView =
 
 /** [µs, part id, its new state] — one entry per change, as the window would be told. */
 export type PartTraceEntry = [number, string, PartView];
+
+/** The live input slots a part takes (sim-client's SLOT): 'pressed:btn1', 'celsius:dht1' … */
+const LIVE_KINDS = new Set(['pressed', 'position', 'lux', 'celsius', 'humidity', 'cm']);
 
 const SERVO = { minUs: 500, maxUs: 2500, minVolts: 4.5, rest: 90 };
 
@@ -112,6 +117,8 @@ export class CircuitHost {
       if (c.position !== undefined) s.position = c.position;
       if (c.lux !== undefined) s.lux = c.lux;
       if (c.celsius !== undefined) s.celsius = c.celsius;
+      if (c.humidity !== undefined) s.humidity = c.humidity;
+      if (c.cm !== undefined) s.cm = c.cm;
       changed = true;
     }
     if (this.live) changed = this.readLive(this.live) || changed;
@@ -125,13 +132,13 @@ export class CircuitHost {
     let changed = false;
     live.names.forEach((name, i) => {
       const [kind, part] = name.split(':') as [string, string];
-      if (kind !== 'pressed' && kind !== 'position' && kind !== 'lux' && kind !== 'celsius') return;
+      if (!LIVE_KINDS.has(kind)) return;
       const v = live.input(i);
       if (this.liveSeen[i] === v || (Number.isNaN(v) && this.liveSeen[i] === undefined)) return;
       this.liveSeen[i] = v;
       const s = (this.parts[part] ??= {});
       if (kind === 'pressed') s.pressed = v > 0.5;
-      else s[kind] = v;
+      else s[kind as 'position'] = v;
       changed = true;
     });
     return changed;
@@ -141,18 +148,55 @@ export class CircuitHost {
   nextChangeUs(): number {
     let next = this.script[this.next]?.atUs ?? Infinity;
     for (const until of this.pirHold.values()) if (until > this.now() && until < next) next = until;   // a PIR's hold ends
+    for (const e of this.echoes.values()) for (const at of [e.from, e.to]) if (at > this.now() && at < next) next = at;   // an echo
     return next;
   }
 
   /** When each PIR's output falls: Infinity while it sees motion, then its hold time after the motion ends. */
   private readonly pirHold = new Map<string, number>();
   private readonly powered = new Map<string, boolean>();
+  /** Each HC-SR04's echo (µs from, to) after its trigger's last pulse, and when its trigger last went high. */
+  private readonly echoes = new Map<string, { from: number; to: number; rise?: number }>();
+  private traceSeen = 0;
+
+  /** HC-SR04 triggers (M6.4): a pin's pulse of ≥ 8 µs on Trig, from the pins' trace (when it rose and fell, whenever
+   *  the circuit is next looked at), starts an echo 460 µs after it falls, 58 µs per cm long. */
+  private updateEchoes(): void {
+    const trace = this.pins.trace;
+    for (; this.traceSeen < trace.length; this.traceSeen++) {
+      const [t, pin, level] = trace[this.traceSeen]!;
+      const net = this.netOfPin.get(pin);
+      for (const part of this.spec.parts) {
+        if (part.type !== 'hc-sr04' || this.connectivity.netOf(`${part.id}.trig`) !== net) continue;
+        const e = this.echoes.get(part.id) ?? { from: -1, to: -1 };
+        if (level) e.rise = t;
+        else if (e.rise !== undefined && t - e.rise >= SENSORS['hc-sr04'].minTrigUs && this.powered.get(part.id)) {
+          e.from = t + SENSORS['hc-sr04'].delayUs;
+          e.to = e.from + echoUs(this.parts[part.id]?.cm ?? SENSOR_START.cm);
+          e.rise = undefined;
+        }
+        this.echoes.set(part.id, e);
+      }
+    }
+  }
+
+  /** What the DHT on a pin sends (M6.4): its 5 bytes as hex, or undefined when none answers (not there, not powered). */
+  dhtRead(pin: string): string | undefined {
+    this.update();
+    const net = this.netOfPin.get(pin);
+    const part = this.spec.parts.find((p) => p.type === 'dht' && net !== undefined && this.connectivity.netOf(`${p.id}.out`) === net);
+    if (!part || !this.powered.get(part.id)) return undefined;
+    const s = this.parts[part.id] ?? {};
+    return dhtBytes(String(part.props?.kind ?? 'DHT22'), s.celsius ?? SENSOR_START.celsius, s.humidity ?? SENSOR_START.humidity)
+      .map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
 
   /** Works out what drives each sensor module's OUT (M6.3) from its input and its supply in the last solve; true if
    *  any changed (the circuit must be solved again). */
   private updateDrives(): boolean {
     let changed = false;
     const t = this.now();
+    this.updateEchoes();
     for (const part of this.spec.parts) {
       if (!isSensor(part.type)) continue;
       const s = (this.parts[part.id] ??= {});
@@ -166,7 +210,8 @@ export class CircuitHost {
       const v = (leg: string) => this.solution?.volts[this.connectivity.netOf(`${part.id}.${leg}`) ?? ''] ?? 0;
       const supply = v('vcc') - v('gnd');
       this.powered.set(part.id, supply >= minVolts(part.type, part.props ?? {}));
-      const drive = sensorDrive(part.type, part.props ?? {}, { motion, position: s.position, celsius: s.celsius }, supply);
+      const echo = this.echoes.get(part.id);
+      const drive = sensorDrive(part.type, part.props ?? {}, { motion, position: s.position, celsius: s.celsius, echo: !!echo && t >= echo.from && t < echo.to }, supply);
       if (s.drive && Math.abs(s.drive.volts - drive.volts) < 1e-6 && s.drive.ohms === drive.ohms) continue;
       s.drive = drive;
       changed = true;

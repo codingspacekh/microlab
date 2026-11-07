@@ -48,8 +48,10 @@ export interface PartState {
   /** Potentiometer 0–1 from leg 1; slide switch 0 (2 joined to 1) or 1 (2 joined to 3). */
   position?: number;
   lux?: number;
-  /** A temperature sensor's °C (M6.3). */
+  /** A temperature sensor's °C (M6.3); a DHT's too, and its humidity %; how far an HC-SR04's object is, cm (M6.4). */
   celsius?: number;
+  humidity?: number;
+  cm?: number;
   /** What drives a sensor module's OUT now (M6.3): worked out by the sim from its input and its supply. */
   drive?: { volts: number; ohms: number };
 }

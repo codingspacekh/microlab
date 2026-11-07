@@ -7,7 +7,7 @@ import type { RunResult } from './run';
  * every example on its board with the VirtualClock and checks it (M3.6); M10 runs the same files on real boards.
  *
  *   seconds   how long the run lasts (then it is stopped, quietly)
- *   inputs    [{ at: s, part, pressed | position | lux | celsius }]
+ *   inputs    [{ at: s, part, pressed | position | lux | celsius | humidity | cm }]
  *   parts     { id: { blinks: Hz } | { lit: [[from, to], …], dark: […] } | { brightness: [[at, min, max], …] }
  *                   | { sounds: [[from, to, Hz], …], silent: [[from, to], …] } }   (a buzzer, M6.2)
  *   console   { includes: ['line', …] }
@@ -20,6 +20,7 @@ export const expectSchema = z.object({
   seconds: z.number().positive(),
   inputs: z.array(z.object({
     at: z.number().min(0), part: z.string(), pressed: z.boolean().optional(), position: z.number().optional(), lux: z.number().optional(), celsius: z.number().optional(),
+    humidity: z.number().optional(), cm: z.number().optional(),
   })).optional(),
   parts: z.record(z.string(), z.object({
     blinks: z.number().positive().optional(),

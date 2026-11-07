@@ -62,6 +62,15 @@ describe('M4.5 starting a run', () => {
     expect(inputSlots(p)).toEqual(['pressed:pir1', 'position:line1', 'position:soil1', 'celsius:tmp1']);
   });
 
+  it('M6.4: a DHT has a temperature and a humidity, an HC-SR04 how far its object is (cm)', () => {
+    const p = newProject('pico-w').project;
+    p.parts = [
+      { id: 'dht1', type: 'dht', props: { kind: 'DHT22' }, legs: { vcc: 'bb1.a1', out: 'bb1.a2', gnd: 'bb1.a3' } },
+      { id: 'sonar1', type: 'hc-sr04', legs: { vcc: 'bb1.a5', trig: 'bb1.a6', echo: 'bb1.a7', gnd: 'bb1.a8' } },
+    ];
+    expect(inputSlots(p)).toEqual(['celsius:dht1', 'humidity:dht1', 'cm:sonar1']);
+  });
+
   it('passes on what the worker says, and ends the worker with the run', () => {
     const w = new FakeWorker();
     const e = events();

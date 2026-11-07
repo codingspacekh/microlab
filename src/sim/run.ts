@@ -133,7 +133,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const sound: [number, number][] = [];
   const bus: [number, string][] = [];
   const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
-  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, { display, sound, motion, bus, stop, quiet }, options));
+  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, { display, sound, motion, bus, stop, quiet, circuit }, options));
   mp._module.microlabHook = () => {
     clock.poll();
     stop();
@@ -191,6 +191,8 @@ interface MicrobitParts {
   stop: () => boolean;
   /** A stop the runner reports without a traceback: a fault, or the run's time limit. */
   quiet: () => boolean;
+  /** The circuit, when there is one: the parts that answer a protocol (a DHT, M6.4). */
+  circuit?: CircuitHost;
 }
 
 /** Stop (N-03): KeyboardInterrupt is scheduled when the window asks, and again every 50 ms while it still asks, in
@@ -209,7 +211,7 @@ function stopper(mp: MicroPython, control: Control | undefined, faulted: () => b
 }
 
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
-  const { display, sound, motion, bus, stop, quiet } = mb;
+  const { display, sound, motion, bus, stop, quiet, circuit } = mb;
   const log = (entry: string) => bus.push([clock.nowUs(), entry]);
   return {
     ticks_us: () => clock.ticksUs(),
@@ -304,6 +306,15 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     /** Bytes waiting on RX (hex): none until M3. */
     uart_read: (): string => '',
     bitstream: (pin: string, timing: string, hex: string) => { log(`bitstream pin=${pin} timing=${timing} ${hex}`); },
+    /** dht_readinto (drivers/dht/dht.c): the line high 250 ms, low 18 ms (the start), then ≈ 4 ms of bits — the 5
+     *  bytes of the DHT on the pin as hex, or -1 when none answers (the driver raises ETIMEDOUT). */
+    dht_read: (pin: string): string | number => {
+      clock.sleepUs(250_000 + 18_000);
+      const bytes = circuit?.dhtRead(pin);
+      clock.sleepUs(4_000);
+      log(`dht pin=${pin} ${bytes ?? 'timeout'}`);
+      return bytes ?? -1;
+    },
     /** machine_time_pulse_us (extmod/machine_pulse.c, v1.29): two changes, -2 / -1 on a timeout; virtual time jumps to
      *  the next input change. */
     pulse_us: (pin: string, level: number, timeoutUs: number): number => {

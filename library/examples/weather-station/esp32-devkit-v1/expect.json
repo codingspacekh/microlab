@@ -1,0 +1,24 @@
+{
+  "seconds": 5.5,
+  "inputs": [
+    {
+      "at": 0,
+      "part": "dht1",
+      "celsius": 22,
+      "humidity": 50
+    },
+    {
+      "at": 3.0,
+      "part": "dht1",
+      "celsius": 30.5,
+      "humidity": 80
+    }
+  ],
+  "console": {
+    "includes": [
+      "22.0 C  50.0 %",
+      "30.5 C  80.0 %"
+    ]
+  },
+  "ended": "stopped"
+}

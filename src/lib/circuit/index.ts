@@ -14,5 +14,5 @@ export type { Solution } from './solve';
 export { analyse, findFaults } from './faults';
 export type { Analysis, Fault, FaultKind } from './faults';
 export { describeFault } from './describe';
-export { isSensor, minVolts, sensorDrive, SENSORS, SENSOR_START } from './sensors';
+export { dhtBytes, echoUs, isSensor, minVolts, sensorDrive, SENSORS, SENSOR_START } from './sensors';
 export type { Drive, SensorInput, SensorType } from './sensors';
