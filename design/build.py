@@ -138,6 +138,20 @@ while True:
     green.value(on and not dark)
     print(light.read_u16())
     time.sleep(0.5)''',
+    "kit": '''from machine import Pin, ADC
+import time
+
+joy_x = ADC(26)                      # VRx: 0 – 3.3 V
+gas = ADC(27)                        # MQ-2's AO (5 V supply)
+obstacle = Pin(14, Pin.IN)           # 0: something in front
+magnet = Pin(13, Pin.IN)             # 0: a magnet near
+
+while True:
+    print(joy_x.read_u16() // 655, '%',
+          'gas!' if gas.read_u16() > 40000 else 'air',
+          'blocked' if not obstacle.value() else 'clear',
+          'magnet' if not magnet.value() else '-')
+    time.sleep(0.5)''',
     "modules": '''from machine import Pin, I2C, time_pulse_us
 import dht, struct, time
 
@@ -307,6 +321,11 @@ PARTS = [
                 ("battery", "Battery pack", "2×AA · 4×AA · 9 V")]),
     ("Sensors", [("hcsr04", "Ultrasonic HC-SR04", "distance"), ("dht", "DHT11 / DHT22", "temperature, humidity"), ("mpu6050", "MPU6050 motion", "accelerometer · I²C"), ("pir", "PIR motion", ""),
                  ("line", "Line sensor (IR)", ""), ("soil", "Soil moisture", ""), ("tmp36", "TMP36 temperature", "")]),
+    ("Modules", [("kbutton", "Button module", ""), ("ktouch", "Touch (TTP223)", ""), ("kvibration", "Vibration (SW-420)", ""),
+                 ("kir", "IR obstacle", ""), ("khall", "Hall", "magnet"), ("kflame", "Flame", "AO · DO"), ("krain", "Raindrop", "AO · DO"),
+                 ("kwater", "Water level", ""), ("kgas", "Gas / smoke (MQ-2)", "5 V"), ("kldr", "Photoresistor module", ""),
+                 ("kpot", "Potentiometer module", ""), ("kjoystick", "Joystick", "X · Y · button"), ("kencoder", "Rotary encoder", "KY-040"),
+                 ("kspeed", "IR speed sensor", "20-slot wheel")]),
     ("Actuators", [("servo", "Servo SG90", "0–180°"), ("motor", "DC motor", "TT gear motor"), ("driver", "Motor driver", "L298N · L9110S"),
                    ("relay", "Relay module", "")]),
     ("Displays", [("oled", "OLED SSD1306", "128×64 · I²C"), ("lcd", "LCD 16×2", "I²C"), ("seg7", "7-segment digit", ""),

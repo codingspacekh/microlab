@@ -487,6 +487,181 @@ def hcsr04_in(vcc, trig, echo, gnd, up: bool = True, cm: float = 0) -> str:
     return "".join(o) + "</g>"
 
 
+# ------------------------------------------------------------------ the SunFounder kit's modules (M6.5, Rev 8)
+PCB_BLUE, PCB_RED, PCB_BLACK = ("#2457a6", "#173c78"), ("#b8322a", "#7d1f19"), ("#26282c", "#0f1012")
+
+
+def _trimpot(x, y):
+    return (f'<rect x="{f(x - 5)}" y="{f(y - 5)}" width="10" height="10" rx="1.5" fill="#2f74d8" stroke="#1d4f9e"/>'
+            f'<circle cx="{f(x)}" cy="{f(y)}" r="3" fill="#e9ebee"/><line x1="{f(x - 2)}" y1="{f(y)}" x2="{f(x + 2)}" y2="{f(y)}" stroke="#6b7280"/>')
+
+
+def _leds(x, y, on=True):
+    """A module's power LED (red) and signal LED (green, lit when `on`)."""
+    o = f'<rect x="{f(x - 9)}" y="{f(y)}" width="6" height="3.5" rx="1" fill="#ff5a4a"/>'
+    o += f'<rect x="{f(x + 3)}" y="{f(y)}" width="6" height="3.5" rx="1" fill="{"#34d058" if on else "#3a3d42"}"/>'
+    if on:
+        o += f'<circle cx="{f(x + 6)}" cy="{f(y + 2)}" r="6" fill="url(#glow-green)"/>'
+    return o
+
+
+def kit_module(pins, labels, pcb=PCB_BLUE, h=64, element=None, above="") -> str:
+    """A small module standing in the breadboard: its pins in a row, its board above them — as wide as the pins and 7 px
+    beyond, so modules one column apart don't overlap — `element(cx, top, w, h)` drawn on it, `above` over its top edge."""
+    xs = [x for x, _ in pins]
+    cx, y = (xs[0] + xs[-1]) / 2, pins[0][1]
+    w = xs[-1] - xs[0] + 14
+    top = y - 16 - h
+    o = ['<g class="kit-module">', above]
+    o.append(f'<rect x="{f(cx - w / 2)}" y="{f(top)}" width="{f(w)}" height="{h}" rx="3" fill="{pcb[0]}" stroke="{pcb[1]}" filter="url(#lift)"/>')
+    if element:
+        o.append(element(cx, top, w, h))
+    o.append(_header(pins, labels, top + h))
+    return "".join(o) + "</g>"
+
+
+def kit_button(pins, pressed=False):
+    def el(cx, top, w, h):
+        return (f'<rect x="{f(cx - 9)}" y="{f(top + 12)}" width="18" height="18" rx="2" fill="#8d949c" stroke="#5e656d"/>'
+                f'<circle cx="{f(cx)}" cy="{f(top + 21 + (1 if pressed else 0))}" r="{5.5 if pressed else 6}" fill="{"#1f4c96" if pressed else "#2f6fd6"}"/>')
+    return kit_module(pins, ("S", "VCC", "GND"), PCB_BLACK, element=el)
+
+
+def kit_touch(pins, touched=False):
+    def el(cx, top, w, h):
+        o = (f'<circle cx="{f(cx)}" cy="{f(top + 22)}" r="13" fill="none" stroke="#e8c26a" stroke-width="2"/>'
+             f'<text x="{f(cx)}" y="{f(top + 46)}" font-size="5.5" font-weight="700" fill="#f6d9d6" text-anchor="middle" font-family="Inter">TOUCH</text>')
+        if touched:
+            o += f'<ellipse cx="{f(cx + 2)}" cy="{f(top + 20)}" rx="11" ry="13" fill="#e9b48f" opacity=".85" stroke="#c98b63"/>'
+        return o
+    return kit_module(pins, ("SIG", "VCC", "GND"), PCB_RED, element=el)
+
+
+def kit_vibration(pins, shaking=False):
+    def el(cx, top, w, h):
+        o = (f'<rect x="{f(cx - 12)}" y="{f(top + 8)}" width="24" height="10" rx="5" fill="#c7ccd2" stroke="#8f969f"/>'
+             f'{_trimpot(cx, top + 32)}{_leds(cx, top + 48, shaking)}')
+        if shaking:
+            o += "".join(f'<path d="M{f(cx + s * 16)},{f(top + 6)} q{s * 3},5 0,10 q{-s * 3},5 0,10" stroke="#e8590c" stroke-width="1.5" fill="none"/>' for s in (-1, 1))
+        return o
+    return kit_module(pins, ("VCC", "GND", "DO"), element=el)
+
+
+def kit_ir_obstacle(pins, obstacle=False):
+    def el(cx, top, w, h):
+        return (f'<circle cx="{f(cx - 8)}" cy="{f(top + 9)}" r="5.5" fill="#e9f0fa" stroke="#9aa1a9"/><circle cx="{f(cx + 8)}" cy="{f(top + 9)}" r="5.5" fill="#1c1e21"/>'
+                f'{_trimpot(cx, top + 30)}{_leds(cx, top + 48, obstacle)}')
+    above = f'<rect x="{f((pins[0][0] + pins[-1][0]) / 2 - 18)}" y="{f(pins[0][1] - 16 - 64 - 26)}" width="36" height="16" rx="2" fill="#c08a52" stroke="#8a5c2e"/>' if obstacle else ""
+    return kit_module(pins, ("OUT", "GND", "VCC"), element=el, above=above)
+
+
+def kit_hall(pins, magnet=False):
+    def el(cx, top, w, h):
+        return (f'<path d="M{f(cx - 6)},{f(top + 22)} v-8 a6,4 0 0 1 12,0 v8 z" fill="#1f2125"/>'
+                f'<text x="{f(cx)}" y="{f(top + 30)}" font-size="4.5" fill="#cfd3d8" text-anchor="middle" font-family="JetBrains Mono">3144</text>{_leds(cx, top + 48, magnet)}')
+    cx = (pins[0][0] + pins[-1][0]) / 2
+    above = (f'<rect x="{f(cx - 18)}" y="{f(pins[0][1] - 16 - 64 - 22)}" width="18" height="12" fill="#d94545"/><rect x="{f(cx)}" y="{f(pins[0][1] - 16 - 64 - 22)}" width="18" height="12" fill="#3b6fd8"/>'
+             f'<text x="{f(cx - 9)}" y="{f(pins[0][1] - 16 - 64 - 13)}" font-size="7" font-weight="700" fill="#fff" text-anchor="middle">N</text><text x="{f(cx + 9)}" y="{f(pins[0][1] - 16 - 64 - 13)}" font-size="7" font-weight="700" fill="#fff" text-anchor="middle">S</text>') if magnet else ""
+    return kit_module(pins, ("S", "VCC", "GND"), element=el, above=above)
+
+
+def kit_flame(pins, flame=0.0):
+    def el(cx, top, w, h):
+        return f'<circle cx="{f(cx)}" cy="{f(top + 10)}" r="6" fill="#1c1e21"/>{_trimpot(cx, top + 30)}{_leds(cx, top + 48, flame >= .5)}'
+    cx = (pins[0][0] + pins[-1][0]) / 2
+    t = pins[0][1] - 16 - 64
+    above = (f'<path d="M{f(cx)},{f(t - 34)} q12,14 6,26 q-6,8 -12,0 q-6,-12 6,-26z" fill="#ff8a00" opacity="{f(.4 + .6 * flame)}"/>'
+             f'<path d="M{f(cx)},{f(t - 22)} q6,8 3,14 q-3,4 -6,0 q-3,-6 3,-14z" fill="#ffd43b"/>') if flame else ""
+    return kit_module(pins, ("AO", "GND", "VCC", "DO"), element=el, above=above)
+
+
+def kit_raindrop(pins, wet=0.0):
+    def el(cx, top, w, h):
+        return f'{_trimpot(cx, top + 30)}{_leds(cx, top + 48, wet >= .4)}'
+    cx = (pins[0][0] + pins[-1][0]) / 2
+    t = pins[0][1] - 16 - 64
+    plate = (f'<rect x="{f(cx - 26)}" y="{f(t - 40)}" width="52" height="34" rx="2" fill="#2f7d3f" stroke="#1f5a2b"/>'
+             f'<path d="M{f(cx - 20)},{f(t - 34)} h40 M{f(cx - 20)},{f(t - 28)} h40 M{f(cx - 20)},{f(t - 22)} h40 M{f(cx - 20)},{f(t - 16)} h40" stroke="#d6b24c" stroke-width="1.6"/>'
+             f'<path d="M{f(cx - 8)},{f(t - 6)} v6 M{f(cx + 8)},{f(t - 6)} v6" stroke="#a5abb2" stroke-width="1.6"/>')
+    for i in range(int(round(wet * 5))):
+        dx, dy = (-14, 6, -2, 16, -18)[i], (-36, -30, -24, -20, -18)[i]
+        plate += f'<path d="M{f(cx + dx)},{f(t + dy)} q3,5 0,7 q-3,-2 0,-7z" fill="#7fb4ff"/>'
+    return kit_module(pins, ("AO", "DO", "GND", "VCC"), element=el, above=plate)
+
+
+def kit_water(pins, level=0.0):
+    def el(cx, top, w, h):
+        o = "".join(f'<line x1="{f(cx - 10 + i * 5)}" y1="{f(top + 6)}" x2="{f(cx - 10 + i * 5)}" y2="{f(top + 66)}" stroke="#e8c26a" stroke-width="1.6"/>' for i in range(5))
+        if level:
+            o += f'<rect x="{f(cx - w / 2 - 4)}" y="{f(top - 2)}" width="{f(w + 8)}" height="{f(70 * level)}" fill="#7fb4ff" opacity=".55"/>'
+        return o
+    return kit_module(pins, ("S", "VCC", "GND"), PCB_RED, h=84, element=el)
+
+
+def kit_mq2(pins, gas=0.0, hot=True):
+    def el(cx, top, w, h):
+        o = ''
+        if hot:
+            o += f'<circle cx="{f(cx)}" cy="{f(top + 20)}" r="20" fill="url(#glow-amber)" opacity=".7"/>'
+        o += (f'<circle cx="{f(cx)}" cy="{f(top + 20)}" r="15" fill="#c7ccd2" stroke="#8f969f"/>'
+              f'<circle cx="{f(cx)}" cy="{f(top + 20)}" r="11" fill="url(#mesh)" stroke="#9aa1a9"/><circle cx="{f(cx)}" cy="{f(top + 20)}" r="11" fill="#6d747c" opacity=".35"/>'
+              f'{_leds(cx, top + 48, gas >= .4)}')
+        return o
+    cx = (pins[0][0] + pins[-1][0]) / 2
+    t = pins[0][1] - 16 - 64
+    above = "".join(f'<circle cx="{f(cx + dx)}" cy="{f(t - dy)}" r="{r}" fill="#9aa1a9" opacity="{f(.25 + .4 * gas)}"/>' for dx, dy, r in ((-10, 10, 8), (6, 16, 10), (16, 6, 7))) if gas else ""
+    return kit_module(pins, ("AO", "DO", "GND", "VCC"), element=el, above=above)
+
+
+def kit_ldr(pins):
+    def el(cx, top, w, h):
+        return (f'<circle cx="{f(cx)}" cy="{f(top + 18)}" r="9" fill="#f2d7a6" stroke="#c9a46a"/>'
+                f'<path d="M{f(cx - 5)},{f(top + 14)} h10 v3 h-10 v3 h10 v3 h-10" stroke="#a5582d" stroke-width="1.1" fill="none"/>{_leds(cx, top + 48, False)}')
+    return kit_module(pins, ("S", "VCC", "GND"), element=el)
+
+
+def kit_pot(pins, angle=0):
+    def el(cx, top, w, h):
+        a = math.radians(angle - 90)
+        return (f'<rect x="{f(cx - 15)}" y="{f(top + 6)}" width="30" height="30" rx="3" fill="#2b5fa8" stroke="#1b3f73"/>'
+                f'<circle cx="{f(cx)}" cy="{f(top + 21)}" r="11" fill="#e9ebee" stroke="#9ba2aa"/>'
+                f'<line x1="{f(cx)}" y1="{f(top + 21)}" x2="{f(cx + 9 * math.cos(a))}" y2="{f(top + 21 + 9 * math.sin(a))}" stroke="#2d3136" stroke-width="2.2" stroke-linecap="round"/>')
+    return kit_module(pins, ("S", "VCC", "GND"), element=el)
+
+
+def kit_joystick(pins, x=0.5, y=0.5):
+    def el(cx, top, w, h):
+        dx, dy = (x - .5) * 22, (.5 - y) * 22
+        return (f'<circle cx="{f(cx)}" cy="{f(top + 34)}" r="27" fill="#c7ccd2" stroke="#8f969f"/>'
+                f'<circle cx="{f(cx + dx)}" cy="{f(top + 34 + dy)}" r="17" fill="#2d3136" stroke="#0f1012"/>'
+                f'<circle cx="{f(cx + dx)}" cy="{f(top + 34 + dy)}" r="12" fill="none" stroke="#4a4e54" stroke-dasharray="2 2"/>')
+    return kit_module(pins, ("GND", "VCC", "VRx", "VRy", "SW"), PCB_BLACK, h=74, element=el)
+
+
+def kit_encoder(pins, turning=False):
+    def el(cx, top, w, h):
+        o = (f'<rect x="{f(cx - 17)}" y="{f(top + 12)}" width="34" height="34" rx="3" fill="#8d949c" stroke="#5e656d"/>'
+             f'<circle cx="{f(cx)}" cy="{f(top + 29)}" r="13" fill="#c7ccd2" stroke="#8f969f"/><path d="M{f(cx - 9)},{f(top + 24)} h18" stroke="#6d747c" stroke-width="2"/>')
+        if turning:
+            o += f'<path d="M{f(cx + 22)},{f(top + 14)} A26 26 0 0 1 {f(cx + 22)},{f(top + 44)}" stroke="#e8590c" stroke-width="2" fill="none"/><path d="M{f(cx + 18)},{f(top + 42)} l4,3 l3,-4" stroke="#e8590c" stroke-width="2" fill="none"/>'
+        return o
+    return kit_module(pins, ("CLK", "DT", "SW", "VCC", "GND"), h=70, element=el)
+
+
+def kit_speed(pins, rpm=0):
+    def el(cx, top, w, h):
+        return (f'<rect x="{f(cx - 14)}" y="{f(top + 4)}" width="9" height="22" rx="1" fill="#1c1e21"/><rect x="{f(cx + 5)}" y="{f(top + 4)}" width="9" height="22" rx="1" fill="#1c1e21"/>'
+                f'{_leds(cx, top + 48, rpm > 0)}')
+    cx = (pins[0][0] + pins[-1][0]) / 2
+    t = pins[0][1] - 16 - 64
+    wheel = (f'<circle cx="{f(cx)}" cy="{f(t - 12)}" r="26" fill="#e8b10f" stroke="#a87e08"/>'
+             + "".join(f'<rect x="{f(cx - 2)}" y="{f(t - 36)}" width="4" height="7" fill="#f6f4ef" transform="rotate({k * 18} {f(cx)} {f(t - 12)})"/>' for k in range(20))
+             + f'<circle cx="{f(cx)}" cy="{f(t - 12)}" r="5" fill="#a87e08"/>')
+    if rpm:
+        wheel += f'<path d="M{f(cx - 32)},{f(t - 30)} A34 34 0 0 1 {f(cx - 10)},{f(t - 44)}" stroke="#e8590c" stroke-width="2" fill="none"/>'
+    return kit_module(pins, ("VCC", "GND", "DO"), element=el, above=wheel)
+
+
 def usb_plug(x, y) -> str:
     """A micro-USB cable plugged into the socket whose left end is at (x, y) (the GPIO board's 5V in): the plug's
     metal end in the socket, its grey body and the cable going left."""
@@ -866,6 +1041,20 @@ ICON_PARTS = {
     "buzzer": '<circle cx="16" cy="16" r="10" fill="#26282c"/><circle cx="16" cy="16" r="6" fill="none" stroke="#3b3e43"/><circle cx="16" cy="16" r="1.8" fill="#0f1012"/>',
     "battery": '<rect x="4" y="9" width="22" height="14" rx="2" fill="#2d3136"/><rect x="26" y="13" width="3" height="6" rx="1" fill="#2d3136"/><rect x="6" y="11" width="9" height="10" fill="#e8b10f"/><text x="20" y="19.5" font-size="7" font-weight="700" fill="#fff" text-anchor="middle">+</text>',
     "hcsr04": '<rect x="2" y="9" width="28" height="14" rx="2" fill="#1f6fb5"/><circle cx="9" cy="16" r="5.5" fill="#c9cdd2"/><circle cx="23" cy="16" r="5.5" fill="#c9cdd2"/><circle cx="9" cy="16" r="3.5" fill="#6d747c"/><circle cx="23" cy="16" r="3.5" fill="#6d747c"/>',
+    "kbutton": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#26282c"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><rect x="11" y="12" width="10" height="10" rx="1" fill="#8d949c"/><circle cx="16" cy="17" r="3.5" fill="#2f6fd6"/>',
+    "ktouch": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#b8322a"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><circle cx="16" cy="17" r="5.5" fill="none" stroke="#e8c26a" stroke-width="1.6"/>',
+    "kvibration": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#2457a6"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><rect x="9" y="12" width="14" height="6" rx="3" fill="#c7ccd2"/>',
+    "kir": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#2457a6"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><circle cx="12" cy="14" r="3.2" fill="#e9f0fa"/><circle cx="20" cy="14" r="3.2" fill="#1c1e21"/>',
+    "khall": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#2457a6"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><path d="M13,20 v-5 a3,2.5 0 0 1 6,0 v5z" fill="#1f2125"/><rect x="9" y="3" width="7" height="5" fill="#d94545"/><rect x="16" y="3" width="7" height="5" fill="#3b6fd8"/>',
+    "kflame": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#2457a6"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><path d="M16,3 q6,6 3,12 q-3,4 -6,0 q-3,-6 3,-12z" fill="#ff8a00"/>',
+    "krain": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#2457a6"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><rect x="7" y="2" width="18" height="8" rx="1" fill="#2f7d3f"/><path d="M9,4.5 h14 M9,7.5 h14" stroke="#d6b24c" stroke-width="1"/>',
+    "kwater": '<rect x="11" y="2" width="10" height="24" rx="1.5" fill="#b8322a"/><path d="M13,3 v14 M16,3 v14 M19,3 v14" stroke="#e8c26a" stroke-width="1"/><rect x="9" y="2" width="14" height="9" fill="#7fb4ff" opacity=".6"/><path d="M13,26 v4 M16,26 v4 M19,26 v4" stroke="#a5abb2" stroke-width="1.3"/>',
+    "kgas": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#2457a6"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><circle cx="16" cy="16" r="6" fill="#c7ccd2" stroke="#8f969f"/><circle cx="16" cy="16" r="3.5" fill="#6d747c"/>',
+    "kldr": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#2457a6"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><circle cx="16" cy="16" r="5" fill="#f2d7a6" stroke="#c9a46a"/>',
+    "kpot": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#2457a6"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><circle cx="16" cy="16" r="5.5" fill="#e9ebee"/><line x1="16" y1="16" x2="18" y2="12" stroke="#2d3136" stroke-width="1.6"/>',
+    "kjoystick": '<rect x="4" y="6" width="24" height="20" rx="2" fill="#26282c"/><circle cx="16" cy="16" r="8" fill="#c7ccd2"/><circle cx="17" cy="15" r="5" fill="#2d3136"/>',
+    "kencoder": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#2457a6"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><circle cx="16" cy="16" r="6" fill="#c7ccd2" stroke="#8f969f"/><path d="M12,14 h8" stroke="#6d747c" stroke-width="1.4"/>',
+    "kspeed": '<rect x="5" y="9" width="22" height="16" rx="2" fill="#2457a6"/><path d="M10,25 v5 M16,25 v5 M22,25 v5" stroke="#a5abb2" stroke-width="1.3"/><circle cx="16" cy="8" r="7" fill="#e8b10f"/><rect x="11" y="12" width="3" height="8" fill="#1c1e21"/><rect x="18" y="12" width="3" height="8" fill="#1c1e21"/>',
     "mpu6050": '<rect x="4" y="8" width="24" height="16" rx="2" fill="#3b5bb7"/><rect x="12" y="11" width="8" height="8" rx="1" fill="#1c1e21"/><path d="M6,27 v3 M9,27 v3 M12,27 v3 M15,27 v3 M18,27 v3 M21,27 v3 M24,27 v3 M27,27 v3" stroke="#a5abb2" stroke-width="1.2"/>',
     "dht": '<rect x="9" y="4" width="14" height="20" rx="2" fill="#3f8fe0"/>' + "".join(f'<rect x="{11 + c * 3.5}" y="{7 + r * 3.5}" width="2" height="2" fill="#1f5ea8"/>' for c in range(3) for r in range(4)) + '<path d="M12,24 v5 M15,24 v5 M18,24 v5 M21,24 v5" stroke="#a5abb2" stroke-width="1.3"/>',
     "pir": '<rect x="5" y="17" width="22" height="9" rx="2" fill="#2f8f4f"/><path d="M8,18 a8,8 0 0 1 16,0Z" fill="#f2f3f5" stroke="#c9d0d8"/>',

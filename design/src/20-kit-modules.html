@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>20 Kit modules running</title>
+{{include:head}}
+<style>.inputs .slider { grid-template-columns: 1fr 70px; } .inputs .sec + .sec { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; }</style>
+</head>
+<body>
+<!--@PROJECT: Kit modules-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 00:21-->
+<!--@EDITOR: {{code:kit:cur=9}}-->
+<!--@COUNTS: Pico W + 14 parts · 0 wires-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.29.0 on Raspberry Pi Pico W (simulated)</span>
+50 % air clear -
+80 % gas! blocked magnet
+</div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.09 ms</span>-->
+<p class="frame-label"><b>20 · The kit's modules, running</b> (M6 design; the SunFounder Universal Maker Sensor Kit's inputs on common modules, requirements Rev 8) — each module stands in the breadboard like screens 18 and 19, its pins named as printed; wires left out so all 14 show. While running: <b>hold</b> the button, the touch pad and the vibration module (it shakes); <b>click</b> the IR obstacle sensor (something comes in front) and the Hall sensor (a magnet comes near); <b>drag</b> the potentiometer module's knob (as the potentiometer) and the <b>joystick</b>'s stick, anywhere round its middle — click it to press SW; <b>drag round</b> the rotary encoder (or the wheel over it) to turn it, a step each 15°, click it to press; the <b>Inputs</b> card sets the light, the flame, the rain, the water, the gas and the wheel's speed. A module's LEDs show its DO; the MQ-2 glows while its heater has 5 V</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:kit}}
+      <div class="tip" style="left:380px;top:262px;width:220px"><b>JOY1 · x 0.80 · y 0.60</b><div style="opacity:.85;margin-top:2px">Drag the stick; let go and it springs back. Click it to press SW.</div></div>
+      <div class="float inputs" style="right:14px;bottom:14px;width:236px">
+        <div class="ih">{{i:sliders:s14}} Inputs <span class="spacer"></span><span class="tiny muted" style="font-weight:400">while it runs</span></div>
+        <div class="sec"><div class="row small" style="gap:6px">{{i:sun:s12}} <b>LDR1</b> <span class="muted">· light</span><span class="spacer"></span><span class="mono tiny muted">1.4 kΩ</span></div>
+          <div class="slider"><span class="track"><i style="width:58%"></i><b style="left:58%"></b></span><span class="v">300 lux</span></div></div>
+        <div class="sec"><div class="row small" style="gap:6px">{{i:bolt:s12}} <b>FLAME1</b> <span class="muted">· flame</span><span class="spacer"></span><span class="mono tiny muted">AO 1.34 V</span></div>
+          <div class="slider"><span class="track"><i style="width:70%"></i><b style="left:70%"></b></span><span class="v">70 %</span></div></div>
+        <div class="sec"><div class="row small" style="gap:6px">{{i:drop:s12}} <b>RAIN1</b> <span class="muted">· rain</span><span class="spacer"></span><span class="mono tiny muted">AO 1.72 V</span></div>
+          <div class="slider"><span class="track"><i style="width:60%"></i><b style="left:60%"></b></span><span class="v">60 %</span></div></div>
+        <div class="sec"><div class="row small" style="gap:6px">{{i:drop:s12}} <b>WATER1</b> <span class="muted">· depth</span><span class="spacer"></span><span class="mono tiny muted">S 1.16 V</span></div>
+          <div class="slider"><span class="track"><i style="width:50%"></i><b style="left:50%"></b></span><span class="v">50 %</span></div></div>
+        <div class="sec"><div class="row small" style="gap:6px">{{i:alert:s12}} <b>GAS1</b> <span class="muted">· gas</span><span class="spacer"></span><span class="mono tiny muted">AO 2.26 V</span></div>
+          <div class="slider"><span class="track"><i style="width:60%"></i><b style="left:60%"></b></span><span class="v">60 %</span></div></div>
+        <div class="sec"><div class="row small" style="gap:6px">{{i:restart:s12}} <b>SPEED1</b> <span class="muted">· wheel</span><span class="spacer"></span><span class="mono tiny muted">40 pulses/s</span></div>
+          <div class="slider"><span class="track"><i style="width:40%"></i><b style="left:40%"></b></span><span class="v">120 rpm</span></div></div>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

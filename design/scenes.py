@@ -8,7 +8,9 @@ import math
 
 from svgparts import (P, f, Breadboard, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
                       microbit, oled, hcsr04, servo, HEART, slide_switch, ldr, rgb_led, battery,
-                      pir, line_sensor, soil_sensor, temp_sensor, dht, mpu6050, hcsr04_in)
+                      pir, line_sensor, soil_sensor, temp_sensor, dht, mpu6050, hcsr04_in,
+                      kit_button, kit_touch, kit_vibration, kit_ir_obstacle, kit_hall, kit_flame, kit_raindrop, kit_water, kit_mq2,
+                      kit_ldr, kit_pot, kit_joystick, kit_encoder, kit_speed)
 
 W, H = 692, 820
 
@@ -155,6 +157,71 @@ def mood_lamp() -> str:
     o.append(wire([bb.xy(1, "T-"), bb.xy(1, "B-")], "black"))
     o.append(cursor(376, 380, "hand"))
     return _svg("".join(o))
+
+
+def kit() -> str:
+    """The SunFounder kit's 14 input modules (M6.5 design, Rev 8) side by side in row f of a full breadboard, running:
+    a magnet at the Hall sensor, something before the IR obstacle sensor, a flame, a wet plate, water, gas, the
+    joystick pushed (held by the hand), the encoder turning, the wheel spinning. The board above is left unwired."""
+    bb = Breadboard(84, 300, cols=63)
+    o = [bb.svg()]
+    psvg, _ = pico(380, 236)
+    o.append(psvg)
+    row = lambda c0, n: [bb.xy(c, "f") for c in range(c0, c0 + n)]
+    o.append(kit_button(row(1, 3)))
+    o.append(kit_touch(row(5, 3)))
+    o.append(kit_vibration(row(9, 3), shaking=True))
+    o.append(kit_ir_obstacle(row(13, 3), obstacle=True))
+    o.append(kit_hall(row(17, 3), magnet=True))
+    o.append(kit_flame(row(21, 4), flame=.7))
+    o.append(kit_raindrop(row(26, 4), wet=.6))
+    o.append(kit_water(row(31, 3), level=.5))
+    o.append(kit_mq2(row(35, 4), gas=.6))
+    o.append(kit_ldr(row(40, 3)))
+    o.append(kit_pot(row(44, 3), angle=40))
+    o.append(kit_joystick(row(48, 5), x=.8, y=.6))
+    o.append(kit_encoder(row(54, 5), turning=True))
+    o.append(kit_speed(row(60, 3), rpm=120))
+    jx, jy = bb.xy(50, "f")
+    o.append(cursor(jx + 4, jy - 58, "hand"))
+    return _svg("".join(o), w=692, h=410, vb="40 96 1110 658")
+
+
+def kit_sheet() -> str:
+    """The kit's 14 modules close up (M6.5 design): each idle and as it is while sensing, side by side, named."""
+    cells = [
+        ("Button module", lambda p: kit_button(p), lambda p: kit_button(p, pressed=True), 3, "held: pressed"),
+        ("Touch (TTP223)", lambda p: kit_touch(p), lambda p: kit_touch(p, touched=True), 3, "held: touched"),
+        ("Vibration (SW-420)", lambda p: kit_vibration(p), lambda p: kit_vibration(p, shaking=True), 3, "held: shaken"),
+        ("IR obstacle", lambda p: kit_ir_obstacle(p), lambda p: kit_ir_obstacle(p, obstacle=True), 3, "clicked: something in front"),
+        ("Hall", lambda p: kit_hall(p), lambda p: kit_hall(p, magnet=True), 3, "clicked: a magnet near"),
+        ("Flame", lambda p: kit_flame(p), lambda p: kit_flame(p, flame=.8), 4, "Inputs: a flame"),
+        ("Raindrop", lambda p: kit_raindrop(p), lambda p: kit_raindrop(p, wet=.8), 4, "Inputs: rain"),
+        ("Water level", lambda p: kit_water(p), lambda p: kit_water(p, level=.6), 3, "Inputs: water"),
+        ("Gas / smoke (MQ-2)", lambda p: kit_mq2(p, hot=False), lambda p: kit_mq2(p, gas=.7), 4, "5 V: hot; Inputs: gas"),
+        ("Photoresistor module", lambda p: kit_ldr(p), None, 3, "Inputs: light"),
+        ("Potentiometer module", lambda p: kit_pot(p), lambda p: kit_pot(p, angle=90), 3, "dragged: turned"),
+        ("Joystick", lambda p: kit_joystick(p), lambda p: kit_joystick(p, x=.9, y=.2), 5, "dragged: pushed"),
+        ("Rotary encoder (KY-040)", lambda p: kit_encoder(p), lambda p: kit_encoder(p, turning=True), 5, "dragged round: turning"),
+        ("IR speed sensor", lambda p: kit_speed(p), lambda p: kit_speed(p, rpm=120), 3, "Inputs: the wheel's speed"),
+    ]
+    cw, ch, cols = 300, 230, 4
+    o = []
+    for i, (name, idle, on, n, how) in enumerate(cells):
+        x0, y0 = (i % cols) * cw + 20, (i // cols) * ch + 20
+        o.append(f'<rect x="{x0}" y="{y0}" width="{cw - 20}" height="{ch - 20}" rx="10" fill="#fbfbf9" stroke="#e3e0d8"/>')
+        for k, draw in enumerate((idle, on)):
+            if not draw:
+                continue
+            span = (n - 1) * P
+            bx = x0 + 20 + k * 130 + (110 - span) / 2
+            by = y0 + 146
+            pins = [(bx + j * P, by) for j in range(n)]
+            o.append("".join(f'<rect x="{f(x - 3)}" y="{f(by - 3)}" width="6" height="6" fill="#4a463e"/>' for x, _ in pins))
+            o.append(draw(pins))
+        o.append(f'<text x="{x0 + 14}" y="{y0 + ch - 50}" font-size="13" font-weight="700" fill="#1f2328" font-family="Inter">{name}</text>'
+                 f'<text x="{x0 + 14}" y="{y0 + ch - 33}" font-size="11" fill="#6b7280" font-family="Inter">idle · {how}</text>')
+    return _svg("".join(o), w=1220, h=4 * ch + 20, vb=f"0 0 1220 {4 * ch + 20}")
 
 
 def modules() -> str:
@@ -380,7 +447,7 @@ def led_states() -> str:
     return _svg("".join(o), 280, 96, "0 -10 280 106")
 
 
-SCENES = {"modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
+SCENES = {"kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
           "servowiring": servo_wiring, "servopulses": servo_pulses, "plot": plot}
 
 
