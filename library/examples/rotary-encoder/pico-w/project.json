@@ -1,0 +1,46 @@
+{
+  "format": 1,
+  "title": "Rotary encoder",
+  "board": "pico-w",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "enc1",
+      "type": "rotary-encoder",
+      "legs": {
+        "clk": "bb1.a20",
+        "dt": "bb1.a21",
+        "sw": "bb1.a22",
+        "vcc": "bb1.a23",
+        "gnd": "bb1.a24"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "a": "board.GP14",
+      "b": "bb1.e20",
+      "id": "w1"
+    },
+    {
+      "a": "board.GP13",
+      "b": "bb1.e21",
+      "id": "w2"
+    },
+    {
+      "a": "board.3V3",
+      "b": "bb1.e23",
+      "id": "w3"
+    },
+    {
+      "a": "board.GND",
+      "b": "bb1.e24",
+      "id": "w4"
+    }
+  ]
+}

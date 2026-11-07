@@ -41,6 +41,10 @@ const SLOT: Record<string, string[]> = {
   pir: ['pressed'], 'line-sensor': ['position'], 'soil-moisture': ['position'], 'temp-sensor': ['celsius'],
   dht: ['celsius', 'humidity'], 'hc-sr04': ['cm'],   // M6.4: a DHT's air, how far an HC-SR04's object is
   mpu6050: ['tiltx', 'tilty'],                        // M6.4b: its tilt
+  // M6.5a, the SunFounder kit's modules
+  'button-module': ['pressed'], 'ldr-module': ['lux'], 'pot-module': ['position'], touch: ['pressed'], vibration: ['pressed'],
+  'ir-obstacle': ['position'], hall: ['position'], 'water-level': ['position'], flame: ['position'], raindrop: ['position'], mq2: ['position'],
+  joystick: ['x', 'y', 'pressed'], 'rotary-encoder': ['steps', 'pressed'], 'speed-sensor': ['rpm'],
 };
 
 export function inputSlots(project: Project): string[] {

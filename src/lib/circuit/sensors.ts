@@ -32,7 +32,7 @@ export const SENSORS = {
 
 export type SensorType = keyof typeof SENSORS;
 
-export const isSensor = (type: string): type is SensorType => type in SENSORS;
+export const isSensor = (type: string): type is SensorType => type in SENSORS || type in MODULES;
 
 /** Room temperature, when nothing has set it; a soil sensor in damp soil; half-humid air; something 1 m away. */
 export const SENSOR_START = { celsius: 22, moisture: 0.5, humidity: 50, cm: 100 } as const;
@@ -41,6 +41,7 @@ const OFF: Drive = { volts: 0, ohms: 1e6 };
 
 /** The lowest supply a sensor works from. */
 export function minVolts(type: SensorType, props: Record<string, unknown> = {}): number {
+  if (type in MODULES) return MODULES[type]!.minVolts;
   if (type === 'temp-sensor') return SENSORS['temp-sensor'][props.kind === 'LM35' ? 'LM35' : 'TMP36'].minVolts;
   return SENSORS[type].minVolts;
 }
@@ -92,4 +93,52 @@ export function dhtBytes(kind: string, celsius: number, humidity: number): numbe
 export function echoUs(cm: number): number {
   const s = SENSORS['hc-sr04'];
   return cm > s.maxCm ? s.noneUs : Math.round(Math.max(s.minCm, cm) * s.usPerCm);
+}
+
+// ------------------------------------------------------------------ the SunFounder kit's modules (M6.5a, Rev 8)
+
+/** What a module sees now: held (a touch, a shake), a position 0–1 (something in front, a magnet near, a flame,
+ *  rain, water, gas), an encoder's two contacts closed (`a` CLK, `b` DT), a speed sensor's slot blocked. */
+export interface ModuleInput { pressed?: boolean; position?: number; a?: boolean; b?: boolean; pulse?: boolean }
+
+/** A comparator's open collector pulling low (LM393 modules); OFF is let go — the module's 10 kΩ pull-up takes it high. */
+const LOW: Drive = { volts: 0, ohms: 50 };
+const level = (i: ModuleInput) => Math.min(1, Math.max(0, i.position ?? 0));
+
+/**
+ * Common modules with an output stage (requirements Rev 8; not SunFounder's boards exactly): their supply, the
+ * current they draw (`loadOhms` across it), the outputs with a 10 kΩ pull-up to VCC on the board, and what drives each
+ * output from what they see. Below `minVolts` every output lets go.
+ */
+export const MODULES: Record<string, { minVolts: number; loadOhms: number; pullUps: string[]; outputs: Record<string, (i: ModuleInput, vcc: number) => Drive> }> = {
+  /** TTP223 touch pad: 2–5.5 V, a push-pull output high while touched. */
+  touch: { minVolts: 2.0, loadOhms: 2000, pullUps: [], outputs: { out: (i, v) => ({ volts: i.pressed ? v : 0, ohms: 100 }) } },
+  /** SW-420 vibration switch + LM393: still, DO low; shaken, high. */
+  vibration: { minVolts: 3.0, loadOhms: 1000, pullUps: ['out'], outputs: { out: (i) => (i.pressed ? OFF : LOW) } },
+  /** IR obstacle avoidance (an IR LED, a receiver, LM393): something in front, OUT low. The IR LED draws ≈ 15 mA. */
+  'ir-obstacle': { minVolts: 3.0, loadOhms: 220, pullUps: ['out'], outputs: { out: (i) => (level(i) >= 0.5 ? LOW : OFF) } },
+  /** Hall switch module: a magnet near, S low. */
+  hall: { minVolts: 3.0, loadOhms: 1000, pullUps: ['out'], outputs: { out: (i) => (level(i) >= 0.5 ? LOW : OFF) } },
+  /** Flame (an IR photodiode, LM393): AO falls as the flame grows (to 15 % of VCC); DO low from half way. */
+  flame: { minVolts: 3.0, loadOhms: 1000, pullUps: ['out'], outputs: { ao: (i, v) => ({ volts: v * (1 - 0.85 * level(i)), ohms: 10_000 }), out: (i) => (level(i) >= 0.5 ? LOW : OFF) } },
+  /** Raindrop plate + LM393: AO falls as it gets wet (to 20 % of VCC); DO low from 40 %. */
+  raindrop: { minVolts: 3.0, loadOhms: 1000, pullUps: ['out'], outputs: { ao: (i, v) => ({ volts: v * (1 - 0.8 * level(i)), ohms: 10_000 }), out: (i) => (level(i) >= 0.4 ? LOW : OFF) } },
+  /** Water level (its traces as a resistor to a transistor): 0 V dry, up to 70 % of VCC under water. */
+  'water-level': { minVolts: 3.0, loadOhms: 10_000, pullUps: [], outputs: { out: (i, v) => ({ volts: v * 0.7 * level(i), ohms: 1000 }) } },
+  /** MQ-2 gas / smoke: a 5 V heater (≈ 150 mA, 33 Ω); AO from 8 % of VCC in clean air to 70 % in gas; DO low from 40 %. */
+  mq2: { minVolts: 4.5, loadOhms: 33, pullUps: ['out'], outputs: { ao: (i, v) => ({ volts: v * (0.08 + 0.62 * level(i)), ohms: 1000 }), out: (i) => (level(i) >= 0.4 ? LOW : OFF) } },
+  /** KY-040 rotary encoder: two contacts to GND (CLK, DT) with 10 kΩ pull-ups, closed in turn as it is turned. */
+  'rotary-encoder': { minVolts: 0, loadOhms: 1e6, pullUps: ['clk', 'dt'], outputs: { clk: (i) => (i.a ? LOW : OFF), dt: (i) => (i.b ? LOW : OFF) } },
+  /** IR speed sensor (a slotted optocoupler, LM393): the slot blocked, DO high; a wheel of 20 slots turning, pulses. */
+  'speed-sensor': { minVolts: 3.0, loadOhms: 1000, pullUps: ['out'], outputs: { out: (i) => (i.pulse ? OFF : LOW) } },
+};
+
+/** An encoder's detent: CLK and DT close and open a quarter apart (CW: CLK first), 2 ms each; a speed sensor's wheel. */
+export const ENCODER = { phaseUs: 2000 } as const;
+export const SPEED = { slots: 20 } as const;
+
+/** What drives each of a module's outputs, from what it sees and its supply. */
+export function moduleDrives(type: string, input: ModuleInput, supply: number): Record<string, Drive> {
+  const m = MODULES[type]!;
+  return Object.fromEntries(Object.entries(m.outputs).map(([leg, f]) => [leg, supply < m.minVolts ? OFF : f(input, supply)]));
 }

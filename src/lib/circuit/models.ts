@@ -1,6 +1,6 @@
 import { BATTERIES, BUZZER, RGB_DIES, SERVO_IDLE_OHMS, type Device } from './devices';
 import { MPU6050 } from './i2c';
-import { SENSORS } from './sensors';
+import { MODULES, SENSORS } from './sensors';
 
 /** What a part's devices are built from: its id, the net each leg is in, its properties. */
 export interface PartContext {
@@ -75,6 +75,48 @@ export const MODELS: Record<string, PartModel> = {
   },
   /** TMP36 or LM35 (`kind`), flat face towards you: +Vs, Vout, GND. */
   'temp-sensor': sensorModel(SENSORS['temp-sensor'].loadOhms),
+  // ---- the SunFounder kit's modules (M6.5a, requirements Rev 8), on common modules: pins as commonly printed
+  /** Button module: S VCC GND; a 10 kΩ pull-up on the board, the button to GND (pressed: S low). */
+  'button-module': {
+    legs: ['out', 'vcc', 'gnd'],
+    devices: ({ id, leg }) => [
+      { kind: 'resistor', id: `${id}:pull`, a: leg('vcc'), b: leg('out'), ohms: 10_000 },
+      { kind: 'switch', id, a: leg('out'), b: leg('gnd'), part: id, closedWhen: 'pressed' },
+    ],
+  },
+  /** Photoresistor module: S VCC GND; the LDR from VCC to S, 10 kΩ from S to GND (more light, more volts). */
+  'ldr-module': {
+    legs: ['out', 'vcc', 'gnd'],
+    devices: ({ id, leg }) => [
+      { kind: 'ldr', id, a: leg('vcc'), b: leg('out'), part: id },
+      { kind: 'resistor', id: `${id}:r`, a: leg('out'), b: leg('gnd'), ohms: 10_000 },
+    ],
+  },
+  /** Potentiometer module: S (the wiper) VCC GND, 10 kΩ. */
+  'pot-module': {
+    legs: ['out', 'vcc', 'gnd'],
+    devices: ({ id, leg }) => [{ kind: 'pot', id, e1: leg('gnd'), w: leg('out'), e2: leg('vcc'), ohms: 10_000, part: id }],
+  },
+  /** Joystick: GND VCC VRx VRy SW — two 10 kΩ pots, the button to GND (no pull-up on the board). */
+  joystick: {
+    legs: ['gnd', 'vcc', 'vrx', 'vry', 'sw'],
+    devices: ({ id, leg }) => [
+      { kind: 'pot', id: `${id}:x`, e1: leg('gnd'), w: leg('vrx'), e2: leg('vcc'), ohms: 10_000, part: id, axis: 'x' },
+      { kind: 'pot', id: `${id}:y`, e1: leg('gnd'), w: leg('vry'), e2: leg('vcc'), ohms: 10_000, part: id, axis: 'y' },
+      { kind: 'switch', id, a: leg('sw'), b: leg('gnd'), part: id, closedWhen: 'pressed' },
+    ],
+  },
+  touch: moduleModel('touch', ['out', 'vcc', 'gnd']),
+  vibration: moduleModel('vibration', ['vcc', 'gnd', 'out']),
+  'ir-obstacle': moduleModel('ir-obstacle', ['out', 'gnd', 'vcc']),
+  hall: moduleModel('hall', ['out', 'vcc', 'gnd']),
+  flame: moduleModel('flame', ['ao', 'gnd', 'vcc', 'out']),
+  raindrop: moduleModel('raindrop', ['ao', 'out', 'gnd', 'vcc']),
+  'water-level': moduleModel('water-level', ['out', 'vcc', 'gnd']),
+  mq2: moduleModel('mq2', ['ao', 'out', 'gnd', 'vcc']),
+  /** KY-040: CLK DT SW VCC GND; its button to GND has no pull-up on the board. */
+  'rotary-encoder': moduleModel('rotary-encoder', ['clk', 'dt', 'sw', 'vcc', 'gnd'], (id, leg) => [{ kind: 'switch', id, a: leg('sw'), b: leg('gnd'), part: id, closedWhen: 'pressed' }]),
+  'speed-sensor': moduleModel('speed-sensor', ['vcc', 'gnd', 'out']),
   /** Across the channel: 1a–1b and 2a–2b are joined inside; pressing joins 1 and 2. */
   button: {
     legs: ['1a', '1b', '2a', '2b'],
@@ -118,6 +160,20 @@ function sensorModel(loadOhms: number): PartModel {
     devices: ({ id, leg }) => [
       { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: loadOhms },
       { kind: 'drive', id: `${id}:out`, out: leg('out'), gnd: leg('gnd'), part: id },
+    ],
+  };
+}
+
+/** A module from sensors.ts MODULES: its supply's load, its pull-ups, an output stage (a `drive`) for each output. */
+function moduleModel(type: string, legs: string[], extra?: (id: string, leg: (name: string) => string) => Device[]): PartModel {
+  const m = MODULES[type]!;
+  return {
+    legs,
+    devices: ({ id, leg }) => [
+      { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: m.loadOhms },
+      ...m.pullUps.map((l): Device => ({ kind: 'resistor', id: `${id}:pull-${l}`, a: leg('vcc'), b: leg(l), ohms: 10_000 })),
+      ...Object.keys(m.outputs).map((l): Device => ({ kind: 'drive', id: `${id}:${l}`, out: leg(l), gnd: leg('gnd'), part: id, key: l })),
+      ...(extra?.(id, leg) ?? []),
     ],
   };
 }

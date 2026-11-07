@@ -1,0 +1,41 @@
+{
+  "seconds": 3,
+  "inputs": [
+    {
+      "at": 0.0,
+      "part": "m1",
+      "position": 0
+    },
+    {
+      "at": 1.0,
+      "part": "m1",
+      "position": 1
+    },
+    {
+      "at": 2.0,
+      "part": "m1",
+      "position": 0
+    }
+  ],
+  "parts": {
+    "led1": {
+      "dark": [
+        [
+          0.05,
+          0.95
+        ],
+        [
+          2.05,
+          2.95
+        ]
+      ],
+      "lit": [
+        [
+          1.05,
+          1.95
+        ]
+      ]
+    }
+  },
+  "ended": "stopped"
+}

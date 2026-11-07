@@ -1,0 +1,39 @@
+{
+  "format": 1,
+  "title": "Wheel speed (IR speed sensor)",
+  "board": "microbit-v2",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "speed1",
+      "type": "speed-sensor",
+      "legs": {
+        "vcc": "bb1.a20",
+        "gnd": "bb1.a21",
+        "out": "bb1.a22"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "a": "board.3.3V",
+      "b": "bb1.e20",
+      "id": "w1"
+    },
+    {
+      "a": "board.GND",
+      "b": "bb1.e21",
+      "id": "w2"
+    },
+    {
+      "a": "board.P8",
+      "b": "bb1.e22",
+      "id": "w3"
+    }
+  ]
+}

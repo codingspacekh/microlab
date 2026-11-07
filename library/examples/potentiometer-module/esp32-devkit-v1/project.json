@@ -1,0 +1,71 @@
+{
+  "format": 1,
+  "title": "Potentiometer module",
+  "board": "esp32-devkit-v1",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "r1",
+      "type": "resistor",
+      "props": {
+        "ohms": 220
+      },
+      "legs": {
+        "a": "bb1.a5",
+        "b": "bb1.a8"
+      }
+    },
+    {
+      "id": "led1",
+      "type": "led",
+      "props": {
+        "color": "red"
+      },
+      "legs": {
+        "a": "bb1.b8",
+        "k": "bb1.b10"
+      }
+    },
+    {
+      "id": "m1",
+      "type": "pot-module",
+      "legs": {
+        "out": "bb1.a20",
+        "vcc": "bb1.a21",
+        "gnd": "bb1.a22"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "a": "board.D15",
+      "b": "bb1.e5",
+      "id": "w1"
+    },
+    {
+      "a": "board.GND",
+      "b": "bb1.e10",
+      "id": "w2"
+    },
+    {
+      "a": "board.D34",
+      "b": "bb1.e20",
+      "id": "w3"
+    },
+    {
+      "a": "board.3V3",
+      "b": "bb1.e21",
+      "id": "w4"
+    },
+    {
+      "a": "bb1.d10",
+      "b": "bb1.e22",
+      "id": "w5"
+    }
+  ]
+}

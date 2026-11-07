@@ -1,0 +1,16 @@
+{
+  "seconds": 1.5,
+  "inputs": [
+    {
+      "at": 0,
+      "part": "speed1",
+      "rpm": 60
+    }
+  ],
+  "console": {
+    "includes": [
+      "pulses a second: 20"
+    ]
+  },
+  "ended": "done"
+}

@@ -21,13 +21,13 @@ export type Device =
   | { kind: 'led'; id: string; a: string; k: string; color: string; vf?: number }
   /** Closed while the part is pressed, or while its position is `closedWhen` (a slide switch). */
   | { kind: 'switch'; id: string; a: string; b: string; part: string; closedWhen: 'pressed' | number }
-  /** Ends e1, e2 and wiper w; position 0–1 from e1 (state), 0.5 when not set. */
-  | { kind: 'pot'; id: string; e1: string; w: string; e2: string; ohms: number; part: string }
+  /** Ends e1, e2 and wiper w; position 0–1 from e1 (state), 0.5 when not set; a joystick's axis reads `x` or `y`. */
+  | { kind: 'pot'; id: string; e1: string; w: string; e2: string; ohms: number; part: string; axis?: 'x' | 'y' }
   /** Resistance from the light level (state lux), 300 lux when not set. */
   | { kind: 'ldr'; id: string; a: string; b: string; part: string }
   /** A sensor module's output (M6.3): OUT driven from GND by the part's `drive` (state; the sim works it out, see
    *  sensors.ts), weakly to GND when not set. */
-  | { kind: 'drive'; id: string; out: string; gnd: string; part: string };
+  | { kind: 'drive'; id: string; out: string; gnd: string; part: string; key?: string };
 
 export interface Netlist {
   nets: string[];
@@ -52,6 +52,13 @@ export interface PartState {
   celsius?: number;
   humidity?: number;
   cm?: number;
+  /** A module's several outputs, by leg (M6.5a): what drives each now. */
+  drives?: Record<string, { volts: number; ohms: number }>;
+  /** A joystick's two axes 0–1 (0.5 at rest); an encoder's steps (counted on, + one way, − the other); a wheel's rpm. */
+  x?: number;
+  y?: number;
+  steps?: number;
+  rpm?: number;
   /** An MPU6050's tilt, degrees (M6.4b). */
   tiltx?: number;
   tilty?: number;

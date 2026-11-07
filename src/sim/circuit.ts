@@ -1,5 +1,5 @@
 import type { BoardData } from '@lib/boards';
-import { BUZZER, dhtBytes, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
+import { BUZZER, dhtBytes, ENCODER, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
 
@@ -23,6 +23,10 @@ export interface PartChange {
   cm?: number;
   tiltx?: number;
   tilty?: number;
+  x?: number;
+  y?: number;
+  steps?: number;
+  rpm?: number;
 }
 
 /** Up to this many PWM pins are averaged exactly (2^n solves: an RGB LED is 3); beyond, their DC average. */
@@ -43,7 +47,7 @@ export type PartView =
 export type PartTraceEntry = [number, string, PartView];
 
 /** The live input slots a part takes (sim-client's SLOT): 'pressed:btn1', 'celsius:dht1' … */
-const LIVE_KINDS = new Set(['pressed', 'position', 'lux', 'celsius', 'humidity', 'cm', 'tiltx', 'tilty']);
+const LIVE_KINDS = new Set(['pressed', 'position', 'lux', 'celsius', 'humidity', 'cm', 'tiltx', 'tilty', 'x', 'y', 'steps', 'rpm']);
 
 const SERVO = { minUs: 500, maxUs: 2500, minVolts: 4.5, rest: 90 };
 
@@ -122,6 +126,7 @@ export class CircuitHost {
       if (c.humidity !== undefined) s.humidity = c.humidity;
       if (c.cm !== undefined) s.cm = c.cm;
       if (c.tiltx !== undefined) s.tiltx = c.tiltx;
+      for (const k of ['x', 'y', 'steps', 'rpm'] as const) if (c[k] !== undefined) s[k] = c[k];
       if (c.tilty !== undefined) s.tilty = c.tilty;
       changed = true;
     }
@@ -153,12 +158,42 @@ export class CircuitHost {
     let next = this.script[this.next]?.atUs ?? Infinity;
     for (const until of this.pirHold.values()) if (until > this.now() && until < next) next = until;   // a PIR's hold ends
     for (const e of this.echoes.values()) for (const at of [e.from, e.to]) if (at > this.now() && at < next) next = at;   // an echo
+    for (const e of this.encoders.values()) for (const [at] of e.phases) if (at > this.now() && at < next) { next = at; break; }   // a detent
+    for (const part of this.spec.parts) {   // a wheel's next pulse
+      const half = part.type === 'speed-sensor' ? this.pulseHalfUs(part.id) : Infinity;
+      if (half < Infinity) next = Math.min(next, (Math.floor(this.now() / half) + 1) * half);
+    }
     return next;
   }
 
   /** When each PIR's output falls: Infinity while it sees motion, then its hold time after the motion ends. */
   private readonly pirHold = new Map<string, number>();
   private readonly powered = new Map<string, boolean>();
+  /** Each rotary encoder's steps taken so far, and its contacts' changes still to come: [µs, CLK closed, DT closed]. */
+  private readonly encoders = new Map<string, { steps: number; phases: [number, boolean, boolean][]; a: boolean; b: boolean }>();
+
+  /** Half a speed sensor's pulse (µs): a wheel of 20 slots at its rpm; Infinity when it stands still. */
+  private pulseHalfUs(id: string): number {
+    const rpm = this.parts[id]?.rpm ?? 0;
+    return rpm > 0 ? 1e6 / ((rpm / 60) * SPEED.slots * 2) : Infinity;
+  }
+
+  /** An encoder's contacts now: new steps (+ one way, − the other) become four changes each, CW CLK first. */
+  private encoderAt(id: string, t: number): { a: boolean; b: boolean } {
+    const e = this.encoders.get(id) ?? { steps: 0, phases: [], a: false, b: false };
+    const want = Math.round(this.parts[id]?.steps ?? 0);
+    let at = Math.max(t, e.phases.at(-1)?.[0] ?? t);
+    for (; e.steps !== want; e.steps += Math.sign(want - e.steps)) {
+      const cw = want > e.steps;
+      for (const [a, b] of (cw ? [[true, false], [true, true], [false, true], [false, false]] : [[false, true], [true, true], [true, false], [false, false]]) as [boolean, boolean][]) {
+        at += ENCODER.phaseUs;
+        e.phases.push([at, a, b]);
+      }
+    }
+    while (e.phases.length && e.phases[0]![0] <= t) [, e.a, e.b] = e.phases.shift()!;
+    this.encoders.set(id, e);
+    return { a: e.a, b: e.b };
+  }
   /** Each HC-SR04's echo (µs from, to) after its trigger's last pulse, and when its trigger last went high. */
   private readonly echoes = new Map<string, { from: number; to: number; rise?: number }>();
   private traceSeen = 0;
@@ -240,6 +275,17 @@ export class CircuitHost {
       const v = (leg: string) => this.solution?.volts[this.connectivity.netOf(`${part.id}.${leg}`) ?? ''] ?? 0;
       const supply = v('vcc') - v('gnd');
       this.powered.set(part.id, supply >= minVolts(part.type, part.props ?? {}));
+      const type: string = part.type;
+      if (type in MODULES) {
+        const enc = type === 'rotary-encoder' ? this.encoderAt(part.id, t) : {};
+        const half = type === 'speed-sensor' ? this.pulseHalfUs(part.id) : Infinity;
+        const pulse = half < Infinity && Math.floor(t / half) % 2 === 1;
+        const drives = moduleDrives(type, { pressed: s.pressed, position: s.position, pulse, ...enc }, supply);
+        if (JSON.stringify(s.drives) === JSON.stringify(drives)) continue;
+        s.drives = drives;
+        changed = true;
+        continue;
+      }
       const echo = this.echoes.get(part.id);
       const drive = sensorDrive(part.type, part.props ?? {}, { motion, position: s.position, celsius: s.celsius, echo: !!echo && t >= echo.from && t < echo.to }, supply);
       if (s.drive && Math.abs(s.drive.volts - drive.volts) < 1e-6 && s.drive.ohms === drive.ohms) continue;
@@ -321,7 +367,9 @@ export class CircuitHost {
       if (part.type === 'servo') this.setView(t, part.id, this.servo(part.id));
       if (part.type === 'buzzer') this.setView(t, part.id, this.buzzer(part.id, part.props?.kind === 'passive'));
       if (isSensor(part.type)) {
-        const volts = Math.round((this.parts[part.id]?.drive?.volts ?? 0) * 100) / 100;
+        const st = this.parts[part.id];
+        const first = st?.drives ? Object.values(st.drives)[0] : st?.drive;
+        const volts = Math.round((first?.volts ?? 0) * 100) / 100;
         this.setView(t, part.id, { kind: 'sensor', volts, powered: this.powered.get(part.id) ?? false });
       }
     }

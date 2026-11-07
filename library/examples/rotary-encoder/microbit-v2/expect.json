@@ -1,0 +1,22 @@
+{
+  "seconds": 1.5,
+  "inputs": [
+    {
+      "at": 0.2,
+      "part": "enc1",
+      "steps": 3
+    },
+    {
+      "at": 0.8,
+      "part": "enc1",
+      "steps": 1
+    }
+  ],
+  "console": {
+    "includes": [
+      "steps 3",
+      "steps 1"
+    ]
+  },
+  "ended": "stopped"
+}
