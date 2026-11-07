@@ -11,7 +11,7 @@ import type { PartView } from '../../sim/circuit';
 import type { BoardOutputs } from '../app/useRun';
 import { Icon } from '../ui/Icon';
 import { batteryBox, BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, partTurns, polyline, Wire } from './drawings';
-import { LightCard, PartTip, UsbSocket, UsbTip, useLive } from './live';
+import { InputsCard, PartTip, SLIDER_PARTS, UsbSocket, UsbTip, useLive } from './live';
 
 /**
  * The circuit canvas (screens 02, 02b, 03; F-10–F-14). Everything is drawn from the project: the board's picture and
@@ -102,12 +102,9 @@ export function Canvas({
   const live = useLive(running, onInput);
   /** What is hovered that says something: an LED or RGB LED while running, the GPIO board's micro-USB ('usb'). */
   const [tipOf, setTipOf] = useState<string | null>(null);
-  /** The light sensor whose card is open while running: the first one when a run starts (screen 17). */
-  const [lightOf, setLightOf] = useState<string | null>(null);
-  const firstLdr = project.parts.find((p) => p.type === 'ldr')?.id ?? null;
-  const firstLdrRef = useRef(firstLdr);
-  firstLdrRef.current = firstLdr;
-  useEffect(() => { setLightOf(running ? firstLdrRef.current : null); setTipOf(null); }, [running]);
+  /** The Inputs card (screen 18): open when a run starts, closed with its ×, opened again by clicking a sensor on it. */
+  const [inputsOpen, setInputsOpen] = useState(false);
+  useEffect(() => { setInputsOpen(running); setTipOf(null); }, [running]);
   const [gesture, setGesture] = useState<Gesture | null>(null);
   const [placeAt, setPlaceAt] = useState<Point | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -457,16 +454,17 @@ export function Canvas({
     setPressed(id);
     onInput?.(`pressed:${id}`, 1);
   };
-  /** A part's input while running: a button held, a switch slid, a knob dragged, a light sensor's card opened. */
+  /** A part's input while running: a button held (a PIR: motion), a switch slid (a line sensor: over the line or
+   *  white), a knob dragged, the Inputs card opened (a light, soil or temperature sensor). */
   const runInput = (type: string, id: string) => {
-    if (type === 'button') return press(id);
+    if (type === 'button' || type === 'pir') return press(id);
     return (e: ReactMouseEvent) => {
       if (e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
-      if (type === 'slide-switch') live.set(`position:${id}`, live.value(`position:${id}`) ? 0 : 1);
+      if (type === 'slide-switch' || type === 'line-sensor') live.set(`position:${id}`, live.value(`position:${id}`) ? 0 : 1);
       else if (type === 'potentiometer') live.turn(id, e);
-      else if (type === 'ldr') setLightOf(id);
+      else if (SLIDER_PARTS.has(type)) setInputsOpen(true);
     };
   };
   const ledOf = (id: string) => {
@@ -601,9 +599,12 @@ export function Canvas({
           const on = isOn('part', p.id);
           const glow = p.type === 'led' ? ledOf(p.id) : undefined;
           const dies = p.type === 'rgb-led' ? (['r', 'g', 'b'].map((d) => ledOf(`${p.id}:${d}`)) as [number, number, number]) : undefined;
-          const position = p.type === 'slide-switch' || p.type === 'potentiometer' ? live.value(`position:${p.id}`) : undefined;
+          const position = p.type === 'slide-switch' || p.type === 'potentiometer' || p.type === 'line-sensor' ? live.value(`position:${p.id}`) : undefined;
+          const sensor = outputs.parts[p.id];
+          const motion = p.type === 'pir' && sensor?.kind === 'sensor' && sensor.volts > 1;
+          const moisture = p.type === 'soil-moisture' ? live.value(`position:${p.id}`) : undefined;
           const lit = glow ?? (dies ? Math.max(...dies) : undefined);
-          const says = running && (p.type === 'led' || p.type === 'rgb-led' || p.type === 'buzzer');
+          const says = running && ['led', 'rgb-led', 'buzzer', 'pir', 'line-sensor'].includes(p.type);
           const tone = p.type === 'buzzer' ? outputs.parts[p.id] : undefined;
           const hz = tone?.kind === 'buzzer' && tone.volume > 0 ? tone.hz : p.type === 'buzzer' ? 0 : undefined;
           return (
@@ -621,7 +622,7 @@ export function Canvas({
                 const group = on ? chosen(selection).parts : [p.id];
                 begin((at) => ({ kind: 'parts', id: p.id, ids: group, start: at, at }))(e);
               }}>
-              <PartDrawing type={p.type} legs={legs} props={p.props} look={{ glow, dies, position, sounding: !!hz, pressed: pressed === p.id }} />
+              <PartDrawing type={p.type} legs={legs} props={p.props} look={{ glow, dies, position, sounding: !!hz, motion, moisture, pressed: pressed === p.id }} />
               {on && <SelectBox type={p.type} legs={legs} props={p.props} />}
             </g>
           );
@@ -647,29 +648,15 @@ export function Canvas({
           const room = panelSize();
           return { left: Math.max(8, Math.min(Math.round(c.x - 120), (room.w || 1e4) - 290)), top: Math.max(8, Math.round(c.y + dy * scale)) };
         };
-        // the light card goes under the sensor's breadboard, where it hides no part, inside the panel
-        const below = (legs: Record<string, string>): CSSProperties => {
-          const first = Object.values(legs)[0]!;
-          const bb = shown.breadboards.find((b) => first.startsWith(`${b.id}.`));
-          const at = bb && scene.view.breadboards[bb.id];
-          if (!bb || !at) return near(Object.values(legs), 44);
-          const x = Object.values(legs).map((r) => pointAt(scene, r)?.x ?? 0).reduce((t, v) => t + v, 0) / Object.keys(legs).length;
-          const c = screenOf({ x, y: at.y + BREADBOARD.size(bb.size).height });
-          const room = panelSize();
-          return {
-            left: Math.max(8, Math.min(Math.round(c.x - 131), (room.w || 1e4) - 278)),
-            top: Math.max(8, Math.min(Math.round(c.y + 12), (room.h || 1e4) - 190)),
-          };
-        };
-        const ldr = running && lightOf ? project.parts.find((p) => p.id === lightOf) : undefined;
+        const sliders = running && inputsOpen ? project.parts.filter((p) => SLIDER_PARTS.has(p.type)) : [];
         const tipPart = running && tipOf && tipOf !== 'usb' ? project.parts.find((p) => p.id === tipOf) : undefined;
         return (
           <>
-            {ldr && (
-              <LightCard id={ldr.id} lux={live.value(`lux:${ldr.id}`)} onLux={(v) => live.set(`lux:${ldr.id}`, v)} onClose={() => setLightOf(null)}
-                style={below(ldr.legs)} />
+            {sliders.length > 0 && <InputsCard parts={sliders} live={live} views={outputs.parts} onClose={() => setInputsOpen(false)} style={{ right: 14, bottom: 14 }} />}
+            {tipPart && (
+              <PartTip id={tipPart.id} type={tipPart.type} common={String(tipPart.props?.common ?? 'cathode')} views={outputs.parts}
+                overLine={live.value(`position:${tipPart.id}`) >= 0.5} style={near(Object.values(tipPart.legs), 46)} />
             )}
-            {tipPart && <PartTip id={tipPart.id} type={tipPart.type} common={String(tipPart.props?.common ?? 'cathode')} views={outputs.parts} style={near(Object.values(tipPart.legs), 46)} />}
             {tipOf === 'usb' && art.usb && (
               <UsbTip plugged={project.usb !== false} style={(() => {
                 const c = screenOf({ x: scene.view.board.x + art.usb.socket[0], y: scene.view.board.y + art.usb.socket[1] });
@@ -746,6 +733,7 @@ function boxed(scene: Scene, a: Point, b: Point): Selection[] {
 const PAD: Record<string, [number, number, number, number]> = {
   resistor: [10, 12, 10, 12], led: [20, 8, 20, 40], button: [26, 26, 26, 26], potentiometer: [28, 54, 28, 10],
   'slide-switch': [16, 42, 16, 8], ldr: [10, 8, 10, 38], 'rgb-led': [10, 16, 10, 40], buzzer: [8, 8, 8, 50],
+  pir: [30, 96, 30, 8], 'line-sensor': [16, 126, 16, 8], 'soil-moisture': [24, 150, 24, 8], 'temp-sensor': [6, 50, 6, 16],
 };
 function SelectBox({ type, legs: placedLegs, props }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown> }) {
   if (type === 'battery') {

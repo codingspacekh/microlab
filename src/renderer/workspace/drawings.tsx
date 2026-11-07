@@ -399,6 +399,111 @@ export function Buzzer({ p, m, sounding = false, upright = 0 }: { p: Point; m: P
   );
 }
 
+/** A sensor module's 3-pin header (M6.3): the black strip above the holes, the pins down into them, their printed
+ *  names; the pins go on up into the board at `bodyY`. */
+function Header({ pins, labels, bodyY, upright }: { pins: Point[]; labels: string[]; bodyY: number; upright: number }) {
+  const xs = pins.map((p) => p.x);
+  const y = pins[0]!.y;
+  return (
+    <>
+      <rect x={Math.min(...xs) - 7} y={y - 14} width={Math.max(...xs) - Math.min(...xs) + 14} height={7} rx={1} fill="#26282c" />
+      {pins.map((p, i) => (
+        <g key={i}>
+          <line x1={p.x} y1={p.y} x2={p.x} y2={y - 7} stroke="#c7ccd2" strokeWidth={1.8} />
+          <line x1={p.x} y1={y - 14} x2={p.x} y2={bodyY} stroke="#c7ccd2" strokeWidth={1.8} />
+        </g>
+      ))}
+      <g fontSize={5.5} fontWeight={700} fill="#e9edf2" textAnchor="middle" pointerEvents="none" fontFamily="Inter Variable, Inter, sans-serif">
+        {pins.map((p, i) => <text key={i} x={p.x} y={y - 18} transform={upright ? `rotate(${upright} ${p.x} ${y - 20})` : undefined}>{labels[i]}</text>)}
+      </g>
+    </>
+  );
+}
+
+/** HC-SR501 PIR (M6.3, screen 18): pins VCC, OUT, GND; its green board above with the white Fresnel dome; while its
+ *  OUT is high (it sees motion, or holds it), waves round the dome. Drawn smaller than real. */
+export function Pir({ vcc, out, gnd, motion = false, upright = 0 }: { vcc: Point; out: Point; gnd: Point; motion?: boolean; upright?: number }) {
+  const cx = out.x;
+  const top = out.y - 16 - 74;
+  return (
+    <>
+      {motion && (
+        <g className="waves" pointerEvents="none">
+          {([[40, 0.5], [50, 0.32], [60, 0.18]] as const).map(([r, op]) => (
+            <path key={r} d={`M${f(cx - r * 0.8)},${f(top + 30 - r * 0.55)} A${r} ${r} 0 0 1 ${f(cx + r * 0.8)},${f(top + 30 - r * 0.55)}`} stroke="#e8590c" strokeWidth={2} fill="none" opacity={op} />
+          ))}
+        </g>
+      )}
+      <rect x={cx - 42} y={top} width={84} height={74} rx={4} fill="#2f7d3f" stroke="#1f5a2b" filter="url(#lift)" />
+      <circle cx={cx} cy={top + 32} r={27} fill="#f4f4f1" stroke="#d3d3cc" />
+      {[20, 13, 6].map((r) => <circle key={r} cx={cx} cy={top + 32} r={r} fill="none" stroke="#e2e2db" strokeWidth={1.2} />)}
+      <ellipse cx={cx - 9} cy={top + 22} rx={7} ry={4} fill="#fff" opacity={0.8} />
+      <Header pins={[vcc, out, gnd]} labels={['VCC', 'OUT', 'GND']} bodyY={top + 74} upright={upright} />
+    </>
+  );
+}
+
+/** TCRT5000 IR line sensor module (M6.3): pins OUT, GND, VCC; its blue board with the trimmer, the power LED and the
+ *  signal LED (lit over white: OUT low); a strip above its head shows the surface under it — white, or the black line. */
+export function LineSensor({ out, gnd, vcc, overLine = false, upright = 0 }: { out: Point; gnd: Point; vcc: Point; overLine?: boolean; upright?: number }) {
+  const cx = gnd.x;
+  const top = gnd.y - 16 - 84;
+  return (
+    <>
+      <rect className="surface" x={cx - 30} y={top - 22} width={60} height={16} rx={3} fill="#fbfbf8" stroke="#cfcfc6" />
+      {overLine && <rect x={cx - 30} y={top - 19} width={60} height={10} fill="#1b1c1f" />}
+      <rect x={cx - 25} y={top} width={50} height={84} rx={3} fill="#2457a6" stroke="#173c78" filter="url(#lift)" />
+      <rect x={cx - 14} y={top + 4} width={28} height={14} rx={2} fill="#1c1e21" />
+      <circle cx={cx - 6.5} cy={top + 11} r={4.2} fill="#3a63c9" /><circle cx={cx + 6.5} cy={top + 11} r={4.2} fill="#121314" />
+      <rect x={cx - 9} y={top + 30} width={18} height={18} rx={2} fill="#2f74d8" stroke="#1d4f9e" />
+      <circle cx={cx} cy={top + 39} r={5} fill="#e9ebee" /><line x1={cx - 3} y1={top + 39} x2={cx + 3} y2={top + 39} stroke="#6b7280" strokeWidth={1.4} />
+      <rect x={cx - 16} y={top + 56} width={7} height={4} rx={1} fill="#ff5a4a" />
+      <rect x={cx + 9} y={top + 56} width={7} height={4} rx={1} fill={overLine ? '#3a3d42' : '#34d058'} />
+      {!overLine && <circle cx={cx + 12.5} cy={top + 58} r={7} fill="url(#glow-green)" />}
+      <Header pins={[out, gnd, vcc]} labels={['OUT', 'GND', 'VCC']} bodyY={top + 84} upright={upright} />
+    </>
+  );
+}
+
+/** Capacitive soil moisture sensor v1.2 (M6.3): pins AOUT, VCC, GND; its long black board with the probe's end in a
+ *  pot of soil, as wet as `moisture` (0 dry – 1 in water). */
+export function SoilSensor({ aout, vcc, gnd, moisture = 0.5, upright = 0 }: { aout: Point; vcc: Point; gnd: Point; moisture?: number; upright?: number }) {
+  const cx = vcc.x;
+  const top = vcc.y - 16 - 130;
+  const mix = (a: number, b: number) => Math.round(a + (b - a) * moisture).toString(16).padStart(2, '0');
+  return (
+    <>
+      <rect x={cx - 23} y={top} width={46} height={130} rx={4} fill="#1d1f22" stroke="#0e0f11" filter="url(#lift)" />
+      <path d={`M${cx - 23},${top + 70} h46 M${cx - 18},${top + 70} v-60 l18,-8 l18,8 v60`} stroke="#e8d49a" strokeWidth={1.2} fill="none" opacity={0.6} />
+      <rect x={cx - 11} y={top + 82} width={22} height={12} rx={1.5} fill="#2b2e33" /><rect x={cx - 5} y={top + 100} width={10} height={7} rx={1} fill="#2b2e33" />
+      <path className="soil" d={`M${cx - 34},${top + 14} h68 l-6,48 h-56 z`} fill={`#${mix(0x8a, 0x4a)}${mix(0x5b, 0x2f)}${mix(0x34, 0x1c)}`} opacity={0.93} />
+      <path d={`M${cx - 36},${top + 10} h72 v6 h-72 z`} fill="#b5651d" />
+      {[-20, 14, -6, 22].slice(0, Math.round(moisture * 4)).map((dx, i) => (
+        <path key={i} d={`M${cx + dx},${top + 26 + i * 8} q3,5 0,7 q-3,-2 0,-7z`} fill="#7fb4ff" opacity={0.9} />
+      ))}
+      <Header pins={[aout, vcc, gnd]} labels={['AOUT', 'VCC', 'GND']} bodyY={top + 130} upright={upright} />
+    </>
+  );
+}
+
+/** TMP36 or LM35 in a TO-92 (M6.3): its flat face towards you, legs +Vs, Vout, GND; the body above them says which. */
+export function TempSensor({ vs, vout, gnd, kind = 'TMP36', upright = 0 }: { vs: Point; vout: Point; gnd: Point; kind?: string; upright?: number }) {
+  const cx = vout.x;
+  const y = vout.y;
+  const turn = (x: number, yy: number) => (upright ? `rotate(${upright} ${f(x)} ${f(yy)})` : undefined);
+  return (
+    <>
+      {[vs, vout, gnd].map((p, i) => <line key={i} x1={p.x} y1={p.y} x2={f(cx + (p.x - cx) * 0.45)} y2={y - 18} stroke="#a5abb2" strokeWidth={1.7} />)}
+      <path d={`M${cx - 13},${y - 18} v-20 a13 9 0 0 1 26 0 v20 z`} fill="#1f2125" stroke="#0e0f11" filter="url(#lift)" />
+      <text x={cx} y={y - 26} fontSize={5.5} fontWeight={700} fill="#cfd3d8" textAnchor="middle" fontFamily="JetBrains Mono Variable, monospace"
+        pointerEvents="none" transform={turn(cx, y - 28)}>{kind}</text>
+      <g fontSize={5} fontWeight={700} fill="#6b7280" textAnchor="middle" pointerEvents="none" fontFamily="Inter Variable, Inter, sans-serif">
+        {([[vs, '+Vs'], [vout, 'Vout'], [gnd, 'GND']] as const).map(([p, t]) => <text key={t} x={p.x} y={y + 11} transform={turn(p.x, y + 9)}>{t}</text>)}
+      </g>
+    </>
+  );
+}
+
 /** A part from its type and the places of its legs. */
 export interface PartLook {
   /** An LED's brightness, 0–1, while running (M4.5). */
@@ -411,6 +516,9 @@ export interface PartLook {
   position?: number;
   /** A buzzer sounding while running (M6.2). */
   sounding?: boolean;
+  /** A PIR's OUT high, a soil sensor's moisture 0–1 (M6.3). */
+  motion?: boolean;
+  moisture?: number;
 }
 
 export function PartDrawing({ type, legs, props, look = {} }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown>; look?: PartLook }) {
@@ -418,7 +526,8 @@ export function PartDrawing({ type, legs, props, look = {} }: { type: string; le
     case 'resistor': return <Resistor a={legs.a!} b={legs.b!} ohms={Number(props?.ohms ?? 220)} />;
     case 'button': return <PushButton legs={[legs['1a']!, legs['2a']!, legs['1b']!, legs['2b']!]} pressed={look.pressed} />;
     case 'battery': return <Battery plus={legs['+']!} minus={legs['-']!} kind={String(props?.kind ?? '2xAA')} />;
-    case 'led': case 'potentiometer': case 'slide-switch': case 'ldr': case 'rgb-led': case 'buzzer': {
+    case 'led': case 'potentiometer': case 'slide-switch': case 'ldr': case 'rgb-led': case 'buzzer':
+    case 'pir': case 'line-sensor': case 'soil-moisture': case 'temp-sensor': {
       // drawn as if not turned, then turned about the legs' middle (M5.1); the letters and signs stay upright
       const t = partTurns(type, legs);
       const { local, transform } = unturned(legs, t);
@@ -429,6 +538,10 @@ export function PartDrawing({ type, legs, props, look = {} }: { type: string; le
         'slide-switch': () => <SlideSwitch l={local['1']!} m={local['2']!} r={local['3']!} position={look.position} upright={up} />,
         ldr: () => <Ldr a={local.a!} b={local.b!} />,
         buzzer: () => <Buzzer p={local['+']!} m={local['-']!} sounding={look.sounding} upright={up} />,
+        pir: () => <Pir vcc={local.vcc!} out={local.out!} gnd={local.gnd!} motion={look.motion} upright={up} />,
+        'line-sensor': () => <LineSensor out={local.out!} gnd={local.gnd!} vcc={local.vcc!} overLine={(look.position ?? 0) >= 0.5} upright={up} />,
+        'soil-moisture': () => <SoilSensor aout={local.out!} vcc={local.vcc!} gnd={local.gnd!} moisture={look.moisture} upright={up} />,
+        'temp-sensor': () => <TempSensor vs={local.vcc!} vout={local.out!} gnd={local.gnd!} kind={String(props?.kind ?? 'TMP36')} upright={up} />,
         'rgb-led': () => <RgbLed r={local.r!} c={local.common!} g={local.g!} b={local.b!} dies={look.dies} common={String(props?.common ?? 'cathode')} upright={up} />,
       }[type]();
       return t ? <g transform={transform}>{body}</g> : body;
@@ -518,6 +631,10 @@ export function PartIcon({ type }: { type: string }) {
         <circle cx="13" cy="13" r="2" fill="#ef3b2c" /><circle cx="18" cy="12" r="2" fill="#22b14c" /><circle cx="16" cy="17" r="2" fill="#2f6fe0" />
       </>
     ),
+    pir: <><rect x="5" y="17" width="22" height="9" rx="2" fill="#2f8f4f" /><path d="M8,18 a8,8 0 0 1 16,0Z" fill="#f2f3f5" stroke="#c9d0d8" /></>,
+    'line-sensor': <><rect x="10" y="3" width="12" height="26" rx="2" fill="#2b5fa8" /><circle cx="16" cy="23" r="3" fill="#2d3136" /><circle cx="16" cy="16" r="2.5" fill="#d6d9de" /></>,
+    'soil-moisture': <><path d="M11,3 h10 v20 l-5,6 l-5,-6 z" fill="#1d1f22" /><path d="M13,8 h6 M13,12 h6" stroke="#e8d49a" strokeWidth="1" opacity=".6" /></>,
+    'temp-sensor': <><path d="M10,6 h12 v10 a6,3 0 0 1 -12,0Z" fill="#2d3136" /><path d="M12,18 v11 M16,19 v11 M20,18 v11" stroke="#a5abb2" strokeWidth="1.4" /></>,
     buzzer: <><circle cx="16" cy="16" r="10" fill="#26282c" /><circle cx="16" cy="16" r="6" fill="none" stroke="#3b3e43" /><circle cx="16" cy="16" r="1.8" fill="#0f1012" /></>,
     'slide-switch': <><rect x="5" y="11" width="22" height="10" rx="2" fill="#2d3136" /><rect x="8" y="13" width="9" height="6" rx="1" fill="#e9ebee" /></>,
     ldr: (

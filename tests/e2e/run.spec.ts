@@ -136,7 +136,7 @@ test('M5.6 (Q19): a second file, made with +, runs with Run led_test.py; it impo
   await win.getByRole('button', { name: 'Stop' }).click();
 });
 
-test('M6.1 (screen 17): while running a slide switch is clicked, a knob dragged, the light on a light sensor set on its card', async () => {
+test('M6.1 (screen 17): while running a slide switch is clicked, a knob dragged, the light on a light sensor set on the Inputs card', async () => {
   const win = await app.firstWindow();
   await win.getByRole('button', { name: 'New Pico W project' }).click();
   // slide switch e20–e22: leg 1 (e20) to GND, leg 2 (e21) to GP14; knob e10–e14: GND, GP26, 3V3 (up = more); a light sensor
@@ -168,11 +168,11 @@ test('M6.1 (screen 17): while running a slide switch is clicked, a knob dragged,
   await win.mouse.up();
   await expect(log).toContainText('switch 1 knob high', { timeout: 2000 });
 
-  const card = win.getByRole('group', { name: 'Light on LDR1' });
-  await expect(card).toContainText('LDR1 is 1.4 kΩ now');
-  await card.getByRole('slider').focus();
+  const card = win.getByRole('group', { name: 'Inputs' });   // screen 18: one card for every slider
+  await expect(card).toContainText('1.4 kΩ');
+  await card.getByRole('slider', { name: 'Light on LDR1' }).focus();
   await win.keyboard.press('End');
-  await expect(card).toContainText('LDR1 is 100 Ω now');
+  await expect(card).toContainText('100 Ω');
   await win.getByRole('button', { name: 'Stop' }).click();
   await expect(card).toHaveCount(0);
 });
@@ -194,4 +194,39 @@ test('M6.2: a passive buzzer plays the PWM\'s note with the real worker; the sta
   await expect(win.getByRole('button', { name: /Sound off/ })).toHaveAttribute('aria-pressed', 'false');
   await win.getByRole('button', { name: 'Stop' }).click();
   await expect(bz).toHaveAttribute('data-hz', '0');
+});
+
+test('M6.3 (screen 18): a TMP36 set on the Inputs card and a PIR held with the mouse, read by the real worker', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  // TMP36 in f2–f4 (+Vs 3V3, Vout GP26, GND); PIR in f8–f10 (VCC VBUS, OUT GP14, GND)
+  await drag(win, await centre(win, '.parts .pitem:has-text("Temperature")'), await centre(win, '[data-point="bb1.f3"]'));
+  await drag(win, await centre(win, '[data-point="board.3V3"]'), await centre(win, '[data-point="bb1.j2"]'));
+  await drag(win, await centre(win, '[data-point="board.GP26"]'), await centre(win, '[data-point="bb1.j3"]'));
+  await drag(win, await centre(win, '[data-point="board.GND@23"]'), await centre(win, '[data-point="bb1.j4"]'));
+  await drag(win, await centre(win, '.parts .pitem:has-text("PIR motion")'), await centre(win, '[data-point="bb1.f9"]'));
+  await drag(win, await centre(win, '[data-point="board.VBUS"]'), await centre(win, '[data-point="bb1.j8"]'));
+  await drag(win, await centre(win, '[data-point="board.GP14"]'), await centre(win, '[data-point="bb1.j9"]'));
+  await drag(win, await centre(win, '[data-point="board.GND@18"]'), await centre(win, '[data-point="bb1.j10"]'));
+  await expect(win.getByRole('status')).toContainText('2 parts · 6 wires');
+  await setCode(win, [
+    'from machine import Pin, ADC', 'import time', 'temp = ADC(26)', 'pir = Pin(14, Pin.IN)', 'last = None', 'while True:',
+    '    now = (round((temp.read_u16() * 3.3 / 65535 - 0.5) * 100), pir.value())', '    if now != last:',
+    '        print(now[0], "C", "motion" if now[1] else "still")', '        last = now', '    time.sleep_ms(20)', '',
+  ].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const log = win.getByRole('log', { name: 'Console' });
+  await expect(log).toContainText('22 C still', { timeout: 5000 });
+  const card = win.getByRole('group', { name: 'Inputs' });
+  await card.getByRole('slider', { name: 'Temperature of TMP1' }).focus();
+  await win.keyboard.press('End');
+  await expect(log).toContainText('60 C still', { timeout: 2000 });
+  await expect(card).toContainText('Vout 1.1 V');
+  const pir = await centre(win, '[data-part="pir1"] circle');
+  await win.mouse.move(pir.x, pir.y);
+  await win.mouse.down();
+  await expect(log).toContainText('60 C motion', { timeout: 2000 });
+  await win.mouse.up();
+  await expect(win.locator('[data-part="pir1"] .waves')).toHaveCount(1);   // OUT high for 3 s after
+  await expect(log).toContainText(/60 C motion\s*60 C still/, { timeout: 5000 });   // still again after the hold
 });

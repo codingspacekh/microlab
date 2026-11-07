@@ -133,3 +133,22 @@ describe('M6.3 the TMP36 and the LM35', () => {
     expect(warnings(low)).toContain('sensor-underpowered s1');
   });
 });
+
+describe('M6.3 what the window sees of a sensor', () => {
+  it('its output\'s volts and whether it is powered: a PIR through its hold, a TMP36 at 25 °C, a PIR on 3.3 V', async () => {
+    const view = (r: RunResult, s: number) => {
+      let v: unknown;
+      for (const [t, id, x] of r.parts) if (id === 's1' && t <= s * 1e6) v = x;
+      return v;
+    };
+    const pir = await run('pico-w', sensor('pico-w', 'pir', 'VBUS', 'GP14', 'GND'), 'import time\ntime.sleep(4.5)\n',
+      [{ atUs: 500_000, part: 's1', pressed: true }, { atUs: 700_000, part: 's1', pressed: false }]);
+    expect(view(pir, 0.3)).toEqual({ kind: 'sensor', volts: 0, powered: true });
+    expect(view(pir, 2.0)).toEqual({ kind: 'sensor', volts: 3.3, powered: true });
+    expect(view(pir, 4.0)).toEqual({ kind: 'sensor', volts: 0, powered: true });
+    const tmp = await run('pico-w', sensor('pico-w', 'temp-sensor', '3V3', 'GP26', 'GND', { kind: 'TMP36' }), 'import time\ntime.sleep(0.2)\n', [{ atUs: 0, part: 's1', celsius: 25 }]);
+    expect(view(tmp, 0.1)).toEqual({ kind: 'sensor', volts: 0.75, powered: true });
+    const low = await run('pico-w', sensor('pico-w', 'pir', '3V3', 'GP14', 'GND'), 'import time\ntime.sleep(0.2)\n');
+    expect(view(low, 0.1)).toEqual({ kind: 'sensor', volts: 0, powered: false });
+  });
+});

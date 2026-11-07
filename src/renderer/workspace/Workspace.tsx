@@ -150,25 +150,30 @@ export function Workspace({
           </div>
         </div>
         <div className="list">
-          <div className="pgroup">
-            <div className="gh">Basics<span className="n">{PART_KINDS.length}</span></div>
-            {PART_KINDS.map((k) => (
-              <button key={k.type} type="button" className={placing?.type === k.type ? 'pitem drag' : 'pitem'}
-                title={`Drag the ${inText(k.name)} onto the breadboard, or click it and then click where it goes`}
-                aria-disabled={running || undefined}
-                onMouseDown={(e) => {
-                  if (e.button !== 0 || running) return;
-                  e.preventDefault();
-                  setSelection([]);   // the inspector would cover the canvas
-                  setPlacing({ type: k.type, how: 'press', start: { x: e.clientX, y: e.clientY } });
-                }}
-                onClick={(e) => { if (e.detail === 0 && !running) { setSelection([]); setPlacing({ type: k.type, how: 'keys' }); } }}>
-                <span className="pic"><PartIcon type={k.type} /></span>
-                <span className="nm">{k.name}<small>{k.detail}</small></span>
-              </button>
-            ))}
-          </div>
-          {running && <p className="small run-lock" role="note">Stop the program to change the circuit. While it runs, press a push button by holding the mouse on it, click a slide switch to slide it, drag a knob up or down to turn it, and set the light on a light sensor on its card.</p>}
+          {(['Basics', 'Sensors'] as const).map((group) => {
+            const kinds = PART_KINDS.filter((k) => k.group === group);
+            return (
+              <div key={group} className="pgroup" role="group" aria-label={group}>
+                <div className="gh">{group}<span className="n">{kinds.length}</span></div>
+                {kinds.map((k) => (
+                  <button key={k.type} type="button" className={placing?.type === k.type ? 'pitem drag' : 'pitem'}
+                    title={`Drag the ${inText(k.name)} onto the breadboard, or click it and then click where it goes`}
+                    aria-disabled={running || undefined}
+                    onMouseDown={(e) => {
+                      if (e.button !== 0 || running) return;
+                      e.preventDefault();
+                      setSelection([]);   // the inspector would cover the canvas
+                      setPlacing({ type: k.type, how: 'press', start: { x: e.clientX, y: e.clientY } });
+                    }}
+                    onClick={(e) => { if (e.detail === 0 && !running) { setSelection([]); setPlacing({ type: k.type, how: 'keys' }); } }}>
+                    <span className="pic"><PartIcon type={k.type} /></span>
+                    <span className="nm">{k.name}<small>{k.detail}</small></span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+          {running && <p className="small run-lock" role="note">Stop the program to change the circuit. While it runs, press a push button by holding the mouse on it, click a slide switch to slide it, drag a knob up or down to turn it, hold the mouse on a PIR to move in front of it, click a line sensor to slide it over the line, and set the light, the soil's moisture and the temperature on the Inputs card.</p>}
           <p className="tiny muted howto">Drag a part onto the breadboard, or click it and click where it goes. For a wire, drag from a pin or hole to another — or click it, click for each bend, and click where it ends.</p>
         </div>
       </section>

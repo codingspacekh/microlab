@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { ldrOhms } from '@lib/circuit';
+import { ldrOhms, SENSOR_START } from '@lib/circuit';
 import type { Point } from '@lib/editor';
 import type { PartView } from '../../sim/circuit';
 import { noteName } from '../audio';
@@ -15,8 +15,9 @@ import { UsbPlug } from './drawings';
  * hovering the micro:bit GPIO board's micro-USB says what it gives (screen 17b).
  */
 
-/** The values the sim starts with (lib/circuit solve: a switch at 0, a knob in the middle, 300 lux on a sensor). */
-export const START: Record<string, number> = { position: 0, lux: 300 };
+/** The values the sim starts with (lib/circuit: a switch at 0, a knob in the middle, 300 lux on a light sensor, a soil
+ *  sensor in damp soil, room temperature). */
+export const START: Record<string, number> = { position: 0, lux: 300, celsius: SENSOR_START.celsius };
 const KNOB_START = 0.5;
 /** Pixels of drag from one end of a knob's turn to the other. */
 const KNOB_PX = 150;
@@ -38,7 +39,8 @@ export function useLive(running: boolean, onInput?: (name: string, value: number
   // each run starts from the sim's start values
   useEffect(() => { if (running) setValues({}); else knob.current = null; }, [running]);
 
-  const value = (slot: string) => values[slot] ?? (slot.startsWith('position:pot') ? KNOB_START : START[slot.slice(0, slot.indexOf(':'))] ?? 0);
+  const value = (slot: string) => values[slot] ?? (slot.startsWith('position:pot') ? KNOB_START : slot.startsWith('position:soil') ? SENSOR_START.moisture
+    : START[slot.slice(0, slot.indexOf(':'))] ?? 0);
   const set = (slot: string, v: number) => {
     setValues((vs) => ({ ...vs, [slot]: v }));
     latest.current.onInput?.(slot, v);
@@ -79,23 +81,66 @@ export function luxText(lux: number): string {
   return `${v >= 1000 ? v.toLocaleString('en-GB').replace(/,/g, ' ') : v} lux`;
 }
 
-/** The light card's slider runs on a log scale, 10^−1 (dark) to 10^5 lux (daylight), a room (100 lux) in the middle. */
+/** The light slider runs on a log scale, 10^−1 (dark) to 10^5 lux (daylight), a room (100 lux) in the middle. */
 const LOG = { min: -1, max: 5, step: 0.05 };
+const volts = (v: PartView | undefined, name: string) => (v?.kind !== 'sensor' ? '' : v.powered ? `${name} ${Number(v.volts.toFixed(2))} V` : 'not powered');
 
-/** The card of a light sensor (screen 17): the light on it from dark to daylight, and its resistance now. */
-export function LightCard({ id, lux, onLux, onClose, style }: { id: string; lux: number; onLux: (lux: number) => void; onClose: () => void; style: CSSProperties }) {
-  const name = id.toUpperCase();
+/** The parts the Inputs card has a row for (screen 18): a light sensor, a soil moisture sensor, a temperature sensor. */
+export const SLIDER_PARTS = new Set(['ldr', 'soil-moisture', 'temp-sensor']);
+
+/**
+ * The Inputs card (screen 18, M6.3; it took the place of screen 17's light card): a row for every sensor set with a
+ * slider while the program runs — the light on a light sensor (and its resistance), the moisture round a soil sensor,
+ * a temperature sensor's °C (and the volts of their outputs).
+ */
+export function InputsCard({ parts, live, views, onClose, style }: {
+  parts: { id: string; type: string; props?: Record<string, unknown> }[];
+  live: Live; views: Record<string, PartView>; onClose: () => void; style: CSSProperties;
+}) {
   return (
-    <div className="float inputs light-card" role="group" aria-label={`Light on ${name}`} style={style}>
+    <div className="float inputs" role="group" aria-label="Inputs" style={style}>
       <div className="ih">
-        <Icon name="sun" size={14} /> <b>Light on {name}</b>
+        <Icon name="sliders" size={14} /> <b>Inputs</b>
         <span className="spacer" />
-        <button type="button" className="btn ghost sm icon" aria-label="Close the light card" title="Close" onClick={onClose}><Icon name="x" size={14} /></button>
+        <span className="tiny muted">while it runs</span>
+        <button type="button" className="btn ghost sm icon" aria-label="Close the inputs card" title="Close" onClick={onClose}><Icon name="x" size={14} /></button>
       </div>
-      <Slider label="Light" value={Math.log10(lux)} min={LOG.min} max={LOG.max} step={LOG.step}
-        format={(v) => luxText(10 ** v)} ticks={['dark', 'room', 'daylight']}
-        onChange={(v) => onLux(Number((10 ** v).toPrecision(v < 1 ? 1 : 2)))} />
-      <p className="tiny muted">{name} is <b>{ohmsText(ldrOhms(lux))}</b> now</p>
+      {parts.map((p) => {
+        const name = p.id.toUpperCase();
+        if (p.type === 'ldr') {
+          const lux = live.value(`lux:${p.id}`);
+          return (
+            <Row key={p.id} icon="sun" name={name} kind="light" reading={ohmsText(ldrOhms(lux))}>
+              <Slider label={`Light on ${name}`} value={Math.log10(lux)} min={LOG.min} max={LOG.max} step={LOG.step}
+                format={(v) => luxText(10 ** v)} ticks={['dark', 'room', 'daylight']}
+                onChange={(v) => live.set(`lux:${p.id}`, Number((10 ** v).toPrecision(v < 1 ? 1 : 2)))} />
+            </Row>
+          );
+        }
+        if (p.type === 'temp-sensor') {
+          return (
+            <Row key={p.id} icon="therm" name={name} kind={String(p.props?.kind ?? 'TMP36')} reading={volts(views[p.id], 'Vout')}>
+              <Slider label={`Temperature of ${name}`} value={live.value(`celsius:${p.id}`)} min={-20} max={60} step={1}
+                format={(v) => `${v} °C`} ticks={['−20 °C', '20', '60 °C']} onChange={(v) => live.set(`celsius:${p.id}`, v)} />
+            </Row>
+          );
+        }
+        return (
+          <Row key={p.id} icon="drop" name={name} kind="moisture" reading={volts(views[p.id], 'AOUT')}>
+            <Slider label={`Moisture around ${name}`} value={Math.round(live.value(`position:${p.id}`) * 100)} min={0} max={100} step={1}
+              format={(v) => `${v} %`} ticks={['dry', 'damp', 'in water']} onChange={(v) => live.set(`position:${p.id}`, v / 100)} />
+          </Row>
+        );
+      })}
+    </div>
+  );
+}
+
+function Row({ icon, name, kind, reading, children }: { icon: string; name: string; kind: string; reading: string; children: React.ReactNode }) {
+  return (
+    <div className="sec">
+      <div className="sh small"><Icon name={icon} size={12} /> <b>{name}</b> <span className="muted">· {kind}</span><span className="spacer" /><span className="mono tiny muted">{reading}</span></div>
+      {children}
     </div>
   );
 }
@@ -103,13 +148,33 @@ export function LightCard({ id, lux, onLux, onClose, style }: { id: string; lux:
 const mA = (amps: number) => `${Number((amps * 1000).toFixed(1))} mA`;
 
 /** What an LED or an RGB LED says on hover while running: its current, each die's for an RGB LED. */
-export function PartTip({ id, type, common, views, style }: { id: string; type: string; common?: string; views: Record<string, PartView>; style: CSSProperties }) {
+export function PartTip({ id, type, common, views, overLine = false, style }: {
+  id: string; type: string; common?: string; views: Record<string, PartView>; overLine?: boolean; style: CSSProperties;
+}) {
   const led = (key: string) => {
     const v = views[key];
     return v?.kind === 'led' ? v : { amps: 0, brightness: 0 };
   };
   if (type === 'led') {
     return <div className="tip part-tip" role="tooltip" style={style}><b>{id.toUpperCase()} · {mA(led(id).amps)}</b></div>;
+  }
+  if (type === 'pir') {
+    const v = views[id];
+    const high = v?.kind === 'sensor' && v.volts > 1;
+    return (
+      <div className="tip part-tip" role="tooltip" style={style}>
+        <b>{id.toUpperCase()} · {high ? 'motion' : 'no motion'}</b>
+        <div>OUT is high while you hold the mouse on it, and for 3 s after.</div>
+        {v?.kind === 'sensor' && !v.powered && <div className="note">Not powered: it needs 5 V (VBUS, VIN or 5V)</div>}
+      </div>
+    );
+  }
+  if (type === 'line-sensor') {
+    return (
+      <div className="tip part-tip" role="tooltip" style={style}>
+        <b>{id.toUpperCase()} · {overLine ? 'over the line' : 'over white'}</b> — OUT {overLine ? 1 : 0}. Click to slide it over {overLine ? 'white' : 'the line'}.
+      </div>
+    );
   }
   if (type === 'buzzer') {
     const v = views[id];

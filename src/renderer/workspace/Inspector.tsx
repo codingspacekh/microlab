@@ -17,6 +17,14 @@ export const SHRINK = 'Parts or wires use columns 31–63: move them first.';
 const QUICK_OHMS = [100, 220, 330, 1000, 4700, 10_000];
 const POTS = [1000, 10_000, 100_000];
 const PACKS = [{ value: '2xAA', label: '2×AA · 3 V' }, { value: '4xAA', label: '4×AA · 6 V' }, { value: '9V', label: '9 V' }];
+const TEMPS = [{ value: 'TMP36', label: 'TMP36' }, { value: 'LM35', label: 'LM35' }];
+/** A sensor module's pins as printed on it, in order (M6.3, screen 18). */
+const PRINTED: Record<string, [string, string][]> = {
+  pir: [['vcc', 'VCC'], ['out', 'OUT'], ['gnd', 'GND']],
+  'line-sensor': [['out', 'OUT'], ['gnd', 'GND'], ['vcc', 'VCC']],
+  'soil-moisture': [['out', 'AOUT'], ['vcc', 'VCC'], ['gnd', 'GND']],
+  'temp-sensor': [['vcc', '+Vs'], ['out', 'Vout'], ['gnd', 'GND']],
+};
 const BUZZERS = [{ value: 'active', label: 'Active' }, { value: 'passive', label: 'Passive' }];
 const COMMONS = [{ value: 'cathode', label: '− cathode' }, { value: 'anode', label: '+ anode' }];
 /** A part's tip under its rows: what to know when it goes in. */
@@ -27,6 +35,11 @@ const TIPS: Record<string, string> = {
   ldr: 'More light, less resistance: about 15 kΩ in dim light, under 1 kΩ in bright light. With a resistor it makes a voltage an ADC pin can read.',
   'buzzer-active': 'Active: it beeps by itself at its own pitch — a pin on is a beep. + towards the pin, − to GND; turned round, it is silent.',
   'buzzer-passive': 'Passive: it plays the note of the PWM on its pin — PWM(Pin(15), freq=440) is A4; a steady level is silent.',
+  pir: 'It needs 5 V (VBUS on the Pico W, VIN on the ESP32, 5V on the micro:bit\'s GPIO board); OUT is 3.3 V while it sees motion, and for 3 s after.',
+  'line-sensor': 'OUT is 0 over white and 1 over the black line. Give it 3.3 V: from 5 V its 1 is 5 V, too much for the board\'s pins.',
+  'soil-moisture': 'AOUT to an ADC pin: about 2.4 V in dry soil, 0.9 V in water — wetter is lower. 3.3 V or 5 V.',
+  'temp-TMP36': 'TMP36: 0.5 V + 10 mV per °C on Vout (0.72 V at 22 °C), from 2.7–5.5 V. Its flat face towards you: +Vs, Vout, GND.',
+  'temp-LM35': 'LM35: 10 mV per °C on Vout (0.22 V at 22 °C); it needs 4 V or more — VBUS, VIN or 5V. Flat face towards you: +Vs, Vout, GND.',
   battery: 'A supply of its own, not joined to the board. To use it with the board, join its − to the board\'s GND.',
 };
 const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({ value, name: value[0]!.toUpperCase() + value.slice(1), colour }));
@@ -111,6 +124,11 @@ export function Inspector({ project, selection, onChange, onClose, onSelect }: I
             <Segmented label="Common leg" hideLabel value={String(part.props?.common ?? 'cathode')} onChange={(v) => set('common', v)} options={COMMONS} />
           </Row>
         )}
+        {part.type === 'temp-sensor' && (
+          <Row name="Kind">
+            <Segmented label="Sensor kind" hideLabel value={String(part.props?.kind ?? 'TMP36')} onChange={(v) => set('kind', v)} options={TEMPS} />
+          </Row>
+        )}
         {part.type === 'buzzer' && (
           <Row name="Kind">
             <Segmented label="Buzzer kind" hideLabel value={String(part.props?.kind ?? 'active')} onChange={(v) => set('kind', v)} options={BUZZERS} />
@@ -148,6 +166,8 @@ export function Inspector({ project, selection, onChange, onClose, onSelect }: I
               <span><b className="minus">−</b> <span className="mono">{label(part.legs['-']!)}</span></span>
             </span>
           </Row>
+        ) : PRINTED[part.type] ? (
+          <Row name="Legs in"><span className="small mono">{PRINTED[part.type]!.map(([leg, name]) => `${name} ${label(part.legs[leg]!)}`).join(', ')}</span></Row>
         ) : part.type === 'rgb-led' ? (
           <Row name="Legs in">
             <span className="small mono">
@@ -164,7 +184,8 @@ export function Inspector({ project, selection, onChange, onClose, onSelect }: I
           })()}</span>
         </Row>
         {(() => {
-          const tip = TIPS[part.type === 'buzzer' ? `buzzer-${part.props?.kind === 'passive' ? 'passive' : 'active'}` : part.type];
+          const tip = TIPS[part.type === 'buzzer' ? `buzzer-${part.props?.kind === 'passive' ? 'passive' : 'active'}`
+            : part.type === 'temp-sensor' ? `temp-${part.props?.kind === 'LM35' ? 'LM35' : 'TMP36'}` : part.type];
           return tip ? <p className="tiny muted led-tip">{tip}</p> : null;
         })()}
       </>

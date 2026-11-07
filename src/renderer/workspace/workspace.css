@@ -125,11 +125,16 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .files-panel .fspace.over { color: var(--danger); font-weight: 600; }
 
 /* ---------- M6.1: the inputs while running (screen 17), the GPIO board's micro-USB (screen 17b) ---------- */
-.inputs { padding: 10px 12px; width: 262px; z-index: 3; }
+.inputs { padding: 10px 12px; width: 252px; z-index: 3; max-height: calc(100% - 28px); overflow: auto; }
 .inputs .ih { display: flex; align-items: center; gap: 6px; font-size: 12.5px; margin-bottom: 8px; }
 .inputs .ih .spacer { flex: 1; }
 .inputs p { margin: 8px 0 0; }
-.inputs .slider { grid-template-columns: auto minmax(0, 1fr) 76px; }
+.inputs .slider { grid-template-columns: minmax(0, 1fr) 76px; position: relative; }
+.inputs .slider > span:first-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.inputs .slider .ticks { grid-column: 1; }
+.inputs .sec + .sec { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+.inputs .sh { display: flex; align-items: center; gap: 5px; }
+.inputs .sh .spacer { flex: 1; }
 .inputs p b { color: var(--tx-1); }
 .canvas .part-tip, .canvas .usb-tip { background: var(--inverse); color: var(--on-inverse); max-width: 240px; }
 .canvas .part-tip .dies { margin-top: 4px; font-family: var(--mono); font-size: 11.5px; line-height: 1.55; }

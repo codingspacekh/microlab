@@ -136,26 +136,27 @@ describe('M6.1 while running (screen 17)', () => {
     expect(s.part('pot1')).toHaveAttribute('data-position', '0');
   });
 
-  it('the light sensor\'s card sets the light on it, from dark to daylight, and says its resistance', () => {
+  it('the light sensor\'s row on the Inputs card (screen 18) sets the light on it, from dark to daylight, and says its resistance', () => {
     const s = setup();
     s.place(/^Light sensor/, 'ldr', 'bb1.a24');
-    expect(screen.queryByRole('group', { name: 'Light on LDR1' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Inputs' })).toBeNull();
     s.run();
-    const card = screen.getByRole('group', { name: 'Light on LDR1' });
-    const slider = within(card).getByRole('slider');
+    const card = screen.getByRole('group', { name: 'Inputs' });
+    const slider = within(card).getByRole('slider', { name: 'Light on LDR1' });
     expect(slider).toHaveAttribute('aria-valuetext', '300 lux');
-    expect(card).toHaveTextContent('LDR1 is 1.4 kΩ now');
+    expect(card).toHaveTextContent('LDR1');
+    expect(card).toHaveTextContent('1.4 kΩ');
     fireEvent.keyDown(slider, { key: 'Home' });
     expect(s.sim.runs[0]!.setInput).toHaveBeenLastCalledWith('lux:ldr1', 0.1);
-    expect(card).toHaveTextContent('LDR1 is 380 kΩ now');
+    expect(card).toHaveTextContent('380 kΩ');
     fireEvent.keyDown(slider, { key: 'End' });
     expect(s.sim.runs[0]!.setInput).toHaveBeenLastCalledWith('lux:ldr1', 100_000);
-    fireEvent.click(within(card).getByRole('button', { name: 'Close the light card' }));
-    expect(screen.queryByRole('group', { name: 'Light on LDR1' })).toBeNull();
+    fireEvent.click(within(card).getByRole('button', { name: 'Close the inputs card' }));
+    expect(screen.queryByRole('group', { name: 'Inputs' })).toBeNull();
     fireEvent.mouseDown(s.part('ldr1'), s.client(0, 0));
-    expect(screen.getByRole('group', { name: 'Light on LDR1' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Inputs' })).toBeInTheDocument();
     s.stop();
-    expect(screen.queryByRole('group', { name: 'Light on LDR1' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Inputs' })).toBeNull();
   });
 
   it('an RGB LED mixes its three dies; hovering it shows each one\'s current', () => {

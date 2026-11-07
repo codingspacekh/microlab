@@ -1,5 +1,5 @@
 import type { BoardData } from '@lib/boards';
-import { BUZZER, findFaults, isSensor, LED, SENSORS, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
+import { BUZZER, findFaults, isSensor, LED, minVolts, SENSORS, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
 
@@ -31,7 +31,9 @@ export type PartView =
   /** angle 0–180° from the pulse width (0.5 ms → 0°, 2.5 ms → 180°, SG90); it moves only with ≥ 4.5 V across it. */
   | { kind: 'servo'; angle: number; powered: boolean; pulseUs?: number }
   /** What a buzzer sounds like (M6.2): its pitch in Hz (0: silent) and its loudness 0–1. */
-  | { kind: 'buzzer'; hz: number; volume: number };
+  | { kind: 'buzzer'; hz: number; volume: number }
+  /** A sensor module's output (M6.3): its volts, and whether its supply is enough for it to work. */
+  | { kind: 'sensor'; volts: number; powered: boolean };
 
 /** [µs, part id, its new state] — one entry per change, as the window would be told. */
 export type PartTraceEntry = [number, string, PartView];
@@ -144,6 +146,7 @@ export class CircuitHost {
 
   /** When each PIR's output falls: Infinity while it sees motion, then its hold time after the motion ends. */
   private readonly pirHold = new Map<string, number>();
+  private readonly powered = new Map<string, boolean>();
 
   /** Works out what drives each sensor module's OUT (M6.3) from its input and its supply in the last solve; true if
    *  any changed (the circuit must be solved again). */
@@ -161,7 +164,9 @@ export class CircuitHost {
         motion = (this.pirHold.get(part.id) ?? -1) > t;
       }
       const v = (leg: string) => this.solution?.volts[this.connectivity.netOf(`${part.id}.${leg}`) ?? ''] ?? 0;
-      const drive = sensorDrive(part.type, part.props ?? {}, { motion, position: s.position, celsius: s.celsius }, v('vcc') - v('gnd'));
+      const supply = v('vcc') - v('gnd');
+      this.powered.set(part.id, supply >= minVolts(part.type, part.props ?? {}));
+      const drive = sensorDrive(part.type, part.props ?? {}, { motion, position: s.position, celsius: s.celsius }, supply);
       if (s.drive && Math.abs(s.drive.volts - drive.volts) < 1e-6 && s.drive.ohms === drive.ohms) continue;
       s.drive = drive;
       changed = true;
@@ -240,6 +245,10 @@ export class CircuitHost {
     for (const part of this.spec.parts) {
       if (part.type === 'servo') this.setView(t, part.id, this.servo(part.id));
       if (part.type === 'buzzer') this.setView(t, part.id, this.buzzer(part.id, part.props?.kind === 'passive'));
+      if (isSensor(part.type)) {
+        const volts = Math.round((this.parts[part.id]?.drive?.volts ?? 0) * 100) / 100;
+        this.setView(t, part.id, { kind: 'sensor', volts, powered: this.powered.get(part.id) ?? false });
+      }
     }
   }
 

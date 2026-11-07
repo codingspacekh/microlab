@@ -132,3 +132,25 @@ describe('M6.1 the inputs pack in the editor', () => {
     for (const k of PART_KINDS) expect(Object.keys(k.legs).sort()).toEqual([...MODELS[k.type]!.legs].sort());
   });
 });
+
+/** M6.3 (screen 18): the sensor modules stand in a row of three holes, pins in their printed order; clicked in the
+ *  panel they go in row f, so their boards rise over the top half and the holes below stay free for wires. */
+describe('M6.3 the sensors in the editor', () => {
+  it('pins in the printed order: PIR VCC OUT GND, line sensor OUT GND VCC, soil AOUT VCC GND, TMP36 +Vs Vout GND', () => {
+    const p = empty();
+    expect(snapPart(sceneOf(p), 'pir', at(p, 'bb1.f7'))).toEqual({ vcc: 'bb1.f7', out: 'bb1.f8', gnd: 'bb1.f9' });
+    expect(snapPart(sceneOf(p), 'line-sensor', at(p, 'bb1.f12'))).toEqual({ out: 'bb1.f12', gnd: 'bb1.f13', vcc: 'bb1.f14' });
+    expect(snapPart(sceneOf(p), 'soil-moisture', at(p, 'bb1.f19'))).toEqual({ out: 'bb1.f19', vcc: 'bb1.f20', gnd: 'bb1.f21' });
+    expect(snapPart(sceneOf(p), 'temp-sensor', at(p, 'bb1.f2'))).toEqual({ vcc: 'bb1.f2', out: 'bb1.f3', gnd: 'bb1.f4' });
+  });
+
+  it('clicked in the panel: row f first', () => {
+    expect(freeSpot(sceneOf(empty()), 'pir')).toEqual({ vcc: 'bb1.f1', out: 'bb1.f2', gnd: 'bb1.f3' });
+  });
+
+  it('in the Sensors group, a TMP36 to start with', () => {
+    expect(PART_KINDS.filter((k) => k.group === 'Sensors').map((k) => k.type)).toEqual(['pir', 'line-sensor', 'soil-moisture', 'temp-sensor']);
+    expect(partKind('resistor').group).toBe('Basics');
+    expect(partKind('temp-sensor')).toMatchObject({ props: { kind: 'TMP36' } });
+  });
+});

@@ -6,10 +6,13 @@ import { PART_ART } from './library';
  * LEDs, RGB LEDs, light sensors and battery packs have no fixed picture — they are drawn from their holes — so their
  * footprints are set here; the push button's, the potentiometer's and the slide switch's come from their art.json.
  */
-export type PartType = 'resistor' | 'led' | 'rgb-led' | 'button' | 'slide-switch' | 'potentiometer' | 'ldr' | 'buzzer' | 'battery';
+export type PartType = 'resistor' | 'led' | 'rgb-led' | 'button' | 'slide-switch' | 'potentiometer' | 'ldr' | 'buzzer' | 'battery'
+  | 'pir' | 'line-sensor' | 'soil-moisture' | 'temp-sensor';
 
 export interface PartKind {
   type: PartType;
+  /** Its group in the parts panel (screen 02, design/build.py PARTS). */
+  group: 'Basics' | 'Sensors';
   name: string;
   detail: string;
   prefix: string;
@@ -27,21 +30,27 @@ function fromArt(type: keyof typeof PART_ART): Record<string, [number, number]> 
 }
 
 const ROWS = [...'abcdefghij'];
+const MODULE_ROWS = [...'fghijabcde'];
 
 export const PART_KINDS: PartKind[] = [
-  { type: 'resistor', name: 'Resistor', detail: '220 Ω', prefix: 'r', legs: { a: [0, 0], b: [48, 0] }, props: { ohms: 220 }, rows: ROWS },
-  { type: 'led', name: 'LED', detail: 'red, 5 mm', prefix: 'led', legs: { a: [0, 0], k: [32, 0] }, props: { color: 'red' }, rows: ROWS },
+  { type: 'resistor', name: 'Resistor', detail: '220 Ω', group: 'Basics', prefix: 'r', legs: { a: [0, 0], b: [48, 0] }, props: { ohms: 220 }, rows: ROWS },
+  { type: 'led', name: 'LED', detail: 'red, 5 mm', group: 'Basics', prefix: 'led', legs: { a: [0, 0], k: [32, 0] }, props: { color: 'red' }, rows: ROWS },
   // red, the common (the longest leg), green, blue — side by side, as on a real 5 mm RGB LED
-  { type: 'rgb-led', name: 'RGB LED', detail: 'common cathode', prefix: 'rgb', legs: { r: [0, 0], common: [16, 0], g: [32, 0], b: [48, 0] }, props: { common: 'cathode' }, rows: ROWS },
+  { type: 'rgb-led', name: 'RGB LED', detail: 'common cathode', group: 'Basics', prefix: 'rgb', legs: { r: [0, 0], common: [16, 0], g: [32, 0], b: [48, 0] }, props: { common: 'cathode' }, rows: ROWS },
   // across the channel, so its two sides are not joined by the breadboard
-  { type: 'button', name: 'Push button', detail: '12 mm', prefix: 'btn', legs: fromArt('button'), props: {}, rows: ['e'] },
-  { type: 'slide-switch', name: 'Slide switch', detail: 'SS12D00', prefix: 'sw', legs: fromArt('slide-switch'), props: {}, rows: ROWS },
-  { type: 'potentiometer', name: 'Potentiometer', detail: '10 kΩ knob', prefix: 'pot', legs: fromArt('potentiometer'), props: { ohms: 10_000 }, rows: ROWS },
-  { type: 'ldr', name: 'Light sensor (LDR)', detail: 'GL5528', prefix: 'ldr', legs: { a: [0, 0], b: [32, 0] }, props: {}, rows: ROWS },
+  { type: 'button', name: 'Push button', detail: '12 mm', group: 'Basics', prefix: 'btn', legs: fromArt('button'), props: {}, rows: ['e'] },
+  { type: 'slide-switch', name: 'Slide switch', detail: 'SS12D00', group: 'Basics', prefix: 'sw', legs: fromArt('slide-switch'), props: {}, rows: ROWS },
+  { type: 'potentiometer', name: 'Potentiometer', detail: '10 kΩ knob', group: 'Basics', prefix: 'pot', legs: fromArt('potentiometer'), props: { ohms: 10_000 }, rows: ROWS },
+  { type: 'ldr', name: 'Light sensor (LDR)', detail: 'GL5528', group: 'Basics', prefix: 'ldr', legs: { a: [0, 0], b: [32, 0] }, props: {}, rows: ROWS },
   // a 12 mm piezo buzzer: its legs 7.6 mm apart, three holes (M6.2)
-  { type: 'buzzer', name: 'Buzzer', detail: 'active · passive', prefix: 'bz', legs: { '+': [0, 0], '-': [48, 0] }, props: { kind: 'active' }, rows: ROWS },
+  { type: 'buzzer', name: 'Buzzer', detail: 'active · passive', group: 'Basics', prefix: 'bz', legs: { '+': [0, 0], '-': [48, 0] }, props: { kind: 'active' }, rows: ROWS },
   // its red lead in a + rail, its black lead in the − rail below it (screen 17b): the pack hangs below the breadboard
-  { type: 'battery', name: 'Battery pack', detail: '2×AA · 4×AA · 9 V', prefix: 'bat', legs: { '+': [0, 0], '-': [0, 16] }, props: { kind: '2xAA' }, rows: ['B+'] },
+  { type: 'battery', name: 'Battery pack', detail: '2×AA · 4×AA · 9 V', group: 'Basics', prefix: 'bat', legs: { '+': [0, 0], '-': [0, 16] }, props: { kind: '2xAA' }, rows: ['B+'] },
+  // sensor modules (M6.3, screen 18): three pins in a row, as printed; in row f, their boards over the top half
+  { type: 'pir', group: 'Sensors', name: 'PIR motion', detail: 'HC-SR501 · 5 V', prefix: 'pir', legs: { vcc: [0, 0], out: [16, 0], gnd: [32, 0] }, props: {}, rows: MODULE_ROWS },
+  { type: 'line-sensor', group: 'Sensors', name: 'Line sensor (IR)', detail: 'TCRT5000', prefix: 'line', legs: { out: [0, 0], gnd: [16, 0], vcc: [32, 0] }, props: {}, rows: MODULE_ROWS },
+  { type: 'soil-moisture', group: 'Sensors', name: 'Soil moisture', detail: 'capacitive', prefix: 'soil', legs: { out: [0, 0], vcc: [16, 0], gnd: [32, 0] }, props: {}, rows: MODULE_ROWS },
+  { type: 'temp-sensor', group: 'Sensors', name: 'Temperature', detail: 'TMP36 · LM35', prefix: 'tmp', legs: { vcc: [0, 0], out: [16, 0], gnd: [32, 0] }, props: { kind: 'TMP36' }, rows: MODULE_ROWS },
 ];
 
 export function partKind(type: string): PartKind {
