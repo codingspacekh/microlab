@@ -59,6 +59,8 @@ export interface PartState {
   y?: number;
   steps?: number;
   rpm?: number;
+  /** A BMP280's air pressure, hPa (M6.5b). */
+  hpa?: number;
   /** An MPU6050's tilt, degrees (M6.4b). */
   tiltx?: number;
   tilty?: number;

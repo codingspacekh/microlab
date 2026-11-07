@@ -1,0 +1,32 @@
+{
+  "seconds": 2,
+  "inputs": [
+    {
+      "at": 0,
+      "part": "knob1",
+      "position": 0
+    },
+    {
+      "at": 1.0,
+      "part": "knob1",
+      "position": 1
+    }
+  ],
+  "parts": {
+    "led1": {
+      "dark": [
+        [
+          0.1,
+          0.95
+        ]
+      ],
+      "lit": [
+        [
+          1.1,
+          1.95
+        ]
+      ]
+    }
+  },
+  "ended": "stopped"
+}

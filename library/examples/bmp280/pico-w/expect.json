@@ -1,0 +1,24 @@
+{
+  "seconds": 2,
+  "inputs": [
+    {
+      "at": 0,
+      "part": "baro1",
+      "celsius": 22,
+      "hpa": 1015
+    },
+    {
+      "at": 0.9,
+      "part": "baro1",
+      "celsius": 30,
+      "hpa": 990
+    }
+  ],
+  "console": {
+    "includes": [
+      "22.0 C 1015.0 hPa",
+      "30.0 C 990.0 hPa"
+    ]
+  },
+  "ended": "stopped"
+}

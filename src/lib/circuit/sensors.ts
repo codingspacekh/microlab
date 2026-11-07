@@ -26,6 +26,13 @@ export const SENSORS = {
   'hc-sr04': { minVolts: 4.5, loadOhms: 333, usPerCm: 58, delayUs: 460, minCm: 2, maxCm: 400, noneUs: 38_000, minTrigUs: 8 },
   /** MPU6050 on a GY-521 (M6.4b): 3–5 V, ≈ 4 mA; it answers on I²C (i2c.ts). */
   mpu6050: { minVolts: 3.0, loadOhms: 1000 },
+  /** PCF8591 ADC / DAC and BMP280 (M6.5b): they answer on I²C (i2c.ts). */
+  pcf8591: { minVolts: 2.5, loadOhms: 3300 },
+  /** DS18B20 on a module (M6.5b): 3–5.5 V, S VCC GND, its 4.7 kΩ pull-up on the board; it answers on 1-Wire. */
+  ds18b20: { minVolts: 3.0, loadOhms: 3300 },
+  /** DS1302 RTC module (M6.5b): 2–5.5 V; it answers pin by pin (ds1302.ts). */
+  ds1302: { minVolts: 2.0, loadOhms: 10_000 },
+  bmp280: { minVolts: 1.8, loadOhms: 10_000 },
   /** TMP36: 2.7–5.5 V, 0.5 V + 10 mV/°C (−40…125 °C). LM35: 4–30 V, 10 mV/°C (0…150 °C as wired simply). ≈ 50 µA. */
   'temp-sensor': { TMP36: { minVolts: 2.7, offset: 0.5, min: -40, max: 125 }, LM35: { minVolts: 4.0, offset: 0, min: 0, max: 150 }, loadOhms: 100_000 },
 } as const;
@@ -62,6 +69,10 @@ export function sensorDrive(type: SensorType, props: Record<string, unknown>, in
     }
     case 'dht':
     case 'mpu6050':
+    case 'pcf8591':
+    case 'bmp280':
+    case 'ds18b20':
+    case 'ds1302':
       return OFF;   // its DATA is its pull-up and its protocol, no driven level
     case 'hc-sr04':
       return input.echo ? { volts: supply, ohms: 100 } : { volts: 0, ohms: 100 };

@@ -324,6 +324,26 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     /** Bytes waiting on RX (hex): none until M3. */
     uart_read: (): string => '',
     bitstream: (pin: string, timing: string, hex: string) => { log(`bitstream pin=${pin} timing=${timing} ${hex}`); },
+    /** _onewire (drivers/onewire, M6.5b): a reset (≈ 960 µs; true with a presence pulse), a bit (≈ 70 µs; -1 reads it),
+     *  a byte (≈ 560 µs; -1 reads it), on the bus of the pin's net. */
+    ow_reset: (pin: string): boolean => {
+      clock.sleepUs(960);
+      return circuit?.oneWire(pin).reset() ?? false;
+    },
+    ow_bit: (pin: string, v: number): number => {
+      clock.sleepUs(70);
+      const bus = circuit?.oneWire(pin);
+      if (v < 0) return bus?.readBit() ?? 1;
+      bus?.writeBit(v);
+      return 0;
+    },
+    ow_byte: (pin: string, v: number): number => {
+      clock.sleepUs(560);
+      const bus = circuit?.oneWire(pin);
+      if (v < 0) return bus?.readByte() ?? 0xff;
+      bus?.writeByte(v);
+      return 0;
+    },
     /** dht_readinto (drivers/dht/dht.c): the line high 250 ms, low 18 ms (the start), then ≈ 4 ms of bits — the 5
      *  bytes of the DHT on the pin as hex, or -1 when none answers (the driver raises ETIMEDOUT). */
     dht_read: (pin: string): string | number => {

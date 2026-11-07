@@ -1,0 +1,101 @@
+{
+  "format": 1,
+  "title": "Knob to light (PCF8591)",
+  "board": "pico-w",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "adc1",
+      "type": "pcf8591",
+      "legs": {
+        "aout": "bb1.a10",
+        "ain3": "bb1.a11",
+        "ain2": "bb1.a12",
+        "ain1": "bb1.a13",
+        "ain0": "bb1.a14",
+        "scl": "bb1.a15",
+        "sda": "bb1.a16",
+        "gnd": "bb1.a17",
+        "vcc": "bb1.a18"
+      }
+    },
+    {
+      "id": "knob1",
+      "type": "pot-module",
+      "legs": {
+        "out": "bb1.f14",
+        "vcc": "bb1.f20",
+        "gnd": "bb1.f21"
+      }
+    },
+    {
+      "id": "r1",
+      "type": "resistor",
+      "props": {
+        "ohms": 220
+      },
+      "legs": {
+        "a": "bb1.b10",
+        "b": "bb1.b7"
+      }
+    },
+    {
+      "id": "led1",
+      "type": "led",
+      "props": {
+        "color": "red"
+      },
+      "legs": {
+        "a": "bb1.c7",
+        "k": "bb1.c5"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "a": "board.GP5",
+      "b": "bb1.e15",
+      "id": "w1"
+    },
+    {
+      "a": "board.GP4",
+      "b": "bb1.e16",
+      "id": "w2"
+    },
+    {
+      "a": "board.GND",
+      "b": "bb1.e17",
+      "id": "w3"
+    },
+    {
+      "a": "board.3V3",
+      "b": "bb1.e18",
+      "id": "w4"
+    },
+    {
+      "a": "bb1.j14",
+      "b": "bb1.e14",
+      "id": "w5"
+    },
+    {
+      "a": "bb1.j20",
+      "b": "bb1.d18",
+      "id": "w6"
+    },
+    {
+      "a": "bb1.j21",
+      "b": "bb1.d17",
+      "id": "w7"
+    },
+    {
+      "a": "bb1.e5",
+      "b": "board.GND@8",
+      "id": "w8"
+    }
+  ]
+}

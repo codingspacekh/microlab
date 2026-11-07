@@ -73,6 +73,40 @@ export const MODELS: Record<string, PartModel> = {
       { kind: 'resistor', id: `${id}:ad0`, a: leg('ad0'), b: leg('gnd'), ohms: MPU6050.ad0PullOhms },
     ],
   },
+  /** PCF8591 module (M6.5b): AOUT AIN3 AIN2 AIN1 AIN0 SCL SDA GND VCC — its inputs read the circuit, AOUT driven by its
+   *  DAC (the sim). */
+  pcf8591: {
+    legs: ['aout', 'ain3', 'ain2', 'ain1', 'ain0', 'scl', 'sda', 'gnd', 'vcc'],
+    devices: ({ id, leg }) => [
+      { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: SENSORS.pcf8591.loadOhms },
+      { kind: 'drive', id: `${id}:aout`, out: leg('aout'), gnd: leg('gnd'), part: id, key: 'aout' },
+    ],
+  },
+  /** DS1302 RTC module (M6.5b): VCC GND CLK DAT RST; DAT driven by the chip while it sends (the sim). */
+  ds1302: {
+    legs: ['vcc', 'gnd', 'clk', 'dat', 'rst'],
+    devices: ({ id, leg }) => [
+      { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: SENSORS.ds1302.loadOhms },
+      { kind: 'drive', id: `${id}:dat`, out: leg('dat'), gnd: leg('gnd'), part: id, key: 'dat' },
+    ],
+  },
+  /** DS18B20 module (M6.5b): S VCC GND, its 4.7 kΩ pull-up from S to VCC on the board. */
+  ds18b20: {
+    legs: ['out', 'vcc', 'gnd'],
+    devices: ({ id, leg }) => [
+      { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: SENSORS.ds18b20.loadOhms },
+      { kind: 'resistor', id: `${id}:pull`, a: leg('vcc'), b: leg('out'), ohms: 4700 },
+    ],
+  },
+  /** GY-BMP280 (M6.5b): VCC GND SCL SDA CSB SDO; SDO pulled down on the board (0x76), CSB up (I²C). */
+  bmp280: {
+    legs: ['vcc', 'gnd', 'scl', 'sda', 'csb', 'sdo'],
+    devices: ({ id, leg }) => [
+      { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: SENSORS.bmp280.loadOhms },
+      { kind: 'resistor', id: `${id}:sdo`, a: leg('sdo'), b: leg('gnd'), ohms: 10_000 },
+      { kind: 'resistor', id: `${id}:csb`, a: leg('vcc'), b: leg('csb'), ohms: 10_000 },
+    ],
+  },
   /** TMP36 or LM35 (`kind`), flat face towards you: +Vs, Vout, GND. */
   'temp-sensor': sensorModel(SENSORS['temp-sensor'].loadOhms),
   // ---- the SunFounder kit's modules (M6.5a, requirements Rev 8), on common modules: pins as commonly printed

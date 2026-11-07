@@ -1,5 +1,5 @@
 import type { BoardData } from '@lib/boards';
-import { BUZZER, dhtBytes, ENCODER, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
+import { Bmp280, BUZZER, dhtBytes, Ds1302, Ds18b20, OneWireBus, type OneWireDevice, ENCODER, Pcf8591, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
 
@@ -27,6 +27,7 @@ export interface PartChange {
   y?: number;
   steps?: number;
   rpm?: number;
+  hpa?: number;
 }
 
 /** Up to this many PWM pins are averaged exactly (2^n solves: an RGB LED is 3); beyond, their DC average. */
@@ -47,7 +48,10 @@ export type PartView =
 export type PartTraceEntry = [number, string, PartView];
 
 /** The live input slots a part takes (sim-client's SLOT): 'pressed:btn1', 'celsius:dht1' … */
-const LIVE_KINDS = new Set(['pressed', 'position', 'lux', 'celsius', 'humidity', 'cm', 'tiltx', 'tilty', 'x', 'y', 'steps', 'rpm']);
+/** Parts that answer on I²C (M6.4b, M6.5b). */
+const I2C_CHIPS = new Set(['mpu6050', 'pcf8591', 'bmp280']);
+
+const LIVE_KINDS = new Set(['pressed', 'position', 'lux', 'celsius', 'humidity', 'cm', 'tiltx', 'tilty', 'x', 'y', 'steps', 'rpm', 'hpa']);
 
 const SERVO = { minUs: 500, maxUs: 2500, minVolts: 4.5, rest: 90 };
 
@@ -126,7 +130,7 @@ export class CircuitHost {
       if (c.humidity !== undefined) s.humidity = c.humidity;
       if (c.cm !== undefined) s.cm = c.cm;
       if (c.tiltx !== undefined) s.tiltx = c.tiltx;
-      for (const k of ['x', 'y', 'steps', 'rpm'] as const) if (c[k] !== undefined) s[k] = c[k];
+      for (const k of ['x', 'y', 'steps', 'rpm', 'hpa'] as const) if (c[k] !== undefined) s[k] = c[k];
       if (c.tilty !== undefined) s.tilty = c.tilty;
       changed = true;
     }
@@ -200,11 +204,37 @@ export class CircuitHost {
 
   /** HC-SR04 triggers (M6.4): a pin's pulse of ≥ 8 µs on Trig, from the pins' trace (when it rose and fell, whenever
    *  the circuit is next looked at), starts an echo 460 µs after it falls, 58 µs per cm long. */
+  private readonly clocks = new Map<string, Ds1302>();
+  private readonly levels = new Map<string, number>();   // each output pin's last level, as the trace goes
+
+  /** A DS1302 part's chip, made the first time: it starts at the laptop's local time (its coin cell kept it). */
+  private ds1302(id: string): Ds1302 {
+    let c = this.clocks.get(id);
+    if (!c) {
+      const d = new Date();
+      c = new Ds1302(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()), this.now());
+      this.clocks.set(id, c);
+    }
+    return c;
+  }
+
   private updateEchoes(): void {
     const trace = this.pins.trace;
     for (; this.traceSeen < trace.length; this.traceSeen++) {
       const [t, pin, level] = trace[this.traceSeen]!;
+      const before = this.levels.get(pin);
+      this.levels.set(pin, level);
       const net = this.netOfPin.get(pin);
+      // DS1302s (M6.5b): CE and SCLK edges, I/O as the program drives it then
+      for (const part of this.spec.parts) {
+        if (part.type !== 'ds1302' || !this.powered.get(part.id) || before === level) continue;
+        const on = (leg: string) => this.connectivity.netOf(`${part.id}.${leg}`) === net;
+        if (on('rst')) this.ds1302(part.id).chipEnable(level === 1);
+        else if (on('clk')) {
+          const dat = this.pinOfNet.get(this.connectivity.netOf(`${part.id}.dat`) ?? '');
+          this.ds1302(part.id).clock(level === 1, dat === undefined ? 0 : this.levels.get(dat) ?? 0, t);
+        }
+      }
       for (const part of this.spec.parts) {
         if (part.type !== 'hc-sr04' || this.connectivity.netOf(`${part.id}.trig`) !== net) continue;
         const e = this.echoes.get(part.id) ?? { from: -1, to: -1 };
@@ -229,20 +259,58 @@ export class CircuitHost {
     const sclNet = this.netOfPin.get(scl);
     if (sdaNet === undefined || sclNet === undefined) return out;
     for (const part of this.spec.parts) {
-      if (part.type !== 'mpu6050' || !this.powered.get(part.id)) continue;
+      if (!I2C_CHIPS.has(part.type) || !this.powered.get(part.id)) continue;
       if (this.connectivity.netOf(`${part.id}.sda`) !== sdaNet || this.connectivity.netOf(`${part.id}.scl`) !== sclNet) continue;
-      const v = (leg: string) => this.solution?.volts[this.connectivity.netOf(`${part.id}.${leg}`) ?? ''] ?? 0;
-      let chip = this.chips.get(part.id);
-      if (!chip) {
-        chip = new Mpu6050(() => {
-          const s = this.parts[part.id] ?? {};
-          return { tiltx: s.tiltx ?? 0, tilty: s.tilty ?? 0, celsius: s.celsius ?? SENSOR_START.celsius };
-        });
-        this.chips.set(part.id, chip);
-      }
-      out.set(v('ad0') - v('gnd') >= 1.5 ? MPU6050.address + 1 : MPU6050.address, chip);
+      const above = (leg: string) => this.volts_(part.id, leg) - this.volts_(part.id, 'gnd');
+      const chip = this.chipOf(part.id, part.type);
+      const address = part.type === 'mpu6050' ? (above('ad0') >= 1.5 ? MPU6050.address + 1 : MPU6050.address)
+        : part.type === 'bmp280' ? (above('sdo') >= 1.5 ? 0x77 : 0x76) : 0x48;
+      out.set(address, chip);
     }
     return out;
+  }
+
+  private volts_(id: string, leg: string): number {
+    return this.solution?.volts[this.connectivity.netOf(`${id}.${leg}`) ?? ''] ?? 0;
+  }
+
+  /** A part's I²C chip, made the first time it is asked for; it keeps its registers through the run. */
+  private chipOf(id: string, type: string): I2CDevice {
+    let chip = this.chips.get(id);
+    if (chip) return chip;
+    const s = () => this.parts[id] ?? {};
+    const above = (leg: string) => this.volts_(id, leg) - this.volts_(id, 'gnd');
+    if (type === 'pcf8591') chip = new Pcf8591(() => ({ ain: [above('ain0'), above('ain1'), above('ain2'), above('ain3')], vref: above('vcc') }));
+    else if (type === 'bmp280') chip = new Bmp280(() => ({ celsius: s().celsius ?? SENSOR_START.celsius, hpa: s().hpa ?? 1013.25 }));
+    else chip = new Mpu6050(() => ({ tiltx: s().tiltx ?? 0, tilty: s().tilty ?? 0, celsius: s().celsius ?? SENSOR_START.celsius }));
+    this.chips.set(id, chip);
+    return chip;
+  }
+
+  private readonly wires = new Map<string, OneWireBus>();
+  private readonly oneWireDevices = new Map<string, OneWireDevice>();
+
+  /** The 1-Wire bus on a pin's net (M6.5b): the DS18B20s on it that are powered. */
+  oneWire(pin: string): OneWireBus {
+    const net = this.netOfPin.get(pin) ?? `?${pin}`;
+    let bus = this.wires.get(net);
+    if (!bus) {
+      bus = new OneWireBus(() => {
+        this.update();
+        return this.spec.parts.filter((p) => p.type === 'ds18b20' && this.powered.get(p.id) && this.connectivity.netOf(`${p.id}.out`) === net)
+          .map((p) => {
+            let d = this.oneWireDevices.get(p.id);
+            if (!d) {
+              const serial = [...p.id].reduce((h, ch) => (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0, 0x5eed);
+              d = new Ds18b20([0, 8, 16, 24].map((s) => (serial >> s) & 0xff).concat([0x12, 0x00]), () => this.parts[p.id]?.celsius ?? SENSOR_START.celsius);
+              this.oneWireDevices.set(p.id, d);
+            }
+            return d;
+          });
+      }, () => this.now());
+      this.wires.set(net, bus);
+    }
+    return bus;
   }
 
   /** What the DHT on a pin sends (M6.4): its 5 bytes as hex, or undefined when none answers (not there, not powered). */
@@ -276,6 +344,24 @@ export class CircuitHost {
       const supply = v('vcc') - v('gnd');
       this.powered.set(part.id, supply >= minVolts(part.type, part.props ?? {}));
       const type: string = part.type;
+      if (type === 'ds1302') {   // DAT while it sends — through ≈ 1 kΩ: a driver that still drives I/O for the moment
+        // between the command's last clock and its switch to input (as they all do) only meets a few mA
+        const bit = supply >= minVolts('ds1302') ? this.clocks.get(part.id)?.io() : undefined;
+        const drives = { dat: bit === undefined ? { volts: 0, ohms: 1e6 } : { volts: bit ? supply : 0, ohms: 1000 } };
+        if (JSON.stringify(s.drives) === JSON.stringify(drives)) continue;
+        s.drives = drives;
+        changed = true;
+        continue;
+      }
+      if (type === 'pcf8591') {   // AOUT from its DAC
+        const chip = this.chips.get(part.id) as Pcf8591 | undefined;
+        const volts = supply >= minVolts('pcf8591') ? chip?.aout(supply) : undefined;
+        const drives = { aout: volts === undefined ? { volts: 0, ohms: 1e6 } : { volts, ohms: 100 } };
+        if (JSON.stringify(s.drives) === JSON.stringify(drives)) continue;
+        s.drives = drives;
+        changed = true;
+        continue;
+      }
       if (type in MODULES) {
         const enc = type === 'rotary-encoder' ? this.encoderAt(part.id, t) : {};
         const half = type === 'speed-sensor' ? this.pulseHalfUs(part.id) : Infinity;

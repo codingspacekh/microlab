@@ -90,6 +90,16 @@ describe('M4.5 starting a run', () => {
     ]);
   });
 
+  it('M6.5b: a BMP280 has the air\'s temperature and pressure, a DS18B20 °C; a PCF8591 and a DS1302 take none (they read the circuit, the clock)', () => {
+    const p = newProject('pico-w').project;
+    p.parts = [
+      { id: 'baro1', type: 'bmp280', legs: { vcc: 'bb1.a1', gnd: 'bb1.a2', scl: 'bb1.a3', sda: 'bb1.a4', csb: 'bb1.a5', sdo: 'bb1.a6' } },
+      { id: 'temp1', type: 'ds18b20', legs: { out: 'bb1.a8', vcc: 'bb1.a9', gnd: 'bb1.a10' } },
+      { id: 'rtc1', type: 'ds1302', legs: { vcc: 'bb1.f1', gnd: 'bb1.f2', clk: 'bb1.f3', dat: 'bb1.f4', rst: 'bb1.f5' } },
+    ];
+    expect(inputSlots(p)).toEqual(['celsius:baro1', 'hpa:baro1', 'celsius:temp1']);
+  });
+
   it('passes on what the worker says, and ends the worker with the run', () => {
     const w = new FakeWorker();
     const e = events();
