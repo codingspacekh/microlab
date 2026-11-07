@@ -194,7 +194,7 @@ function addDevice(
       resistors.push({ id: d.id, a: node(d.a), b: node(d.b), g: 1 / ldrOhms(state.parts?.[d.part]?.lux ?? 300) });
       return;
     case 'led': {
-      const vf = (LED_COLORS[d.color] ?? LED_COLORS.red!).vf;
+      const vf = d.vf ?? (LED_COLORS[d.color] ?? LED_COLORS.red!).vf;
       const vcrit = vf + LED.nvt * Math.log(LED.nvt / (Math.SQRT2 * LED.refA));
       leds.push({ id: d.id, a: node(d.a), j: node(`${d.id}#j`), k: node(d.k), vf, vcrit });
     }

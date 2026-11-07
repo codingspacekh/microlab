@@ -1,0 +1,19 @@
+{
+  "seconds": 1,
+  "parts": {
+    "led1": {
+      "lit": [
+        [
+          0.05,
+          0.95
+        ]
+      ]
+    }
+  },
+  "console": {
+    "includes": [
+      "The battery pack lights the LED"
+    ]
+  },
+  "ended": "done"
+}

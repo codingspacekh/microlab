@@ -1,4 +1,4 @@
-import { BATTERIES, SERVO_IDLE_OHMS, type Device } from './devices';
+import { BATTERIES, RGB_DIES, SERVO_IDLE_OHMS, type Device } from './devices';
 
 /** What a part's devices are built from: its id, the net each leg is in, its properties. */
 export interface PartContext {
@@ -27,6 +27,14 @@ export const MODELS: Record<string, PartModel> = {
   led: {
     legs: ['a', 'k'],
     devices: ({ id, leg, props }) => [{ kind: 'led', id, a: leg('a'), k: leg('k'), color: String(props.color ?? 'red') }],
+  },
+  /** RGB LED: legs red, the common (the longest), green, blue — three LEDs (`<id>:r`, `:g`, `:b`) sharing the common
+   *  leg, their cathodes (common: 'cathode', the default) or their anodes ('anode'). */
+  'rgb-led': {
+    legs: ['r', 'common', 'g', 'b'],
+    devices: ({ id, leg, props }) => RGB_DIES.map(([l, color, vf]): Device => (props.common === 'anode'
+      ? { kind: 'led', id: `${id}:${l}`, a: leg('common'), k: leg(l), color, vf }
+      : { kind: 'led', id: `${id}:${l}`, a: leg(l), k: leg('common'), color, vf })),
   },
   /** Across the channel: 1a–1b and 2a–2b are joined inside; pressing joins 1 and 2. */
   button: {

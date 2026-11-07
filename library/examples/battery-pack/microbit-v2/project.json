@@ -1,0 +1,58 @@
+{
+  "format": 1,
+  "title": "Battery pack",
+  "board": "microbit-v2",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "bat1",
+      "type": "battery",
+      "props": {
+        "kind": "4xAA"
+      },
+      "legs": {
+        "+": "bb1.T+3",
+        "-": "bb1.T-3"
+      }
+    },
+    {
+      "id": "r1",
+      "type": "resistor",
+      "props": {
+        "ohms": 220
+      },
+      "legs": {
+        "a": "bb1.b10",
+        "b": "bb1.b13"
+      }
+    },
+    {
+      "id": "led1",
+      "type": "led",
+      "props": {
+        "color": "red"
+      },
+      "legs": {
+        "a": "bb1.c13",
+        "k": "bb1.c15"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "a": "bb1.T+5",
+      "b": "bb1.a10",
+      "id": "w1"
+    },
+    {
+      "a": "bb1.a15",
+      "b": "bb1.T-7",
+      "id": "w2"
+    }
+  ]
+}

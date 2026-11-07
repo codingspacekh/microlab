@@ -16,8 +16,9 @@ export type Device =
     kind: 'pin'; id: string; net: string; gnd: string; label: string;
     volts: number; ohms: number; limitA: number; pullOhms: number; noPulls?: boolean;
   }
-  /** a: anode, k: cathode. Fixed forward voltage by colour plus a small series resistance (decision 1). */
-  | { kind: 'led'; id: string; a: string; k: string; color: string }
+  /** a: anode, k: cathode. Fixed forward voltage by colour plus a small series resistance (decision 1); `vf` when
+   *  the die is not the plain LED's of that colour (an RGB LED's green). */
+  | { kind: 'led'; id: string; a: string; k: string; color: string; vf?: number }
   /** Closed while the part is pressed, or while its position is `closedWhen` (a slide switch). */
   | { kind: 'switch'; id: string; a: string; b: string; part: string; closedWhen: 'pressed' | number }
   /** Ends e1, e2 and wiper w; position 0–1 from e1 (state), 0.5 when not set. */
@@ -83,6 +84,10 @@ export const LED_COLORS: Record<string, { vf: number }> = {
   blue: { vf: 3.0 },
   white: { vf: 3.0 },
 };
+
+/** A 5 mm RGB LED's three dies (typical datasheet values, at 20 mA): its green and blue are InGaN, ≈ 3.0 V — not
+ *  the 2.2 V of a plain green LED — so on 3.3 V through 220 Ω they are dim. */
+export const RGB_DIES: [leg: 'r' | 'g' | 'b', color: string, vf: number][] = [['r', 'red', 2.0], ['g', 'green', 3.0], ['b', 'blue', 3.0]];
 
 export const LED = {
   /** Series resistance. */

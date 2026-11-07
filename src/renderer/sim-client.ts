@@ -33,9 +33,12 @@ export interface RunHandle {
 
 export const STOP_GRACE_MS = 300;
 
-/** The live inputs of the circuit's parts: a push button is pressed or not, a knob has a position (0–1). */
+/** The live input each kind of part takes: a push button is pressed or not, a knob has a position (0–1), a slide
+ *  switch is at 0 or 1 (M6.1), a light sensor has the light on it in lux. */
+const SLOT: Record<string, string> = { button: 'pressed', potentiometer: 'position', 'slide-switch': 'position', ldr: 'lux' };
+
 export function inputSlots(project: Project): string[] {
-  return project.parts.flatMap((p) => (p.type === 'button' ? [`pressed:${p.id}`] : p.type === 'potentiometer' ? [`position:${p.id}`] : []));
+  return project.parts.flatMap((p) => (SLOT[p.type] ? [`${SLOT[p.type]}:${p.id}`] : []));
 }
 
 const newWorker = (): WorkerLike => new Worker(new URL('../sim/worker.ts', import.meta.url), { type: 'module' }) as unknown as WorkerLike;

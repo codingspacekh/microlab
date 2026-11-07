@@ -1,0 +1,81 @@
+{
+  "format": 1,
+  "title": "RGB colours",
+  "board": "esp32-devkit-v1",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "rgb1",
+      "type": "rgb-led",
+      "props": {
+        "common": "cathode"
+      },
+      "legs": {
+        "r": "bb1.h20",
+        "common": "bb1.h21",
+        "g": "bb1.h22",
+        "b": "bb1.h23"
+      }
+    },
+    {
+      "id": "r1",
+      "type": "resistor",
+      "props": {
+        "ohms": 220
+      },
+      "legs": {
+        "a": "bb1.e20",
+        "b": "bb1.f20"
+      }
+    },
+    {
+      "id": "r2",
+      "type": "resistor",
+      "props": {
+        "ohms": 220
+      },
+      "legs": {
+        "a": "bb1.e22",
+        "b": "bb1.f22"
+      }
+    },
+    {
+      "id": "r3",
+      "type": "resistor",
+      "props": {
+        "ohms": 220
+      },
+      "legs": {
+        "a": "bb1.e23",
+        "b": "bb1.f23"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "a": "board.D15",
+      "b": "bb1.a20",
+      "id": "w1"
+    },
+    {
+      "a": "board.D18",
+      "b": "bb1.a22",
+      "id": "w2"
+    },
+    {
+      "a": "board.D19",
+      "b": "bb1.a23",
+      "id": "w3"
+    },
+    {
+      "a": "board.GND",
+      "b": "bb1.j21",
+      "id": "w4"
+    }
+  ]
+}

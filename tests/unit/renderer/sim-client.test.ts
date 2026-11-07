@@ -41,6 +41,17 @@ describe('M4.5 starting a run', () => {
     expect(inputSlots(doc().project)).toEqual(['pressed:btn1', 'position:pot1']);
   });
 
+  it('M6.1: a slide switch has a position (0 / 1), a light sensor the light on it (lux); an RGB LED and a battery take none', () => {
+    const p = newProject('pico-w').project;
+    p.parts = [
+      { id: 'sw1', type: 'slide-switch', legs: { 1: 'bb1.a1', 2: 'bb1.a2', 3: 'bb1.a3' } },
+      { id: 'ldr1', type: 'ldr', legs: { a: 'bb1.a10', b: 'bb1.a12' } },
+      { id: 'rgb1', type: 'rgb-led', legs: { r: 'bb1.f1', common: 'bb1.f2', g: 'bb1.f3', b: 'bb1.f4' } },
+      { id: 'bat1', type: 'battery', props: { kind: '9V' }, legs: { '+': 'bb1.T+1', '-': 'bb1.T-1' } },
+    ];
+    expect(inputSlots(p)).toEqual(['position:sw1', 'lux:ldr1']);
+  });
+
   it('passes on what the worker says, and ends the worker with the run', () => {
     const w = new FakeWorker();
     const e = events();

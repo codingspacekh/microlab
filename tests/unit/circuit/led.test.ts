@@ -97,3 +97,44 @@ describe('N-02 an LED on a pin (screen 03)', () => {
     within1(solve(n, { pins: { GP2: { mode: 'pwm', duty: 0.5 } } }).amps.r1!, 1.65 / 1000);
   });
 });
+
+describe('M6.1 RGB LED (§1.4: common cathode; common anode as a choice)', () => {
+  const pico = parseBoard(picoJson);
+  // legs as on the part, left to right: red, the common (longest), green, blue; each colour through 220 Ω from a pin
+  const rgb = (common?: 'cathode' | 'anode') => toNetlist({
+    board: { data: pico },
+    breadboards: [{ id: 'bb1', size: 'half' }],
+    parts: [
+      { id: 'rgb1', type: 'rgb-led', ...(common ? { props: { common } } : {}), legs: { r: 'bb1.h20', common: 'bb1.h21', g: 'bb1.h22', b: 'bb1.h23' } },
+      { id: 'r1', type: 'resistor', props: { ohms: 220 }, legs: { a: 'bb1.e20', b: 'bb1.f20' } },
+      { id: 'r2', type: 'resistor', props: { ohms: 220 }, legs: { a: 'bb1.e22', b: 'bb1.f22' } },
+      { id: 'r3', type: 'resistor', props: { ohms: 220 }, legs: { a: 'bb1.e23', b: 'bb1.f23' } },
+    ],
+    wires: [
+      { id: 'w1', a: 'board.GP15', b: 'bb1.a20' }, { id: 'w2', a: 'board.GP14', b: 'bb1.a22' },
+      { id: 'w3', a: 'board.GP13', b: 'bb1.a23' },
+      { id: 'w4', a: common === 'anode' ? 'board.3V3' : 'board.GND', b: 'bb1.j21' },
+    ],
+  }).netlist;
+  const high = (...on: string[]) => ({ pins: Object.fromEntries(['GP15', 'GP14', 'GP13'].map((p) => [p, { mode: 'out' as const, value: on.includes(p) ? 1 as const : 0 as const }])) });
+
+  it('common cathode (the default): GP15 high lights only the red, (3.3 − 2.0) / 220', () => {
+    const r = solve(rgb(), high('GP15'));
+    within1(r.amps['rgb1:r']!, 1.3 / 220);
+    expect(Math.abs(r.amps['rgb1:g']!)).toBeLessThan(1e-6);
+    expect(Math.abs(r.amps['rgb1:b']!)).toBeLessThan(1e-6);
+  });
+
+  it('its green and blue need about 3.0 V, as a real RGB LED\'s: dim on 3.3 V through 220 Ω, ≈ 1.4 mA', () => {
+    const r = solve(rgb(), high('GP14', 'GP13'));
+    within(5)(r.amps['rgb1:g']!, 0.3 / 220);
+    within(5)(r.amps['rgb1:b']!, 0.3 / 220);
+  });
+
+  it('common anode: the common to 3V3, a colour lights when its pin is LOW', () => {
+    const r = solve(rgb('anode'), high('GP15', 'GP13'));
+    expect(Math.abs(r.amps['rgb1:r']!)).toBeLessThan(1e-6);
+    within(5)(r.amps['rgb1:g']!, 0.3 / 220);
+    expect(Math.abs(r.amps['rgb1:b']!)).toBeLessThan(1e-6);
+  });
+});

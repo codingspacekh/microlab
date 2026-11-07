@@ -31,6 +31,8 @@ export const projectSchema = z.object({
   plugs: z.record(z.string(), point).optional(),
   /** Supply jumpers (the ESP32 extension board's V): pin → volts. */
   jumpers: z.record(z.string(), z.number()).optional(),
+  /** The micro:bit GPIO board's own micro-USB is plugged in (M6.1): its 5V pins give 5 V only then. Not set: plugged in. */
+  usb: z.boolean().optional(),
   /** Where the board and each breadboard are on the canvas (M4.3), in drawing units (16 = 0.1 in); parts and wires
    *  are placed by their holes and pins. A project without it gets the default layout (lib/editor). */
   view: z.object({ board: xy, breadboards: z.record(z.string(), xy) }).optional(),
@@ -51,7 +53,12 @@ export function parseProject(json: unknown): Project {
 export function toCircuit(project: Project, board: BoardData): CircuitSpec {
   if (board.id !== project.board) throw new Error(`the project is for ${project.board}, not ${board.id}`);
   return {
-    board: { data: board, ...(project.plugs ? { plugs: project.plugs } : {}), ...(project.jumpers ? { jumpers: project.jumpers } : {}) },
+    board: {
+      data: board,
+      ...(project.plugs ? { plugs: project.plugs } : {}),
+      ...(project.jumpers ? { jumpers: project.jumpers } : {}),
+      ...(project.usb !== undefined ? { usb: project.usb } : {}),
+    },
     breadboards: project.breadboards,
     parts: project.parts,
     wires: project.wires,
