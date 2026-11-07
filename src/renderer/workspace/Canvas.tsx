@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import {
-  addPart, addWire, allPoints, boardArt, boardData, BREADBOARD, deleteMany, duplicate, fitBox, footprint, freeSpot, joined,
+  addPart, addWire, allPoints, boardArt, boardData, BREADBOARD, deleteBend, deleteMany, duplicate, fitBox, footprint, freeSpot, holeCard,
+  insertBend, joined, moveBend, pinCard, type HoleCard, type PinCard,
   legsCentre, moveBoard, moveBreadboard, moveParts, nearestPoint, panBy, partKind, PITCH, pointAt, rotateParts, sceneOf,
   snapPart, snapToGrid, usedPoints, zoomAt, ZOOM, type Box, type Legs, type Point, type Scene,
 } from '@lib/editor';
@@ -29,6 +30,9 @@ import { BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, partTurns, po
  * the middle or right button or with Space held; the toolbar zooms out, in, to 100 % and fits; + − 0 do the same.
  * The drawing is fitted when it opens and when a breadboard changes size. Hovering a free hole or pin lights every hole
  * and pin joined to it — its strip, and through wires further (F-12); while a wire is drawn, where it would end.
+ * M5.3: a hovered pin shows its card — its name and what it can do (F-15) — and a hole its strip and what is in it;
+ * the selected wire's bends can be dragged (on the grid) or double-clicked away, and a dot in the middle of each
+ * stretch dragged out to add one (F-13).
  */
 export const MESSAGES = {
   noRoom: 'No room there: every leg needs an empty hole on the breadboard.',
@@ -57,6 +61,7 @@ type Gesture =
   | { kind: 'parts'; id: string; ids: string[]; start: Point; at: Point }   // `id` was pressed; `ids` move together
   | { kind: 'marquee'; add: boolean; start: Point; at: Point }
   | { kind: 'pan'; last: { x: number; y: number } }   // screen pixels
+  | { kind: 'bend'; wire: string; index: number; insert: boolean; start: Point; at: Point }
   | { kind: 'board'; start: Point; at: Point }
   | { kind: 'breadboard'; id: string; start: Point; at: Point }
   | { kind: 'wire'; from: string; via: Point[]; start: Point; at: Point; mode: 'press' | 'click' };
@@ -132,6 +137,21 @@ export function Canvas({
     const r = el.getBoundingClientRect();
     return { x: (e.clientX - r.left) / scale + viewBox.x, y: (e.clientY - r.top) / scale + viewBox.y };
   };
+  const panelSize = () => {
+    const r = svg.current?.parentElement?.getBoundingClientRect();
+    return { w: r?.width ?? 0, h: r?.height ?? 0 };
+  };
+  /** Where a drawing point is on screen, from the canvas panel's corner (for the cards over it). */
+  const screenOf = (p: Point): Point => {
+    const el = svg.current;
+    const ctm = el && typeof el.getScreenCTM === 'function' ? el.getScreenCTM() : null;
+    const box = el?.parentElement?.getBoundingClientRect();
+    if (ctm && box) {
+      const q = new DOMPoint(p.x, p.y).matrixTransform(ctm);
+      return { x: q.x - box.left, y: q.y - box.top };
+    }
+    return { x: (p.x - viewBox.x) * scale, y: (p.y - viewBox.y) * scale };
+  };
   const inside = (e: Event) => !!svg.current && svg.current.contains(e.target as Node);
 
   const preview = useMemo(() => previewOf(project, gesture), [project, gesture]);
@@ -204,6 +224,11 @@ export function Canvas({
 
   const finish = (proj: Project, g: Gesture) => {
     if (g.kind === 'pan') return;
+    if (g.kind === 'bend') {
+      if (Math.hypot(g.at.x - g.start.x, g.at.y - g.start.y) < MOVED) return;
+      onChange(previewOf(proj, g).project);
+      return;
+    }
     if (g.kind === 'wire') {
       endWire(proj, g.from, nearestPoint(sceneOf(proj), g.at), []);
       return;
@@ -504,6 +529,31 @@ export function Canvas({
             </g>
           );
         })}
+        {!running && selection.length === 1 && selection[0]!.kind === 'wire' && (() => {
+          const w = shown.wires.find((x) => x.id === selection[0]!.id);
+          const a = w && pointAt(scene, w.a);
+          const b = w && pointAt(scene, w.b);
+          if (!w || !a || !b) return null;
+          const pts = [a, ...(w.via ?? []), b];
+          return (
+            <g className="bends" data-bends={w.id}>
+              {pts.slice(1).map((q, i) => {
+                const p = pts[i]!;
+                const mid = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+                if (Math.hypot(q.x - p.x, q.y - p.y) < 3 * PITCH) return null;
+                return <circle key={`m${i}`} data-insert={i} className="bend-add" cx={mid.x} cy={mid.y} r={4}
+                  onMouseDown={begin((at) => ({ kind: 'bend', wire: w.id, index: i, insert: true, start: at, at }))}><title>Drag to add a bend</title></circle>;
+              })}
+              {(w.via ?? []).map((p, i) => (
+                <circle key={`b${i}`} data-bend={i} className="bend" cx={p.x} cy={p.y} r={5.5}
+                  onMouseDown={begin((at) => ({ kind: 'bend', wire: w.id, index: i, insert: false, start: at, at }))}
+                  onDoubleClick={(e) => { e.stopPropagation(); onChange(deleteBend(project, w.id, i)); }}>
+                  <title>Drag to move this bend; double-click to take it away</title>
+                </circle>
+              ))}
+            </g>
+          );
+        })()}
         <g className="points" display={running ? 'none' : undefined}>
           {allPoints(scene).filter((q) => !used.has(q.ref)).map((q) => (
             <circle key={q.ref} data-point={q.ref} className="pt" cx={q.x} cy={q.y} r={5.5}
@@ -548,6 +598,16 @@ export function Canvas({
         )}
       </svg>
       {hint && <div className={problem ? 'canvas-hint warn' : 'canvas-hint'} aria-live="polite">{hint}</div>}
+      {!running && !placing && (!gesture || gesture.kind === 'wire') && (
+        <>
+          {gesture?.kind === 'wire' && gesture.from.startsWith('board.') && gesture.from !== litFrom && (
+            <Card room={panelSize()} at={screenOf(pointAt(scene, gesture.from)!)} pin={pinCard(boardData(scene.boardId), gesture.from.slice(6))} starts />
+          )}
+          {litFrom && (litFrom.startsWith('board.')
+            ? <Card room={panelSize()} at={screenOf(pointAt(scene, litFrom)!)} pin={pinCard(boardData(scene.boardId), litFrom.slice(6))} starts={gesture?.kind === 'wire' && gesture.from === litFrom} />
+            : <Card room={panelSize()} at={screenOf(pointAt(scene, litFrom)!)} hole={holeCard(shown, litFrom)} />)}
+        </>
+      )}
       <div className="ctools" role="toolbar" aria-label="Circuit tools">
         <ToolButton icon="zoomout" label="Zoom out" keys="−" disabled={scale <= ZOOM.min + 1e-6} onClick={() => zoomBy(1 / ZOOM.step)} />
         <button type="button" className="btn ghost sm zoom" aria-label="Zoom to 100 %" title="Zoom to 100 %" onMouseDown={(e) => e.preventDefault()}
@@ -644,6 +704,9 @@ function placed(scene: Scene, legs: Legs): Record<string, Point> | undefined {
 
 function previewOf(project: Project, g: Gesture | null): { project: Project; blocked: boolean } {
   if (!g || g.kind === 'wire' || g.kind === 'marquee' || g.kind === 'pan') return { project, blocked: false };
+  if (g.kind === 'bend') {
+    return { project: g.insert ? insertBend(project, g.wire, g.index, g.at) : moveBend(project, g.wire, g.index, g.at), blocked: false };
+  }
   const dx = g.at.x - g.start.x;
   const dy = g.at.y - g.start.y;
   const scene = sceneOf(project);
@@ -686,5 +749,29 @@ function Joined({ scene, strips, points }: { scene: Scene; strips: { from: strin
         return p ? <circle key={r} data-lit-point={r} cx={p.x} cy={p.y} r={4.6} fill="none" stroke="#1f9d55" strokeWidth={1.6} /> : null;
       })}
     </g>
+  );
+}
+
+/** A pin's card (dark, F-15) or a hole's (light, F-12), beside the point (screen 02). */
+const CARD = { w: 260, h: 150, gap: 14 };
+function Card({ at, pin, hole, starts = false, room }: { at: Point; pin?: PinCard; hole?: HoleCard; starts?: boolean; room: { w: number; h: number } }) {
+  // beside the point, turned to its left or above it where the panel has no room
+  const style: CSSProperties = {};
+  if (room.w && at.x + CARD.gap + CARD.w > room.w) style.right = Math.round(room.w - at.x + CARD.gap); else style.left = Math.round(at.x + CARD.gap);
+  if (room.h && at.y + CARD.gap + CARD.h > room.h) style.bottom = Math.round(room.h - at.y + CARD.gap); else style.top = Math.round(at.y + CARD.gap);
+  if (pin) {
+    return (
+      <div className="tip pin-card" role="tooltip" style={style}>
+        <b>{pin.title}</b> <span className="sub">· {pin.detail}{starts ? ' · wire starts here' : ''}</span>
+        {pin.chips.length > 0 && <div className="fx">{pin.chips.map((c) => <span key={c.text} className={`fn ${c.kind}`}>{c.text}</span>)}</div>}
+        {pin.lines.map((l) => <div key={l} className="ln">{l}</div>)}
+      </div>
+    );
+  }
+  return (
+    <div className="tip hole-card" role="tooltip" style={style}>
+      <b>{hole!.title}</b>
+      {hole!.lines.map((l) => <div key={l} className="small">{l}</div>)}
+    </div>
   );
 }

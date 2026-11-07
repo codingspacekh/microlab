@@ -654,3 +654,87 @@ describe('M5.2 zoom, pan and fit (F-17); everything joined to a hole lights up (
     expect(s.svg.querySelector('[data-lit-point="board.GP15"]')).not.toBeNull();
   });
 });
+
+describe('M5.3 a wire\'s bends (F-13); the pin and hole cards (F-15, F-12; screen 02)', () => {
+  const inspector = () => screen.getByRole('complementary', { name: 'Inspector' });
+  /** A wire GP15 → a5 drawn with one bend, then selected. */
+  function bentWire(s: ReturnType<typeof setup>) {
+    const a = s.point('board.GP15');
+    const b = s.point('bb1.a5');
+    const bend = { x: Math.round(a.x / 8) * 8, y: Math.round((a.y + 64) / 8) * 8 };   // below the board, clear of every hole
+    const click = (el: Element, x: number, y: number) => {
+      fireEvent.mouseDown(el, s.client(x, y));
+      fireEvent.mouseUp(s.svg, s.client(x, y));
+    };
+    click(s.svg.querySelector('[data-point="board.GP15"]')!, a.x, a.y);
+    click(s.svg, bend.x, bend.y);
+    click(s.svg.querySelector('[data-point="bb1.a5"]')!, b.x, b.y);
+    return bend;
+  }
+  const via = (s: ReturnType<typeof setup>) => s.svg.querySelector('[data-wire="w1"]')!.getAttribute('data-via');
+
+  it('the selected wire\'s bend is dragged to a new place on the grid, then double-clicked away', () => {
+    const s = setup();
+    const bend = bentWire(s);
+    expect(via(s)).toBe(`${bend.x},${bend.y}`);
+    const h = s.svg.querySelector('[data-bend="0"]')!;
+    fireEvent.mouseDown(h, s.client(bend.x, bend.y));
+    fireEvent.mouseMove(s.svg, s.client(bend.x + 33, bend.y + 2));
+    fireEvent.mouseUp(s.svg, s.client(bend.x + 33, bend.y + 2));
+    expect(via(s)).toBe(`${bend.x + 32},${bend.y}`);
+    fireEvent.doubleClick(s.svg.querySelector('[data-bend="0"]')!);
+    expect(via(s)).toBe('');
+    expect(s.wires()).toEqual(['w1 board.GP15 bb1.a5']);
+  });
+
+  it('a dot in the middle of a stretch dragged out adds a bend there; Straighten takes them all away; undo puts them back', () => {
+    const s = setup();
+    const bend = bentWire(s);
+    const dot = s.svg.querySelector('[data-insert="1"]')!;
+    const at = { x: Number(dot.getAttribute('cx')), y: Number(dot.getAttribute('cy')) };
+    fireEvent.mouseDown(dot, s.client(at.x, at.y));
+    fireEvent.mouseMove(s.svg, s.client(at.x - 40, at.y));
+    fireEvent.mouseUp(s.svg, s.client(at.x - 40, at.y));
+    expect(via(s)!.split(' ')).toHaveLength(2);
+    expect(via(s)!.split(' ')[0]).toBe(`${bend.x},${bend.y}`);
+    expect(within(inspector()).getByText('2')).toBeInTheDocument();
+    fireEvent.click(within(inspector()).getByRole('button', { name: 'Straighten' }));
+    expect(via(s)).toBe('');
+    expect(within(inspector()).getByRole('button', { name: 'Straighten' })).toBeDisabled();
+    fireEvent.click(within(screen.getByRole('toolbar', { name: 'Circuit tools' })).getByRole('button', { name: 'Undo' }));
+    expect(via(s)!.split(' ')).toHaveLength(2);
+  });
+
+  it('hovering GP15 on the Pico W shows its card: name, pin, what it can do, logic and current', () => {
+    const s = setup();
+    fireEvent.mouseEnter(s.svg.querySelector('[data-point="board.GP15"]')!);
+    const card = screen.getByRole('tooltip');
+    expect(card).toHaveTextContent('GP15 · pin 20');
+    expect([...card.querySelectorAll('.fn')].map((c) => c.textContent)).toEqual(['Digital in/out', 'PWM7B', 'I2C1 SCL', 'SPI1 TX']);
+    expect(card).toHaveTextContent('3.3 V logic · up to 12 mA');
+    fireEvent.mouseLeave(s.svg.querySelector('[data-point="board.GP15"]')!);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('hovering a hole shows its strip and what is in it; while a wire is drawn from GP15 both cards show', () => {
+    const s = setup();
+    place(s, /^Resistor/, 'resistor', 'bb1.e18');
+    fireEvent.mouseEnter(s.svg.querySelector('[data-point="bb1.c18"]')!);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Column 18, rows a–eThese 5 holes are joined inside the breadboard.R1 is already in row e.');
+    fireEvent.mouseLeave(s.svg.querySelector('[data-point="bb1.c18"]')!);
+    const a = s.point('board.GP15');
+    const b = s.point('bb1.a18');
+    fireEvent.mouseDown(s.svg.querySelector('[data-point="board.GP15"]')!, s.client(a.x, a.y));
+    fireEvent.mouseMove(s.svg, s.client(b.x, b.y));
+    const cards = screen.getAllByRole('tooltip').map((c) => c.textContent);
+    expect(cards[0]).toMatch(/^GP15 · pin 20 · wire starts here/);
+    expect(cards[1]).toMatch(/^Column 18, rows a–e/);
+  });
+
+  it('the micro:bit\'s pins and the ESP32\'s say what they are too', () => {
+    const s = setup('New micro:bit project');
+    fireEvent.mouseEnter(s.svg.querySelector('[data-point="board.P0"]')!);
+    expect(screen.getByRole('tooltip')).toHaveTextContent(/^P0 · pin/);
+    expect([...screen.getByRole('tooltip').querySelectorAll('.fn')].map((c) => c.textContent)).toContain('Digital in/out');
+  });
+});

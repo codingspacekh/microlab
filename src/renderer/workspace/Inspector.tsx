@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { boardData, deletePart, deleteWire, partKind, setBreadboardSize, setPartProp, setWireColour } from '@lib/editor';
+import { boardData, deletePart, deleteWire, partKind, setBreadboardSize, setPartProp, setWireColour, straighten } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { BreadboardSize } from '@lib/circuit';
 import type { Project } from '@lib/project';
@@ -104,6 +104,13 @@ export function Inspector({ project, selection, onChange, onClose }: InspectorPr
           <Swatches label="Wire colour" hideLabel colours={WIRE_SWATCHES} value={colour} onChange={(v) => onChange(setWireColour(project, wire.id, v), `${wire.id}.color`)} />
         </Row>
         <Row name="Joins"><span className="small mono">{label(wire.a)} ↔ {label(wire.b)}</span></Row>
+        <Row name="Bends">
+          <span className="bends-row">
+            <span className="small">{wire.via?.length ?? 0}</span>
+            <button type="button" className="btn sm" disabled={!wire.via?.length} onClick={() => onChange(straighten(project, wire.id))}>Straighten</button>
+          </span>
+        </Row>
+        <p className="tiny muted led-tip">Drag a bend to move it, double-click it to take it away; drag a dot in the middle of a stretch to add one.</p>
       </>
     );
   } else {

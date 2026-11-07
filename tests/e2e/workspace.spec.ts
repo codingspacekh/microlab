@@ -188,3 +188,35 @@ test('M5.2 with the real mouse: hover lights a strip, Ctrl+wheel zooms at the po
   await zoom.click();
   await expect.poll(pct).toBe(100);
 });
+
+test('M5.3 with the real mouse: GP15\'s card, a hole\'s card, a bend dragged and double-clicked away', async () => {
+  const win = await app.firstWindow();
+  await resize(win, 1440, 900);
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  const gp15 = await centre(win, '[data-point="board.GP15"]');
+  await win.mouse.move(gp15.x, gp15.y);
+  await expect(win.getByRole('tooltip')).toContainText('GP15 · pin 20');
+  await expect(win.getByRole('tooltip')).toContainText('PWM7B');
+
+  // a wire with one bend: click the pin, click below the board, click a5
+  const a5 = await centre(win, '[data-point="bb1.a5"]');
+  await win.mouse.click(gp15.x, gp15.y);
+  await win.mouse.click(gp15.x, gp15.y + 60);
+  await win.mouse.move(a5.x, a5.y, { steps: 4 });
+  await expect(win.getByRole('tooltip').last()).toContainText('Column 5, rows a–e');
+  await win.mouse.click(a5.x, a5.y);
+  const wire = win.locator('[data-wire="w1"]');
+  const before = (await wire.getAttribute('data-via'))!;
+  expect(before.split(' ')).toHaveLength(1);
+
+  const h = await centre(win, '[data-bend="0"]');
+  await win.mouse.move(h.x, h.y);
+  await win.mouse.down();
+  await win.mouse.move(h.x + 80, h.y, { steps: 6 });
+  await win.mouse.up();
+  await expect(wire).not.toHaveAttribute('data-via', before);
+  const h2 = await centre(win, '[data-bend="0"]');
+  expect(h2.x - h.x).toBeGreaterThan(60);
+  await win.mouse.dblclick(h2.x, h2.y);
+  await expect(wire).toHaveAttribute('data-via', '');
+});

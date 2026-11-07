@@ -610,7 +610,7 @@ connection problem says how to fix it.
 | M2 Simulated boards (headless) | ✅ Done — golden recordings deferred at the merge, then made on the micro:bit V2 and Pico W 2026-11-06 (ESP32 to come) ([acceptance](acceptance/M2.md)) | 2026-11-06 | `v0.2.0` |
 | M3 Code drives the circuit | ✅ Done ([acceptance](acceptance/M3.md)) | 2026-11-06 | `v0.3.0` |
 | M4 Walking skeleton | ✅ Done — with Tinkercad-style building (3b) at the teacher's request; Blink by hand on the three boards checked by the teacher ([acceptance](acceptance/M4.md)) | 2026-11-06 | `v0.4.0` |
-| M5 Full editor | 🔨 In progress — slices 1 (rotate, duplicate, select several, undo / redo) and 2 (zoom, pan, fit, hover lights what is joined) built ([acceptance](acceptance/M5.md)) | | |
+| M5 Full editor | 🔨 In progress — slices 1 (rotate, duplicate, select several, undo / redo), 2 (zoom, pan, fit, hover lights what is joined) and 3 (bends after drawing, pin and hole cards) built ([acceptance](acceptance/M5.md)) | | |
 | M6 Parts pack 1: inputs | ⏳ | | |
 | M7 Parts pack 2: outputs & displays | ⏳ | | |
 | M8 Learn | ⏳ | | |

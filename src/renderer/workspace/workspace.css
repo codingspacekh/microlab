@@ -87,3 +87,22 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 /* ---------- M5.2: zoom and pan (F-17) ---------- */
 .canvas .ctools .zoom { width: 48px; padding: 0; justify-content: center; font-size: 12px; font-weight: 550; color: var(--tx-2); font-variant-numeric: tabular-nums; }
 .scene.busy.panning, .scene.busy.panning * { cursor: grabbing; }
+
+/* ---------- M5.3: bends (F-13), pin and hole cards (F-15, F-12; screen 02) ---------- */
+.scene .bends .bend { fill: #fff; stroke: var(--accent, #2563d9); stroke-width: 1.6; cursor: move; }
+.scene .bends .bend-add { fill: var(--accent, #2563d9); fill-opacity: .55; stroke: #fff; stroke-width: 1; cursor: copy; }
+.scene .bends .bend-add:hover { fill-opacity: 1; }
+.canvas .tip { position: absolute; z-index: 4; pointer-events: none; width: max-content; max-width: 260px; border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.4; box-shadow: var(--shadow-m); }
+.canvas .pin-card { background: var(--inverse); color: var(--on-inverse); }
+.canvas .pin-card .sub { opacity: .7; }
+.canvas .pin-card .ln { margin-top: 6px; opacity: .75; }
+.canvas .pin-card .ln + .ln { margin-top: 2px; }
+.canvas .pin-card .fx { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.canvas .fn { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 4px; font-size: 10.5px; font-weight: 650; color: #fff; white-space: nowrap; }
+.canvas .fn.power { background: var(--f-power); } .canvas .fn.gnd { background: var(--f-gnd); } .canvas .fn.gpio { background: var(--f-gpio); }
+.canvas .fn.pwm { background: var(--f-pwm); } .canvas .fn.adc { background: var(--f-adc); } .canvas .fn.i2c { background: var(--f-i2c); }
+.canvas .fn.spi { background: var(--f-spi); } .canvas .fn.uart { background: var(--f-uart); } .canvas .fn.touch { background: var(--f-touch); }
+.canvas .hole-card { background: var(--panel); color: var(--tx-1); border: 1px solid var(--success-line, #9fd8b6); max-width: 230px; }
+.canvas .hole-card b { color: var(--success, #1f9d55); }
+.canvas .hole-card .small { color: var(--tx-2); }
+.inspector .bends-row { display: inline-flex; align-items: center; gap: 10px; }

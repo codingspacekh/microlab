@@ -80,3 +80,35 @@ export function moveBreadboard(project: Project, id: string, to: Point): Project
     view: { ...view, breadboards: { ...view.breadboards, [id]: at } },
   };
 }
+
+/** M5.3 (F-13): a wire's bends after it is drawn — moved, added in a segment (`index` = the segment, from a), taken
+ *  away — always on the grid; a wire with no bends has no `via`. */
+function setVia(project: Project, id: string, change: (via: Point[]) => Point[]): Project {
+  return {
+    ...project,
+    wires: project.wires.map((w) => {
+      if (w.id !== id) return w;
+      const via = change([...(w.via ?? [])]);
+      const rest = { ...w };
+      delete rest.via;
+      return via.length ? { ...rest, via } : rest;
+    }),
+  };
+}
+
+export function moveBend(project: Project, id: string, index: number, to: Point): Project {
+  return setVia(project, id, (via) => via.map((p, i) => (i === index ? snapToGrid(to) : p)));
+}
+
+export function insertBend(project: Project, id: string, index: number, at: Point): Project {
+  if (!project.wires.some((w) => w.id === id)) return project;
+  return setVia(project, id, (via) => [...via.slice(0, index), snapToGrid(at), ...via.slice(index)]);
+}
+
+export function deleteBend(project: Project, id: string, index: number): Project {
+  return setVia(project, id, (via) => via.filter((_, i) => i !== index));
+}
+
+export function straighten(project: Project, id: string): Project {
+  return setVia(project, id, () => []);
+}
