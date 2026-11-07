@@ -1,5 +1,5 @@
 import type { BoardData } from '@lib/boards';
-import { BUZZER, dhtBytes, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
+import { BUZZER, dhtBytes, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
 
@@ -21,6 +21,8 @@ export interface PartChange {
   celsius?: number;
   humidity?: number;
   cm?: number;
+  tiltx?: number;
+  tilty?: number;
 }
 
 /** Up to this many PWM pins are averaged exactly (2^n solves: an RGB LED is 3); beyond, their DC average. */
@@ -41,7 +43,7 @@ export type PartView =
 export type PartTraceEntry = [number, string, PartView];
 
 /** The live input slots a part takes (sim-client's SLOT): 'pressed:btn1', 'celsius:dht1' … */
-const LIVE_KINDS = new Set(['pressed', 'position', 'lux', 'celsius', 'humidity', 'cm']);
+const LIVE_KINDS = new Set(['pressed', 'position', 'lux', 'celsius', 'humidity', 'cm', 'tiltx', 'tilty']);
 
 const SERVO = { minUs: 500, maxUs: 2500, minVolts: 4.5, rest: 90 };
 
@@ -119,6 +121,8 @@ export class CircuitHost {
       if (c.celsius !== undefined) s.celsius = c.celsius;
       if (c.humidity !== undefined) s.humidity = c.humidity;
       if (c.cm !== undefined) s.cm = c.cm;
+      if (c.tiltx !== undefined) s.tiltx = c.tiltx;
+      if (c.tilty !== undefined) s.tilty = c.tilty;
       changed = true;
     }
     if (this.live) changed = this.readLive(this.live) || changed;
@@ -178,6 +182,32 @@ export class CircuitHost {
         this.echoes.set(part.id, e);
       }
     }
+  }
+
+  private readonly chips = new Map<string, I2CDevice>();
+
+  /** The parts that answer on the I²C bus of these pins (M6.4b), by address: wired to both, powered. */
+  i2c(sda: string, scl: string): Map<number, I2CDevice> {
+    this.update();
+    const out = new Map<number, I2CDevice>();
+    const sdaNet = this.netOfPin.get(sda);
+    const sclNet = this.netOfPin.get(scl);
+    if (sdaNet === undefined || sclNet === undefined) return out;
+    for (const part of this.spec.parts) {
+      if (part.type !== 'mpu6050' || !this.powered.get(part.id)) continue;
+      if (this.connectivity.netOf(`${part.id}.sda`) !== sdaNet || this.connectivity.netOf(`${part.id}.scl`) !== sclNet) continue;
+      const v = (leg: string) => this.solution?.volts[this.connectivity.netOf(`${part.id}.${leg}`) ?? ''] ?? 0;
+      let chip = this.chips.get(part.id);
+      if (!chip) {
+        chip = new Mpu6050(() => {
+          const s = this.parts[part.id] ?? {};
+          return { tiltx: s.tiltx ?? 0, tilty: s.tilty ?? 0, celsius: s.celsius ?? SENSOR_START.celsius };
+        });
+        this.chips.set(part.id, chip);
+      }
+      out.set(v('ad0') - v('gnd') >= 1.5 ? MPU6050.address + 1 : MPU6050.address, chip);
+    }
+    return out;
   }
 
   /** What the DHT on a pin sends (M6.4): its 5 bytes as hex, or undefined when none answers (not there, not powered). */

@@ -14,5 +14,7 @@ export type { Solution } from './solve';
 export { analyse, findFaults } from './faults';
 export type { Analysis, Fault, FaultKind } from './faults';
 export { describeFault } from './describe';
+export { Mpu6050, MPU6050 } from './i2c';
+export type { I2CDevice, MotionInput } from './i2c';
 export { dhtBytes, echoUs, isSensor, minVolts, sensorDrive, SENSORS, SENSOR_START } from './sensors';
 export type { Drive, SensorInput, SensorType } from './sensors';

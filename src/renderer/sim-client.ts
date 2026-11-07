@@ -40,6 +40,7 @@ const SLOT: Record<string, string[]> = {
   button: ['pressed'], potentiometer: ['position'], 'slide-switch': ['position'], ldr: ['lux'],
   pir: ['pressed'], 'line-sensor': ['position'], 'soil-moisture': ['position'], 'temp-sensor': ['celsius'],
   dht: ['celsius', 'humidity'], 'hc-sr04': ['cm'],   // M6.4: a DHT's air, how far an HC-SR04's object is
+  mpu6050: ['tiltx', 'tilty'],                        // M6.4b: its tilt
 };
 
 export function inputSlots(project: Project): string[] {

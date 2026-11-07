@@ -1,0 +1,33 @@
+{
+  "seconds": 3,
+  "inputs": [
+    {
+      "at": 1.0,
+      "part": "mpu1",
+      "tiltx": 35
+    },
+    {
+      "at": 2.0,
+      "part": "mpu1",
+      "tiltx": 0,
+      "tilty": -30
+    }
+  ],
+  "parts": {
+    "led1": {
+      "dark": [
+        [
+          0.05,
+          0.95
+        ]
+      ],
+      "lit": [
+        [
+          1.1,
+          2.9
+        ]
+      ]
+    }
+  },
+  "ended": "stopped"
+}

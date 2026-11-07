@@ -20,7 +20,7 @@ export const expectSchema = z.object({
   seconds: z.number().positive(),
   inputs: z.array(z.object({
     at: z.number().min(0), part: z.string(), pressed: z.boolean().optional(), position: z.number().optional(), lux: z.number().optional(), celsius: z.number().optional(),
-    humidity: z.number().optional(), cm: z.number().optional(),
+    humidity: z.number().optional(), cm: z.number().optional(), tiltx: z.number().optional(), tilty: z.number().optional(),
   })).optional(),
   parts: z.record(z.string(), z.object({
     blinks: z.number().positive().optional(),

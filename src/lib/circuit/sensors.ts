@@ -3,7 +3,7 @@
  * a small current (`loadOhms` across its supply) and drives OUT through `ohms` — what its output stage is. Below
  * `minVolts` (VCC above GND) it gives nothing (OUT weakly to GND) and a warning says so (faults: sensor-underpowered).
  * The sim works out each one's input (motion, the surface under it, moisture, temperature) and supply, and hands the
- * solver the result as a `drive` (devices.ts).
+ * solver the result as a `drive` (devices.ts). A DHT and an MPU6050 answer a protocol instead (M6.4).
  */
 export interface Drive { volts: number; ohms: number }
 
@@ -24,6 +24,8 @@ export const SENSORS = {
   /** HC-SR04 (M6.4): 5 V (4.5 V at least), ≈ 15 mA; a ≥ 10 µs pulse on Trig, then Echo high at VCC for the sound's way
    *  there and back, 58 µs per cm (343 m/s), 2–400 cm; nothing there: a 38 ms echo. */
   'hc-sr04': { minVolts: 4.5, loadOhms: 333, usPerCm: 58, delayUs: 460, minCm: 2, maxCm: 400, noneUs: 38_000, minTrigUs: 8 },
+  /** MPU6050 on a GY-521 (M6.4b): 3–5 V, ≈ 4 mA; it answers on I²C (i2c.ts). */
+  mpu6050: { minVolts: 3.0, loadOhms: 1000 },
   /** TMP36: 2.7–5.5 V, 0.5 V + 10 mV/°C (−40…125 °C). LM35: 4–30 V, 10 mV/°C (0…150 °C as wired simply). ≈ 50 µA. */
   'temp-sensor': { TMP36: { minVolts: 2.7, offset: 0.5, min: -40, max: 125 }, LM35: { minVolts: 4.0, offset: 0, min: 0, max: 150 }, loadOhms: 100_000 },
 } as const;
@@ -58,6 +60,7 @@ export function sensorDrive(type: SensorType, props: Record<string, unknown>, in
       return { volts: s.dry - (s.dry - s.wet) * m, ohms: 1000 };
     }
     case 'dht':
+    case 'mpu6050':
       return OFF;   // its DATA is its pull-up and its protocol, no driven level
     case 'hc-sr04':
       return input.echo ? { volts: supply, ohms: 100 } : { volts: 0, ohms: 100 };

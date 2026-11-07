@@ -1,4 +1,5 @@
 import { BATTERIES, BUZZER, RGB_DIES, SERVO_IDLE_OHMS, type Device } from './devices';
+import { MPU6050 } from './i2c';
 import { SENSORS } from './sensors';
 
 /** What a part's devices are built from: its id, the net each leg is in, its properties. */
@@ -61,6 +62,15 @@ export const MODELS: Record<string, PartModel> = {
     devices: ({ id, leg }) => [
       { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: SENSORS['hc-sr04'].loadOhms },
       { kind: 'drive', id: `${id}:out`, out: leg('echo'), gnd: leg('gnd'), part: id },
+    ],
+  },
+  /** MPU6050 on a GY-521 (M6.4b), its 8 pins as printed: VCC GND SCL SDA XDA XCL AD0 INT; AD0 pulled down on the board
+   *  (address 0x68; high: 0x69). Its I²C pull-ups go to its own 3.3 V regulator, so they are left out here. */
+  mpu6050: {
+    legs: ['vcc', 'gnd', 'scl', 'sda', 'xda', 'xcl', 'ad0', 'int'],
+    devices: ({ id, leg }) => [
+      { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: SENSORS.mpu6050.loadOhms },
+      { kind: 'resistor', id: `${id}:ad0`, a: leg('ad0'), b: leg('gnd'), ohms: MPU6050.ad0PullOhms },
     ],
   },
   /** TMP36 or LM35 (`kind`), flat face towards you: +Vs, Vout, GND. */

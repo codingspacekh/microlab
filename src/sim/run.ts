@@ -283,18 +283,28 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     accel_gesture: (): string => motion.gesture(),
     accel_events: (): string => motion.takeEvents().join(','),
 
-    // --- buses (M2.7): transaction level. Nothing answers until M3 puts parts on the nets. ---
+    // --- buses (M2.7): transaction level; the parts on the nets answer (M6.4b: an MPU6050) ---
     /** Addresses that answer on this bus, comma-separated hex. */
-    i2c_scan: (sda: string, scl: string): string => { log(`i2c sda=${sda} scl=${scl} scan`); return ''; },
+    i2c_scan: (sda: string, scl: string): string => {
+      const found = [...(circuit?.i2c(sda, scl).keys() ?? [])].sort((a, b) => a - b).map(hexByte).join(',');
+      log(`i2c sda=${sda} scl=${scl} scan${found ? ` ${found}` : ''}`);
+      return found;
+    },
     /** Bytes ACKed, or -1 when the address is not ACKed. */
     i2c_write: (sda: string, scl: string, addr: number, hex: string): number => {
-      log(`i2c sda=${sda} scl=${scl} write ${hexByte(addr)}${hex ? ' ' + spaced(hex) : ''} nack`);
-      return -1;
+      const chip = circuit?.i2c(sda, scl).get(addr);
+      log(`i2c sda=${sda} scl=${scl} write ${hexByte(addr)}${hex ? ' ' + spaced(hex) : ''}${chip ? '' : ' nack'}`);
+      if (!chip) return -1;
+      chip.write((hex.match(/../g) ?? []).map((b) => parseInt(b, 16)));
+      return hex.length / 2;
     },
     /** The bytes read (hex), or -1 when the address is not ACKed. */
     i2c_read: (sda: string, scl: string, addr: number, n: number): string | number => {
-      log(`i2c sda=${sda} scl=${scl} read ${hexByte(addr)} ${n} nack`);
-      return -1;
+      const chip = circuit?.i2c(sda, scl).get(addr);
+      if (!chip) { log(`i2c sda=${sda} scl=${scl} read ${hexByte(addr)} ${n} nack`); return -1; }
+      const data = chip.read(n).map(hexByte).join('');
+      log(`i2c sda=${sda} scl=${scl} read ${hexByte(addr)} ${n} ${spaced(data)}`);
+      return data;
     },
     /** Clocks `hex` out on MOSI; returns what MISO gave back (its idle level: 0x00 low, 0xff high). */
     spi_xfer: (sck: string, mosi: string, miso: string, hex: string, kind: string): string => {

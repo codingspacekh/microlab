@@ -52,6 +52,9 @@ export interface PartState {
   celsius?: number;
   humidity?: number;
   cm?: number;
+  /** An MPU6050's tilt, degrees (M6.4b). */
+  tiltx?: number;
+  tilty?: number;
   /** What drives a sensor module's OUT now (M6.3): worked out by the sim from its input and its supply. */
   drive?: { volts: number; ohms: number };
 }
