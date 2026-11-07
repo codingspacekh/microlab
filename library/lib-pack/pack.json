@@ -1,0 +1,230 @@
+{
+  "$comment": "The library pack (F-54): drivers the parts need, each as its authors wrote it (unchanged; sha256 below) with its licence beside it. files: pack file → where Add library puts it in the project.",
+  "libraries": [
+    {
+      "id": "hcsr04",
+      "title": "HC-SR04 distance",
+      "summary": "The distance in cm or mm from an HC-SR04: it sends the trigger pulse and times the echo.",
+      "parts": [
+        "hc-sr04"
+      ],
+      "licence": "Apache-2.0",
+      "authors": "Roberto Sánchez",
+      "source": "https://github.com/rsc1975/micropython-hcsr04",
+      "commit": "17eafe3730ce27a880ba45f4c4891efeb112bf82",
+      "files": {
+        "hcsr04.py": "lib/hcsr04.py"
+      },
+      "use": {
+        "pico-w": "from hcsr04 import HCSR04\nimport time\n\nsensor = HCSR04(trigger_pin=14, echo_pin=13)   # echo through a divider: 5 V becomes 3.3 V\nwhile True:\n    print(sensor.distance_cm(), 'cm')\n    time.sleep(0.5)\n",
+        "esp32-devkit-v1": "from hcsr04 import HCSR04\nimport time\n\nsensor = HCSR04(trigger_pin=5, echo_pin=18)   # echo through a divider: 5 V becomes 3.3 V\nwhile True:\n    print(sensor.distance_cm(), 'cm')\n    time.sleep(0.5)\n"
+      },
+      "boards": [
+        "pico-w",
+        "esp32-devkit-v1"
+      ],
+      "sha256": {
+        "hcsr04.py": "4214d4fbee9aaacd591e7df963c6f011dd76ddd6e5b9339543972cf77f47c117"
+      }
+    },
+    {
+      "id": "bmp280",
+      "title": "BMP280 air pressure",
+      "summary": "The temperature (°C) and air pressure (Pa) from a BMP280 on I²C, with the chip's own calibration.",
+      "parts": [
+        "bmp280"
+      ],
+      "licence": "MIT",
+      "authors": "David Stenwall Wahlund",
+      "source": "https://github.com/dafvid/micropython-bmp280",
+      "commit": "83dfdd6dff6382c7aff03138d32ae48d00ec729a",
+      "files": {
+        "bmp280.py": "lib/bmp280.py"
+      },
+      "use": {
+        "pico-w": "from machine import I2C, Pin\nfrom bmp280 import BMP280\nimport time\n\nbmp = BMP280(I2C(0, sda=Pin(4), scl=Pin(5)))\nbmp.normal_measure()\nwhile True:\n    print(bmp.temperature, 'C', bmp.pressure / 100, 'hPa')\n    time.sleep(1)\n",
+        "esp32-devkit-v1": "from machine import I2C, Pin\nfrom bmp280 import BMP280\nimport time\n\nbmp = BMP280(I2C(0, sda=Pin(21), scl=Pin(22)))\nbmp.normal_measure()\nwhile True:\n    print(bmp.temperature, 'C', bmp.pressure / 100, 'hPa')\n    time.sleep(1)\n"
+      },
+      "boards": [
+        "pico-w",
+        "esp32-devkit-v1"
+      ],
+      "sha256": {
+        "bmp280.py": "905e089799732552d15ca60154b3b95c585159282855a36ec950f4d5f16ceda8"
+      }
+    },
+    {
+      "id": "ds1302",
+      "title": "DS1302 clock",
+      "summary": "Sets and reads the time and date on a DS1302 clock, and its 31 bytes of RAM.",
+      "parts": [
+        "ds1302"
+      ],
+      "licence": "MIT",
+      "authors": "shaoziyang, Omar Benhamid",
+      "source": "https://github.com/omarbenhamid/micropython-ds1302-rtc",
+      "commit": "c2fc5a0462010f6eb983eb8795064b3b88642aab",
+      "files": {
+        "ds1302.py": "lib/ds1302.py"
+      },
+      "use": {
+        "pico-w": "from machine import Pin\nfrom ds1302 import DS1302\nimport time\n\nrtc = DS1302(Pin(13), Pin(14), Pin(16))   # CLK, DAT, RST\nrtc.date_time([2026, 11, 8, 7, 8, 59, 58])   # year, month, day, weekday, hour, minute, second\nwhile True:\n    print(rtc.date_time())\n    time.sleep(1)\n",
+        "esp32-devkit-v1": "from machine import Pin\nfrom ds1302 import DS1302\nimport time\n\nrtc = DS1302(Pin(18), Pin(19), Pin(5))   # CLK, DAT, RST\nrtc.date_time([2026, 11, 8, 7, 8, 59, 58])   # year, month, day, weekday, hour, minute, second\nwhile True:\n    print(rtc.date_time())\n    time.sleep(1)\n"
+      },
+      "boards": [
+        "pico-w",
+        "esp32-devkit-v1"
+      ],
+      "sha256": {
+        "ds1302.py": "7329439e3ca6e94555d072d4c85d98046fdc151085fda48562255ea8e093b55c"
+      }
+    },
+    {
+      "id": "vl53l0x",
+      "title": "VL53L0X laser distance",
+      "summary": "The distance in mm from a VL53L0X time-of-flight sensor on I²C, after its full start-up.",
+      "parts": [
+        "vl53l0x"
+      ],
+      "licence": "BSD-3-Clause",
+      "authors": "Kevin McAleer",
+      "source": "https://github.com/kevinmcaleer/vl53l0x",
+      "commit": "d71ce30b0efaa4e45a771049056d8c9fdc2755ac",
+      "files": {
+        "vl53l0x.py": "lib/vl53l0x.py"
+      },
+      "use": {
+        "pico-w": "from machine import I2C, Pin\nfrom vl53l0x import VL53L0X\nimport time\n\ntof = VL53L0X(I2C(0, sda=Pin(4), scl=Pin(5)))\nwhile True:\n    print(tof.ping(), 'mm')\n    time.sleep(0.5)\n",
+        "esp32-devkit-v1": "from machine import I2C, Pin\nfrom vl53l0x import VL53L0X\nimport time\n\ntof = VL53L0X(I2C(0, sda=Pin(21), scl=Pin(22)))\nwhile True:\n    print(tof.ping(), 'mm')\n    time.sleep(0.5)\n"
+      },
+      "boards": [
+        "pico-w",
+        "esp32-devkit-v1"
+      ],
+      "sha256": {
+        "vl53l0x.py": "fde3ade866c41051af356310e71ac2012333c327b4371b0ae03e3db712e776ec"
+      }
+    },
+    {
+      "id": "mpu6050",
+      "title": "MPU6050 motion (imu)",
+      "summary": "Acceleration (g), turning (°/s) and temperature from an MPU6050 on I²C, as vectors: imu.accel.x, imu.gyro.xyz.",
+      "parts": [
+        "mpu6050"
+      ],
+      "licence": "MIT",
+      "authors": "Peter Hinch, Sebastian Plamauer",
+      "source": "https://github.com/micropython-IMU/micropython-mpu9x50",
+      "commit": "ae68046e310224ebc3e196a1e3692de018991dbb",
+      "files": {
+        "imu.py": "lib/imu.py",
+        "vector3d.py": "lib/vector3d.py"
+      },
+      "use": {
+        "pico-w": "from machine import I2C, Pin\nfrom imu import MPU6050\nimport time\n\nimu = MPU6050(I2C(0, sda=Pin(4), scl=Pin(5)))\nwhile True:\n    print('x %.2f y %.2f z %.2f g' % imu.accel.xyz, imu.temperature)\n    time.sleep(0.5)\n",
+        "esp32-devkit-v1": "from machine import I2C, Pin\nfrom imu import MPU6050\nimport time\n\nimu = MPU6050(I2C(0, sda=Pin(21), scl=Pin(22)))\nwhile True:\n    print('x %.2f y %.2f z %.2f g' % imu.accel.xyz, imu.temperature)\n    time.sleep(0.5)\n"
+      },
+      "boards": [
+        "pico-w",
+        "esp32-devkit-v1"
+      ],
+      "sha256": {
+        "imu.py": "75e93336937ba2c993f5ed0051c86c0c59b1a93bddeb0e55e8850028512ccf32",
+        "vector3d.py": "af98570604d34b67756374a5697e47da07b47c2436e517b29d064916445eb8c3"
+      }
+    },
+    {
+      "id": "rotary",
+      "title": "Rotary encoder",
+      "summary": "Counts a rotary encoder's steps with pin interrupts, so none are missed while the program does something else.",
+      "parts": [
+        "rotary-encoder"
+      ],
+      "licence": "MIT",
+      "authors": "Mike Teachman",
+      "source": "https://github.com/miketeachman/micropython-rotary",
+      "commit": "b4c8ce53ee2413bdad41d24a2fcf91fac6ab2d32",
+      "files": {
+        "rotary.py": "lib/rotary.py"
+      },
+      "boardFiles": {
+        "pico-w": {
+          "rotary_irq_rp2.py": "lib/rotary_irq_rp2.py"
+        },
+        "esp32-devkit-v1": {
+          "rotary_irq_esp.py": "lib/rotary_irq_esp.py"
+        }
+      },
+      "use": {
+        "pico-w": "from rotary_irq_rp2 import RotaryIRQ\nimport time\n\nr = RotaryIRQ(pin_num_clk=14, pin_num_dt=13, min_val=0, max_val=20, range_mode=RotaryIRQ.RANGE_BOUNDED)\nlast = r.value()\nwhile True:\n    if r.value() != last:\n        last = r.value()\n        print('value', last)\n    time.sleep_ms(50)\n",
+        "esp32-devkit-v1": "from rotary_irq_esp import RotaryIRQ\nimport time\n\nr = RotaryIRQ(pin_num_clk=4, pin_num_dt=18, min_val=0, max_val=20, range_mode=RotaryIRQ.RANGE_BOUNDED)\nlast = r.value()\nwhile True:\n    if r.value() != last:\n        last = r.value()\n        print('value', last)\n    time.sleep_ms(50)\n"
+      },
+      "boards": [
+        "pico-w",
+        "esp32-devkit-v1"
+      ],
+      "sha256": {
+        "rotary.py": "feb7a23aa2aa1799f588f7a8541d952d2b177e5bdc81c7b75ac418cde9ab8a4b",
+        "rotary_irq_rp2.py": "5bbead0c626430ef2d3f00843d3c039e8d93cf8722eb25f272077af8d06a4d26",
+        "rotary_irq_esp.py": "cb5486686552aa4075ca097691f4466c2176e97613328d4fb064c11089cf904e"
+      }
+    },
+    {
+      "id": "max30102",
+      "title": "MAX30102 pulse oximeter",
+      "summary": "Reads the MAX30102's red and infrared light from its FIFO: the readings a heart rate and SpO2 are worked out from.",
+      "parts": [
+        "max30102"
+      ],
+      "licence": "MIT",
+      "authors": "Nicola Elia (after SparkFun's MAX3010x library, BSD: its notice is kept in the file)",
+      "source": "https://github.com/n-elia/MAX30102-MicroPython-driver",
+      "commit": "facf22299ade83a6bb000feb3ff832b61096e68a",
+      "files": {
+        "max30102/__init__.py": "lib/max30102/__init__.py",
+        "max30102/circular_buffer.py": "lib/max30102/circular_buffer.py"
+      },
+      "use": {
+        "pico-w": "from machine import SoftI2C, Pin\nfrom max30102 import MAX30102\n\nsensor = MAX30102(i2c=SoftI2C(sda=Pin(4), scl=Pin(5), freq=400000))\nsensor.setup_sensor()\nwhile True:\n    sensor.check()\n    if sensor.available():\n        print(sensor.pop_red_from_storage(), sensor.pop_ir_from_storage())\n",
+        "esp32-devkit-v1": "from machine import SoftI2C, Pin\nfrom max30102 import MAX30102\n\nsensor = MAX30102(i2c=SoftI2C(sda=Pin(21), scl=Pin(22), freq=400000))\nsensor.setup_sensor()\nwhile True:\n    sensor.check()\n    if sensor.available():\n        print(sensor.pop_red_from_storage(), sensor.pop_ir_from_storage())\n"
+      },
+      "boards": [
+        "pico-w",
+        "esp32-devkit-v1"
+      ],
+      "sha256": {
+        "max30102/__init__.py": "5c50fd754bddf9d61f133ff5500146211f457916076002fa9cba65580487e62a",
+        "max30102/circular_buffer.py": "fa694f289c62e832672ea3ceb1200cd4a75e42b971e2b70460fbfc70f43fad2f"
+      }
+    }
+  ],
+  "builtIn": [
+    {
+      "modules": [
+        "dht"
+      ],
+      "parts": [
+        "dht"
+      ],
+      "boards": [
+        "pico-w",
+        "esp32-devkit-v1"
+      ],
+      "note": "Part of MicroPython on the Pico W and the ESP32: nothing to add."
+    },
+    {
+      "modules": [
+        "onewire",
+        "ds18x20"
+      ],
+      "parts": [
+        "ds18b20"
+      ],
+      "boards": [
+        "pico-w",
+        "esp32-devkit-v1"
+      ],
+      "note": "Part of MicroPython on the Pico W and the ESP32: nothing to add."
+    }
+  ]
+}

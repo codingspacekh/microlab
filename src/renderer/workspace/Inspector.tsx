@@ -61,7 +61,7 @@ const TIPS: Record<string, string> = {
   'ldr-module': 'S to an ADC pin: more light, more volts.',
   'pot-module': 'S to an ADC pin: from 0 V at one end of its turn to VCC at the other.',
   joystick: 'VRx and VRy to two ADC pins: the middle at rest. SW goes to GND when the stick is pressed — give it Pin.PULL_UP.',
-  'rotary-encoder': 'CLK and DT (pulled up on the module) close in turn as it is turned: when CLK falls, DT says which way. SW to GND when pressed — give it Pin.PULL_UP.',
+  'rotary-encoder': 'CLK and DT (pulled up on the module) close in turn as it is turned: when CLK falls, DT already low means clockwise. SW to GND when pressed — give it Pin.PULL_UP.',
   'speed-sensor': 'A wheel with 20 slots turns in its gap: DO pulses 20 times a turn. Count them in a second for the speed.',
   pcf8591: 'On I²C at 0x48: write 0x40 + the input (0–3), then read 2 bytes — the second is the input, 0–255 of VCC. A second byte written goes out on AOUT.',
   bmp280: 'On I²C at 0x76 (SDO to VCC: 0x77); a 3.3 V part. It starts asleep: write 0x27 to 0xF4, then read 0xF7–0xFC and its calibration at 0x88 — a driver turns them into °C and hPa.',

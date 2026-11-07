@@ -186,14 +186,14 @@ export class CircuitHost {
     return rpm > 0 ? 1e6 / ((rpm / 60) * SPEED.slots * 2) : Infinity;
   }
 
-  /** An encoder's contacts now: new steps (+ one way, − the other) become four changes each, CW CLK first. */
+  /** An encoder's contacts now: new steps (+ one way, − the other) become four changes each, CW DT first. */
   private encoderAt(id: string, t: number): { a: boolean; b: boolean } {
     const e = this.encoders.get(id) ?? { steps: 0, phases: [], a: false, b: false };
     const want = Math.round(this.parts[id]?.steps ?? 0);
     let at = Math.max(t, e.phases.at(-1)?.[0] ?? t);
     for (; e.steps !== want; e.steps += Math.sign(want - e.steps)) {
       const cw = want > e.steps;
-      for (const [a, b] of (cw ? [[true, false], [true, true], [false, true], [false, false]] : [[false, true], [true, true], [true, false], [false, false]]) as [boolean, boolean][]) {
+      for (const [a, b] of (cw ? [[false, true], [true, true], [true, false], [false, false]] : [[true, false], [true, true], [false, true], [false, false]]) as [boolean, boolean][]) {
         at += ENCODER.phaseUs;
         e.phases.push([at, a, b]);
       }

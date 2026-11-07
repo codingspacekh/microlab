@@ -149,7 +149,7 @@ export const MODULES: Record<string, { minVolts: number; loadOhms: number; pullU
   'speed-sensor': { minVolts: 3.0, loadOhms: 1000, pullUps: ['out'], outputs: { out: (i) => (i.pulse ? OFF : LOW) } },
 };
 
-/** An encoder's detent: CLK and DT close and open a quarter apart (CW: CLK first), 2 ms each; a speed sensor's wheel. */
+/** An encoder's detent: CLK and DT close and open a quarter apart (clockwise: DT first, as the KY-040's makers and micropython-rotary have it), 2 ms each; a speed sensor's wheel. */
 export const ENCODER = { phaseUs: 2000 } as const;
 export const SPEED = { slots: 20 } as const;
 

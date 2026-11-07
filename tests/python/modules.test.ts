@@ -118,7 +118,7 @@ describe('M6.5a the joystick, the rotary encoder, the IR speed sensor', () => {
     const spec = mod('rotary-encoder', ['clk', 'dt', 'sw', 'vcc', 'gnd'], { clk: 'GP14', dt: 'GP15', vcc: '3V3', gnd: 'GND' });
     const r = await run(spec, [
       'from machine import Pin', 'import time', 'clk, dt = Pin(14, Pin.IN), Pin(15, Pin.IN)', 'n = 0',
-      'def turn(p):', '    global n', '    n += 1 if dt.value() else -1',
+      'def turn(p):', '    global n', '    n += 1 if not dt.value() else -1',
       'clk.irq(turn, Pin.IRQ_FALLING)', 'time.sleep(1)', 'print(n, clk.value(), dt.value())', '',
     ].join('\n'), [at(0.2, { steps: 3 }), at(0.6, { steps: 2 })]);
     expect(lines(r)).toEqual(['2 1 1']);
