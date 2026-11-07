@@ -39,6 +39,10 @@ import { InputsCard, MicrobitCard, PartTip, SLIDER_PARTS, UsbSocket, UsbTip, use
  * the selected wire's bends can be dragged (on the grid) or double-clicked away, and a dot in the middle of each
  * stretch dragged out to add one (F-13).
  */
+/** How long a new project's Start building card shows before it goes by itself (the teacher, 2026-11-08: a hint
+ *  for a moment, not in the way); it fades over its last 0.8 s (workspace.css). */
+export const START_CARD_MS = 6000;
+
 export const MESSAGES = {
   noRoom: 'No room there: every leg needs an empty hole on the breadboard.',
   breadboardCame: 'A half breadboard came with it: parts stand in a breadboard\'s holes. Its size is in the inspector.',
@@ -125,6 +129,11 @@ export function Canvas({
   /** The Inputs card (screen 18): open when a run starts, closed with its ×, opened again by clicking a sensor on it. */
   const [inputsOpen, setInputsOpen] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
+  const [startCard, setStartCard] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setStartCard(false), START_CARD_MS);
+    return () => clearTimeout(t);
+  }, []);
   useEffect(() => { setInputsOpen(running); setBoardOpen(running); setTipOf(null); }, [running]);
   const [gesture, setGesture] = useState<Gesture | null>(null);
   const [placeAt, setPlaceAt] = useState<Point | null>(null);
@@ -702,7 +711,7 @@ export function Canvas({
         )}
       </svg>
       {hint && <div className={problem ? 'canvas-hint warn' : 'canvas-hint'} aria-live="polite">{hint}</div>}
-      {!running && !placing && !project.breadboards.length && !project.parts.length && (
+      {startCard && !running && !placing && !project.breadboards.length && !project.parts.length && (
         // screen 23: a new project is the board alone
         <div className="float start-card" role="group" aria-label="Start building">
           <b>Start building</b>

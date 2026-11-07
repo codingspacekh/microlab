@@ -91,3 +91,18 @@ describe('M5.5 the arguments while typing a call (F-20: "machine.Pin( shows its 
     expect(signatureAt('microbit-v2', code, code.length)!.active).toBe(1);
   });
 });
+
+describe('the teacher (2026-11-08): a call is taken with its brackets', () => {
+  it('a method, function or class says whether its call takes arguments; a constant or a module isn\'t called', () => {
+    expect(option('microbit-v2', 'from microbit import *\ndisplay.', 'scroll')!.call).toBe('args');
+    expect(option('microbit-v2', 'from microbit import *\nbutton_a.', 'is_pressed')!.call).toBe('empty');
+    expect(option('pico-w', 'import machine\nmachine.P', 'Pin')!.call).toBe('args');
+    expect(option('pico-w', 'from machine import Pin\nPin.', 'OUT')!.call).toBeUndefined();
+    expect(option('pico-w', 'import ', 'machine')!.call).toBeUndefined();
+  });
+
+  it('a name being imported gets no brackets', () => {
+    expect(option('pico-w', 'from machine import P', 'Pin')!.call).toBeUndefined();
+    expect(option('pico-w', 'from time import sl', 'sleep')!.call).toBeUndefined();
+  });
+});

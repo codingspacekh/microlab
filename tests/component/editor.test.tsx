@@ -115,11 +115,29 @@ describe('M5.5 F-20 help while typing (screen 02b)', () => {
     await waitFor(() => expect(offered(view).length).toBeGreaterThan(0));
     await act(() => new Promise((r) => setTimeout(r, 100)));   // CodeMirror takes no key for 75 ms after the list opens
     fireEvent.keyDown(view.contentDOM, { key: 'Tab', code: 'Tab', keyCode: 9 });
-    expect(view.state.doc.toString()).toMatch(/machine\.Pin\(?\)?$/);
+    expect(view.state.doc.toString()).toMatch(/machine\.Pin\(\)$/);
+    expect(view.state.selection.main.head).toBe(view.state.doc.length - 1);   // inside the brackets: Pin takes arguments
     const before = view.state.doc.length;
     act(() => { view.dispatch({ changes: { from: before, insert: '\nx' }, selection: { anchor: before + 2 } }); });
     fireEvent.keyDown(view.contentDOM, { key: 'Tab', code: 'Tab', keyCode: 9 });
     expect(view.state.doc.toString().endsWith('\n    x')).toBe(true);
+  });
+
+  it('a call is taken with its brackets: the cursor after them when it takes nothing; a bracket already there stays one', async () => {
+    const view = setup('microbit-v2', 'from microbit import *\n');
+    const take = async () => {
+      act(() => { startCompletion(view); });
+      await waitFor(() => expect(offered(view).length).toBeGreaterThan(0));
+      await act(() => new Promise((r) => setTimeout(r, 100)));
+      fireEvent.keyDown(view.contentDOM, { key: 'Tab', code: 'Tab', keyCode: 9 });
+    };
+    type(view, 'button_a.is_pr');
+    await take();
+    expect(view.state.doc.toString()).toMatch(/button_a\.is_pressed\(\)$/);
+    expect(view.state.selection.main.head).toBe(view.state.doc.length);
+    act(() => { view.dispatch({ changes: { from: view.state.doc.length, insert: '\ndisplay.sc(1)' }, selection: { anchor: view.state.doc.length + '\ndisplay.sc'.length } }); });
+    await take();
+    expect(view.state.doc.toString()).toMatch(/display\.scroll\(1\)$/);
   });
 
   it('on the micro:bit, pin offers pin0, pin1, …; inside a string nothing is offered', async () => {

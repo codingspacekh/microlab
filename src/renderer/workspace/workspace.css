@@ -185,7 +185,10 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .libstart p { margin: 0; padding: 8px 10px; border-top: 1px solid var(--line); line-height: 1.45; }
 
 /* ---------- M6.8: the board alone (screen 23), the parts drawer (screen 23b) ---------- */
-.start-card { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); width: min(400px, calc(100% - 32px)); padding: 14px 16px; text-align: center; z-index: 2; }
+.start-card { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); width: min(400px, calc(100% - 32px)); padding: 14px 16px; text-align: center; z-index: 2;
+  animation: start-card-out .8s ease-in 5.2s forwards; }
+@keyframes start-card-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .start-card { animation: none; } }
 .start-card p { margin: 4px 0 10px; color: var(--tx-2); font-size: 12.5px; line-height: 1.45; }
 .start-card .row { justify-content: center; gap: 8px; align-items: center; }
 .rail { flex: 0 0 56px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; z-index: 4; }

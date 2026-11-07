@@ -45,8 +45,11 @@ async function choose(path: string) {
 }
 
 async function circuit(win: Page) {
-  await win.getByRole('button', { name: 'Add a breadboard' }).click();   // M6.8: a new project is the board alone
+  // M6.8: a new project is the board alone
   await win.getByRole('button', { name: 'Parts', exact: true }).click();
+  // a half breadboard taken with the keyboard goes where new projects had theirs (not the Start building card: it goes by itself)
+  await win.getByRole('region', { name: 'Parts' }).getByRole('button', { name: /^Half breadboard/ }).press('Enter');
+  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   const p = await centre(win, '[data-point="bb1.a5"]');
   const q = await centre(win, '[data-point="bb1.a8"]');
   await drag(win, await centre(win, '.parts .pitem:has-text("Resistor")'), { x: (p.x + q.x) / 2, y: p.y });

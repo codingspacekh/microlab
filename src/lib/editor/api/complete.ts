@@ -13,6 +13,9 @@ export interface Suggestion {
   detail?: string;
   /** The full signature (if any) on the first line, then the explanation. */
   info: string;
+  /** A call: taken with its brackets, the cursor inside them when it takes arguments ('args'), after when not
+   *  ('empty'). Not for a name being imported. */
+  call?: 'args' | 'empty';
 }
 
 /** What each name in the code stands for: a module, a module's member, or an instance of a class. */
@@ -75,18 +78,19 @@ function shortSig(sig: string): string {
   return `(${params.slice(0, 3).join(', ')}${params.length > 3 ? ', …' : ''})`;
 }
 
-function suggestion(item: ApiItem, label = item.name): Suggestion {
+function suggestion(item: ApiItem, label = item.name, importing = false): Suggestion {
   const call = item.sig !== undefined;
   return {
     label,
     kind: item.kind,
     ...(call ? { detail: shortSig(item.sig!) } : {}),
     info: call ? `${item.name}(${item.sig})\n${item.doc}` : item.doc,
+    ...(call && !importing ? { call: item.sig!.trim() ? 'args' as const : 'empty' as const } : {}),
   };
 }
 
-const offer = (items: Iterable<ApiItem>, prefix: string) =>
-  [...items].filter((i) => !i.hidden && i.name.startsWith(prefix)).map((i) => suggestion(i));
+const offer = (items: Iterable<ApiItem>, prefix: string, importing = false) =>
+  [...items].filter((i) => !i.hidden && i.name.startsWith(prefix)).map((i) => suggestion(i, i.name, importing));
 
 export function completeAt(board: string, code: string, pos: number): { from: number; options: Suggestion[] } | null {
   const lineStart = code.lastIndexOf('\n', pos - 1) + 1;
@@ -95,11 +99,11 @@ export function completeAt(board: string, code: string, pos: number): { from: nu
   const result = (word: string, options: Suggestion[]) => (options.length ? { from: pos - word.length, options } : null);
 
   let m = /^\s*(?:import\s+(?:[\w.]+\s*,\s*)*|from\s+)(\w*)$/.exec(before);
-  if (m) return result(m[1]!, offer(api.values(), m[1]!));
+  if (m) return result(m[1]!, offer(api.values(), m[1]!, true));
   m = /^\s*from\s+(\w+)\s+import\s+(?:\(?\s*)?(?:[\w ]+,\s*)*(\w*)$/.exec(before);
   if (m) {
     const mod = api.get(m[1]!);
-    return mod ? result(m[2]!, offer(mod.members.values(), m[2]!)) : null;
+    return mod ? result(m[2]!, offer(mod.members.values(), m[2]!, true)) : null;
   }
   const scope = scopeOf(board, code.slice(0, lineStart) + '\n' + before.replace(/[\w.]*$/, ''));
   m = /(?:^|[^\w.])([A-Za-z_][\w.]*)\.(\w*)$/.exec(before);

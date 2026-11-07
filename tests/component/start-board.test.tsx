@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { App } from '../../src/renderer/app/App';
+import { START_CARD_MS } from '../../src/renderer/workspace/Canvas';
 import type { StartRun } from '../../src/renderer/app/useRun';
 import { fakeApi } from './fake-api';
 
@@ -47,6 +48,21 @@ describe('M6.8 the board alone; the parts panel on a rail (screen 23)', () => {
     expect(s.parts()).not.toBeNull();
     fireEvent.keyDown(document.body, { key: 'p' });
     expect(s.parts()).toBeNull();
+  });
+
+  it('the card shows for a few seconds, then goes by itself (the teacher, 2026-11-08); the rail\'s Parts stays', () => {
+    vi.useFakeTimers();
+    try {
+      setup();
+      expect(screen.getByRole('group', { name: 'Start building' })).toBeInTheDocument();
+      act(() => { vi.advanceTimersByTime(START_CARD_MS - 100); });
+      expect(screen.getByRole('group', { name: 'Start building' })).toBeInTheDocument();
+      act(() => { vi.advanceTimersByTime(200); });
+      expect(screen.queryByRole('group', { name: 'Start building' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Parts' })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('P typed in the editor is a letter, not the panel', () => {

@@ -1,4 +1,4 @@
-import { acceptCompletion, autocompletion, completionStatus, type Completion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
+import { acceptCompletion, autocompletion, completionStatus, pickedCompletion, type Completion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
 import { pythonLanguage } from '@codemirror/lang-python';
 import { syntaxTree } from '@codemirror/language';
 import { Prec, StateField, type EditorState, type Extension } from '@codemirror/state';
@@ -46,8 +46,20 @@ function source(board: string) {
     if (r.from === ctx.pos && !ctx.explicit && !/[.\s]$/.test(ctx.state.sliceDoc(ctx.pos - 1, ctx.pos))) return null;
     const options: Completion[] = r.options.map((o) => ({
       label: o.label, type: TYPES[o.kind], ...(o.detail ? { detail: o.detail } : {}), info: info(o.info),
+      ...(o.call ? { apply: withBrackets(o.call) } : {}),
     }));
     return { from: r.from, options, validFor: /^\w*$/ };
+  };
+}
+
+/** A call taken with its brackets (the teacher, 2026-11-08): `scroll(|)` when it takes arguments, `is_pressed()|`
+ *  when not; a bracket already there is left as it is. */
+function withBrackets(call: 'args' | 'empty') {
+  return (view: EditorView, completion: Completion, from: number, to: number) => {
+    const open = view.state.sliceDoc(to, to + 1) === '(';
+    const insert = open ? completion.label : `${completion.label}()`;
+    const anchor = from + insert.length - (!open && call === 'args' ? 1 : 0);
+    view.dispatch({ changes: { from, to, insert }, selection: { anchor }, annotations: pickedCompletion.of(completion), userEvent: 'input.complete' });
   };
 }
 

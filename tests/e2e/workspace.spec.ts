@@ -6,8 +6,9 @@ import { _electron as electron, expect, test, type ElectronApplication, type Pag
 /** M6.8: a new project is the board alone and the parts panel is folded — put down a half breadboard (where new
  *  projects had theirs) and open the panel, as building a circuit starts. */
 const startBuilding = async (win: Page) => {
-  await win.getByRole('button', { name: 'Add a breadboard' }).click();
   await win.getByRole('button', { name: 'Parts', exact: true }).click();
+  // a half breadboard taken with the keyboard goes where new projects had theirs (not the Start building card: it goes by itself)
+  await win.getByRole('region', { name: 'Parts' }).getByRole('button', { name: /^Half breadboard/ }).press('Enter');
   // opening it fits the circuit beside it again: let that be drawn before anything is measured
   await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 };
