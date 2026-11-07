@@ -1,6 +1,6 @@
 import type { BoardData } from '../boards';
-import { COLUMNS, railHole } from '../circuit';
-import type { Project } from '../project';
+import { COLUMNS, connect, railHole } from '../circuit';
+import { toCircuit, type Project } from '../project';
 import { boardData } from './library';
 
 /**
@@ -89,4 +89,29 @@ export function holeCard(project: Project, ref: string): HoleCard {
     else if (inStrip(w.b)) lines.push(`A wire joins it to ${label(w.a)}.`);
   }
   return { title, lines };
+}
+
+/** What a part's legs are joined to (F-14, screen 02b: "GP15 ↔ LED3"), one name per side — legs joined inside the
+ *  part (a push button's) count as one side. Board pins by their label first, then other parts; "nothing". */
+export function joinsOf(project: Project, id: string): string[] {
+  const part = project.parts.find((p) => p.id === id);
+  if (!part) return [];
+  const net = connect(toCircuit(project, boardData(project.board as never)));
+  // every ground pin (the Pico's AGND too) is joined to the others inside the board: they are all "GND"
+  const labels = new Map(boardData(project.board as never).pins.map((p) => [`board.${p.id}`, p.role === 'ground' ? 'GND' : p.label]));
+  const sides: { net: string | undefined; names: string[] }[] = [];
+  for (const leg of Object.keys(part.legs)) {
+    const n = net.netOf(`${id}.${leg}`);
+    if (sides.some((x) => x.net === n)) continue;
+    const pins: string[] = [];
+    const parts: string[] = [];
+    for (const point of net.pointsInNet(`${id}.${leg}`)) {
+      const label = labels.get(point);
+      if (label) { if (!pins.includes(label)) pins.push(label); continue; }
+      const owner = point.slice(0, point.indexOf('.'));
+      if (owner !== id && project.parts.some((p) => p.id === owner) && !parts.includes(owner.toUpperCase())) parts.push(owner.toUpperCase());
+    }
+    sides.push({ net: n, names: [...pins, ...parts] });
+  }
+  return sides.map((x) => (x.names.length ? x.names.join(', ') : 'nothing'));
 }

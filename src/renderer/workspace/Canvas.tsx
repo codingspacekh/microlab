@@ -23,7 +23,7 @@ import { BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, partTurns, po
  *  - Delete removes the selected part or wire.
  * M5.1: shift-click adds to (or takes from) the selection, a drag on the empty canvas draws a box that selects what is
  * inside it; the selected parts move together, R turns them a quarter (or the part being placed), ⌘D / Ctrl+D copies
- * them, Delete removes them; ⌘Z / Ctrl+Z undoes any edit, ⇧⌘Z / Ctrl+Y redoes it. The toolbar does the same.
+ * them, Delete removes them; ⌘Z / Ctrl+Z undoes any edit, ⇧⌘Z / Ctrl+Y redoes it (the top bar has the buttons).
  * While a program runs (M4.5) the circuit can't be changed: LEDs glow by their current, the board's own LED and the
  * micro:bit's display light up, and a push button is pressed by holding the mouse on it.
  * M5.2 (F-17): Ctrl / ⌘ + wheel or a pinch zooms at the pointer, the wheel or two fingers pan, and so does a drag with
@@ -74,11 +74,9 @@ export interface CanvasProps {
   /** What is selected: one thing (the inspector shows it) or several parts and wires (M5.1). */
   selection: Selection[];
   onSelect: (s: Selection[]) => void;
-  /** Undo / redo (M5.1, F-16): kept by the workspace. */
+  /** Undo / redo (M5.1, F-16) by key; the buttons are in the top bar (screen 02b). */
   onUndo?: () => void;
   onRedo?: () => void;
-  canUndo?: boolean;
-  canRedo?: boolean;
   /** A program is running: nothing can be changed; buttons can be pressed. */
   running?: boolean;
   /** What the run shows: each part's state, the board's own outputs. */
@@ -93,7 +91,7 @@ const NO_OUTPUTS = { parts: {}, board: { pins: {} } };
 
 export function Canvas({
   project, onChange, placing, onPlacing, selection, onSelect, running = false, outputs = NO_OUTPUTS, onInput,
-  onUndo, onRedo, canUndo = false, canRedo = false,
+  onUndo, onRedo,
 }: CanvasProps) {
   const svg = useRef<SVGSVGElement>(null);
   const [pressed, setPressed] = useState<string | null>(null);
@@ -451,7 +449,9 @@ export function Canvas({
   };
   const busy = gesture ? gesture.kind === 'wire' ? 'wire' : gesture.kind === 'marquee' ? 'choosing' : gesture.kind === 'pan' ? 'panning' : 'moving' : placing ? 'placing' : '';
   // F-12: what is joined to the hole under the pointer — or, while a wire is drawn, to where it would end
-  const litFrom = running ? null : gesture?.kind === 'wire' ? nearestPoint(scene, gesture.at) ?? gesture.from : gesture ? null : hover;
+  // a hovered point that has just been used (a wire ended there) is gone from under the pointer
+  const hovered = hover && !usedPoints(shown).has(hover) ? hover : null;
+  const litFrom = running ? null : gesture?.kind === 'wire' ? nearestPoint(scene, gesture.at) ?? gesture.from : gesture ? null : hovered;
   const lit = useMemo(() => (litFrom ? joined(shown, litFrom) : null), [shown, litFrom]);
   const hint = problem ?? (placing?.how === 'carry' ? MESSAGES.carry : placing?.how === 'keys' ? MESSAGES.keys
     : gesture?.kind === 'wire' && gesture.mode === 'click' ? MESSAGES.bending
@@ -614,9 +614,6 @@ export function Canvas({
           onClick={() => zoomBy(1 / scale)}>{Math.round(scale * 100)}%</button>
         <ToolButton icon="zoomin" label="Zoom in" keys="+" disabled={scale >= ZOOM.max - 1e-6} onClick={() => zoomBy(ZOOM.step)} />
         <ToolButton icon="fit" label="Fit" keys="0" disabled={false} onClick={fitView} />
-        <span className="vsep" />
-        <ToolButton icon="undo" label="Undo" keys={`${MOD}Z`} disabled={!canEdit || !canUndo} onClick={() => { say(null); onUndo?.(); }} />
-        <ToolButton icon="redo" label="Redo" keys={MOD === '⌘' ? '⇧⌘Z' : 'Ctrl+Y'} disabled={!canEdit || !canRedo} onClick={() => { say(null); onRedo?.(); }} />
         <span className="vsep" />
         <ToolButton icon="rotate" label="Rotate" keys="R" disabled={!canEdit || !some.parts.length} onClick={() => commands.rotate(project, selection)} />
         <ToolButton icon="copy" label="Duplicate" keys={`${MOD}D`} disabled={!canEdit || (!some.parts.length && !some.wires.length)} onClick={() => commands.duplicate(project, selection)} />

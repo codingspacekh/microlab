@@ -15,5 +15,5 @@ export type { History } from './history';
 export { fitBox, joined, panBy, zoomAt, ZOOM } from './viewport';
 export type { Box, LitStrip } from './viewport';
 export { deleteBend, insertBend, moveBend, straighten } from './commands';
-export { holeCard, pinCard } from './cards';
+export { holeCard, joinsOf, pinCard } from './cards';
 export type { ChipKind, HoleCard, PinCard } from './cards';

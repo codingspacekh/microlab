@@ -53,6 +53,11 @@ test('build part of Blink with the mouse: a resistor dragged onto a5–a8, a wir
   await win.mouse.up();
   await expect(win.locator('[data-wire="w1"]')).toHaveAttribute('data-ends', 'board.GP15 bb1.e5');
   await expect(win.getByRole('status')).toContainText('1 part · 1 wire');
+
+  // M5.4 (screen 02b): the resistor's inspector says what its legs are joined to
+  const r1 = await centre(win, '[data-part="r1"] rect >> nth=0');
+  await win.mouse.click(r1.x, r1.y);
+  await expect(win.getByRole('complementary', { name: 'Inspector' })).toContainText('JoinsGP15 ↔ nothing');
 });
 
 test('at 1280 × 720 the micro:bit and its breadboard fit in the canvas', async () => {

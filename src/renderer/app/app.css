@@ -214,3 +214,4 @@ h3 { font-size: 13px; font-weight: 650; }
 .statusbar .st.running { color: var(--run); } .statusbar .st.running .dot { background: var(--run); }
 .statusbar .st.bad { color: var(--danger); }
 .statusbar .st.saved { color: var(--success); }
+.topbar .undo { display: flex; align-items: center; gap: 2px; }

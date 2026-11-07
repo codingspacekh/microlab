@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NewProjectBoard } from '@lib/boards';
 import { newProject, type ProjectDoc } from '@lib/project';
-import type { History } from '@lib/editor';
+import { EMPTY_HISTORY, redo, undo, type History } from '@lib/editor';
 import { Icon, Logo } from '../ui/Icon';
 import { Dialog } from '../ui/Dialog';
 import { MenuButton } from '../ui/Menu';
@@ -40,6 +40,8 @@ export interface OpenProject {
   saved: ProjectDoc;
   /** "Saved “Blink.mlab”", until the next change. */
   savedNote?: string;
+  /** The circuit's undo / redo (M5.1, F-16): while the project is open, through Learn and back. */
+  history?: History;
 }
 
 let opened = 0;
@@ -118,8 +120,11 @@ export function App({ api, width, startRun }: AppProps) {
   useEffect(() => { api.app.setDirty(dirty); }, [api, dirty]);
   useEffect(() => { document.title = open ? `${open.name}${dirty ? ' •' : ''} — MicroLab` : 'MicroLab'; }, [open, dirty]);
 
-  // the circuit's undo / redo, per open project (M5.1): kept here so it outlives a visit to Learn
-  const histories = useRef(new Map<number, History>());
+  // the circuit's undo / redo (M5.1): the top bar's buttons (screen 02b) and ⌘Z / Ctrl+Z on the canvas
+  const step = (go: typeof undo) => setOpen((cur) => {
+    const r = cur && go(cur.history ?? EMPTY_HISTORY, cur.doc.project);
+    return r ? { ...cur!, history: r.history, doc: { ...cur!.doc, project: r.project }, savedNote: undefined } : cur;
+  });
 
   // ⌘S / Ctrl+S save, ⇧ for Save as; ⌘O / Ctrl+O open
   const keysRef = useRef<(e: KeyboardEvent) => void>(() => {});
@@ -231,7 +236,8 @@ export function App({ api, width, startRun }: AppProps) {
   const page = controls ? <ControlsPage />
     : mode !== 'workspace' ? <Later mode={mode} />
     : open ? <Workspace key={open.key} api={api} width={width} doc={open.doc} onChange={(doc) => setOpen((cur) => (cur ? { ...cur, doc, savedNote: undefined } : cur))}
-        history={histories.current.get(open.key)} onHistory={(h) => histories.current.set(open.key, h)}
+        history={open.history ?? EMPTY_HISTORY} onHistory={(h) => setOpen((cur) => (cur ? { ...cur, history: h } : cur))}
+        onUndo={() => step(undo)} onRedo={() => step(redo)}
         run={sim.state} running={running} onInput={sim.setInput} onClearConsole={sim.clear}
         consoleTab={bc.tab} onConsoleTab={bc.setTab}
         board={bc.shown ? {
@@ -255,7 +261,11 @@ export function App({ api, width, startRun }: AppProps) {
 
   return (
     <div className="app">
-      <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} dirty={dirty} run={runControls} chip={chip} {...actions} />
+      <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} dirty={dirty} run={runControls} chip={chip} {...actions}
+        edit={open && mode === 'workspace' ? {
+          canUndo: !running && (open.history?.past.length ?? 0) > 0, canRedo: !running && (open.history?.future.length ?? 0) > 0,
+          onUndo: () => step(undo), onRedo: () => step(redo),
+        } : undefined} />
       {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
       {page}
       <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} board={boardRuns} />
@@ -330,6 +340,8 @@ interface TopBarProps {
   onSaveAs: () => void;
   /** The real board's chip (F-55) and Send to board (F-50). */
   chip: React.ReactNode;
+  /** Undo / redo of the circuit (screen 02b), in the workspace. */
+  edit?: { canUndo: boolean; canRedo: boolean; onUndo: () => void; onRedo: () => void };
 }
 
 interface RunControls {
@@ -341,7 +353,7 @@ interface RunControls {
 
 const MOD = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
-function TopBar({ mode, onMode, project, dirty, run, chip, onNewProject, onOpen, onSave, onSaveAs }: TopBarProps) {
+function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, onOpen, onSave, onSaveAs }: TopBarProps) {
   return (
     <header className="topbar">
       <div className="brand"><Logo /><b>Micro<span>Lab</span></b></div>
@@ -366,6 +378,12 @@ function TopBar({ mode, onMode, project, dirty, run, chip, onNewProject, onOpen,
             { label: 'Save as…', icon: 'copy', hint: MOD === '⌘' ? '⇧⌘S' : 'Ctrl+Shift+S', keys: 'Shift+Meta+S Shift+Control+S', onSelect: onSaveAs },
           ]} />
           <span className="spacer" />
+          {edit && (
+            <div className="undo" role="group" aria-label="Undo and redo">
+              <button type="button" className="btn ghost icon" aria-label="Undo" title={`Undo (${MOD}Z)`} disabled={!edit.canUndo} onClick={edit.onUndo}><Icon name="undo" size={16} /></button>
+              <button type="button" className="btn ghost icon" aria-label="Redo" title={`Redo (${MOD === '⌘' ? '⇧⌘Z' : 'Ctrl+Y'})`} disabled={!edit.canRedo} onClick={edit.onRedo}><Icon name="redo" size={16} /></button>
+            </div>
+          )}
           <div className="vsep" />
           <RunBox run={run} />
           <div className="vsep" />

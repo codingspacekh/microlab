@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addPart, addWire, boardData, deleteBend, holeCard, insertBend, moveBend, pinCard, straighten } from '@lib/editor';
+import { addPart, addWire, boardData, deleteBend, holeCard, insertBend, joinsOf, moveBend, pinCard, straighten } from '@lib/editor';
 import { newProject, parseProject } from '@lib/project';
 
 /** M5.3 F-13 a wire's bends moved, added and taken away; F-15 / F-12 what a pin and a hole are (screen 02). */
@@ -70,5 +70,40 @@ describe('M5.3 F-12 a hole\'s card', () => {
     expect(holeCard(empty(), 'bb1.B+4').title).toBe('Bottom + rail');
     const full = { ...empty(), breadboards: [{ id: 'bb1', size: 'full' as const }] };
     expect(holeCard(full, 'bb1.T+1').lines[0]).toMatch(/^All 53 holes/);
+  });
+});
+
+describe('M5.4 F-14 the Joins line (screen 02b)', () => {
+  it('a resistor between GP15 and an LED: "GP15 ↔ LED1"; an LED between it and GND: "R1 ↔ GND"', () => {
+    let p = addPart(empty(), 'resistor', { a: 'bb1.a5', b: 'bb1.a8' }).project;
+    p = addPart(p, 'led', { a: 'bb1.b8', k: 'bb1.b10' }).project;
+    p = addWire(p, 'board.GP15', 'bb1.e5')!;
+    p = addWire(p, 'board.GND@38', 'bb1.e10')!;
+    expect(joinsOf(p, 'r1')).toEqual(['GP15', 'LED1']);
+    expect(joinsOf(p, 'led1')).toEqual(['R1', 'GND']);
+  });
+
+  it('a leg joined to nothing says so; a push button\'s two sides are each one piece of metal', () => {
+    let p = addPart(empty(), 'button', { '1a': 'bb1.e10', '2a': 'bb1.e12', '1b': 'bb1.f10', '2b': 'bb1.f12' }).project;
+    expect(joinsOf(p, 'btn1')).toEqual(['nothing', 'nothing']);
+    p = addWire(p, 'board.GP14', 'bb1.a10')!;
+    p = addWire(p, 'board.GND@3', 'bb1.j12')!;
+    expect(joinsOf(p, 'btn1')).toEqual(['GP14', 'GND']);
+  });
+
+  it('a potentiometer: end, wiper, end', () => {
+    let p = addPart(empty(), 'potentiometer', { 1: 'bb1.a20', 2: 'bb1.a22', 3: 'bb1.a24' }).project;
+    p = addWire(p, 'board.GND@3', 'bb1.e20')!;
+    p = addWire(p, 'board.GP26', 'bb1.e22')!;
+    p = addWire(p, 'board.3V3', 'bb1.e24')!;
+    expect(joinsOf(p, 'pot1')).toEqual(['GND', 'GP26', '3V3']);
+  });
+
+  it('several things on one leg are all named, pins first', () => {
+    let p = addPart(empty(), 'resistor', { a: 'bb1.a5', b: 'bb1.a8' }).project;
+    p = addPart(p, 'led', { a: 'bb1.c8', k: 'bb1.c10' }).project;
+    p = addPart(p, 'led', { a: 'bb1.d8', k: 'bb1.d12' }).project;
+    p = addWire(p, 'board.GP15', 'bb1.e8')!;
+    expect(joinsOf(p, 'r1')[1]).toBe('GP15, LED1, LED2');
   });
 });

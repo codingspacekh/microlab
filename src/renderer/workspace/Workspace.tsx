@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { EMPTY_HISTORY, PART_KINDS, record, redo, undo, type History } from '@lib/editor';
+import { EMPTY_HISTORY, PART_KINDS, record, type History } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { ProjectDoc } from '@lib/project';
 import { Console, type BoardConsoleView } from '../console/Console';
@@ -46,9 +46,11 @@ export interface WorkspaceProps {
   onConsoleTab?: (tab: 'sim' | 'board') => void;
   /** Over the canvas while the real board runs: the simulator is stopped, the board must be wired like this. */
   banner?: ReactNode;
-  /** The circuit's undo / redo (M5.1, F-16), kept by the app per open project so it outlives a visit to Learn. */
+  /** The circuit's undo / redo (M5.1, F-16), kept by the app with the open project (its top bar has the buttons). */
   history?: History;
   onHistory?: (h: History) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 /** Edits of one value of one thing within this long are one undo step (a stepper held, a value typed). */
@@ -58,14 +60,13 @@ const IDLE_RUN: Pick<RunState, 'parts' | 'board'> = { parts: {}, board: { pins: 
 
 export function Workspace({
   api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, onConsoleTab, banner,
-  history: kept, onHistory,
+  history = EMPTY_HISTORY, onHistory, onUndo, onRedo,
 }: WorkspaceProps) {
   const { ref, width } = useWidth(fixed);
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
   const [drag, setDrag] = useState<Partial<Record<keyof Layout, number>>>({});
   const [placing, setPlacing] = useState<Placing | null>(null);
   const [selection, setSelection] = useState<Selection[]>([]);
-  const [history, setHistory] = useState<History>(() => kept ?? EMPTY_HISTORY);
   const merging = useRef<{ key: string; at: number; n: number }>({ key: '', at: 0, n: 0 });
 
   useEffect(() => {
@@ -96,7 +97,16 @@ export function Workspace({
   }, [running]);
 
   const project = doc.project;
-  const keep = (h: History) => { setHistory(h); onHistory?.(h); };
+  const keep = (h: History) => onHistory?.(h);
+  // what was selected may be gone (an undo, a redo)
+  useEffect(() => {
+    setSelection((sel) => {
+      const kept = sel.filter((x) => (x.kind === 'part' ? project.parts : x.kind === 'wire' ? project.wires : project.breadboards).some((t) => t.id === x.id));
+      return kept.length === sel.length ? sel : kept;
+    });
+    if (project !== recorded.current) merging.current = { ...merging.current, key: '' };
+  }, [project]);
+  const recorded = useRef(project);
   /** Every circuit edit is one undo step; `merge` names an edit of one value, so a run of them is one step. */
   const setProject = (p: typeof project, merge?: string) => {
     if (p === project) return;
@@ -109,16 +119,8 @@ export function Workspace({
       token = `${merge}#${merging.current.n}`;
     } else merging.current = { ...merging.current, key: '' };
     keep(record(history, project, token));
+    recorded.current = p;
     onChange({ ...doc, project: p });
-  };
-  const step = (go: typeof undo) => {
-    const r = go(history, project);
-    if (!r) return;
-    keep(r.history);
-    merging.current = { ...merging.current, key: '' };
-    // what was selected may be gone now
-    setSelection((sel) => sel.filter((x) => (x.kind === 'part' ? r.project.parts : x.kind === 'wire' ? r.project.wires : r.project.breadboards).some((t) => t.id === x.id)));
-    onChange({ ...doc, project: r.project });
   };
 
   const board = project.board as BoardId;
@@ -159,10 +161,10 @@ export function Workspace({
       <section className="canvas" aria-label="Circuit">
         <Canvas project={project} onChange={(p) => setProject(p)} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection}
           running={running} outputs={running || run.ended ? run : IDLE_RUN} onInput={onInput}
-          onUndo={() => step(undo)} onRedo={() => step(redo)} canUndo={history.past.length > 0} canRedo={history.future.length > 0} />
+          onUndo={onUndo} onRedo={onRedo} />
         {banner && <div className="cbanner">{banner}</div>}
         {selection.length === 1 && (
-          <Inspector key={`${selection[0]!.kind}:${selection[0]!.id}`} project={project} selection={selection[0]!} onChange={setProject} onClose={() => setSelection([])} />
+          <Inspector key={`${selection[0]!.kind}:${selection[0]!.id}`} project={project} selection={selection[0]!} onChange={setProject} onClose={() => setSelection([])} onSelect={setSelection} />
         )}
       </section>
       <Divider label="Code panel width" value={sidePx} min={LIMITS.side[0]} max={sideMax} edge="right"

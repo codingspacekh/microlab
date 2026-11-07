@@ -422,7 +422,9 @@ describe('M4.3 the part kinds', () => {
 
 describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', () => {
   const tools = () => screen.getByRole('toolbar', { name: 'Circuit tools' });
-  const tool = (name: string) => within(tools()).getByRole('button', { name });
+  const tool = (name: string) => (name === 'Undo' || name === 'Redo'
+    ? within(screen.getByRole('group', { name: 'Undo and redo' })).getByRole('button', { name })   // the top bar (screen 02b)
+    : within(tools()).getByRole('button', { name }));
   const hint = () => document.querySelector('.canvas-hint')?.textContent ?? '';
   const pick = (s: ReturnType<typeof setup>, id: string, shift = false) => {
     const g = s.svg.querySelector(`[data-part="${id}"]`)!;
@@ -701,7 +703,7 @@ describe('M5.3 a wire\'s bends (F-13); the pin and hole cards (F-15, F-12; scree
     fireEvent.click(within(inspector()).getByRole('button', { name: 'Straighten' }));
     expect(via(s)).toBe('');
     expect(within(inspector()).getByRole('button', { name: 'Straighten' })).toBeDisabled();
-    fireEvent.click(within(screen.getByRole('toolbar', { name: 'Circuit tools' })).getByRole('button', { name: 'Undo' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Undo and redo' })).getByRole('button', { name: 'Undo' }));
     expect(via(s)!.split(' ')).toHaveLength(2);
   });
 
@@ -736,5 +738,65 @@ describe('M5.3 a wire\'s bends (F-13); the pin and hole cards (F-15, F-12; scree
     fireEvent.mouseEnter(s.svg.querySelector('[data-point="board.P0"]')!);
     expect(screen.getByRole('tooltip')).toHaveTextContent(/^P0 · pin/);
     expect([...screen.getByRole('tooltip').querySelectorAll('.fn')].map((c) => c.textContent)).toContain('Digital in/out');
+  });
+});
+
+describe('M5.4 the inspector (screen 02b): Joins, Rotate, Duplicate, Delete', () => {
+  const inspector = () => screen.getByRole('complementary', { name: 'Inspector' });
+  const wire = (s: ReturnType<typeof setup>, from: string, to: string) => {
+    const a = s.point(from);
+    const b = s.point(to);
+    fireEvent.mouseDown(s.svg.querySelector(`[data-point="${from}"]`)!, s.client(a.x, a.y));
+    fireEvent.mouseMove(s.svg, s.client(b.x, b.y));
+    fireEvent.mouseUp(s.svg, s.client(b.x, b.y));
+  };
+
+  it('Blink: the resistor joins GP15 ↔ LED1, the LED joins R1 ↔ GND', () => {
+    const s = setup();
+    place(s, /^Resistor/, 'resistor', 'bb1.a5');
+    place(s, /^LED/, 'led', 'bb1.b8');
+    wire(s, 'board.GP15', 'bb1.e5');
+    wire(s, 'board.GND@38', 'bb1.e10');
+    fireEvent.mouseDown(s.svg.querySelector('[data-part="r1"]')!, s.client(0, 0));
+    fireEvent.mouseUp(s.svg, s.client(0, 0));
+    expect(within(inspector()).getByText('GP15 ↔ LED1')).toBeInTheDocument();
+    fireEvent.mouseDown(s.svg.querySelector('[data-part="led1"]')!, s.client(0, 0));
+    fireEvent.mouseUp(s.svg, s.client(0, 0));
+    expect(within(inspector()).getByText('R1 ↔ GND')).toBeInTheDocument();
+  });
+
+  it('Rotate turns it; Duplicate copies it and shows the copy; Delete removes it', () => {
+    const s = setup();
+    place(s, /^Resistor/, 'resistor', 'bb1.a5');
+    fireEvent.click(within(inspector()).getByRole('button', { name: 'Rotate' }));
+    expect(s.parts()).toEqual(['r1 bb1.a6 bb1.d6']);
+    fireEvent.click(within(inspector()).getByRole('button', { name: 'Duplicate' }));
+    expect(s.parts()).toHaveLength(2);
+    expect(within(inspector()).getByText('R2 · Resistor')).toBeInTheDocument();
+    fireEvent.click(within(inspector()).getByRole('button', { name: 'Delete' }));
+    expect(s.parts()).toEqual(['r1 bb1.a6 bb1.d6']);
+    expect(screen.queryByRole('complementary', { name: 'Inspector' })).toBeNull();
+  });
+
+  it('no room to turn: the inspector says so', () => {
+    const s = setup();
+    place(s, /^LED/, 'led', 'bb1.T-1');
+    fireEvent.click(within(inspector()).getByRole('button', { name: 'Rotate' }));
+    expect(within(inspector()).getByRole('alert')).toHaveTextContent('No room to turn it');
+  });
+});
+
+describe('M5.4 a card never outlives its hole', () => {
+  it('a wire ended on the hovered hole: its card goes', () => {
+    const s = setup();
+    const a = s.point('board.GP15');
+    const b = s.point('bb1.e5');
+    fireEvent.mouseEnter(s.svg.querySelector('[data-point="bb1.e5"]')!);
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    fireEvent.mouseDown(s.svg.querySelector('[data-point="board.GP15"]')!, s.client(a.x, a.y));
+    fireEvent.mouseMove(s.svg, s.client(b.x, b.y));
+    fireEvent.mouseUp(s.svg, s.client(b.x, b.y));
+    expect(s.wires()).toEqual(['w1 board.GP15 bb1.e5']);
+    expect(screen.queryByRole('tooltip')).toBeNull();
   });
 });
