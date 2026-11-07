@@ -138,6 +138,28 @@ while True:
     green.value(on and not dark)
     print(light.read_u16())
     time.sleep(0.5)''',
+    "bmp280lib": '''from machine import I2C, Pin
+from bmp280 import BMP280
+import time
+
+bmp = BMP280(I2C(0, sda=Pin(4), scl=Pin(5)))
+bmp.normal_measure()
+while True:
+    print(bmp.temperature, 'C', bmp.pressure / 100, 'hPa')
+    time.sleep(1)''',
+    "weather": '''from machine import I2C, Pin
+from bmp280 import BMP280
+from vl53l0x import VL53L0X
+import time
+
+i2c = I2C(0, sda=Pin(4), scl=Pin(5))
+bmp = BMP280(i2c)
+tof = VL53L0X(i2c)
+bmp.normal_measure()
+
+while True:
+    print(bmp.pressure / 100, 'hPa', tof.ping(), 'mm')
+    time.sleep(1)''',
     "chips": '''from machine import I2C, Pin
 import time
 from ds1302 import DS1302
