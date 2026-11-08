@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>25c Output faults</title>
+{{include:head}}
+</head>
+<body>
+<!--@PROJECT: Fan-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@EDITOR: {{code:outputfaults:cur=7}}-->
+<!--@PARTS_LIST: {{parts::::Actuators+Output modules}}-->
+<!--@COUNTS: Pico W + 2 parts · 7 wires-->
+<!--@CTABS: <a>{{i:term:s14}} Console</a><a>{{i:plot:s14}} Plotter</a><a class="on">{{i:warn:s14}} Problems <span class="cnt">2</span></a>-->
+<!--@CONSOLE: <div class="cbody" style="font-family:var(--font);font-size:12.5px;line-height:1.45;padding:4px 0">
+<div class="row" style="padding:9px 12px;border-bottom:1px solid var(--line);align-items:flex-start"><span style="color:var(--danger)">{{i:alert}}</span><div class="col" style="gap:2px;flex:1"><b>GP15 was damaged</b><span class="muted small">MOTOR1 straight on the pin drew about 160 mA; a Pico W pin should give at most 12 mA. The simulation stopped at 00:00.2.</span></div><button class="btn sm">Show</button></div>
+<div class="row" style="padding:9px 12px;border-bottom:1px solid var(--line);align-items:flex-start"><span style="color:var(--warn)">{{i:warn}}</span><div class="col" style="gap:2px;flex:1"><b>SERVO1 gets 3.3 V</b><span class="muted small">An SG90 needs 4.8–6 V: on 3V3 it twitches and can't hold its angle. Give its + VBUS (5 V).</span></div><button class="btn sm">Show</button></div>
+</div>-->
+<!--@STATUS: <span class="st" style="color:var(--danger)"><span class="dot" style="background:var(--danger)"></span>Stopped: a pin was damaged</span>-->
+<!--@STATUS_R: <span class="row" style="gap:5px;color:var(--danger)">{{i:alert:s12}} 1 pin damaged · 1 warning</span>-->
+<p class="frame-label"><b>25c · Motors need a driver</b> (M7 design, slice 1; milestone tests) — a <b>TT motor straight on GP15</b> and GND: a motor draws far more than a pin can give, so the pin is damaged and the run stops, as screen 04's LED; the card says why, with the numbers, and the fix — a driver (L9110S, L298N) or a transistor, the motor on 5 V. A <b>servo on 3V3</b> is a warning, not a stop: it twitches, too weak to turn (M1's <i>servo-underpowered</i>). Both are in Problems (F-24)</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:outputfaults}}
+      <div class="float fault" style="left:24px;top:420px">
+        <div class="fh">{{i:alert:s18}} GP15 was damaged</div>
+        <p>MOTOR1 is wired straight to GP15. A motor needs far more current than a pin can give — a real pin would now be dead, and the motor wouldn't turn.</p>
+        <div class="nums"><div><small>Motor draws</small><b class="bad">≈ 160 mA</b></div><div><small>Pin can give</small><b>12 mA</b></div></div>
+        <p><b style="color:var(--tx-1)">Fix:</b> drive it through an L9110S or L298N (Actuators): the pin to the driver's input, the motor to its screws, the driver on VBUS.</p>
+        <div class="acts"><button class="btn sm primary">{{i:book:s14}} Show me how</button><button class="btn sm ghost">{{i:undo:s14}} Undo</button></div>
+      </div>
+      <div class="tip" style="left:470px;top:8px;width:216px;background:#fff;color:var(--tx-1);border:1px solid var(--warn-line)"><b style="color:var(--warn)">SERVO1 gets 3.3 V</b><div style="margin-top:2px;color:var(--tx-2)">An SG90 needs 4.8–6 V: it twitches and can't hold 70°. Give its + VBUS.</div></div></div>
+      <div class="ctools" style="opacity:0"></div>
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

@@ -203,6 +203,55 @@ while True:
     print('%.1f C %.0f %%  %d cm  x %.2f g' % (
         air.temperature(), air.humidity(), cm, x / 16384))
     time.sleep(2)''',
+    "actuators": '''from machine import Pin, PWM
+import time
+
+servo = PWM(Pin(28), freq=50)          # SG90: a pulse every 20 ms
+ia = PWM(Pin(27), freq=1000)           # L9110S A-IA: the speed
+ib = Pin(26, Pin.OUT)                  # A-IB: 0 forward, 1 back
+pump = Pin(22, Pin.OUT)                # the relay's S
+blue = PWM(Pin(19), freq=1000)         # the RGB module's B
+
+def angle(deg):                        # 0.5 ms … 2.5 ms
+    servo.duty_ns(500_000 + deg * 2_000_000 // 180)
+
+while True:
+    angle(135)
+    ib.value(0); ia.duty_u16(45_000)   # forward, 70 %
+    pump.value(1); blue.duty_u16(65_535)
+    time.sleep(3)
+    angle(45)
+    ia.duty_u16(0); pump.value(0); blue.duty_u16(0)
+    time.sleep(3)''',
+    "moreoutputs": '''from machine import Pin, PWM
+import time
+
+coils = [Pin(n, Pin.OUT) for n in (28, 27, 26, 22)]   # IN1–IN4
+red, amber, green = Pin(21, Pin.OUT), Pin(20, Pin.OUT), Pin(19, Pin.OUT)
+tone = PWM(Pin(18))                    # the passive buzzer's I/O
+in3, in4 = Pin(17, Pin.OUT), Pin(16, Pin.OUT)   # L298N motor B
+HALF = [(1,0,0,0), (1,1,0,0), (0,1,0,0), (0,1,1,0),
+        (0,0,1,0), (0,0,1,1), (0,0,0,1), (1,0,0,1)]
+
+green.on(); in3.off(); in4.on()        # MOTOR2 turns back
+tone.freq(440); tone.duty_u16(32_768)  # A4
+for step in range(4096):               # one turn of the 28BYJ-48
+    for pin, v in zip(coils, HALF[step % 8]):
+        pin.value(v)
+    time.sleep_ms(2)
+tone.duty_u16(0)''',
+    "outputfaults": '''from machine import Pin, PWM
+import time
+
+motor = Pin(15, Pin.OUT)               # MOTOR1 straight on the pin
+servo = PWM(Pin(16), freq=50)          # SG90 on 3V3
+
+motor.on()
+while True:
+    servo.duty_ns(2_000_000)
+    time.sleep(1)
+    servo.duty_ns(1_000_000)
+    time.sleep(1)''',
     "greenhouse": '''from machine import Pin, ADC
 import time
 
@@ -363,8 +412,11 @@ PARTS = [
                  ("kspeed", "IR speed sensor", "20-slot wheel")]),
     ("Chips", [("pcf8591", "PCF8591", "ADC · DAC · I²C"), ("bmp280", "BMP280", "pressure · I²C"), ("ds18b20", "DS18B20", "temperature · 1-Wire"),
                ("ds1302", "DS1302 clock", "real-time clock"), ("vl53l0x", "VL53L0X", "laser distance · I²C"), ("max30102", "MAX30102", "pulse · SpO2 · I²C")]),
-    ("Actuators", [("servo", "Servo SG90", "0–180°"), ("motor", "DC motor", "TT gear motor"), ("driver", "Motor driver", "L298N · L9110S"),
-                   ("relay", "Relay module", "")]),
+    ("Actuators", [("servo", "Servo SG90", "0–180°"), ("motor", "TT motor", "3–6 V gear motor"), ("driver", "L9110S driver", "two motors"),
+                   ("l298n", "L298N driver", "two motors · 5–12 V"), ("relay", "Relay module", "5 V · NO / NC"), ("pump", "Water pump", "3–6 V"),
+                   ("stepper", "Stepper 28BYJ-48", "with ULN2003")]),
+    ("Output modules", [("traffic", "Traffic light module", "R Y G"), ("krgb", "RGB LED module", "R G B"), ("kbuzzer", "Passive buzzer module", "plays notes"),
+                        ("psu", "Breadboard power supply", "5 V · 3.3 V")]),
     ("Displays", [("oled", "OLED SSD1306", "128×64 · I²C"), ("lcd", "LCD 16×2", "I²C"), ("seg7", "7-segment digit", ""),
                   ("neopixel", "NeoPixel strip / ring", "WS2812")]),
 ]
@@ -373,11 +425,17 @@ PARTS = [
 MICROBIT_PARTS = [("micro:bit", [("gpioboard", "GPIO board", "30 pins · 5V from its USB")])]
 
 
-def parts(hover: str = "", drag: str = "", board: str = "") -> str:
-    """`board` = microbit: the micro:bit's own group first (screen 24: its GPIO board)."""
+def parts(hover: str = "", drag: str = "", board: str = "", opened: str = "") -> str:
+    """`board` = microbit: the micro:bit's own group first (screen 24: its GPIO board). `opened`: the groups shown
+    open, '+'-separated (the others folded to their heading, as the student left them); all open if not set."""
     out = []
+    keep = set(opened.split("+")) if opened else None
     for group, items in (MICROBIT_PARTS if board == "microbit" else []) + PARTS:
-        out.append(f'<div class="pgroup"><div class="gh">{icon("chevd", "s12")} {group}<span class="n">{len(items)}</span></div>')
+        folded = keep is not None and group not in keep
+        out.append(f'<div class="pgroup"><div class="gh">{icon("chevr" if folded else "chevd", "s12")} {group}<span class="n">{len(items)}</span></div>')
+        if folded:
+            out.append("</div>")
+            continue
         for kind, name, sub in items:
             cls = " hover" if kind == hover else " drag" if kind == drag else ""
             small = f"<small>{sub}</small>" if sub else ""

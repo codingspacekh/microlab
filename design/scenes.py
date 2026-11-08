@@ -6,7 +6,8 @@ on the ESP32 and *Heart & knob* on the micro:bit. Every wire ends on a real pin 
 """
 import math
 
-from svgparts import (P, f, Breadboard, microbit_bare, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
+from svgparts import (P, f, Breadboard, microbit_bare, servo_in, l9110s, tt_motor, relay_module, pump, uln2003, stepper, l298n,
+                      kit_traffic, kit_rgb, kit_passive_buzzer, power_supply, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
                       microbit, oled, hcsr04, servo, HEART, slide_switch, ldr, rgb_led, battery,
                       pir, line_sensor, soil_sensor, temp_sensor, dht, mpu6050, hcsr04_in,
                       kit_button, kit_touch, kit_vibration, kit_ir_obstacle, kit_hall, kit_flame, kit_raindrop, kit_water, kit_mq2,
@@ -511,7 +512,122 @@ def mbit_gpio() -> str:
     return _svg("".join(o), vb="-60 -40 900 1066")
 
 
-SCENES = {"mbitalone": mbit_alone, "mbitgpio": mbit_gpio, "bare": bare, "placebb": place_breadboard, "chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
+def _bus(pins, jobs, y0: float, step: float = 8):
+    """Wires from the Pico W's top-row pins up to holes: `jobs` = [(pin, hole, colour)], given from the highest run to
+    the lowest — each wire goes up from its pin to its own height below the breadboard, across, and up to its hole."""
+    return "".join(wire([pins[n], (pins[n][0], y0 + i * step), (to[0], y0 + i * step), to], col) for i, (n, to, col) in enumerate(jobs))
+
+
+def actuators() -> str:
+    """Screen 25 (M7 design): a Pico W running — an SG90 by its plug in row a (S, +, −), an L9110S standing in row f
+    turning a TT motor through its MOTOR A screws, a relay module switching a pump on a 4×AA pack of its own (the top
+    rails: COM from +, NO to the pump), the kit's RGB LED module. B+ is VBUS (5 V), B− GND."""
+    bb = Breadboard(120, 270)
+    o = [bb.svg(rail_labels={"T-": ("6 V −", "#3a3d42"), "T+": ("6 V +", "#de3b3b"), "B+": ("5V", "#f08024"), "B-": ("GND", "#3a3d42")})]
+    o.append(battery(bb.xy(29, "T+"), bb.xy(29, "T-"), "4xAA"))
+    o.append(servo_in([bb.xy(2, "a"), bb.xy(3, "a"), bb.xy(4, "a")], angle=135))
+    dsvg, dp = l9110s([bb.xy(c, "f") for c in range(8, 14)], a_dir=1)
+    o.append(dsvg)
+    msvg, tabs = tt_motor(286, 168, rpm=126, direction=1)
+    o.append(msvg)
+    rsvg, rp = relay_module([bb.xy(c, "f") for c in (19, 20, 21)], on=True)
+    o.append(rsvg)
+    psvg_, pt = pump(430, 150, running=True)
+    o.append(psvg_)
+    o.append(kit_rgb([bb.xy(c, "f") for c in (25, 26, 27, 28)], rgb=(0, .2, 1)))
+    psvg, pins = pico(140, 770)
+    o.append(psvg)
+    # the Pico W's top row, VBUS on the left to GP16 on the right
+    o.append(_bus(pins, [(40, bb.xy(1, "B+"), "orange"), (38, bb.xy(2, "B-"), "black")], 600))
+    o.append(_bus(pins, [
+        (25, bb.xy(27, "i"), "blue"), (26, bb.xy(26, "i"), "green"), (27, bb.xy(25, "i"), "white"),   # the RGB module's B G R
+        (29, bb.xy(19, "i"), "purple"),                                                               # the relay's S
+        (31, bb.xy(13, "i"), "blue"), (32, bb.xy(12, "i"), "green"),                                  # L9110S A-IB, A-IA (PWM)
+    ][::-1], 582, 8))
+    o.append(_bus(pins, [(34, bb.xy(2, "e"), "yellow")], 574))                                        # the servo's S
+    # servo + 5 V, − GND
+    o.append(wire([bb.xy(3, "e"), (bb.xy(3, "e")[0] + 6, 430), bb.xy(3, "B+")], "red"))
+    o.append(wire([bb.xy(4, "e"), (bb.xy(4, "e")[0] + 6, 430), bb.xy(4, "B-")], "black"))
+    # L9110S: GND, VCC 5 V; MOTOR A to the motor's tabs
+    o.append(wire([bb.xy(10, "j"), bb.xy(10, "B-")], "black"))
+    o.append(wire([bb.xy(11, "j"), bb.xy(11, "B+")], "red"))
+    o.append(wire([dp["A1"], (dp["A1"][0], 248), (tabs["+"][0] + 14, 248), (tabs["+"][0] + 14, tabs["+"][1]), tabs["+"]], "red"))
+    o.append(wire([dp["A2"], (dp["A2"][0], 256), (tabs["−"][0] + 22, 256), (tabs["−"][0] + 22, tabs["−"][1]), tabs["−"]], "black"))
+    # relay: + 5 V, − GND; the pump on the pack: + → COM, NO → pump +, pump − → −
+    o.append(wire([bb.xy(20, "j"), bb.xy(20, "B+")], "red"))
+    o.append(wire([bb.xy(21, "j"), bb.xy(21, "B-")], "black"))
+    o.append(wire([rp["COM"], (rp["COM"][0], 318), (bb.xy(26, "T+")[0], 318), bb.xy(26, "T+")], "red"))
+    o.append(wire([rp["NO"], (rp["NO"][0], 96), (pt["+"][0], 96), pt["+"]], "red"))
+    o.append(wire([pt["−"], (pt["−"][0], 104), (bb.xy(25, "T-")[0], 104), bb.xy(25, "T-")], "black"))
+    o.append(wire([bb.xy(28, "j"), (bb.xy(28, "j")[0] + 8, 540), bb.xy(29, "B-")], "black"))
+    return _svg("".join(o), vb="20 40 660 800")
+
+
+def more_outputs() -> str:
+    """Screen 25b (M7 design): a Pico W running — the breadboard power supply on the left end (top rails 5 V, bottom
+    3.3 V), a ULN2003 on the supply's 5 V turning a 28BYJ-48 by its cable, the kit's traffic light and passive buzzer modules, and an L298N
+    beside the breadboard on the supply's 5 V turning a TT motor. The Pico W's GND joins the supply's."""
+    bb = Breadboard(150, 290)
+    o = [bb.svg(rail_labels={"T-": ("GND", "#3a3d42"), "T+": ("5V", "#de3b3b"), "B+": ("3.3V", "#de3b3b"), "B-": ("GND", "#3a3d42")})]
+    o.append(power_supply(bb, top="5V", bottom="3.3V"))
+    usvg, sock = uln2003([bb.xy(c, "f") for c in range(4, 10)], coils=(0, 1, 1, 0))
+    o.append(usvg)
+    o.append(stepper(200, 150, sock, steps=1024))
+    o.append(kit_traffic([bb.xy(c, "f") for c in (13, 14, 15, 16)], lit=(0, 0, 1)))
+    o.append(kit_passive_buzzer([bb.xy(c, "f") for c in (20, 21, 22)], playing=True, note="A4 · 440 Hz"))
+    lsvg, lp = l298n(330, 50, out=(0, 1))
+    o.append(lsvg)
+    msvg, tabs = tt_motor(560, 116, rpm=180, direction=-1, label="MOTOR2")
+    o.append(msvg)
+    psvg, pins = pico(170, 812)
+    o.append(psvg)
+    o.append(_bus(pins, [(38, bb.xy(3, "B-"), "black")], 598))                                    # the grounds joined
+    # ULN2003 + from the supply's 5 V (top rail), beside the module
+    o.append(wire([bb.xy(9, "j"), (bb.xy(10, "j")[0], bb.xy(9, "j")[1]), bb.xy(10, "T+")], "red"))
+    o.append(_bus(pins, [
+        (24, bb.xy(20, "i"), "white"),                                                                         # buzzer I/O (PWM)
+        (25, bb.xy(15, "i"), "green"), (26, bb.xy(14, "i"), "yellow"), (27, bb.xy(13, "i"), "red"),           # traffic G Y R
+        (29, bb.xy(7, "i"), "orange"), (31, bb.xy(6, "i"), "yellow"), (32, bb.xy(5, "i"), "purple"), (34, bb.xy(4, "i"), "blue"),   # IN4…IN1
+    ], 610, 8))
+    o.append(wire([bb.xy(8, "j"), bb.xy(8, "B-")], "black"))
+    o.append(wire([bb.xy(16, "j"), (bb.xy(16, "j")[0] + 8, 560), bb.xy(17, "B-")], "black"))
+    o.append(wire([bb.xy(21, "j"), bb.xy(21, "B+")], "red"))
+    o.append(wire([bb.xy(22, "j"), bb.xy(22, "B-")], "black"))
+    # L298N: 12V screw from the supply's 5 V rail, GND; IN3 ← GP17, IN4 ← GP16, round the right; OUT3/OUT4 to the motor
+    o.append(wire([lp["12V"], (lp["12V"][0], 262), (bb.xy(3, "T+")[0], 262), bb.xy(3, "T+")], "red"))
+    o.append(wire([lp["GND"], (lp["GND"][0], 270), (bb.xy(4, "T-")[0], 270), bb.xy(4, "T-")], "black"))
+    o.append(wire([lp["IN3"], (lp["IN3"][0], 214), (712, 214), (712, 682), (pins[22][0], 682), pins[22]], "green"))
+    o.append(wire([lp["IN4"], (lp["IN4"][0], 222), (704, 222), (704, 684), (pins[21][0], 684), pins[21]], "blue"))
+    o.append(wire([lp["OUT3"], (lp["OUT3"][0], 40), (tabs["+"][0] + 14, 40), (tabs["+"][0] + 14, tabs["+"][1]), tabs["+"]], "red"))
+    o.append(wire([lp["OUT4"], (lp["OUT4"][0], 32), (tabs["−"][0] + 22, 32), (tabs["−"][0] + 22, tabs["−"][1]), tabs["−"]], "black"))
+    return _svg("".join(o), vb="20 10 712 852")
+
+
+def output_faults() -> str:
+    """Screen 25c (M7 design): the two teaching faults of M7 — a TT motor straight on GP15 and GND (no driver: the pin
+    is damaged and the run stops) and an SG90 on 3V3 (a warning: it twitches, too weak to turn)."""
+    bb = Breadboard(120, 300)
+    o = [bb.svg(rail_labels={"B+": ("3V3", "#de3b3b"), "B-": ("GND", "#3a3d42")})]
+    o.append(servo_in([bb.xy(20, "a"), bb.xy(21, "a"), bb.xy(22, "a")], angle=70, powered=False))
+    msvg, tabs = tt_motor(250, 196, rpm=0, label="MOTOR1")
+    o.append(msvg)
+    psvg, pins = pico(140, 760)
+    o.append(psvg)
+    o.append(_bus(pins, [(21, bb.xy(20, "e"), "yellow")], 610))
+    o.append(_bus(pins, [(36, bb.xy(4, "B+"), "red"), (38, bb.xy(3, "B-"), "black")], 618))
+    # the motor straight on GP15 (the bottom row's right end) and GND: no driver
+    x15, y15 = pins[20]
+    o.append(wire([pins[20], (x15, y15 + 26), (676, y15 + 26), (676, 164), (tabs["+"][0] + 14, 164), (tabs["+"][0] + 14, tabs["+"][1]), tabs["+"]], "orange"))
+    o.append(wire([tabs["−"], (tabs["−"][0] + 24, tabs["−"][1]), (tabs["−"][0] + 24, 262), (bb.xy(8, "T-")[0], 262), bb.xy(8, "T-")], "black"))
+    o.append(wire([bb.xy(7, "T-"), (60, 318), (60, bb.xy(1, "B-")[1]), bb.xy(1, "B-")], "black"))
+    # the servo on 3V3: + 3V3, − GND
+    o.append(wire([bb.xy(21, "e"), (bb.xy(21, "e")[0] + 6, 460), bb.xy(21, "B+")], "red"))
+    o.append(wire([bb.xy(22, "e"), (bb.xy(22, "e")[0] + 6, 460), bb.xy(22, "B-")], "black"))
+    o.append(f'<circle cx="{x15}" cy="{y15}" r="10" fill="none" stroke="#d92d20" stroke-width="2"/><circle cx="{x15}" cy="{y15}" r="16" fill="#d92d20" opacity=".14"/>')
+    return _svg("".join(o), vb="20 60 670 800")
+
+
+SCENES = {"actuators": actuators, "moreoutputs": more_outputs, "outputfaults": output_faults, "mbitalone": mbit_alone, "mbitgpio": mbit_gpio, "bare": bare, "placebb": place_breadboard, "chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
           "servowiring": servo_wiring, "servopulses": servo_pulses, "plot": plot}
 
 
