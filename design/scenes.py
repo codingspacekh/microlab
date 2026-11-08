@@ -889,7 +889,75 @@ def uart_faults() -> str:
     return _svg("".join(o), vb="40 640 640 340")
 
 
-SCENES = {"uart": uart, "bluetooth": bluetooth, "gps": gps, "uartfaults": uart_faults, "neopixels": neopixels, "neopixelsmb": neopixels_microbit, "neopixelfaults": neopixel_faults, "displays": displays, "digits": digits, "displayfaults": display_faults, "actuators": actuators, "moreoutputs": more_outputs, "outputfaults": output_faults, "mbitalone": mbit_alone, "mbitgpio": mbit_gpio, "bare": bare, "placebb": place_breadboard, "chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
+def _probe(tip, colour, to, label=""):
+    """A multimeter probe (M9, screen 29): its metal tip on a hole or pin, its handle up and away, its lead curving off
+    to the meter (`to`)."""
+    x, y = tip
+    dx, dy = 22, -46   # the handle leans up and right
+    hx, hy = x + dx, y + dy
+    body = "#d92d20" if colour == "red" else "#2d3136"
+    return (f'<path d="M{f(hx + 6)},{f(hy - 30)} C{f(hx + 40)},{f(hy - 90)} {f(to[0] - 60)},{f(to[1] + 40)} {f(to[0])},{f(to[1])}" fill="none" stroke="{body}" stroke-width="3" stroke-linecap="round" opacity=".9"/>'
+            f'<line x1="{f(x)}" y1="{f(y)}" x2="{f(x + dx * .3)}" y2="{f(y + dy * .3)}" stroke="#c7ccd2" stroke-width="2.4" stroke-linecap="round"/>'
+            f'<line x1="{f(x + dx * .3)}" y1="{f(y + dy * .3)}" x2="{f(hx + 6)}" y2="{f(hy - 30)}" stroke="{body}" stroke-width="9" stroke-linecap="round"/>'
+            f'<line x1="{f(x + dx * .36)}" y1="{f(y + dy * .36)}" x2="{f(x + dx * .52)}" y2="{f(y + dy * .52)}" stroke="#f6f4ef" stroke-width="11" stroke-linecap="butt" opacity=".25"/>'
+            f'<circle cx="{f(x)}" cy="{f(y)}" r="5" fill="none" stroke="{body}" stroke-width="1.6"/>'
+            + (f'<text x="{f(hx + 14)}" y="{f(hy - 14)}" font-size="9" font-weight="700" fill="{body}" font-family="Inter">{label}</text>' if label else ""))
+
+
+def multimeter() -> str:
+    """Screen 29 (M9 design): the multimeter on a voltage divider — two 10 kΩ in series from 3V3 to GND on the
+    breadboard; the red probe on their middle (column 9), the black on GND (column 13): 1.65 V."""
+    bb = Breadboard(120, 290)
+    o = [bb.svg(rail_labels={"B+": ("3V3", "#de3b3b"), "B-": ("GND", "#3a3d42")})]
+    o.append(resistor(bb.xy(5, "h"), bb.xy(9, "h"), "10k"))
+    o.append(resistor(bb.xy(9, "i"), bb.xy(13, "i"), "10k"))
+    psvg, pins = pico(110, 772)
+    o.append(psvg)
+    o.append(wire([pins[36], (pins[36][0], 632), (bb.xy(4, "B+")[0], 632), bb.xy(4, "B+")], "red"))
+    o.append(wire([pins[38], (pins[38][0], 624), (bb.xy(3, "B-")[0], 624), bb.xy(3, "B-")], "black"))
+    o.append(wire([bb.xy(5, "j"), bb.xy(5, "B+")], "red"))
+    o.append(wire([bb.xy(13, "j"), bb.xy(13, "B-")], "black"))
+    o.append(_probe(bb.xy(9, "f"), "red", (600, 40), "+"))
+    o.append(_probe(bb.xy(13, "f"), "black", (640, 70), "COM"))
+    return _svg("".join(o), vb="30 20 640 780")
+
+
+def wiring_check() -> str:
+    """Screen 29b (M9 design): what the check before running finds — GP15's LED wired right; LED2's cathode in a column
+    with nothing else (not to GND); a wire from GP13 that ends in an empty column; nothing on GP12, which main.py uses."""
+    bb = Breadboard(120, 290)
+    o = [bb.svg(rail_labels={"B-": ("GND", "#3a3d42")})]
+    o.append(resistor(bb.xy(5, "g"), bb.xy(8, "g"), "220"))
+    o.append(led(bb.xy(8, "h"), bb.xy(10, "h"), "red"))
+    o.append(resistor(bb.xy(14, "g"), bb.xy(17, "g"), "220"))
+    o.append(led(bb.xy(17, "h"), bb.xy(19, "h"), "green"))
+    psvg, pins = pico(110, 772)
+    o.append(psvg)
+    o.append(wire([pins[20], (pins[20][0], 790), (700, 790), (700, 616), (bb.xy(5, "j")[0], 616), bb.xy(5, "j")], "orange"))   # GP15
+    o.append(wire([bb.xy(10, "j"), bb.xy(10, "B-")], "black"))
+    o.append(wire([pins[38], (pins[38][0], 624), (bb.xy(3, "B-")[0], 624), bb.xy(3, "B-")], "black"))
+    o.append(wire([pins[17], (pins[17][0], 798), (716, 798), (716, 608), (bb.xy(14, "j")[0], 608), bb.xy(14, "j")], "yellow"))   # GP13 → the second LED …
+    o.append(wire([pins[15], (pins[15][0], 806), (732, 806), (732, 600), (bb.xy(24, "j")[0], 600), bb.xy(24, "j")], "blue"))   # GP11 → nowhere
+    for at in (bb.xy(19, "h"), bb.xy(24, "j"), pins[16]):
+        o.append(f'<circle cx="{f(at[0])}" cy="{f(at[1])}" r="10" fill="none" stroke="#e8a317" stroke-width="2"/><circle cx="{f(at[0])}" cy="{f(at[1])}" r="16" fill="#e8a317" opacity=".16"/>')
+    return _svg("".join(o), vb="30 270 720 560")
+
+
+def repl() -> str:
+    """Screen 29c (M9 design): after the program ended — Blink's LED on GP15, lit by led.on() typed at the REPL."""
+    bb = Breadboard(120, 290)
+    o = [bb.svg(rail_labels={"B-": ("GND", "#3a3d42")})]
+    o.append(resistor(bb.xy(5, "g"), bb.xy(8, "g"), "220"))
+    o.append(led(bb.xy(8, "h"), bb.xy(10, "h"), "red", "on"))
+    psvg, pins = pico(110, 772)
+    o.append(psvg)
+    o.append(wire([pins[20], (pins[20][0], 790), (700, 790), (700, 600), (bb.xy(5, "j")[0], 600), bb.xy(5, "j")], "orange"))
+    o.append(wire([bb.xy(10, "j"), bb.xy(10, "B-")], "black"))
+    o.append(wire([pins[38], (pins[38][0], 624), (bb.xy(3, "B-")[0], 624), bb.xy(3, "B-")], "black"))
+    return _svg("".join(o), vb="30 270 720 560")
+
+
+SCENES = {"multimeter": multimeter, "wiringcheck": wiring_check, "repl": repl, "uart": uart, "bluetooth": bluetooth, "gps": gps, "uartfaults": uart_faults, "neopixels": neopixels, "neopixelsmb": neopixels_microbit, "neopixelfaults": neopixel_faults, "displays": displays, "digits": digits, "displayfaults": display_faults, "actuators": actuators, "moreoutputs": more_outputs, "outputfaults": output_faults, "mbitalone": mbit_alone, "mbitgpio": mbit_gpio, "bare": bare, "placebb": place_breadboard, "chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
           "servowiring": servo_wiring, "servopulses": servo_pulses, "plot": plot}
 
 

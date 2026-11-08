@@ -52,6 +52,7 @@ ICONS = {
     "phone": '<path d="M8 2.5h8a1.5 1.5 0 0 1 1.5 1.5v16a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 20V4A1.5 1.5 0 0 1 8 2.5M11 18.5h2"/>',
     "bt": '<path d="M7 7.5l10 9-5 4.5V3l5 4.5-10 9"/>',
     "gps": '<path d="M12 21s6.5-6.2 6.5-11.2a6.5 6.5 0 0 0-13 0C5.5 14.8 12 21 12 21M12 7.5a2.3 2.3 0 1 0 0 4.6a2.3 2.3 0 0 0 0-4.6"/>',
+    "probe": '<path d="M5 19l5-5M10 14l6.5-6.5a2 2 0 0 1 2.8 2.8L12.8 16.8zM4 20l1-1"/>',
     "chevr": '<path d="M9 6l6 6-6 6"/>', "chevd": '<path d="M6 9l6 6 6-6"/>', "chevl": '<path d="M15 6l-6 6 6 6"/>',
     "x": '<path d="M6 6l12 12M18 6L6 18"/>',
     "file": '<path d="M6 3h8l4 4v14H6zM14 3v4h4"/>',
@@ -525,6 +526,26 @@ while True:
     usb1.write('Hello from UART0\\r\\n')
     usb2.write('Hello from UART1\\r\\n')
     time.sleep(1)''',
+    "divider": '''# Two 10 kΩ from 3V3 to GND: no code needed.
+# The board on USB gives its 3V3 — measure it with
+# the multimeter: Meter, below the canvas.''',
+    "twoleds": '''from machine import Pin
+import time
+
+red = Pin(15, Pin.OUT)
+green = Pin(13, Pin.OUT)
+button = Pin(12, Pin.IN, Pin.PULL_UP)
+
+while True:
+    if button.value() == 0:      # pressed
+        red.toggle()
+        green.toggle()
+    time.sleep(0.2)''',
+    "greet": '''from machine import Pin
+
+led = Pin(15, Pin.OUT)
+name = input("What's your name? ")
+print('Hello, ' + name + '!')''',
     "servo": '''from machine import Pin, PWM
 import time
 

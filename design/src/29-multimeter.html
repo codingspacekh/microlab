@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>29 Multimeter</title>
+{{include:head}}
+<style>
+.rail { flex: 0 0 56px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; z-index: 3; }
+.rail .rb { width: 44px; padding: 6px 0 5px; border-radius: 9px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; color: var(--tx-2); font-weight: 550; }
+.rail .rb .pic { width: 30px; height: 30px; display: grid; place-items: center; }
+.card2 { padding: 10px 12px; } .card2 .ih { display: flex; align-items: center; gap: 6px; font-weight: 650; font-size: 12.5px; }
+.card2 .row2 { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 11.5px; }
+.lcd { margin-top: 8px; background: #c9d4b4; color: #1d2a10; border-radius: 6px; border: 2px solid #3a3d42; padding: 6px 10px; font-family: var(--mono); font-size: 30px; font-weight: 700; text-align: right; letter-spacing: 1px; }
+.lcd small { font-size: 14px; margin-left: 4px; }
+.checks { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.checks li { display: grid; grid-template-columns: 18px 1fr auto; gap: 6px; align-items: start; font-size: 12px; line-height: 1.4; }
+</style>
+</head>
+<body>
+<!--@PROJECT: Voltage divider-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@EDITOR: {{code:divider}}-->
+<!--@COUNTS: Pico W + 2 parts · 4 wires-->
+<!--@STATUS: <span class="st"><span class="dot" style="background:var(--tx-3)"></span>Ready</span><span>Multimeter: 1.65 V between column 9 and GND</span>-->
+<p class="frame-label"><b>29 · The multimeter</b> (M9 design) — <b>Meter</b> on the canvas's tools takes out a multimeter: its card, and two probes — red (+) and black (COM) — dragged onto any hole, pin or terminal; it reads what is there, as a real one: <b>V</b> the voltage from the black probe to the red (here the middle of two 10 kΩ from 3V3: <b>1.65 V</b>, half of 3.3); <b>A</b> the current through a wire or a leg clicked (as if the meter were put in its place, in series; mA and µA); <b>Ω</b> the resistance between the probes with the power off, as a real meter needs (both resistors from 3V3's column to GND: 20.0 kΩ; a probe on each end of one: 10.0 kΩ). It reads with the board on USB as it is — a program running or not (its pins are inputs then); while one runs it follows the program (a PWM pin reads its average, as a real meter's does). Off the end of its range it says <i>OL</i>. Esc or Meter again puts it away; the probes stay where they were for the next time</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    <nav class="rail">
+      <span class="rb" title="Raspberry Pi Pico W — its pinout"><span class="pic">{{part:pico:bp}}</span>Board</span>
+      <span class="rb">{{i:grid:s20}}Parts</span>
+    </nav>
+    <div class="canvas">
+      <div class="stage">{{scene:multimeter}}
+      <div class="float card2" style="right:14px;top:14px;width:228px">
+        <div class="ih">{{i:probe:s14}} Multimeter <span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+        <div class="lcd">1.65<small>V</small></div>
+        <div class="row2"><div class="seg" style="flex:1"><span class="on">V</span><span>A</span><span>Ω</span></div></div>
+        <div class="row2"><span style="color:#d92d20;font-weight:700;width:34px">+</span><span>column 9 — R1 and R2's middle</span></div>
+        <div class="row2" style="margin-top:4px"><span style="font-weight:700;width:34px">COM</span><span>column 13 — GND</span></div>
+        <p class="tiny muted" style="margin:8px 0 0;line-height:1.45">Drag a probe onto a hole, a pin or a terminal. In A, click a wire or a leg.</p>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>
