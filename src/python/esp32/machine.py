@@ -494,9 +494,20 @@ class SPI(_bus.SPIBus):
         s = Pin(sck)._n if sck is not None else s
         o = Pin(mosi)._n if mosi is not None else o
         i = Pin(miso)._n if miso is not None else i
-        self._id, self._baud, self._pol, self._pha, self._bits, self._first = id, _int(baudrate), polarity, phase, bits, firstbit
+        self._id = id
         self._pins = (s, o, i)
         self._sck, self._mosi, self._miso = str(s), str(o), str(i)
+        self._set(_int(baudrate), _int(polarity), _int(phase), _int(bits), _int(firstbit))
+
+    def _set(self, baudrate, polarity, phase, bits, firstbit):
+        self._baud = self._spi_baud = baudrate
+        self._pol, self._pha, self._bits, self._first = polarity, phase, bits, firstbit
+        self._lsb = firstbit == SPI.LSB
+
+    def init(self, baudrate=-1, *, polarity=-1, phase=-1, bits=-1, firstbit=-1, sck=None, mosi=None, miso=None):
+        self._set(self._baud if baudrate == -1 else _int(baudrate), self._pol if polarity == -1 else _int(polarity),
+                  self._pha if phase == -1 else _int(phase), self._bits if bits == -1 else _int(bits),
+                  self._first if firstbit == -1 else _int(firstbit))
 
     def __repr__(self):
         s, o, i = self._pins
@@ -512,17 +523,76 @@ class SoftSPI(_bus.SPIBus):
         self._sck = Pin(sck)._key if sck is not None else ''
         self._mosi = Pin(mosi)._key if mosi is not None else ''
         self._miso = Pin(miso)._key if miso is not None else ''
+        self._spi_baud, self._pol, self._pha = _int(baudrate), _int(polarity), _int(phase)
+        self._lsb = _int(firstbit) == SoftSPI.LSB
 
 
 class UART(_bus.UARTBus):
-    def __init__(self, id, baudrate=115200, bits=8, parity=None, stop=1, *, tx=None, rx=None, **kwargs):
+    """ports/esp32/machine_uart.c: UART(0) is the REPL's, on the USB-serial chip — what it writes is the console's;
+    UART(1) and UART(2) go to any pins through the GPIO matrix."""
+
+    def __init__(self, id, baudrate=115200, bits=8, parity=None, stop=1, *, tx=None, rx=None, rts=-1, cts=-1, txbuf=256, rxbuf=256,
+                 timeout=0, timeout_char=0, invert=0, flow=0):
         id = _int(id)
         if id not in (0, 1, 2):
-            raise ValueError("UART(%d) doesn't exist" % id)
+            raise ValueError("UART(%d) does not exist" % id)
+        self._id = id
         t, r = _UART_PINS[id]
-        self._tx = str(Pin(tx)._n if tx is not None else t)
-        self._rx = str(Pin(rx)._n if rx is not None else r)
-        self._baud = _int(baudrate)
+        self._tx_n = Pin(tx)._n if tx is not None else t
+        self._rx_n = Pin(rx)._n if rx is not None else r
+        self._baud, self._bits, self._stop = _int(baudrate), _int(bits), _int(stop)
+        self._parity = None if parity is None else _int(parity) & 1
+        if self._bits not in (5, 6, 7, 8):
+            raise ValueError('invalid data bits')
+        if self._stop not in (1, 2):
+            raise ValueError('invalid stop bits')
+        self._txbuf, self._rxbuf, self._timeout, self._timeout_char = _int(txbuf), _int(rxbuf), _int(timeout), _int(timeout_char)
+        self._rts, self._cts = rts, cts
+        self._tx, self._rx = ('', '') if id == 0 else (str(self._tx_n), str(self._rx_n))
+        self._start()
+
+    def init(self, baudrate=-1, bits=-1, parity=-2, stop=-1, *, tx=None, rx=None, timeout=-1, timeout_char=-1, txbuf=-1, rxbuf=-1, **kw):
+        # what is given changes; the rest stays as it was
+        if baudrate > 0:
+            self._baud = _int(baudrate)
+        if bits > 0:
+            self._bits = _int(bits)
+        if parity != -2:
+            self._parity = None if parity is None else _int(parity) & 1
+        if stop > 0:
+            self._stop = _int(stop)
+        if tx is not None:
+            self._tx_n = Pin(tx)._n
+        if rx is not None:
+            self._rx_n = Pin(rx)._n
+        for name, v in (('_timeout', timeout), ('_timeout_char', timeout_char), ('_txbuf', txbuf), ('_rxbuf', rxbuf)):
+            if v >= 0:
+                setattr(self, name, _int(v))
+        self._tx, self._rx = ('', '') if self._id == 0 else (str(self._tx_n), str(self._rx_n))
+        self._start()
+
+    def _read(self, size, timeout=None):
+        # it waits at least a character's time between bytes, whatever timeout_char says
+        keep = self._timeout_char
+        self._timeout_char = max(keep, 13000 // self._baud + 1)
+        try:
+            return _bus.UARTBus._read(self, size, timeout)
+        finally:
+            self._timeout_char = keep
+
+    def write(self, buf):
+        data = buf.encode() if isinstance(buf, str) else bytes(buf)
+        if self._id == 0:   # the REPL's UART: the console
+            import sys
+            sys.stdout.write(data.decode())
+            return len(data)
+        return _bus.UARTBus.write(self, data)
+
+    def __repr__(self):
+        return ('UART(%u, baudrate=%u, bits=%u, parity=%s, stop=%u, tx=%d, rx=%d, rts=%d, cts=%d, txbuf=%u, rxbuf=%u, '
+                'timeout=%u, timeout_char=%u, irq=%d)' % (self._id, self._baud, self._bits, 'None' if self._parity is None else self._parity,
+                                                          self._stop, self._tx_n, self._rx_n, self._rts, self._cts, self._txbuf,
+                                                          self._rxbuf, self._timeout, self._timeout_char, 0))
 
 
 def time_pulse_us(pin, pulse_level, timeout_us=1000000):

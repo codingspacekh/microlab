@@ -77,7 +77,12 @@ export class Console {
 
   constructor(private readonly onOutput?: (text: string) => void) {}
 
+  /** Where the program's output goes instead of the console (M7 slice 5: the micro:bit's print() follows its uart
+   *  out of a pin after uart.init(tx=…)). */
+  divert?: (bytes: Uint8Array) => void;
+
   write = (bytes: Uint8Array): void => {
+    if (this.divert) { this.divert(bytes); return; }
     const t = this.decoder.decode(bytes, { stream: true }).replace(/\r/g, '');
     if (!t) return;
     this.text += t;

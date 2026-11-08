@@ -14,7 +14,7 @@ import { UnionFind } from './union-find';
 export type FaultKind =
   | 'short' | 'led-burnt' | 'led-over-current' | 'pin-over-current' | 'board-over-current'
   | 'supply-over-current' | 'over-voltage' | 'floating' | 'servo-underpowered' | 'sensor-underpowered' | 'motor-on-pin'
-  | 'display-underpowered' | 'neopixel-backwards' | 'neopixel-over-current';
+  | 'display-underpowered' | 'neopixel-backwards' | 'neopixel-over-current' | 'uart-tx-to-tx';
 
 export interface Fault {
   kind: FaultKind;

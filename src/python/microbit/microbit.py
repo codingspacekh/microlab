@@ -772,5 +772,68 @@ class MicroBitSPI:
 spi = MicroBitSPI()
 
 
+# --- uart (M7 slice 5: microbit_uart.c): the micro:bit's one UART is its console's (USB); init() with pins moves it —
+# and print() with it, mp_hal_stdout — to them. any() is True or False; read() doesn't wait for a first byte, then
+# reads on while bytes come within a character's time (13 bits).
+import _bus
+
+
+class _UARTPort(_bus.UARTBus):
+    def __init__(self, tx, rx, baudrate, bits, parity, stop, timeout_char):
+        self._tx, self._rx = tx, rx
+        self._baud, self._bits, self._parity, self._stop = baudrate, bits, parity, stop
+        self._rxbuf = self._txbuf = 64
+        self._timeout, self._timeout_char = -1, timeout_char
+        self._start()
+
+
+class MicroBitUART:
+    ODD = 1
+    EVEN = 0
+
+    def __init__(self):
+        self._port = None
+
+    def init(self, baudrate=9600, bits=8, parity=None, stop=1, *, pins=None, tx=None, rx=None):
+        if pins is not None:
+            tx, rx = pins
+        for pin in (tx, rx):
+            if pin is not None and not isinstance(pin, MicroBitDigitalPin):
+                raise TypeError('expecting a pin')
+        baudrate = _int(baudrate)
+        if self._port is not None:
+            self._port.deinit()
+            self._port = None
+        _ream.console_uart(0)
+        if tx is not None or rx is not None:
+            self._port = _UARTPort(tx._key if tx is not None else '', rx._key if rx is not None else '', baudrate, _int(bits),
+                                   None if parity is None else _int(parity), _int(stop), 13000 // baudrate + 1)
+            if tx is not None:   # the console's output goes out of TX now
+                _ream.console_uart(self._port._h)
+
+    def any(self):
+        return self._port is not None and self._port.any() > 0
+
+    def read(self, nbytes=None):
+        return None if self._port is None else self._port.read(nbytes)
+
+    def readline(self):
+        return None if self._port is None else self._port.readline()
+
+    def readinto(self, buf, nbytes=None):
+        return None if self._port is None else self._port.readinto(buf, nbytes)
+
+    def write(self, buf):
+        data = buf.encode() if isinstance(buf, str) else bytes(buf)
+        if self._port is not None and self._port._tx:
+            self._port.write(data)
+        else:
+            print(data.decode(), end='')
+        return len(data)
+
+
+uart = MicroBitUART()
+
+
 # the audio module is the microbit module's too (modmicrobit.c: microbit.audio), M7 slice 4
 import audio  # noqa: E402

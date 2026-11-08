@@ -372,6 +372,32 @@ export const MODELS: Record<string, PartModel> = {
     internal: [['vcc', 'vcc2'], ['gnd', 'gnd2']],
     devices: ({ id, leg, props }) => [{ kind: 'load', id, a: leg('vcc'), b: leg('gnd'), part: id, ohms: Math.round(5 / (neopixelCount(props) * NEOPIXEL.idleA)) }],
   },
+  /** A USB-serial adapter (CP2102; M7 slice 5): RXD TXD GND 3V3 5V, points to wire. It is powered from the laptop's
+   *  USB: its 5V and 3V3 pins give power (500 mA, 100 mA from its regulator). What its TXD and RXD carry is the sim's. */
+  'usb-serial': {
+    legs: ['rxd', 'txd', 'gnd', '3v3', '5v'],
+    terminals: ['rxd', 'txd', 'gnd', '3v3', '5v'],
+    devices: ({ id, leg }) => [
+      { kind: 'source', id: `${id}:5v`, plus: leg('5v'), minus: leg('gnd'), volts: 5, ohms: 0.1, limitA: 0.5 },
+      { kind: 'source', id: `${id}:3v3`, plus: leg('3v3'), minus: leg('gnd'), volts: 3.3, ohms: 0.5, limitA: 0.1 },
+    ],
+  },
+  /** An HC-05 / JDY-31 Bluetooth module: EN VCC GND TXD RXD STATE, points to wire; ≈ 40 mA from VCC; STATE high while a
+   *  phone is connected (the sim drives it). */
+  hc05: {
+    legs: ['en', 'vcc', 'gnd', 'txd', 'rxd', 'state'],
+    terminals: ['en', 'vcc', 'gnd', 'txd', 'rxd', 'state'],
+    devices: ({ id, leg }) => [
+      { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: 120 },
+      { kind: 'drive', id: `${id}:state`, out: leg('state'), gnd: leg('gnd'), part: id, key: 'state' },
+    ],
+  },
+  /** A GPS module (GY-NEO6MV2): GND TX RX VCC, points to wire; ≈ 45 mA from VCC (3.3–5 V). */
+  gps: {
+    legs: ['gnd', 'tx', 'rx', 'vcc'],
+    terminals: ['gnd', 'tx', 'rx', 'vcc'],
+    devices: ({ id, leg }) => [{ kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: 110 }],
+  },
   /** Breadboard power supply (MB102) on a breadboard's end: two pins in each rail (t- t+ top, b+ b- bottom); `top`
    *  and `bottom` its jumpers, 5 or 3.3 V; `on` its switch (on by default). Its own jack or USB is its power. */
   'power-supply': {

@@ -148,7 +148,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const radio: [number, string][] = [];
   const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
   mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, {
-    display, sound, motion, bus, radio, stop, quiet, circuit,
+    console, display, sound, motion, bus, radio, stop, quiet, circuit,
     asOf: (t, read) => { asOf = t; try { return read(); } finally { asOf = undefined; } },
   }, options));
   mp._module.microlabHook = () => {
@@ -215,6 +215,7 @@ function seeded(seed: number): (n: number) => number {
 
 /** The `_ream` bridge (architecture §2.4): the board-neutral calls the board modules make into the sim. */
 interface MicrobitParts {
+  console: Console;
   display: [number, string][];
   radio: [number, string][];
   sound: SoundEntry[];
@@ -246,7 +247,7 @@ function stopper(mp: MicroPython, control: Control | undefined, faulted: () => b
 }
 
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
-  const { display, sound, motion, bus, radio, stop, quiet, circuit, asOf } = mb;
+  const { console, display, sound, motion, bus, radio, stop, quiet, circuit, asOf } = mb;
   const random = seeded(options.seed ?? Date.now());
   const log = (entry: string) => bus.push([clock.nowUs(), entry]);
   // the micro:bit's own inputs from the window (M6.6, screen 06): 'board:…' slots, NaN until the window sets them
@@ -423,16 +424,37 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
       return data;
     },
     /** Clocks `hex` out on MOSI; returns what MISO gave back (its idle level: 0x00 low, 0xff high). */
-    spi_xfer: (sck: string, mosi: string, miso: string, hex: string, kind: string): string => {
+    spi_xfer: (sck: string, mosi: string, miso: string, hex: string, kind: string, mode = 0, lsb = 0, baud = 0): string => {
       log(`spi sck=${sck} mosi=${mosi} miso=${miso} ${kind}${kind === 'read' ? ' ' + hex.length / 2 : ' ' + spaced(hex)}`);
-      const got = circuit?.spi(sck, mosi, miso, (hex.match(/../g) ?? []).map((b) => parseInt(b, 16)));
-      if (got) return got.map(hexByte).join('');   // a part on MISO answered (M7: an RC522)
+      const sent = (hex.match(/../g) ?? []).map((b) => parseInt(b, 16));
+      if (baud > 0) clock.sleepUs(Math.round((sent.length * 8 * 1e6) / baud));   // each byte's 8 clocks (M7 slice 5)
+      const got = circuit?.spi(sck, mosi, miso, spiAsSeen(sent, mode, !!lsb));
+      if (got) return spiAsRead(got, mode, !!lsb).map(hexByte).join('');   // a part on MISO answered (M7: an RC522)
       const idle = miso && pins.level(miso) ? 'ff' : '00';
       return idle.repeat(hex.length / 2);
     },
-    uart_write: (tx: string, rx: string, baud: number, hex: string) => { log(`uart tx=${tx} rx=${rx} ${baud} write ${hex}`); },
-    /** Bytes waiting on RX (hex): none until M3. */
-    uart_read: (): string => '',
+    /** A board UART on its pins (M7 slice 5): its handle (0 with no circuit: nothing to send to). */
+    uart_open: (tx: string, rx: string, baud: number, bits: number, parity: number, stop: number, rxbuf: number): number =>
+      circuit?.uartOpen(tx, rx, { baud, bits, parity, stop }, rxbuf) ?? 0,
+    uart_close: (h: number) => { circuit?.serial.close(h); },
+    /** Sends `hex` from the port; returns how long until its last byte has gone (µs). */
+    uart_write: (h: number, tx: string, rx: string, baud: number, hex: string): number => {
+      log(`uart tx=${tx} rx=${rx} ${baud} write ${hex}`);
+      const t = clock.nowUs();
+      const done = circuit?.serial.send(h, (hex.match(/../g) ?? []).map((b) => parseInt(b, 16)), t) ?? t;
+      return Math.max(0, Math.round(done - t));
+    },
+    /** How long until the port's last byte has gone (µs). */
+    uart_busy: (h: number): number => Math.max(0, Math.round((circuit?.serial.busyUntil(h) ?? 0) - clock.nowUs())),
+    uart_any: (h: number): number => { circuit?.update(); return circuit?.serial.available(h, clock.nowUs()) ?? 0; },
+    uart_take: (h: number, n: number): string => (circuit?.serial.take(h, n, clock.nowUs()) ?? []).map(hexByte).join(''),
+    /** How long until the next byte reaches the port (µs); -1 when none is on its way. */
+    uart_next: (h: number): number => circuit?.serial.nextUs(h, clock.nowUs()) ?? -1,
+    /** The micro:bit's stdout (M7 slice 5): on a port's pins after uart.init(tx=…), back on USB with 0. */
+    console_uart: (h: number) => {
+      console.flush();
+      console.divert = h && circuit ? (bytes: Uint8Array) => { circuit.serial.send(h, [...bytes], clock.nowUs()); } : h ? () => {} : undefined;
+    },
     /** The bytes out on the pin with `timing` (ns: high and low of a 0, of a 1), each bit taking its time — into the
      *  NeoPixels on the pin's net (M7 slice 3). */
     bitstream: (pin: string, timing: string, hex: string) => {
@@ -503,6 +525,24 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
 const I2C_BYTE_US = 22.5;
 
 const hexByte = (n: number) => n.toString(16).padStart(2, '0');
+
+/** A byte's bits the other way round. */
+const reversed = (b: number) => { let r = 0; for (let i = 0; i < 8; i++) r |= ((b >> i) & 1) << (7 - i); return r; };
+/** Modes 1 and 2 put a bit out on the edge modes 0 and 3 read it on (M7 slice 5). */
+const otherEdge = (mode: number) => (((mode >> 1) ^ mode) & 1) === 1;
+/** What a part (mode 0, the highest bit first, as the MAX7219 and the RC522) reads of bytes sent in `mode`: LSB first
+ *  reverses each; the other edge shifts every bit one place (each byte takes the next one's first bit). */
+export function spiAsSeen(bytes: number[], mode: number, lsb: boolean): number[] {
+  let out = lsb ? bytes.map(reversed) : [...bytes];
+  if (otherEdge(mode)) out = out.map((b, i) => ((b << 1) | ((out[i + 1] ?? 0) >> 7)) & 0xff);
+  return out;
+}
+/** And what the board reads of a part's answer, the same way back. */
+export function spiAsRead(bytes: number[], mode: number, lsb: boolean): number[] {
+  let out = [...bytes];
+  if (otherEdge(mode)) out = out.map((b, i) => ((b >> 1) | ((out[i - 1] ?? 0) << 7)) & 0xff);
+  return lsb ? out.map(reversed) : out;
+}
 const spaced = (hex: string) => hex.match(/../g)?.join(' ') ?? '';
 
 /** Pin IRQs and timer callbacks that are due, handed to micropython.schedule: they run at the VM's next pending

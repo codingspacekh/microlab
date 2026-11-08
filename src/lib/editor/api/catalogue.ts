@@ -100,6 +100,7 @@ SPI.readinto(buf, write=0x00) — Reads into buf, sending write each time.
 SPI.write(buf) — Sends the bytes in buf.
 SPI.write_readinto(write_buf, read_buf) — Sends write_buf and reads into read_buf at the same time.
 SPI.deinit() — Stops the bus.
+SPI.init(baudrate, *, polarity, phase, bits, firstbit) — Sets the bus up again: its speed and its mode (polarity, phase).
 SPI.MSB — firstbit: the highest bit first (the usual way).
 SPI.LSB — firstbit: the lowest bit first.
 SoftSPI(baudrate=500000, *, polarity=0, phase=0, bits=8, firstbit=SoftSPI.MSB, sck, mosi, miso) — An SPI bus on any pins, run by the processor.
@@ -119,6 +120,8 @@ UART.write(buf) — Sends the bytes in buf.
 UART.flush() — Waits until everything written has been sent.
 UART.txdone() — True when everything written has been sent.
 UART.deinit() — Stops the UART.
+UART.init(baudrate, bits=8, parity=None, stop=1, *, tx, rx, timeout, timeout_char) — Sets the UART up again: its speed, its framing, its pins, how long read() waits.
+UART.sendbreak() — Holds TX low for longer than a byte: a break.
 @esp32 DAC(pin) — A true analog output on GPIO25 or GPIO26: DAC(Pin(25)).
 @esp32 DAC.write(value) — Sets the voltage: 0 (0 V) to 255 (3.3 V).
 @esp32 TouchPad(pin) — Feels a finger on a touch pin: TouchPad(Pin(4)).
@@ -401,6 +404,16 @@ temperature() — The temperature in °C, from the chip.
 set_volume(volume) — How loud the speaker is: 0 to 255.
 scale(value, from_, to) — value moved from one range to another: scale(accelerometer.get_x(), (-1024, 1024), (0, 9)).
 ws2812_write(pin, buffer) — Sends bytes to NeoPixels on a pin, as the neopixel module's show() does.
+uart: UART — The serial port: the USB console, or two pins after uart.init(tx=…, rx=…) — print() goes there too.
+~UART — The micro:bit's serial port.
+UART.init(baudrate=9600, bits=8, parity=None, stop=1, *, tx=None, rx=None) — Its speed and framing; tx and rx move it to two pins (with no pins: back to USB).
+UART.any() — True if bytes are waiting to be read.
+UART.read(nbytes=None) — The bytes waiting (or nbytes of them); None if there are none.
+UART.readline() — The bytes up to the end of a line; None if there are none.
+UART.readinto(buf, nbytes=None) — Reads into buf: how many, or None.
+UART.write(buf) — Sends the bytes (or a string).
+UART.ODD — parity: odd.
+UART.EVEN — parity: even.
 speaker: Speaker — The speaker on the back (V2): music, pitch and audio play on it, and on pin 0.
 ~Speaker — The micro:bit's speaker.
 Speaker.on() — Turns the speaker on again (it starts on).

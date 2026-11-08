@@ -2,6 +2,8 @@ import type { BoardData } from '@lib/boards';
 import { NEOPIXEL, neopixelCount, NeoPixels, ws2812Bits, MifareTag, Mfrc522, RC522, RFID_TAGS, DISPLAYS, digitsText, isDisplay, Lcd1602, Max7219, Ssd1306, Tm1637, Bmp280, Max30102, Vl53l0x, BUZZER, BUZZER_MODULE, MOTOR, PUMP, SERVO, STEPPER, dhtBytes, Ds1302, Ds18b20, OneWireBus, type OneWireDevice, ENCODER, Pcf8591, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
+import { isSerialPart, SERIAL_PARTS, SerialHub } from './serial';
+import type { Framing } from './uart';
 
 /**
  * The circuit engine inside the sim (M3, architecture §2.2): the board's pins and the parts' inputs make a
@@ -30,6 +32,14 @@ export interface PartChange {
   hpa?: number;
   bpm?: number;
   spo2?: number;
+  /** M7 slice 5: what a serial part sends (a terminal's line, a phone's message), a phone connected, a GPS's place. */
+  text?: string;
+  connected?: boolean;
+  fix?: boolean;
+  lat?: number;
+  lon?: number;
+  sats?: number;
+  kmh?: number;
 }
 
 /** Up to this many PWM pins are averaged exactly (2^n solves: an RGB LED is 3); beyond, their DC average. */
@@ -76,7 +86,14 @@ export type PartView =
   | { kind: 'rfid'; antenna: boolean; tag: number; uid: string; last: string }
   /** A NeoPixel stick or ring (M7 slice 3): powered, its LEDs' colours as hex ('rrggbb' an LED from LED 0; '' while
    *  all are dark), how many are lit, what it draws, and the board supply it is on with what that gives (A). */
-  | { kind: 'pixels'; on: boolean; pixels: string; lit: number; amps: number; from?: string; limitA?: number };
+  | { kind: 'pixels'; on: boolean; pixels: string; lit: number; amps: number; from?: string; limitA?: number }
+  /** A USB-serial adapter (M7 slice 5): what its terminal shows (what reached its RXD, as text), the bytes it sent and
+   *  got, its baud rate, and the rate of the board port that sent to it last (another: garbage). */
+  | { kind: 'serial'; text: string; sent: number; received: number; baud: number; heardBaud?: number }
+  /** A Bluetooth module: powered, a phone connected, the messages both ways (the phone's, the board's). */
+  | { kind: 'bluetooth'; on: boolean; connected: boolean; messages: { from: 'phone' | 'board'; text: string }[]; sent: number; received: number }
+  /** A GPS: powered, a fix, satellites, where it is, the bytes it has sent. */
+  | { kind: 'gps'; on: boolean; fix: boolean; sats: number; lat: number; lon: number; kmh: number; sent: number };
 
 /** [µs, part id, its new state] — one entry per change, as the window would be told. */
 export type PartTraceEntry = [number, string, PartView];
@@ -144,6 +161,54 @@ export class CircuitHost {
       this.pinOfNet.set(net, String(p.gpio));
     }
     this.script = [...changes].sort((a, b) => a.atUs - b.atUs);
+    this.serial = new SerialHub({
+      parts: spec.parts, netOf: (point) => this.connectivity.netOf(point), netOfPin: (key) => this.netOfPin.get(key),
+      powered: (id) => this.powered.get(id) ?? false, wallStartMs: Date.now(),
+    });
+  }
+
+  /** The run's UARTs (M7 slice 5): the board's ports and the serial parts. */
+  readonly serial: SerialHub;
+
+  /** A board UART opened on these pins: its handle. Its TX on a part's TX is a warning (screen 28d). */
+  uartOpen(tx: string, rx: string, framing: Framing, rxbuf: number): number {
+    this.update();
+    const before = this.serial.txToTx.length;
+    const h = this.serial.open(tx, rx, framing, rxbuf);
+    for (const [pin, other] of this.serial.txToTx.slice(before)) {
+      const on = this.labelOfPin.get(pin) ?? pin;
+      const f: Fault = { kind: 'uart-tx-to-tx', severity: 'warning', on, part: other.toUpperCase().replace('.', "'s ") };
+      if (!this.seen.has(`${f.kind}:${on}`)) this.seen.set(`${f.kind}:${on}`, f);
+    }
+    return h;
+  }
+
+  /** The window's live text and settings for the serial parts (M7 slice 5): 'txseq:usb1' counts what was sent,
+   *  'txlen:usb1' and 'tx0:usb1' … its bytes; 'connected:bt1'; a GPS's 'fix', 'lat', 'lon', 'sats', 'kmh'. */
+  private readonly serialSeq = new Map<string, number>();
+  private readSerialLive(live: Control): void {
+    const at = (name: string) => { const i = live.names.indexOf(name); return i < 0 ? NaN : live.input(i); };
+    const t = this.now();
+    for (const [id, line] of this.serial.lines) {
+      const seq = at(`txseq:${id}`);
+      if (!Number.isNaN(seq) && seq > (this.serialSeq.get(id) ?? 0)) {
+        this.serialSeq.set(id, seq);
+        const n = Math.max(0, Math.min(64, at(`txlen:${id}`) || 0));
+        const bytes = Array.from({ length: n }, (_, i) => at(`tx${i}:${id}`) & 0xff);
+        this.serial.partSends(id, new TextDecoder().decode(new Uint8Array(bytes)), t);
+      }
+      if (line.type === 'hc05') {
+        const c = at(`connected:${id}`);
+        if (!Number.isNaN(c)) this.serial.setConnected(id, c >= 0.5);
+      }
+      if (line.type === 'gps') {
+        const g = { fix: at(`fix:${id}`), lat: at(`lat:${id}`), lon: at(`lon:${id}`), sats: at(`sats:${id}`), kmh: at(`kmh:${id}`) };
+        this.serial.setGps(id, {
+          ...(Number.isNaN(g.fix) ? {} : { fix: g.fix >= 0.5 }), ...(Number.isNaN(g.lat) ? {} : { lat: g.lat }), ...(Number.isNaN(g.lon) ? {} : { lon: g.lon }),
+          ...(Number.isNaN(g.sats) ? {} : { sats: g.sats }), ...(Number.isNaN(g.kmh) ? {} : { kmh: g.kmh }),
+        });
+      }
+    }
   }
 
   /** Is this pin key on the board's header (in the circuit)? */
@@ -172,9 +237,15 @@ export class CircuitHost {
       if (c.tiltx !== undefined) s.tiltx = c.tiltx;
       for (const k of ['x', 'y', 'steps', 'rpm', 'hpa', 'bpm', 'spo2'] as const) if (c[k] !== undefined) s[k] = c[k];
       if (c.tilty !== undefined) s.tilty = c.tilty;
+      // M7 slice 5: the serial parts'
+      if (c.connected !== undefined) this.serial.setConnected(c.part, c.connected);
+      if (c.fix !== undefined || c.lat !== undefined || c.lon !== undefined || c.sats !== undefined || c.kmh !== undefined) {
+        this.serial.setGps(c.part, { fix: c.fix, lat: c.lat, lon: c.lon, sats: c.sats, kmh: c.kmh } as never);
+      }
+      if (c.text !== undefined) this.serial.partSends(c.part, c.text, c.atUs);
       changed = true;
     }
-    if (this.live) changed = this.readLive(this.live) || changed;
+    if (this.live) { changed = this.readLive(this.live) || changed; this.readSerialLive(this.live); }
     return changed;
   }
 
@@ -380,6 +451,25 @@ export class CircuitHost {
     }
   }
 
+  /** The serial parts' views (M7 slice 5), made again when anything on their lines changed. */
+  private serialSeen = -1;
+  private traceSerial(): void {
+    const t = this.now();
+    this.serial.tick(t);
+    if (this.serial.version === this.serialSeen) return;
+    this.serialSeen = this.serial.version;
+    for (const [id, line] of this.serial.lines) {
+      const on = this.powered.get(id) ?? false;
+      if (line.type === 'usb-serial') {
+        this.setView(t, id, { kind: 'serial', text: line.text, sent: line.sent, received: line.received, baud: this.serial.framingOf(id).baud, ...(line.heardBaud ? { heardBaud: line.heardBaud } : {}) });
+      } else if (line.type === 'hc05') {
+        this.setView(t, id, { kind: 'bluetooth', on, connected: on && line.connected, messages: line.messages.map((m) => ({ ...m })), sent: line.sent, received: line.received });
+      } else {
+        this.setView(t, id, { kind: 'gps', on, ...line.gps, sent: line.sent });
+      }
+    }
+  }
+
   private tracePixels(t: number, id: string): void {
     const powered = this.powered.get(id) ?? false;
     const s = this.strips.get(id);
@@ -536,12 +626,21 @@ export class CircuitHost {
     let changed = false;
     const t = this.now();
     for (const part of this.spec.parts) {   // a display works from its chip's lowest supply (M7 slice 2); the RFID reader too
-      const need = isDisplay(part.type) ? DISPLAYS[part.type].workVolts : part.type === 'rc522' ? RC522.minVolts : part.type === 'neopixel' ? NEOPIXEL.minVolts : undefined;
+      const need = isDisplay(part.type) ? DISPLAYS[part.type].workVolts : part.type === 'rc522' ? RC522.minVolts : part.type === 'neopixel' ? NEOPIXEL.minVolts
+        : part.type === 'hc05' || part.type === 'gps' ? SERIAL_PARTS[part.type].minVolts : part.type === 'usb-serial' ? 0 : undefined;
       if (need === undefined) continue;
       const powered = this.volts_(part.id, 'vcc') - this.volts_(part.id, 'gnd') >= need;
       this.powered.set(part.id, powered);
       // a NeoPixel's chips forget their colours as their power fails (it browns out: they draw only their own again)
       if (!powered && part.type === 'neopixel') this.strips.delete(part.id);
+    }
+    // an HC-05's STATE is high while a phone is connected (M7 slice 5)
+    for (const part of this.spec.parts) {
+      if (part.type !== 'hc05') continue;
+      const s = (this.parts[part.id] ??= {});
+      const on = this.serial.connected(part.id);
+      const drives = { state: on ? { volts: 3.3, ohms: 100 } : { volts: 0, ohms: 100_000 } };
+      if (JSON.stringify(s.drives) !== JSON.stringify(drives)) { s.drives = drives; changed = true; }
     }
     this.updateEchoes();
     for (const part of this.spec.parts) {
@@ -643,6 +742,7 @@ export class CircuitHost {
    *  and the answers weighted by the duties — an LED on 50 % carries half its current (on a steady duty × 3.3 V it
    *  would stay below its forward voltage). Faults are found in every combination: the peaks are what burn. */
   update(): void {
+    this.traceSerial();
     if (this.updateParts()) this.dirty = true;
     if (this.updateDrives()) this.dirty = true;
     if (this.updateLoads()) this.dirty = true;
