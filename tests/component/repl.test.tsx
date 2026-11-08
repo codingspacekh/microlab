@@ -84,7 +84,7 @@ describe('M9 an error explained (screen 05)', () => {
   it('a fault in the run too: the note doesn\'t say the circuit is fine', () => {
     const s = setup();
     s.run();
-    s.sim.end('error', { error: { type: 'ZeroDivisionError', message: 'divide by zero', file: 'main.py', line: 2 }, faults: [{ kind: 'floating', severity: 'warning', message: 'x' }] });
+    s.sim.end('error', { error: { type: 'ZeroDivisionError', message: 'divide by zero', file: 'main.py', line: 2 }, faults: [{ kind: 'floating', severity: 'warning', on: 'GP14', message: 'x' }] });
     expect(document.querySelector('.cbanner.error')).toHaveTextContent('an error in main.py, line 2.');
     expect(document.querySelector('.cbanner.error')).not.toHaveTextContent('The circuit is fine');
   });

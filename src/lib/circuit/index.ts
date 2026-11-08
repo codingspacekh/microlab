@@ -17,6 +17,8 @@ export type { Solution } from './solve';
 export { analyse, findFaults } from './faults';
 export type { Analysis, Fault, FaultKind } from './faults';
 export { describeFault } from './describe';
+export { amps, faultCard, faultCards, faultSummary, partName, runTime, stoppedBy } from './fault-card';
+export type { FaultCard, FaultContext } from './fault-card';
 export { Ds1302, DS1302 } from './ds1302';
 export { crc8, Ds18b20, DS18B20, OneWireBus } from './onewire';
 export type { OneWireDevice } from './onewire';

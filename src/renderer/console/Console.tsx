@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import type { FaultCard } from '@lib/circuit';
 import type { Explanation } from '@lib/errors';
 import type { ConsoleState } from '@lib/repl';
 import { Icon } from '../ui/Icon';
 import { TextField } from '../ui';
 import type { ConsoleChunk } from '../app/useRun';
+import { ProblemsList } from '../workspace/faults';
 import './console.css';
 
 /**
@@ -29,15 +31,19 @@ export interface BoardConsoleView {
   onClear: () => void;
 }
 
+export type ConsoleTab = 'sim' | 'board' | 'problems';
+
 export interface ConsoleProps {
   chunks: ConsoleChunk[];
   running: boolean;
   entry: string;
   onClear: () => void;
   board?: BoardConsoleView;
-  /** Which tab shows: the simulator's, or the board's. */
-  tab?: 'sim' | 'board';
-  onTab?: (tab: 'sim' | 'board') => void;
+  /** Which tab shows: the simulator's, the board's, or Problems (M9). */
+  tab?: ConsoleTab;
+  onTab?: (tab: ConsoleTab) => void;
+  /** Problems (M9 slice 2, F-24): the circuit's faults in the last run, each with Show; Clear empties them. */
+  problems?: { cards: FaultCard[]; onShow: (card: FaultCard) => void; onReplace?: (led: string) => void; onClear: () => void };
   /** The program has ended and its REPL waits (M9, F-23, screen 29c). */
   repl?: boolean;
   /** A line typed — input()'s answer, a line for the REPL — or '\x03' for Ctrl+C (M9). */
@@ -50,8 +56,11 @@ export interface ConsoleProps {
   complete?: (line: string, pos: number) => { from: number; options: string[] } | null;
 }
 
-export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete }: ConsoleProps) {
+export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete, problems }: ConsoleProps) {
   const showBoard = !!board && tab === 'board';
+  const showProblems = !!problems && tab === 'problems';
+  const count = problems?.cards.length ?? 0;
+  const damaged = !!problems?.cards.some((c) => c.severity === 'damage');
   // while the board takes typing (M9), what it printed last without a newline — >>>, input()'s prompt — is where to type
   const typing = !showBoard && !!onType && (running || !!repl);
   const lastChunk = chunks.at(-1);
@@ -78,14 +87,21 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
   return (
     <div className="console" onKeyDown={onKeyDown}>
       <div className="chead">
-        {board ? (
+        {board || problems ? (
           <div role="tablist" aria-label="Consoles" className="ctabs">
-            <button type="button" role="tab" aria-selected={!showBoard} className={`ctab${showBoard ? '' : ' on'}`} onClick={() => onTab?.('sim')}>
-              <Icon name="term" size={14} /> Simulator
+            <button type="button" role="tab" aria-selected={!showBoard && !showProblems} className={`ctab${showBoard || showProblems ? '' : ' on'}`} onClick={() => onTab?.('sim')}>
+              <Icon name="term" size={14} /> {board ? 'Simulator' : 'Console'}
             </button>
-            <button type="button" role="tab" aria-selected={showBoard} className={`ctab board${showBoard ? ' on' : ''}${board.state ? ' live' : ''}`} onClick={() => onTab?.('board')}>
-              <span className="dot" /> {board.label}
-            </button>
+            {board && (
+              <button type="button" role="tab" aria-selected={showBoard} className={`ctab board${showBoard ? ' on' : ''}${board.state ? ' live' : ''}`} onClick={() => onTab?.('board')}>
+                <span className="dot" /> {board.label}
+              </button>
+            )}
+            {problems && (
+              <button type="button" role="tab" aria-selected={showProblems} className={`ctab${showProblems ? ' on' : ''}`} onClick={() => onTab?.('problems')}>
+                <Icon name="warn" size={14} /> Problems{count > 0 && <span className={damaged ? 'count bad' : 'count'} aria-label={`, ${count}`}>{count}</span>}
+              </button>
+            )}
           </div>
         ) : (
           <span className="ctab on"><Icon name="term" size={14} /> Console</span>
@@ -101,8 +117,15 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
             </button>
           </>
         )}
-        <button type="button" className="btn ghost sm" onClick={showBoard ? board.onClear : onClear} disabled={shown.length === 0}>Clear</button>
+        {showProblems
+          ? <button type="button" className="btn ghost sm" onClick={problems.onClear} disabled={count === 0}>Clear</button>
+          : <button type="button" className="btn ghost sm" onClick={showBoard ? board.onClear : onClear} disabled={shown.length === 0}>Clear</button>}
       </div>
+      {showProblems ? (
+        <div className="cbody problems-body" role="region" aria-label="Problems in the circuit">
+          <ProblemsList cards={problems.cards} onShow={problems.onShow} onReplace={problems.onReplace} />
+        </div>
+      ) : (<>
       <div className="cbody" ref={body} role="log" aria-label={showBoard ? `Console of the ${board.name}` : 'Console'} aria-live="polite" tabIndex={showBoard ? 0 : undefined}
         onScroll={(e) => { const el = e.currentTarget; atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24; }}>
         {shown.length === 0
@@ -120,6 +143,7 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
               : <><b>&gt;&gt;&gt;</b><span>Press Run to run {entry}; when it ends, its REPL is here</span></>}
           </div>
         )}
+      </>)}
     </div>
   );
 }

@@ -99,6 +99,8 @@ export interface RunOptions {
   partInputs?: PartChange[];
   /** Each change of a part's state (LED brightness, servo angle), as it happens (M3.4). */
   onParts?: (entry: PartTraceEntry) => void;
+  /** Each fault as it is first seen, warnings too, with its time (M9: the cards and Problems while running). */
+  onFault?: (fault: Fault) => void;
   /** Stop the run, quietly, when the clock reaches this (µs): the acceptance suite's `seconds` (M3.6). */
   maxUs?: number;
   /** The file Run runs (M4.5, requirements Rev 7, Q19): the one open in the editor; main.py when the board is
@@ -154,6 +156,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   if (circuit) {
     pins.attach(circuit);
     circuit.onChange = options.onParts;
+    circuit.onFault = options.onFault;
     circuit.onDamage = () => mp._module._mp_sched_keyboard_interrupt();   // stop at once, as Stop does
   }
   const timers = new TimerBank(now);

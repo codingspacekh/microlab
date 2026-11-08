@@ -1,4 +1,5 @@
 import type { BoardId } from '@lib/boards';
+import type { Fault } from '@lib/circuit';
 import { boardData } from '@lib/editor';
 import { toCircuit, type Project, type ProjectDoc } from '@lib/project';
 import type { PartView } from '../sim/circuit';
@@ -29,6 +30,8 @@ export interface RunEvents {
   onEnd: (result: RunResult) => void;
   /** An error in a line typed at the REPL (M9). */
   onReplError?: (error: SimError) => void;
+  /** A fault first seen while running (M9 slice 2): the cards and Problems. */
+  onFault?: (fault: Fault) => void;
 }
 
 export interface RunHandle {
@@ -75,7 +78,7 @@ export function inputSlots(project: Project): string[] {
 
 const newWorker = (): WorkerLike => new Worker(new URL('../sim/worker.ts', import.meta.url), { type: 'module' }) as unknown as WorkerLike;
 
-export function startRun(req: { doc: ProjectDoc; entry: string }, events: RunEvents, makeWorker: () => WorkerLike = newWorker): RunHandle {
+export function startRun(req: { doc: ProjectDoc; entry: string; burnt?: string[] }, events: RunEvents, makeWorker: () => WorkerLike = newWorker): RunHandle {
   const { project, files } = req.doc;
   const inputs = inputSlots(project);
   const control = new Control(inputs);
@@ -113,6 +116,7 @@ export function startRun(req: { doc: ProjectDoc; entry: string }, events: RunEve
       ended = true;
       events.onEnd(m.result);
     } else if (m.type === 'repl-error') events.onReplError?.(m.error);
+    else if (m.type === 'fault') events.onFault?.(m.fault);
     else end(m.result);
   };
   worker.onerror = (e) => end({ ...emptyResult('error'), error: { type: 'Error', message: `The simulator couldn't start: ${e.message}` } });
@@ -124,7 +128,7 @@ export function startRun(req: { doc: ProjectDoc; entry: string }, events: RunEve
     entry: req.entry,
     control: control.buffer,
     inputs,
-    circuit: toCircuit(project, boardData(project.board as BoardId)),
+    circuit: { ...toCircuit(project, boardData(project.board as BoardId)), ...(req.burnt?.length ? { burnt: req.burnt } : {}) },
     repl: true,
   });
 

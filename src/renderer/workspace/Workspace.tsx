@@ -1,7 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { completeAt, EMPTY_HISTORY, PART_KINDS, record, type History } from '@lib/editor';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { BoardId } from '@lib/boards';
+import { faultCards, type FaultCard } from '@lib/circuit';
+import { boardData, completeAt, EMPTY_HISTORY, PART_KINDS, record, type History } from '@lib/editor';
 import { microbitAlone, onGpioBoard, spaceNote, type ProjectDoc } from '@lib/project';
-import { Console, type BoardConsoleView } from '../console/Console';
+import { Console, type BoardConsoleView, type ConsoleTab } from '../console/Console';
 import { CodeEditor } from '../editor/CodeEditor';
 import { EditorPrefs, lookAttrs, useEditorLook } from '../editor/EditorPrefs';
 import type { RunState } from '../app/useRun';
@@ -50,6 +52,10 @@ export interface WorkspaceProps {
   board?: BoardConsoleView;
   consoleTab?: 'sim' | 'board';
   onConsoleTab?: (tab: 'sim' | 'board') => void;
+  /** "Replace the LED" (M9, screen 04): the burnt LED lights again in the next run. */
+  onReplace?: (led: string) => void;
+  /** Problems' Clear (M9). */
+  onClearFaults?: () => void;
   /** Over the canvas while the real board runs: the simulator is stopped, the board must be wired like this. */
   banner?: ReactNode;
   /** The circuit's undo / redo (M5.1, F-16), kept by the app with the open project (its top bar has the buttons). */
@@ -74,7 +80,7 @@ const IDLE_RUN: Pick<RunState, 'parts' | 'board'> = { parts: {}, board: { pins: 
 
 export function Workspace({
   api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, onConsoleTab, banner, onType, onSoftReset,
-  history = EMPTY_HISTORY, onHistory, onUndo, onRedo, file = 'main.py', onFile, runFile = file,
+  onReplace, onClearFaults, history = EMPTY_HISTORY, onHistory, onUndo, onRedo, file = 'main.py', onFile, runFile = file,
 }: WorkspaceProps) {
   const { ref, width } = useWidth(fixed);
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
@@ -178,6 +184,22 @@ export function Workspace({
   }, [running]);
 
   const project = doc.project;
+  // M9 slice 2 (screens 04, 25c): the run's faults as cards — on the canvas, in Problems, in the status bar
+  const cards = useMemo<FaultCard[]>(() => {
+    let board;
+    try { board = boardData(project.board as BoardId); } catch { board = undefined; }
+    return faultCards(run.faults ?? [], run.burnt, { board, parts: project.parts });
+  }, [run.faults, run.burnt, project.board, project.parts]);
+  const [problemsTab, setProblemsTab] = useState(false);
+  // a damage stopped the run: Problems says why (screen 04); a new run shows the console again
+  useEffect(() => { if (run.ended?.ended === 'fault') setProblemsTab(true); }, [run.ended]);
+  useEffect(() => { if (running) setProblemsTab(false); }, [running]);
+  /** Show (Problems): the canvas brings the part or pin into view and rings it; a part is selected. */
+  const [focus, setFocus] = useState<{ part?: string; pin?: string; n: number }>();
+  const show = (c: FaultCard) => {
+    setFocus({ ...c.show, n: (focus?.n ?? 0) + 1 });
+    if (c.show.part && !running) setSelection([{ kind: 'part', id: c.show.part }]);
+  };
   const keep = (h: History) => onHistory?.(h);
   // what was selected may be gone (an undo, a redo)
   useEffect(() => {
@@ -237,7 +259,8 @@ export function Workspace({
       <section className={partsOpen ? 'canvas with-drawer' : 'canvas'} aria-label="Circuit" style={{ '--drawer': `${partsPx}px` } as React.CSSProperties}>
         <Canvas project={project} onChange={(p) => setProject(p)} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection}
           running={running} outputs={running || run.ended ? run : IDLE_RUN} onInput={onInput}
-          onUndo={onUndo} onRedo={onRedo} onOpenParts={() => setPartsOpen(true)} inset={partsOpen ? partsPx : 0} notice={notice} />
+          onUndo={onUndo} onRedo={onRedo} onOpenParts={() => setPartsOpen(true)} inset={partsOpen ? partsPx : 0} notice={notice}
+          faults={cards} burnt={run.burnt} onReplace={onReplace} canUndo={history.past.length > 0} focus={focus} />
         {partsOpen && (
         <div className="drawer-wrap">
       <section className="parts" aria-label="Parts" style={{ width: partsPx }} onKeyDown={(e) => { if (e.key === 'Escape' && !placing) { e.stopPropagation(); setPartsOpen(false); } }}>
@@ -359,7 +382,9 @@ export function Workspace({
             }} />
         )}
         {libraries && <AddLibrary doc={doc} onDoc={onChange} onCopy={(t) => void api.app.copy(t)} onClose={() => setLibraries(false)} />}
-        <Console chunks={run.console} running={running} entry={runFile} onClear={onClearConsole} board={realBoard} tab={consoleTab} onTab={onConsoleTab}
+        <Console chunks={run.console} running={running} entry={runFile} onClear={onClearConsole} board={realBoard}
+          tab={problemsTab ? 'problems' : consoleTab} onTab={(t: ConsoleTab) => { setProblemsTab(t === 'problems'); if (t !== 'problems') onConsoleTab?.(t); }}
+          problems={{ cards, onShow: show, ...(onReplace ? { onReplace } : {}), onClear: () => onClearFaults?.() }}
           repl={run.repl} onType={onType} onSoftReset={onSoftReset} onGoTo={goToLine}
           complete={(line, pos) => {
             // as the editor offers them, after main.py's code: its imports and names count

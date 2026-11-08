@@ -1,4 +1,4 @@
-import type { CircuitSpec } from '@lib/circuit';
+import type { CircuitSpec, Fault } from '@lib/circuit';
 import type { Wave } from './soundfx';
 import type { PartView } from './circuit';
 import { RealClock } from './clock';
@@ -31,6 +31,8 @@ export type WorkerMessage =
   /** The board's own outputs that changed (M4.5): pin levels ('LED' is the Pico W's own LED), the display, the
    *  micro:bit speaker's pitch (Hz, 0: silence; M6.2), its volume (0–1) and waveform (M7 slice 4). */
   | { type: 'board'; pins: Record<string, number>; display?: string; sound?: number; tone?: Tone; radio?: string[] }
+  /** A fault first seen (M9 slice 2), warnings too, with its time: after what came before it. */
+  | { type: 'fault'; fault: Fault }
   /** The program has ended and the REPL is ready (M9, F-23): the worker goes on until Stop. */
   | { type: 'ended'; result: RunResult }
   /** An error in a line typed at the REPL (M9). */
@@ -101,6 +103,10 @@ export async function handleStart(
     onReplError: (error) => {
       flush();
       post({ type: 'repl-error', error });
+    },
+    onFault: (fault) => {
+      flush();
+      post({ type: 'fault', fault });
     },
     onParts: ([, id, view]) => {
       parts[id] = view;

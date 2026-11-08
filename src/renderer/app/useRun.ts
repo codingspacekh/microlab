@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Fault } from '@lib/circuit';
 import type { ProjectDoc } from '@lib/project';
 import { explain, type Explanation } from '@lib/errors';
 import type { PartView } from '../../sim/circuit';
@@ -30,11 +31,16 @@ export interface RunState {
   parts: Record<string, PartView>;
   board: BoardOutputs;
   ended?: RunResult;
+  /** The faults of this run or the last, each once (M9 slice 2): as they are seen, then with their worst numbers. */
+  faults: Fault[];
+  /** LEDs burnt out in a run: dead in the next ones until replaced (screen 04: "Replace the LED"). */
+  burnt: string[];
 }
 
 /** The console keeps about this much text: a program printing in a loop can't fill the memory. */
 export const CONSOLE_LIMIT = 200_000;
-const IDLE: RunState = { status: 'idle', console: [], parts: {}, board: { pins: {} } };
+const IDLE: RunState = { status: 'idle', console: [], parts: {}, board: { pins: {} }, faults: [], burnt: [] };
+const keyOf = (f: Fault) => `${f.kind}:${f.on}`;
 
 export function useRun(start: StartRun = realStart) {
   const [state, setState] = useState<RunState>(IDLE);
@@ -43,6 +49,8 @@ export function useRun(start: StartRun = realStart) {
   const atRepl = useRef(false);
   const again = useRef<(() => ProjectDoc) | null>(null);
   const typed = useRef('');
+  const burnt = useRef<string[]>([]);
+  burnt.current = state.burnt;
 
   const add = (chunk: ConsoleChunk) => setState((s) => ({ ...s, console: append(s.console, chunk) }));
   /** Ends a session at the REPL at once (a new run, another project). */
@@ -56,14 +64,20 @@ export function useRun(start: StartRun = realStart) {
     if (handle.current && !atRepl.current) return;
     close();
     const greeting = `${firmwareOf(doc.project.board)} on ${boardName} (simulated) — running ${entry}\n`;
-    setState({ ...IDLE, status: 'running', startedAt: Date.now(), console: [{ kind: 'sys', text: greeting }] });
+    // a burnt LED whose part is gone — deleted, or another project's — is forgotten
+    const dead = burnt.current.filter((id) => doc.project.parts.some((p) => p.id === id.split(':')[0]));
+    setState({ ...IDLE, status: 'running', startedAt: Date.now(), console: [{ kind: 'sys', text: greeting }], burnt: dead });
     const context = { files: doc.files, board: doc.project.board, libraries: LIBRARIES };
-    const session: RunHandle = start({ doc, entry }, {
+    const session: RunHandle = start({ doc, entry, ...(dead.length ? { burnt: dead } : {}) }, {
       onOutput: (text, echo) => add({ kind: echo ? 'me' : 'out', text }),
       onParts: (states) => setState((s) => ({ ...s, parts: { ...s.parts, ...states } })),
       // the radio's messages sent (M7): the last six, as hex
       onBoard: (b) => setState((s) => ({ ...s, board: { pins: { ...s.board.pins, ...b.pins }, display: b.display ?? s.board.display, sound: b.sound ?? s.board.sound, tone: b.sound !== undefined ? b.tone : s.board.tone,
         radio: b.radio ? [...(s.board.radio ?? []), ...b.radio].slice(-6) : s.board.radio } })),
+      onFault: (f) => {
+        if (handle.current !== session) return;
+        setState((s) => (s.faults.some((x) => keyOf(x) === keyOf(f)) ? s : { ...s, faults: [...s.faults, f] }));
+      },
       onEnd: (result) => {
         if (handle.current !== session) return;
         if (result.repl) atRepl.current = true;
@@ -75,6 +89,9 @@ export function useRun(start: StartRun = realStart) {
           ended: result,
           repl: !!result.repl,
           console: [...endNotes(result, entry, why)].reduce(append, s.console),
+          // the run's faults with their worst numbers, in the order they were seen; its burnt LEDs stay dead
+          faults: ordered(s.faults, result.faults ?? []),
+          burnt: [...new Set([...s.burnt, ...(result.faults ?? []).filter((f) => f.kind === 'led-burnt').map((f) => f.on)])],
           // stopped by the student: the board goes dark; ended by itself (or Ctrl+C, at the REPL): the parts stay
           ...(result.ended === 'stopped' && !result.repl ? { parts: {}, board: { pins: {} } } : {}),
         }));
@@ -129,6 +146,17 @@ export function useRun(start: StartRun = realStart) {
     setState((s) => ({ ...s, repl: false, console: append(s.console, { kind: 'sys', text: `\n${why}\n` }) }));
   }, []);
   const clear = useCallback(() => setState((s) => ({ ...s, console: [] })), []);
+  /** Problems' Clear: the faults go until the next run (burnt LEDs stay burnt). */
+  const clearFaults = useCallback(() => setState((s) => ({ ...s, faults: [] })), []);
+  /** "Replace the LED" (screen 04): a new one in its place — it lights again in the next run. */
+  const replace = useCallback((led: string) => {
+    const part = led.split(':')[0];
+    setState((s) => ({
+      ...s,
+      burnt: s.burnt.filter((id) => id.split(':')[0] !== part),
+      faults: s.faults.filter((f) => !(f.kind === 'led-burnt' && f.on.split(':')[0] === part)),
+    }));
+  }, []);
   /** Another project: stop what runs, forget the last run. */
   const reset = useCallback(() => {
     again.current = null;
@@ -140,7 +168,15 @@ export function useRun(start: StartRun = realStart) {
 
   useEffect(() => () => { if (atRepl.current) close(); else handle.current?.stop(); }, []);
 
-  return { state, run, stop, restart, setInput, type, endRepl, clear, reset };
+  return { state, run, stop, restart, setInput, type, endRepl, clear, clearFaults, replace, reset };
+}
+
+/** The run's faults in the order they were told, each with the end's numbers (its worst); any not told, after. */
+function ordered(told: Fault[], end: Fault[]): Fault[] {
+  const worst = new Map(end.map((f) => [keyOf(f), f]));
+  const out = told.map((f) => worst.get(keyOf(f)) ?? f);
+  for (const f of end) if (!told.some((t) => keyOf(t) === keyOf(f))) out.push(f);
+  return out;
 }
 
 /** The library pack's modules, for an ImportError (M9). */

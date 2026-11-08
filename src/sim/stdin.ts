@@ -7,39 +7,60 @@ import type { Control } from './control';
  * (mp_hal_set_interrupt_char); what was typed before it stays.
  */
 export class Stdin {
+  /** What is typed and not yet taken; a Ctrl+C (\x03) that came while a reader waited stays in its place. */
   private text = '';
+  /** Ctrl+C typed while nothing was reading: an interrupt at once. */
   private interrupts = 0;
+  /** input() or the REPL is waiting for a line (its last read found none). */
+  private waiting = false;
   private readonly script: [number, string][];
 
   constructor(private readonly control: Control | undefined, script: [number, string][] = [], private readonly now: () => number = () => 0) {
     this.script = [...script].sort((a, b) => a[0] - b[0]);
   }
 
+  /** What has arrived. On a board Ctrl+C acts as it arrives — but lines arriving with it while a reader waits were
+   *  taken first (the REPL ran the block, then Ctrl+C stops it): those keep it behind them. */
   private pull(): void {
     let got = this.control?.typed() ?? '';
     while (this.script.length && this.script[0]![0] <= this.now()) got += this.script.shift()![1];
+    if (this.waiting) {
+      this.text += got;
+      return;
+    }
     for (const c of got) {
       if (c === '\x03') this.interrupts++;
       else this.text += c;
     }
   }
 
-  /** A whole line typed (without its line ending), or undefined while there isn't one yet. */
+  /** A whole line typed (without its line ending), or undefined while there isn't one yet — or while a Ctrl+C typed
+   *  before its end is still to be taken. */
   line(): string | undefined {
     this.pull();
     const m = /\r\n|\r|\n/.exec(this.text);
-    if (!m) return undefined;
+    const c = this.text.indexOf('\x03');
+    if (!m || (c >= 0 && c < m.index) || this.interrupts) {
+      this.waiting = true;
+      return undefined;
+    }
+    this.waiting = false;
     const line = this.text.slice(0, m.index);
     this.text = this.text.slice(m.index + m[0].length);
     return line;
   }
 
-  /** True once for each Ctrl+C typed. */
+  /** True once for each Ctrl+C typed, as it arrives — or, if it came while a reader waited, once the lines before it
+   *  are taken; what was typed before it on its line stays. */
   interrupted(): boolean {
     this.pull();
-    if (!this.interrupts) return false;
-    this.interrupts--;
+    if (this.interrupts) {
+      this.interrupts--;
+      return true;
+    }
+    const c = this.text.indexOf('\x03');
+    if (c < 0 || /\r|\n/.test(this.text.slice(0, c))) return false;
+    this.text = this.text.slice(0, c) + this.text.slice(c + 1);
     return true;
   }
-
 }

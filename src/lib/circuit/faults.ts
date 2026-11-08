@@ -14,7 +14,7 @@ import { UnionFind } from './union-find';
 export type FaultKind =
   | 'short' | 'led-burnt' | 'led-over-current' | 'pin-over-current' | 'board-over-current'
   | 'supply-over-current' | 'over-voltage' | 'floating' | 'servo-underpowered' | 'sensor-underpowered' | 'motor-on-pin'
-  | 'display-underpowered' | 'neopixel-backwards' | 'neopixel-over-current' | 'uart-tx-to-tx';
+  | 'display-underpowered' | 'neopixel-backwards' | 'neopixel-over-current' | 'uart-tx-to-tx' | 'led-backwards';
 
 export interface Fault {
   kind: FaultKind;
@@ -32,12 +32,20 @@ export interface Fault {
   /** The type of the part it is on, when that names it better (M7 slice 2: a 7-segment digit's segment b, not an
    *  RGB LED's blue die; an LCD too faint). */
   partType?: string;
+  /** A pin straight on an LED's leg, no resistor between (M9, screen 04: "GP13 goes straight to the green LED"). */
+  via?: string;
+  /** What a short joins it to: GND, or a supply's pin (a LOW pin wired to 3V3). */
+  to?: string;
+  /** When it was first seen in a run (ms from the start; M9: "the simulation stopped at 00:01.4"). */
+  atMs?: number;
 }
 
 /** At its limit with its voltage collapsed: a source is short-circuited. */
 const SHORT_LIMIT = 0.9;
 /** A servo needs 4.8–6 V (screen 09); between these it is powered, but too low. */
 const SERVO_LOW = { from: 0.5, to: 4.5 };
+/** An LED with more than this across it the wrong way is in backwards (§1.3): it would light the other way round. */
+const LED_BACKWARDS_V = 1;
 /** An LED carrying less than this is dark: it holds nothing (floating check). */
 const LED_ON_A = 1e-6;
 
@@ -64,33 +72,43 @@ export function findFaults(spec: CircuitSpec, netlist: Netlist, s: Solution, sta
   const shorted = new Set<string>();
 
   // Sources: supplies, batteries and driven pins (they have a current only while driving).
-  type Src = { id: string; on: string; i: number; u: number; full: number; target: number; limitA: number };
+  type Src = { id: string; on: string; net: string; i: number; u: number; full: number; target: number; limitA: number };
   const sources: Src[] = [];
   for (const d of netlist.devices) {
     if (d.kind === 'source') {
       const on = d.id.startsWith('supply:') ? d.id.slice(7) : d.id;
-      sources.push({ id: d.id, on, i: amps(d.id)!, u: v(d.plus) - v(d.minus), full: d.volts, target: d.volts, limitA: d.limitA });
+      sources.push({ id: d.id, on, net: d.plus, i: amps(d.id)!, u: v(d.plus) - v(d.minus), full: d.volts, target: d.volts, limitA: d.limitA });
     } else if (d.kind === 'pin' && isDriven(d, state)) {
       const p = state.pins![d.label]!;
       const target = p.mode === 'out' ? p.value * d.volts : Math.min(1, Math.max(0, (p as { duty: number }).duty)) * d.volts;
-      sources.push({ id: d.id, on: d.label, i: amps(d.id)!, u: v(d.net) - v(d.gnd), full: d.volts, target, limitA: d.limitA });
+      sources.push({ id: d.id, on: d.label, net: d.net, i: amps(d.id)!, u: v(d.net) - v(d.gnd), full: d.volts, target, limitA: d.limitA });
     }
   }
   for (const src of sources) {
     if (Math.abs(src.i) >= SHORT_LIMIT * src.limitA && Math.abs(src.u - src.target) > SHORT_LIMIT * src.full) {
       shorted.add(src.id);
-      out.push({ kind: 'short', severity: 'damage', on: src.on, amps: Math.abs(src.i), limitA: src.limitA });
+      // a HIGH pin or a supply goes to GND; a LOW pin to the supply on its wire
+      const supply = src.target > 0 ? undefined : sources.find((x) => x.id.startsWith('supply:') && x.net === src.net);
+      const to = src.target > 0 ? (board ? 'GND' : undefined) : supply?.on;
+      out.push({ kind: 'short', severity: 'damage', on: src.on, amps: Math.abs(src.i), limitA: src.limitA, ...(to ? { to } : {}) });
     }
   }
 
   const typeOf = new Map(spec.parts.map((p) => [p.id, p.type]));
+  // a driven pin on a net: the pin straight on an LED's leg, with no resistor between (M9)
+  const pinOn = new Map<string, string>();
+  for (const d of netlist.devices) if (d.kind === 'pin' && isDriven(d, state) && !pinOn.has(d.net)) pinOn.set(d.net, d.label);
   for (const d of netlist.devices) {
     if (d.kind !== 'led') continue;
     const i = amps(d.id)!;
     const partType = typeOf.get(d.id.split(':')[0]!);
     const t = partType && partType !== 'led' ? { partType } : {};
-    if (i > LED.maxA) out.push({ kind: 'led-burnt', severity: 'damage', on: d.id, amps: i, limitA: LED.maxA, ratedA: LED.ratedA, ...t });
-    else if (i > LED.ratedA) out.push({ kind: 'led-over-current', severity: 'warning', on: d.id, amps: i, limitA: LED.maxA, ratedA: LED.ratedA, ...t });
+    const pin = pinOn.get(d.a) ?? pinOn.get(d.k);
+    const via = pin ? { via: pin } : {};
+    if (i > LED.maxA) out.push({ kind: 'led-burnt', severity: 'damage', on: d.id, amps: i, limitA: LED.maxA, ratedA: LED.ratedA, ...t, ...via });
+    else if (i > LED.ratedA) out.push({ kind: 'led-over-current', severity: 'warning', on: d.id, amps: i, limitA: LED.maxA, ratedA: LED.ratedA, ...t, ...via });
+    // §1.3: an LED the wrong way round stays dark — only a plain LED (a digit's or an RGB LED's dies can't be turned)
+    else if (partType === 'led' && v(d.k) - v(d.a) > LED_BACKWARDS_V) out.push({ kind: 'led-backwards', severity: 'warning', on: d.id, volts: v(d.k) - v(d.a) });
   }
 
   if (board) {

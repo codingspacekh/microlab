@@ -136,3 +136,27 @@ describe('M3.5 faults stop the run with their message', () => {
   });
 });
 
+describe('M9 slice 2: faults told as they happen (screen 04)', () => {
+  const noResistor = () => circuit('pico-w', [{ id: 'led1', type: 'led', props: { color: 'red' }, legs: { a: 'bb1.a5', k: 'bb1.a7' } }],
+    [w('w1', 'board.GP15', 'bb1.e5'), w('w2', 'board.GND', 'bb1.e7')]);
+
+  it('each fault is told once as it is first seen, with its time; the damage carries when the run stopped', async () => {
+    const told: string[] = [];
+    const r = await runProject(await nodeLoader(), {
+      board: 'pico-w', clock: new VirtualClock(), circuit: noResistor(),
+      files: { 'main.py': 'from machine import Pin\nimport time\nled = Pin(15, Pin.OUT)\ntime.sleep(1.4)\nled.on()\ntime.sleep(1)\n' },
+      onFault: (f) => told.push(`${f.kind} ${f.on} ${Math.round(f.atMs ?? -1)}`),
+    });
+    expect(r.ended).toBe('fault');
+    expect(told).toEqual(['led-burnt led1 1400', 'pin-over-current GP15 1400']);
+    expect(r.fault).toMatchObject({ kind: 'led-burnt', atMs: expect.closeTo(1400, 0) });
+  });
+
+  it('a burnt LED stays dark in the next run until it is replaced (spec.burnt): the program runs on', async () => {
+    const r = await run('pico-w', { ...noResistor(), burnt: ['led1'] }, 'from machine import Pin\nimport time\nPin(15, Pin.OUT).on()\ntime.sleep(0.1)\nprint("on")\n');
+    expect(r.ended).toBe('done');
+    expect(r.output).toBe('on\n');
+    expect(r.faults).toEqual([]);
+  });
+});
+

@@ -122,6 +122,15 @@ describe('M4.5 starting a run', () => {
     expect(w.terminated).toBe(true);
   });
 
+  it('M9: a fault the worker tells is passed on; LEDs burnt in an earlier run go with the circuit, dead', () => {
+    const w = new FakeWorker();
+    const e = { ...events(), onFault: vi.fn() };
+    startRun({ doc: doc(), entry: 'main.py', burnt: ['led1'] }, e, () => w);
+    expect(w.sent[0]!.circuit!.burnt).toEqual(['led1']);
+    w.say({ type: 'fault', fault: { kind: 'led-burnt', severity: 'damage', on: 'led2', atMs: 1400 } });
+    expect(e.onFault).toHaveBeenCalledWith({ kind: 'led-burnt', severity: 'damage', on: 'led2', atMs: 1400 });
+  });
+
   it('a button pressed while running: its slot is set in the shared buffer', () => {
     const w = new FakeWorker();
     const run = startRun({ doc: doc(), entry: 'main.py' }, events(), () => w);

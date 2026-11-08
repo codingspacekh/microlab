@@ -32,6 +32,9 @@ export interface CircuitSpec {
   breadboards: { id: string; size: BreadboardSize }[];
   parts: PartSpec[];
   wires: WireSpec[];
+  /** LEDs that burnt out in an earlier run (M9, screen 04): dead — no current goes through them — until replaced.
+   *  An LED's id, or a die's ('rgb1:r'). */
+  burnt?: string[];
 }
 
 /** Wiring problems found while connecting (the wiring check, F-18), instead of a crash. */

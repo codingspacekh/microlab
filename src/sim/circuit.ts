@@ -125,6 +125,8 @@ export class CircuitHost {
   /** The first damage fault (a burnt LED, a short, over-voltage): the run stops (M3.5). */
   damage?: Fault;
   onDamage?: (fault: Fault) => void;
+  /** Told of each fault as it is first seen in the run, with its time (M9: the window's cards and Problems). */
+  onFault?: (fault: Fault) => void;
   private readonly connectivity: Connectivity;
   private readonly pinOfNet = new Map<string, string>();
   private readonly views = new Map<string, PartView>();
@@ -177,8 +179,11 @@ export class CircuitHost {
     const h = this.serial.open(tx, rx, framing, rxbuf);
     for (const [pin, other] of this.serial.txToTx.slice(before)) {
       const on = this.labelOfPin.get(pin) ?? pin;
-      const f: Fault = { kind: 'uart-tx-to-tx', severity: 'warning', on, part: other.toUpperCase().replace('.', "'s ") };
-      if (!this.seen.has(`${f.kind}:${on}`)) this.seen.set(`${f.kind}:${on}`, f);
+      const f: Fault = { kind: 'uart-tx-to-tx', severity: 'warning', on, part: other.toUpperCase().replace('.', "'s "), atMs: this.now() / 1000 };
+      if (!this.seen.has(`${f.kind}:${on}`)) {
+        this.seen.set(`${f.kind}:${on}`, f);
+        this.onFault?.(f);
+      }
     }
     return h;
   }
@@ -796,10 +801,13 @@ export class CircuitHost {
   }
 
   private noteFaults(): void {
-    for (const f of this.faults) {
-      const key = `${f.kind}:${f.on}`;
+    for (const found of this.faults) {
+      const key = `${found.kind}:${found.on}`;
       const before = this.seen.get(key);
+      // its worst numbers, from when it was first seen
+      const f = { ...found, atMs: before?.atMs ?? this.now() / 1000 };
       if (!before || (f.amps ?? 0) > (before.amps ?? 0) || Math.abs(f.volts ?? 0) > Math.abs(before.volts ?? 0)) this.seen.set(key, f);
+      if (!before) this.onFault?.(f);
       if (f.severity === 'damage' && !this.damage) {
         this.damage = f;
         this.onDamage?.(f);

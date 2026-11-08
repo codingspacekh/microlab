@@ -125,10 +125,12 @@ describe('M4.5 the console (F-23)', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Stopped: an error on line 3');
   });
 
-  it('a damaged circuit: the fault\'s message, in red', () => {
+  it('a damaged circuit: the fault\'s message, in red (M9: Problems opens; the console keeps the line)', () => {
     const s = setup();
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     s.sim.end('fault', { fault: { kind: 'led-burnt', part: 'led1', message: 'LED1 burnt out: 95 mA through it (it takes 30 mA at most).' } });
+    expect(screen.getByRole('tab', { name: /Problems/ })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(screen.getByRole('tab', { name: /Console/ }));
     expect(screen.getByRole('log', { name: 'Console' }).querySelector('.err')).toHaveTextContent('LED1 burnt out');
     expect(screen.getByRole('status')).toHaveTextContent('Stopped: the circuit was damaged');
   });

@@ -435,8 +435,15 @@ test('M7.1 (screens 25, 25c): a TT motor dropped beside the breadboard, wired at
   await win.keyboard.press('Escape');
   await setCode(win, ['from machine import Pin', 'import time', 'Pin(15, Pin.OUT).on()', 'time.sleep(10)', ''].join('\n'));
   await win.getByRole('button', { name: 'Run main.py' }).click();
-  await expect(win.getByRole('log', { name: 'Console' })).toContainText(/GP15: motor1 straight on the pin draws \d+ mA, a pin gives 12 mA at most/, { timeout: 5000 });
-  await expect(win.getByRole('status')).toContainText('Stopped: the circuit was damaged');
+  // M9 slice 2: the card beside GP15, Problems, the status bar; the console keeps the line
+  const card = win.getByRole('group', { name: 'GP15 was damaged' });
+  await expect(card).toContainText('MOTOR1 is wired straight to GP15.', { timeout: 5000 });
+  await expect(card.getByRole('button', { name: 'Undo' })).toBeVisible();
+  await expect(win.getByRole('status')).toContainText('Stopped: a pin was damaged');
+  await expect(win.getByRole('status')).toContainText('1 pin damaged');
+  await expect(win.getByRole('tab', { name: /Problems/ })).toHaveAttribute('aria-selected', 'true');
+  await win.getByRole('tab', { name: /Console/ }).click();
+  await expect(win.getByRole('log', { name: 'Console' })).toContainText(/GP15: motor1 straight on the pin draws \d+ mA, a pin gives 12 mA at most/);
 });
 
 test('M7.2 (screens 26, 26c): a 16×2 LCD dropped beside the breadboard, wired at its backpack\'s pins, its library added from the inspector — it shows what putstr wrote; on 3V3 it is too faint', async () => {
@@ -606,3 +613,43 @@ test('M9 slice 1 (screens 05, 29c): input() answered in the console; an error ex
   await expect(log).toContainText('KeyboardInterrupt', { timeout: 5000 });
   await expect(win.locator('.prompt.sim b')).toHaveText('>>>', { timeout: 5000 });
 });
+
+test('M9 slice 2 (screen 04): an LED straight on GP13 burns out in the real worker — its card, Problems, dead in the next run until replaced', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
+  await drag(win, await centre(win, '.parts .pitem:has-text("red, 5 mm")'), await between(win, 'bb1.b8', 'bb1.b10'));
+  await drag(win, await centre(win, '[data-point="board.GP13"]'), await centre(win, '[data-point="bb1.e8"]'));
+  await drag(win, await centre(win, '[data-point^="board.GND"]'), await centre(win, '[data-point="bb1.e10"]'));
+  await win.keyboard.press('Escape');
+  await setCode(win, ['from machine import Pin', 'import time', 'time.sleep(0.5)', 'Pin(13, Pin.OUT).on()', 'time.sleep(0.5)', 'print("done")', ''].join('\n'));
+
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const card = win.getByRole('group', { name: 'LED1 burnt out' });
+  await expect(card).toContainText('GP13 goes straight to the red LED with no resistor', { timeout: 5000 });
+  await expect(card).toContainText('Fix: put a 220 Ω resistor between GP13 and the LED.');
+  await expect(win.locator('[data-part="led1"]')).toHaveAttribute('data-burnt', '1');
+  await expect(win.getByRole('status')).toContainText('Stopped: a part was damaged');
+  await expect(win.getByRole('status')).toContainText('1 part damaged · 1 warning');
+  const problems = win.getByRole('region', { name: 'Problems in the circuit' });
+  await expect(problems).toContainText('LED1 (red) burnt out');
+  await expect(problems).toContainText(/The simulation stopped at 00:00\.[5-7]/);
+  await expect(problems).toContainText('GP13 gave more than it should');
+
+  // run again: the LED is dead — nothing burns, the program ends; it is still burnt, in Problems with Replace
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.getByRole('log', { name: 'Console' })).toContainText('done', { timeout: 5000 });
+  await expect(win.locator('[data-part="led1"]')).toHaveAttribute('data-burnt', '1');
+  await expect(win.getByRole('group', { name: 'LED1 burnt out' })).toHaveCount(0);
+  await expect(win.getByRole('group', { name: 'LED1 is still burnt out' })).toBeVisible();
+  await expect(win.getByRole('status')).toContainText('1 part damaged');
+
+  // a new LED in its place (Problems' Replace): it burns again
+  await win.getByRole('tab', { name: /Problems/ }).click();
+  await problems.getByRole('button', { name: 'Replace' }).click();
+  await expect(problems).toContainText('No problems in the circuit.');
+  await expect(win.locator('[data-part="led1"]')).not.toHaveAttribute('data-burnt', '1');
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.getByRole('group', { name: 'LED1 burnt out' })).toBeVisible({ timeout: 5000 });
+});
+

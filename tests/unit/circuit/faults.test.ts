@@ -155,6 +155,57 @@ describe('F-37 servo on 3V3 (§1.3)', () => {
   });
 });
 
+describe('M9 slice 2: what the fault cards need (screen 04)', () => {
+  it('an LED straight on a pin names that pin (via): there is no resistor between them', () => {
+    const f = faults(onPico([{ id: 'led1', type: 'led', props: { color: 'green' }, legs: { a: 'board.GP13', k: 'board.GND' } }]), HIGH('GP13'));
+    expect(f[0]).toMatchObject({ kind: 'led-burnt', via: 'GP13' });
+  });
+
+  it('through a resistor (47 Ω from GP13) the LED names no pin', () => {
+    const f = faults(onPico([
+      { id: 'r1', type: 'resistor', props: { ohms: 47 }, legs: { a: 'board.GP13', b: 'led1.a' } },
+      { id: 'led1', type: 'led', legs: { k: 'board.GND' } },
+    ]), HIGH('GP13'));
+    expect(kinds(f)).toEqual(['led-over-current:led1', 'pin-over-current:GP13']);   // ≈ 27 mA: over both 20 and 12
+    expect(f[0]!.via).toBeUndefined();
+  });
+
+  it('a short says what it is shorted to: a HIGH pin or 3V3 to GND, a LOW pin to 3V3', () => {
+    expect(faults(onPico([], [{ id: 'w1', a: 'board.GP15', b: 'board.GND' }]), HIGH('GP15'))[0]).toMatchObject({ kind: 'short', to: 'GND' });
+    expect(faults(onPico([], [{ id: 'w1', a: 'board.3V3', b: 'board.GND' }]))[0]).toMatchObject({ kind: 'short', to: 'GND' });
+    const low = faults(onPico([], [{ id: 'w1', a: 'board.GP15', b: 'board.3V3' }]), { pins: { GP15: { mode: 'out', value: 0 } } });
+    expect(low.find((x) => x.kind === 'short')).toMatchObject({ on: 'GP15', to: '3V3' });
+  });
+
+  it('§1.3 an LED the wrong way round (long leg on GND) stays dark: a warning with the volts across it the wrong way', () => {
+    const spec = onPico([
+      { id: 'r1', type: 'resistor', props: { ohms: 220 }, legs: { a: 'board.GP13', b: 'led1.k' } },
+      { id: 'led1', type: 'led', props: { color: 'red' }, legs: { a: 'board.GND' } },
+    ]);
+    const f = faults(spec, HIGH('GP13'));
+    expect(kinds(f)).toEqual(['led-backwards:led1']);
+    expect(f[0]).toMatchObject({ severity: 'warning' });
+    expect(f[0]!.volts).toBeCloseTo(3.3, 1);
+    // LOW: nothing across it, nothing to say
+    expect(faults(spec, { pins: { GP13: { mode: 'out', value: 0 } } })).toEqual([]);
+  });
+
+  it("a 7-segment digit's dark segments (common cathode, COM on GND, a pin LOW) are not backwards", () => {
+    const spec = onPico([
+      { id: 'r1', type: 'resistor', props: { ohms: 220 }, legs: { a: 'board.GND', b: 'd1.com1' } },
+      { id: 'd1', type: 'seven-segment', legs: { a: 'board.GP18' } },
+    ]);
+    expect(faults(spec, { pins: { GP18: { mode: 'out', value: 0 } } })).toEqual([]);
+  });
+
+  it('a burnt LED stays dead (spec.burnt): no current through it, nothing more to say until it is replaced', () => {
+    const spec = { ...onPico([{ id: 'led1', type: 'led', props: { color: 'green' }, legs: { a: 'board.GP13', k: 'board.GND' } }]), burnt: ['led1'] };
+    const a = analyse(spec, HIGH('GP13'));
+    expect(a.faults).toEqual([]);
+    expect(a.netlist.devices.some((d) => d.id === 'led1')).toBe(false);
+  });
+});
+
 describe('analyse()', () => {
   it('gives the nets, the solution and the faults in one go', () => {
     const a = analyse(onPico([]), {});

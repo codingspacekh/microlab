@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NewProjectBoard } from '@lib/boards';
 import { newProject, onGpioBoard, runTarget, type ProjectDoc } from '@lib/project';
-import { EMPTY_HISTORY, redo, undo, type History } from '@lib/editor';
+import { boardData, EMPTY_HISTORY, redo, undo, type History } from '@lib/editor';
+import { faultCards, faultSummary, stoppedBy } from '@lib/circuit';
 import { Icon, Logo } from '../ui/Icon';
 import { Dialog } from '../ui/Dialog';
 import { MenuButton } from '../ui/Menu';
@@ -326,6 +327,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
         runFile={running ? open.lastRun ?? target : target}
         run={sim.state} running={running} onInput={sim.setInput} onClearConsole={sim.clear}
         onType={sim.type} onSoftReset={() => sim.restart(() => latest.current!.doc)}
+        onReplace={sim.replace} onClearFaults={sim.clearFaults}
         consoleTab={bc.tab} onConsoleTab={bc.setTab}
         board={bc.shown ? {
           label: `${bc.shown.name} (USB)`, name: bc.shown.name, chunks: bc.chunks, ...(bc.state ? { state: bc.state } : {}),
@@ -549,10 +551,20 @@ function StatusBar({ project, run, board, sound }: { project: OpenProject | null
   const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
   const p = project?.doc.project;
   const e = run.ended;
+  // M9 slice 2 (screens 04, 25c, 27c): the run's faults counted; a damage says what stopped it
+  const cards = (() => {
+    if (!p || (!run.faults?.length && !run.burnt?.length)) return [];
+    let board;
+    try { board = boardData(p.board as BoardId); } catch { board = undefined; }
+    return faultCards(run.faults ?? [], run.burnt, { board, parts: p.parts });
+  })();
+  const damage = e?.ended === 'fault' && e.fault ? cards.find((c) => c.key === `${e.fault!.kind}:${e.fault!.on}`) : undefined;
+  const summary = faultSummary(cards);
+  const hurt = cards.some((c) => c.severity === 'damage');
   const left = run.status === 'running' ? <span className="st running"><span className="dot" />Running at real speed</span>
     : run.status === 'stopping' ? <span className="st">Stopping…</span>
     : e?.ended === 'error' ? <span className="st bad">Stopped: an error{e.error?.line ? ` on line ${e.error.line}` : ''}</span>
-    : e?.ended === 'fault' ? <span className="st bad">Stopped: the circuit was damaged</span>
+    : e?.ended === 'fault' ? <span className="st bad">{damage ? stoppedBy(damage) : 'Stopped: the circuit was damaged'}</span>
     : board ? <span className="st running"><span className="dot" />{board}</span>
     : project?.savedNote ? <span className="st saved">{project.savedNote}</span>
     : <span>Ready</span>;
@@ -585,7 +597,10 @@ function StatusBar({ project, run, board, sound }: { project: OpenProject | null
           <Icon name={sound.muted ? 'soundoff' : 'sound'} size={12} /> {sound.muted ? 'Sound off' : 'Sound on (from the laptop)'}
         </button>
       )}
-      <span className="r">{p ? `${BOARD_NAMES[p.board as keyof typeof BOARD_NAMES] ?? p.board}${onGpioBoard(p) ? ' + GPIO board' : ''} + ${count(p.parts.length, 'part')} · ${count(p.wires.length, 'wire')}` : 'MicroLab'}</span>
+      <span className="r">
+        {summary && <span className={hurt ? 'st bad faults' : 'st warn faults'}><Icon name={hurt ? 'alert' : 'warn'} size={12} /> {summary}</span>}
+        <span>{p ? `${BOARD_NAMES[p.board as keyof typeof BOARD_NAMES] ?? p.board}${onGpioBoard(p) ? ' + GPIO board' : ''} + ${count(p.parts.length, 'part')} · ${count(p.wires.length, 'wire')}` : 'MicroLab'}</span>
+      </span>
     </footer>
   );
 }

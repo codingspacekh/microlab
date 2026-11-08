@@ -256,3 +256,25 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 /* M9 (screen 05): the program stopped with an error */
 .canvas .cbanner.error > .ico { color: var(--danger); }
 .canvas .cbanner.error { border-color: var(--danger-soft); }
+
+/* ---------- M9 slice 2: faults on the workspace (screens 04, 25c, 26c, 27c) ---------- */
+.canvas .fault-card { z-index: 6; width: 300px; max-width: calc(100% - 16px); padding: 12px 14px 14px; border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); font-size: 12.5px; line-height: 1.5; }
+.fault-card .fh, .fault-note .fh { display: flex; align-items: center; gap: 8px; }
+.fault-card .fh > .ico { color: var(--danger); flex: none; }
+.fault-card .fh b { color: var(--danger); font-size: 13px; }
+.fault-card .fh .spacer, .fault-note .fh .spacer { flex: 1; }
+.fault-card p { margin: 8px 0 0; color: var(--tx-2); }
+.fault-card p b { color: var(--tx-1); }
+.fault-card .nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 6px; margin-top: 10px; }
+.fault-card .num { display: flex; flex-direction: column; gap: 2px; padding: 7px 9px; border-radius: 7px; background: var(--bg); }
+.fault-card .num span { font-size: 10.5px; color: var(--tx-3); }
+.fault-card .num b { font-family: var(--mono); font-size: 13px; color: var(--tx-1); }
+.fault-card .num.bad b { color: var(--danger); }
+.fault-card .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.canvas .fault-note { z-index: 5; width: 240px; max-width: calc(100% - 16px); padding: 9px 11px; border-color: color-mix(in srgb, var(--warn) 50%, var(--line)); font-size: 12px; line-height: 1.45; }
+.fault-note .fh b { color: var(--warn); font-size: 12px; }
+.fault-note p { margin: 4px 0 0; color: var(--tx-2); }
+.canvas .hurt-pin { fill: none; stroke: var(--danger); stroke-width: 2.5; }
+.canvas .focus-ring { fill: none; stroke: var(--accent); stroke-width: 3; animation: focus-ring 0.9s ease-out 3; }
+@keyframes focus-ring { from { stroke-opacity: 1; r: 12; } to { stroke-opacity: 0.15; r: 30; } }
+@media (prefers-reduced-motion: reduce) { .canvas .focus-ring { animation: none; } }
