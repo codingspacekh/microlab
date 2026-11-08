@@ -2,7 +2,7 @@ import type { BoardData } from '@lib/boards';
 import { NEOPIXEL, neopixelCount, NeoPixels, ws2812Bits, MifareTag, Mfrc522, RC522, RFID_TAGS, DISPLAYS, digitsText, isDisplay, Lcd1602, Max7219, Ssd1306, Tm1637, Bmp280, Max30102, Vl53l0x, BUZZER, BUZZER_MODULE, MOTOR, PUMP, SERVO, STEPPER, dhtBytes, Ds1302, Ds18b20, OneWireBus, type OneWireDevice, ENCODER, Pcf8591, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
-import { isSerialPart, SERIAL_PARTS, SerialHub } from './serial';
+import { SERIAL_PARTS, SerialHub } from './serial';
 import type { Framing } from './uart';
 
 /**

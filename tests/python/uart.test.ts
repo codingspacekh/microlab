@@ -102,7 +102,7 @@ describe('M7 a USB-serial adapter and its terminal (screens 28, 28d)', () => {
       spec('pico-w', [{ ...USB, props: { baud: 115200 } }], PICO_USB));
     const v = last(r, 'usb1', 'serial')!;
     expect(v.text).not.toContain('Hello');
-    expect(v.text).toMatch(/[\u0000\uFFFD]/);   // runs of zeros (the terminal card draws them as �) and broken bytes
+    expect(v.text.includes('\u0000') || v.text.includes('\uFFFD')).toBe(true);   // runs of zeros (the terminal card draws them as �) and broken bytes
     expect(v).toMatchObject({ baud: 115200, heardBaud: 9600 });
   });
 
