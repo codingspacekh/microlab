@@ -67,6 +67,19 @@ const TERMINALS: Record<string, { names: Record<string, string>; line: string }>
     names: { vcc: 'VCC (5 V)', gnd: 'GND', din: 'DIN (SPI MOSI)', cs: 'CS (LOAD)', clk: 'CLK (SPI SCK)', vcc2: 'VCC out', gnd2: 'GND out', dout: 'DOUT (to the next one\'s DIN)', cs2: 'CS out', clk2: 'CLK out' },
     line: 'DIN to SPI\'s MOSI, CLK to its SCK, CS to any pin; VCC 5 V. The right-hand header chains another matrix.',
   },
+  // M7 slice 5: the UART parts' header pins
+  'usb-serial': {
+    names: { rxd: 'RXD (from the board\'s TX)', txd: 'TXD (to the board\'s RX)', gnd: 'GND', '3v3': '3V3 out (100 mA)', '5v': '5V out (from USB)' },
+    line: 'The board\'s TX goes to RXD, its RX to TXD — they cross. It is powered from the laptop\'s USB.',
+  },
+  hc05: {
+    names: { en: 'EN (AT mode)', vcc: 'VCC (3.6–6 V)', gnd: 'GND', txd: 'TXD (to the board\'s RX)', rxd: 'RXD (from the board\'s TX)', state: 'STATE (high while connected)' },
+    line: 'The board\'s TX goes to RXD, its RX to TXD; VCC on 5V. 9600 baud.',
+  },
+  gps: {
+    names: { gnd: 'GND', tx: 'TX (to the board\'s RX)', rx: 'RX (from the board\'s TX)', vcc: 'VCC (3.3–5 V)' },
+    line: 'Its TX to the board\'s RX: it sends NMEA sentences once a second at 9600 baud.',
+  },
   // M7 slice 3: a NeoPixel's pads
   neopixel: {
     names: { din: 'DIN (data in)', vcc: '5V', gnd: 'GND', dout: 'DOUT (to the next one\'s DIN)', vcc2: '5V out', gnd2: 'GND out' },

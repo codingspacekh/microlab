@@ -1,0 +1,27 @@
+{
+  "seconds": 2.5,
+  "parts": {
+    "gps1": {
+      "values": [
+        [
+          2.2,
+          "sent",
+          500,
+          5000
+        ],
+        [
+          2.2,
+          "fix",
+          1,
+          1
+        ]
+      ]
+    }
+  },
+  "console": {
+    "includes": [
+      "11.5564 N, 104.9282 E, 9 satellites"
+    ]
+  },
+  "ended": "stopped"
+}

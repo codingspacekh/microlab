@@ -108,10 +108,17 @@ const TIPS: Record<string, string> = {
   tm1637: 'Any two pins for CLK and DIO (the tm1637 library); 3.3–5 V.',
   rc522: '3.3 V only — 5 V would damage a real one. SCK, MOSI and MISO to the board\'s SPI pins, SDA (its chip select) and RST to any two (the mfrc522 library). While it runs, hold the card or the key fob to it on the Inputs card.',
   max7219: 'Needs 5 V (VBUS, VIN or 5V). DIN to SPI MOSI, CLK to SCK, CS to any pin; its right-hand header chains another.',
+  // M7 slice 5 (screens 28, 28b, 28c)
+  'usb-serial': 'Its terminal is what a serial monitor on the laptop shows. The board\'s TX to its RXD, its RX to TXD — they cross; GND to GND. The baud rate must be the board\'s.',
+  hc05: 'VCC on 5V; the board\'s TX to its RXD, its RX to TXD, 9600 baud. While the program runs, connect the phone on its card and send it messages.',
+  gps: 'Its TX to the board\'s RX (9600 baud): a sentence of where it is once a second. Set its place and fix on its card while the program runs.',
   // M7 slice 3 (screen 27)
   neopixel: 'Its 5V to VBUS, VIN or 5V (3.3 V works, a little dim). DIN to any pin — NeoPixel(Pin(0), 8); DOUT goes on to the next one\'s DIN. Each LED draws up to 60 mA at full white: keep them dim on USB.',
 };
 const SHAPES = [{ value: 'stick', label: 'Stick' }, { value: 'ring', label: 'Ring' }];
+const BAUD_RATES = [9600, 19200, 38400, 57600, 115200].map((b) => ({ value: String(b), label: String(b) }));
+const LINE_ENDINGS = [{ value: 'none', label: 'none' }, { value: 'lf', label: '\\n' }, { value: 'crlf', label: '\\r\\n' }];
+const BT_KINDS = [{ value: 'HC-05', label: 'HC-05' }, { value: 'JDY-31', label: 'JDY-31' }];
 const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({ value, name: value[0]!.toUpperCase() + value.slice(1), colour }));
 
 export interface InspectorProps {
@@ -239,6 +246,21 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
             </>
           );
         })()}
+        {part.type === 'usb-serial' && (
+          <>
+            <Row name="Baud" stack>
+              <Segmented label="Terminal baud rate" hideLabel full value={String(part.props?.baud ?? 9600)} onChange={(v) => set('baud', Number(v))} options={BAUD_RATES} />
+            </Row>
+            <Row name="Line ending">
+              <Segmented label="Line ending" hideLabel value={String(part.props?.ending ?? 'crlf')} onChange={(v) => set('ending', v)} options={LINE_ENDINGS} />
+            </Row>
+          </>
+        )}
+        {part.type === 'hc05' && (
+          <Row name="Kind">
+            <Segmented label="Bluetooth module" hideLabel value={String(part.props?.kind ?? 'HC-05')} onChange={(v) => set('kind', v)} options={BT_KINDS} />
+          </Row>
+        )}
         {part.type === 'seven-segment' && (
           <Row name="Common">
             <Segmented label="Common pins" hideLabel value={String(part.props?.common ?? 'cathode')} onChange={(v) => set('common', v)} options={COMMONS} />
@@ -300,7 +322,7 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
           </Row>
         ) : kind.free ? (
           <Row name="Lies">
-            <span className="small">beside the breadboard — wire its {part.type === 'l298n' ? 'screws and header pins' : ['lcd1602', 'tm1637', 'max7219'].includes(part.type) ? 'header pins' : part.type === 'neopixel' ? 'pads' : 'tabs'}</span>
+            <span className="small">beside the breadboard — wire its {part.type === 'l298n' ? 'screws and header pins' : ['lcd1602', 'tm1637', 'max7219'].includes(part.type) ? 'header pins' : part.type === 'neopixel' ? 'pads' : ['usb-serial', 'hc05', 'gps'].includes(part.type) ? 'header pins' : 'tabs'}</span>
           </Row>
         ) : part.type === 'power-supply' ? (
           <Row name="Pins in"><span className="small mono">{label(part.legs['t-1']!).replace(/^T-/, 'columns ')}–{Number(label(part.legs['t-1']!).replace(/^T-/, '')) + 1}, both rail pairs</span></Row>

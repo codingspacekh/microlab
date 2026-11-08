@@ -7,7 +7,7 @@ import type { RunResult } from './run';
  * every example on its board with the VirtualClock and checks it (M3.6); M10 runs the same files on real boards.
  *
  *   seconds   how long the run lasts (then it is stopped, quietly)
- *   inputs    [{ at: s, part, pressed | position | lux | celsius | humidity | cm }]
+ *   inputs    [{ at: s, part, pressed | position | lux | celsius | humidity | cm | text | connected | fix | lat | lon … }]
  *   parts     { id: { blinks: Hz } | { lit: [[from, to], …], dark: […] } | { brightness: [[at, min, max], …] }
  *                   | { sounds: [[from, to, Hz], …], silent: [[from, to], …] }   (a buzzer, M6.2)
  *                   | { values: [[at, field, min, max], …] } }   (any part's state: a servo's angle, a motor's rpm, M7;
@@ -28,6 +28,9 @@ export const expectSchema = z.object({
     humidity: z.number().optional(), cm: z.number().optional(), tiltx: z.number().optional(), tilty: z.number().optional(),
     x: z.number().optional(), y: z.number().optional(), steps: z.number().optional(), rpm: z.number().optional(), hpa: z.number().optional(),
     bpm: z.number().optional(), spo2: z.number().optional(),
+    // M7 slice 5: what a terminal or a phone sends, a phone connected, a GPS's fix and place
+    text: z.string().optional(), connected: z.boolean().optional(), fix: z.boolean().optional(),
+    lat: z.number().optional(), lon: z.number().optional(), sats: z.number().optional(), kmh: z.number().optional(),
   })).optional(),
   parts: z.record(z.string(), z.object({
     blinks: z.number().positive().optional(),

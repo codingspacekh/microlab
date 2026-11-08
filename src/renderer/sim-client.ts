@@ -37,6 +37,7 @@ export const STOP_GRACE_MS = 300;
 /** The live input each kind of part takes: a push button is pressed or not, a knob has a position (0–1), a slide
  *  switch is at 0 or 1 (M6.1), a light sensor has the light on it in lux; a PIR sees motion or not, a line sensor is
  *  over white (0) or the line (1), a soil sensor's moisture is 0–1, a temperature sensor has °C (M6.3). */
+const TEXT_SLOTS = ['txseq', 'txlen', ...Array.from({ length: 64 }, (_, i) => `tx${i}`)];
 const SLOT: Record<string, string[]> = {
   button: ['pressed'], potentiometer: ['position'], 'slide-switch': ['position'], ldr: ['lux'],
   pir: ['pressed'], 'line-sensor': ['position'], 'soil-moisture': ['position'], 'temp-sensor': ['celsius'],
@@ -47,7 +48,9 @@ const SLOT: Record<string, string[]> = {
   'ir-obstacle': ['position'], hall: ['position'], 'water-level': ['position'], flame: ['position'], raindrop: ['position'], mq2: ['position'],
   joystick: ['x', 'y', 'pressed'], 'rotary-encoder': ['steps', 'pressed'], 'speed-sensor': ['rpm'],
   bmp280: ['celsius', 'hpa'], ds18b20: ['celsius'], vl53l0x: ['cm'], max30102: ['bpm', 'spo2', 'position'],
-  rc522: ['position'],   // M7: the tag held to the RFID reader (0 none, 1 the card, 2 the key fob)                          // M6.5b: the air (the PCF8591 reads the circuit)
+  rc522: ['position'],
+  // M7 slice 5: what a terminal or a phone sends (a count, how many bytes, the bytes); a phone connected; a GPS's place
+  'usb-serial': [...TEXT_SLOTS, 'baud'], hc05: [...TEXT_SLOTS, 'connected'], gps: ['fix', 'lat', 'lon', 'sats', 'kmh'],   // M7: the tag held to the RFID reader (0 none, 1 the card, 2 the key fob)                          // M6.5b: the air (the PCF8591 reads the circuit)
 };
 
 /** The micro:bit's own inputs (M6.6, screen 06): buttons A and B, the touch logo, its tilt (mg), a shake (a count),

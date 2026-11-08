@@ -532,3 +532,36 @@ test('M7.4 (screen 06): the micro:bit\'s speaker in the real worker — a built-
   await expect(speaker).toHaveAttribute('data-hz', '0', { timeout: 4000 });      // the speaker off: pin 0 plays alone
   await win.getByRole('button', { name: 'Stop' }).click();
 });
+
+test('M7.5 (screens 28, 28d): a USB-serial adapter dropped below the Pico W, wired to UART0 — its terminal shows what the board sends and sends it a line; at the wrong baud rate, garbage and why', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
+  const gp0 = await centre(win, '[data-point="board.GP0"]');
+  await drag(win, await centre(win, '.parts .pitem:has-text("USB-serial adapter")'), { x: gp0.x + 40, y: gp0.y + 110 });
+  await expect(win.locator('[data-part="usb1"] .usb-serial')).toBeVisible();
+  await win.keyboard.press('Escape');
+  for (const [pin, t] of [['board.GP0', 'rxd'], ['board.GP1', 'txd'], ['board.GND@3', 'gnd']]) {
+    await drag(win, await centre(win, `[data-point="${pin}"]`), await centre(win, `[data-point="usb1.${t}"]`));
+    await win.keyboard.press('Escape');
+    await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  }
+  await expect(win.locator('[data-wire]')).toHaveCount(3);
+  await setCode(win, ['from machine import UART, Pin', 'import time', 'u = UART(0, 9600, tx=Pin(0), rx=Pin(1))', "u.write('Hello! Type on or off.\\r\\n')",
+    'while True:', '    if u.any():', "        u.write('got ' + u.readline().decode())", '    time.sleep_ms(20)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const term = win.getByRole('group', { name: 'USB1 serial terminal' });
+  await expect(term.getByLabel('What USB1 received')).toContainText('Hello! Type on or off.', { timeout: 5000 });
+  await term.getByRole('textbox', { name: 'Send from USB1' }).fill('on');
+  await term.getByRole('button', { name: 'Send' }).click();
+  await expect(term.getByLabel('What USB1 received')).toContainText('got on', { timeout: 5000 });
+  await expect(win.getByRole('status')).toContainText(/USB1 9600 baud: got \d+ bytes · sent 4/);
+  // screen 28d: the terminal at 115200 — what comes next is garbage, and the card says why
+  await term.getByRole('combobox', { name: 'USB1 baud rate' }).click();
+  await win.getByRole('option', { name: '115200 baud' }).click();
+  await term.getByRole('textbox', { name: 'Send from USB1' }).fill('off');
+  await term.getByRole('button', { name: 'Send' }).click();
+  await expect(term).toContainText('Garbled? The board sends at 9600 baud; this terminal reads 115200.', { timeout: 5000 });
+  // and the board read garbage of what the terminal sent at 115200: decode() fails, as on the real one
+  await expect(win.locator('.console')).toContainText('UnicodeError', { timeout: 5000 });
+});

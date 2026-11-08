@@ -53,6 +53,8 @@ interface PartLine {
   gps: typeof GPS_START;
   gpsNext?: number;    // when the GPS sends next
   decoder: TextDecoder;
+  /** A terminal's baud rate as set on its card while running (over its part's). */
+  baud?: number;
 }
 
 export interface SerialDeps {
@@ -93,7 +95,7 @@ export class SerialHub {
   /** A part's framing: the terminal's baud as set on it (its inspector, its card), a module's 9600. */
   framingOf(id: string): Framing {
     const line = this.lines.get(id)!;
-    const baud = line.type === 'usb-serial' ? Number(this.propsOf(id).baud ?? SERIAL_PARTS[line.type].baud) : SERIAL_PARTS[line.type].baud;
+    const baud = line.type === 'usb-serial' ? line.baud ?? Number(this.propsOf(id).baud ?? SERIAL_PARTS[line.type].baud) : SERIAL_PARTS[line.type].baud;
     return N81(baud);
   }
 
@@ -197,6 +199,12 @@ export class SerialHub {
     const net = this.deps.netOf(`${id}.${SERIAL_PARTS[line.type].tx}`);
     if (net !== undefined) this.deliver(net, bytes, framing, start, false);
     this.version++;
+  }
+
+  /** A terminal set to another baud rate on its card (screen 28d): what comes next is read at it. */
+  setBaud(id: string, baud: number): void {
+    const line = this.lines.get(id);
+    if (line && baud > 0 && line.baud !== baud) { line.baud = baud; this.version++; }
   }
 
   setConnected(id: string, on: boolean): void {

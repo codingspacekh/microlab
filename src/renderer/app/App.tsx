@@ -557,12 +557,18 @@ function StatusBar({ project, run, board, sound }: { project: OpenProject | null
       NeoPixels: {leds} LEDs {over ? 'ask' : 'draw'} {drawn >= 1 ? `${drawn.toFixed(2)} A` : `${Math.round(drawn * 1000)} mA`}{from ? ` of ${from.from === 'VBUS' || from.from === '5V' || from.from === 'VIN' ? 'USB' : from.from}'s ${Math.round((from.limitA ?? 0) * 1000)} mA` : ''}
     </span>
   );
+  // screen 28 (M7 slice 5): what the terminals have got from the board and sent it
+  const serial = run.status === 'running' ? Object.entries(run.parts).filter((e): e is [string, Extract<PartView, { kind: 'serial' }>] => e[1].kind === 'serial') : [];
+  const uart = serial.length > 0 && (
+    <span>{serial.map(([id, v]) => `${id.toUpperCase()} ${v.baud} baud: got ${v.received} bytes · sent ${v.sent}`).join(' · ')}</span>
+  );
   // screen 06: while running, what can be heard says so, and a click turns it off (M6.2)
   const audible = run.status !== 'idle' && !!p && (p.board === 'microbit-v2' || p.parts.some((x) => x.type === 'buzzer'));
   return (
     <footer className="statusbar" role="status">
       {left}
       {neo}
+      {uart}
       {audible && (
         <button type="button" className="btn ghost sm sound" aria-pressed={!sound.muted} onClick={sound.toggle}
           title={sound.muted ? 'Turn the sound on' : 'Turn the sound off'}>

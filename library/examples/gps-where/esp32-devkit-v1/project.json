@@ -1,0 +1,36 @@
+{
+  "format": 1,
+  "title": "Where am I (GPS)",
+  "board": "esp32-devkit-v1",
+  "breadboards": [],
+  "parts": [
+    {
+      "id": "gps1",
+      "type": "gps",
+      "props": {},
+      "legs": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.3V3",
+      "b": "gps1.vcc"
+    },
+    {
+      "id": "w2",
+      "a": "board.GND",
+      "b": "gps1.gnd"
+    },
+    {
+      "id": "w3",
+      "a": "board.RX2",
+      "b": "gps1.tx"
+    },
+    {
+      "id": "w4",
+      "a": "board.TX2",
+      "b": "gps1.rx"
+    }
+  ]
+}

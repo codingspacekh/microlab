@@ -551,6 +551,51 @@
           }
         }
       ]
+    },
+    {
+      "id": "micropygps",
+      "title": "GPS (micropyGPS)",
+      "summary": "Reads a GPS module's NMEA sentences, a character at a time: where it is, the time, the speed, how many satellites.",
+      "parts": [
+        "gps"
+      ],
+      "builds": [
+        {
+          "boards": [
+            "pico-w",
+            "esp32-devkit-v1"
+          ],
+          "licence": "MIT",
+          "authors": "Calvin McCoy",
+          "source": "https://github.com/inmcm/micropyGPS",
+          "commit": "f6c2b76a3bedf7d85e77fc6d52e0346b68361ce2",
+          "files": {
+            "micropyGPS.py": "lib/micropyGPS.py"
+          },
+          "use": {
+            "pico-w": "from machine import UART, Pin\nfrom micropyGPS import MicropyGPS\nimport time\n\ngps = UART(0, baudrate=9600, tx=Pin(0), rx=Pin(1))   # the GPS's TX on GP1\nmy_gps = MicropyGPS(location_formatting='dd')\nn = 0\nwhile n < 2:\n    for c in gps.read() or b'':\n        if my_gps.update(chr(c)) == 'GPGGA':\n            print(my_gps.latitude[0], my_gps.longitude[0], my_gps.satellites_in_use)\n            n += 1\n    time.sleep_ms(50)\n",
+            "esp32-devkit-v1": "from machine import UART, Pin\nfrom micropyGPS import MicropyGPS\nimport time\n\ngps = UART(2, baudrate=9600)   # the GPS's TX on RX2 (GPIO 16)\nmy_gps = MicropyGPS(location_formatting='dd')\nn = 0\nwhile n < 2:\n    for c in gps.read() or b'':\n        if my_gps.update(chr(c)) == 'GPGGA':\n            print(my_gps.latitude[0], my_gps.longitude[0], my_gps.satellites_in_use)\n            n += 1\n    time.sleep_ms(50)\n"
+          },
+          "sha256": {
+            "micropyGPS.py": "ecbae3ad114ce4a9f786e8c6f02302d223973abe824061c7c2f0b76134bd4cd4"
+          },
+          "licenceFile": "LICENSE"
+        },
+        {
+          "boards": [
+            "microbit-v2"
+          ],
+          "licence": "MIT",
+          "authors": "MicroLab",
+          "licenceFile": null,
+          "files": {
+            "microbit/micropyGPS.py": "micropyGPS.py"
+          },
+          "use": {
+            "microbit-v2": "from microbit import *\nfrom micropyGPS import MicropyGPS\n\nmy_gps = MicropyGPS(location_formatting='dd')\nuart.init(baudrate=9600, tx=pin1, rx=pin0)   # the GPS's TX on P0; print() goes out of P1 now\nwhile my_gps.satellites_in_use == 0:\n    for c in uart.read() or b'':\n        my_gps.update(chr(c))\n    sleep(50)\nuart.init(115200)                            # the console back on USB\nprint(my_gps.latitude[0], my_gps.longitude[0], my_gps.satellites_in_use)\n"
+          }
+        }
+      ]
     }
   ],
   "builtIn": [
@@ -580,6 +625,20 @@
         "esp32-devkit-v1"
       ],
       "note": "Part of MicroPython on the Pico W and the ESP32: nothing to add."
+    },
+    {
+      "modules": [
+        "neopixel"
+      ],
+      "parts": [
+        "neopixel"
+      ],
+      "boards": [
+        "pico-w",
+        "esp32-devkit-v1",
+        "microbit-v2"
+      ],
+      "note": "Part of MicroPython on every board (the micro:bit's own neopixel): nothing to add."
     }
   ]
 }

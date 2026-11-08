@@ -241,7 +241,7 @@ export function Workspace({
               </button>
             </div>
           )}
-          {(['Basics', 'Sensors', 'Modules', 'Chips', 'Actuators', 'Output modules', 'Displays'] as const).map((group) => {
+          {(['Basics', 'Sensors', 'Modules', 'Chips', 'Actuators', 'Output modules', 'Communication', 'Displays'] as const).map((group) => {
             const kinds = PART_KINDS.filter((k) => k.group === group && !k.hidden && matches(k.name, k.detail, k.type, group));
             const boards = group === 'Basics' ? BREADBOARDS.filter(([, name, detail]) => matches(name, detail, group)) : [];
             if (!kinds.length && !boards.length) return null;

@@ -197,6 +197,10 @@ export class CircuitHost {
         const bytes = Array.from({ length: n }, (_, i) => at(`tx${i}:${id}`) & 0xff);
         this.serial.partSends(id, new TextDecoder().decode(new Uint8Array(bytes)), t);
       }
+      if (line.type === 'usb-serial') {
+        const b = at(`baud:${id}`);
+        if (!Number.isNaN(b)) this.serial.setBaud(id, b);
+      }
       if (line.type === 'hc05') {
         const c = at(`connected:${id}`);
         if (!Number.isNaN(c)) this.serial.setConnected(id, c >= 0.5);
@@ -452,12 +456,14 @@ export class CircuitHost {
   }
 
   /** The serial parts' views (M7 slice 5), made again when anything on their lines changed. */
-  private serialSeen = -1;
+  private serialSeen = '';
   private traceSerial(): void {
     const t = this.now();
     this.serial.tick(t);
-    if (this.serial.version === this.serialSeen) return;
-    this.serialSeen = this.serial.version;
+    // remade when what is on their lines changed, or their power did
+    const key = `${this.serial.version}:${[...this.serial.lines.keys()].map((id) => (this.powered.get(id) ? 1 : 0)).join('')}`;
+    if (key === this.serialSeen) return;
+    this.serialSeen = key;
     for (const [id, line] of this.serial.lines) {
       const on = this.powered.get(id) ?? false;
       if (line.type === 'usb-serial') {
@@ -634,12 +640,17 @@ export class CircuitHost {
       // a NeoPixel's chips forget their colours as their power fails (it browns out: they draw only their own again)
       if (!powered && part.type === 'neopixel') this.strips.delete(part.id);
     }
-    // an HC-05's STATE is high while a phone is connected (M7 slice 5)
+    // a serial part's TX high at rest, its RX pulled up, while it has power; an HC-05's STATE high while a phone is
+    // connected (M7 slice 5)
     for (const part of this.spec.parts) {
-      if (part.type !== 'hc05') continue;
+      if (part.type !== 'hc05' && part.type !== 'gps' && part.type !== 'usb-serial') continue;
       const s = (this.parts[part.id] ??= {});
-      const on = this.serial.connected(part.id);
-      const drives = { state: on ? { volts: 3.3, ohms: 100 } : { volts: 0, ohms: 100_000 } };
+      const { tx, rx } = SERIAL_PARTS[part.type];
+      const on = this.powered.get(part.id) ?? false;
+      const drives: Record<string, { volts: number; ohms: number }> = {
+        [tx]: on ? { volts: 3.3, ohms: 100 } : { volts: 0, ohms: 1e6 }, [rx]: on ? { volts: 3.3, ohms: 47_000 } : { volts: 0, ohms: 1e6 },
+      };
+      if (part.type === 'hc05') drives.state = this.serial.connected(part.id) ? { volts: 3.3, ohms: 100 } : { volts: 0, ohms: 100_000 };
       if (JSON.stringify(s.drives) !== JSON.stringify(drives)) { s.drives = drives; changed = true; }
     }
     this.updateEchoes();
@@ -759,6 +770,7 @@ export class CircuitHost {
     }
     this.dirty = false;
     this.noteFaults();
+    this.traceSerial();   // a serial part's power may have changed with this solve
     for (const pin of this.netOfPin.keys()) this.pins.recheck(pin);
     this.traceViews();
   }

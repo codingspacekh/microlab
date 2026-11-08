@@ -1,0 +1,36 @@
+{
+  "seconds": 1.5,
+  "inputs": [
+    {
+      "at": 0.5,
+      "part": "usb1",
+      "text": "on\r\n"
+    }
+  ],
+  "parts": {
+    "usb1": {
+      "text": [
+        [
+          1.2,
+          "text",
+          "Hello! Type on or off.\r\nLED on\r\n"
+        ]
+      ]
+    },
+    "led1": {
+      "lit": [
+        [
+          0.7,
+          1.4
+        ]
+      ],
+      "dark": [
+        [
+          0.05,
+          0.45
+        ]
+      ]
+    }
+  },
+  "ended": "stopped"
+}

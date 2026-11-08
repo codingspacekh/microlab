@@ -22,6 +22,8 @@ import { UsbPlug } from './drawings';
 export const START: Record<string, number> = {
   position: 0, lux: 300, celsius: SENSOR_START.celsius, humidity: SENSOR_START.humidity, cm: SENSOR_START.cm, tiltx: 0, tilty: 0,
   hpa: 1013, bpm: 72, spo2: 98,
+  // M7 slice 5: a GPS as it starts (serial.ts GPS_START); a terminal's baud rate is its part's own until set
+  fix: 1, lat: 11.5564, lon: 104.9282, sats: 9, kmh: 0, connected: 0, baud: NaN,
 };
 const KNOB_START = 0.5;
 /** A micro:bit's own inputs as the sim starts them (src/sim/run.ts): 25 °C, a light level of 128, silence. */
@@ -676,6 +678,18 @@ function actTip(id: string, type: string, views: Record<string, PartView>, props
         title: `${name} · ${m?.on ? `${m.lit} dots · brightness ${m.intensity} of 15` : 'off'}`,
         line: `${supplyMa(m?.amps ?? 0)} from its VCC — the more dots and the brighter, the more.`,
       };
+    }
+    case 'usb-serial': {   // M7 slice 5: what has gone each way
+      const s = v?.kind === 'serial' ? v : undefined;
+      return { title: `${name} · ${s?.baud ?? Number(props.baud ?? 9600)} baud`, line: `Got ${s?.received ?? 0} bytes from the board, sent it ${s?.sent ?? 0}. Its terminal is on the canvas.` };
+    }
+    case 'hc05': {
+      const b = v?.kind === 'bluetooth' ? v : undefined;
+      return { title: `${name} · ${!b?.on ? 'no power' : b.connected ? 'a phone connected' : 'waiting for a phone'}`, line: 'Connect the phone on its card; what it sends arrives on the board\'s RX at 9600 baud.' };
+    }
+    case 'gps': {
+      const g = v?.kind === 'gps' ? v : undefined;
+      return { title: `${name} · ${!g?.on ? 'no power' : g.fix ? `a fix, ${g.sats} satellites` : 'searching'}`, line: g?.on ? `${g.lat.toFixed(4)}, ${g.lon.toFixed(4)} · ${g.sent} bytes sent, once a second at 9600 baud` : 'Its VCC needs 3.3–5 V.' };
     }
     case 'neopixel': {   // M7 slice 3 (screen 27): the LED under the mouse, or the whole stick or ring
       const n = neopixelCount(props);

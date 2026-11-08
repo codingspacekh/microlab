@@ -37,6 +37,13 @@ const CASES: Record<string, { example: string; part: string; inputs: [number, Re
     expect(o).toContain('250 mm');
     expect(o).toContain('800 mm');
   } },
+  // M7 slice 5: where the GPS is, from its GGA sentences (Phnom Penh, 9 satellites, the sim's start)
+  micropygps: { example: 'gps-where', part: 'gps1', inputs: [], seconds: 3, prints: (o) => {
+    const [lat, lon, sats] = o[0]!.split(' ').map(Number);
+    expect(lat).toBeCloseTo(11.5564, 3);
+    expect(lon).toBeCloseTo(104.9282, 3);
+    expect(sats).toBe(9);
+  } },
   mpu6050: { example: 'tilt-alarm', part: 'mpu1', inputs: [[0, { tiltx: 30 }]], seconds: 1, prints: (o) => {
     expect(o[0]).toMatch(/^x 0\.50 y 0\.00 z 0\.87 g 2\d\.\d+$/);
   } },

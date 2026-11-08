@@ -10,6 +10,7 @@ import type { BreadboardSize } from '@lib/circuit';
 import { microbitAlone, type Project } from '@lib/project';
 import { boardName, boardPicture } from '../app/boards';
 import type { PartView } from '../../sim/circuit';
+import { GpsCard, PhoneCard, TerminalCard } from './serial-cards';
 import type { BoardOutputs } from '../app/useRun';
 import { Icon } from '../ui/Icon';
 import { batteryBox, KIT, type KitLook, BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, partTurns, polyline, Wire } from './drawings';
@@ -854,6 +855,14 @@ export function Canvas({
         return (
           <>
             {running && boardOpen && project.board === 'microbit-v2' && <MicrobitCard live={live} onClose={() => setBoardOpen(false)} style={{ right: 14, top: 14 }} radio={outputs.board.radio} />}
+            {/* M7 slice 5: a terminal for each USB-serial adapter, a phone for each Bluetooth module, a GPS's place */}
+            {running && project.parts.some((p) => ['usb-serial', 'hc05', 'gps'].includes(p.type)) && (
+              <div className="serial-cards">
+                {project.parts.map((p) => p.type === 'usb-serial' ? <TerminalCard key={p.id} id={p.id} view={outputs.parts[p.id]} live={live} ending={String(p.props?.ending ?? 'crlf')} />
+                  : p.type === 'hc05' ? <PhoneCard key={p.id} id={p.id} view={outputs.parts[p.id]} live={live} />
+                  : p.type === 'gps' ? <GpsCard key={p.id} id={p.id} view={outputs.parts[p.id]} live={live} /> : null)}
+              </div>
+            )}
             {sliders.length > 0 && <InputsCard parts={sliders} live={live} views={outputs.parts} onClose={() => setInputsOpen(false)} style={{ right: 14, bottom: 14 }} />}
             {tipPart && (
               <PartTip id={tipPart.id} type={tipPart.type} common={String(tipPart.props?.common ?? 'cathode')} views={outputs.parts} props={tipPart.props}
@@ -1040,10 +1049,10 @@ function besideAll(project: Project): Point {
 
 /** The actuators that say what they do when hovered while running (M7, screens 25, 25b). */
 const ACT_TIPS = ['servo', 'motor', 'pump', 'relay', 'l9110s', 'l298n', 'uln2003', 'stepper', 'buzzer-module', 'traffic-module', 'rgb-module', 'power-supply',
-  'ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219', 'rc522', 'neopixel'];
+  'ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219', 'rc522', 'neopixel', 'usb-serial', 'hc05', 'gps'];
 
 /** M7 slice 2's displays, and a 7-segment digit's LEDs in order (its view ids `<id>:a` …). */
-const DISPLAY_TYPES = ['ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219', 'rc522', 'neopixel'];
+const DISPLAY_TYPES = ['ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219', 'rc522', 'neopixel', 'usb-serial', 'hc05', 'gps'];
 const SEGMENTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'dp'];
 
 /** What an actuator shows while running, from the sim's views (M7). */

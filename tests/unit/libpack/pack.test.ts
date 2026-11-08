@@ -19,7 +19,7 @@ const OWN_EVERYWHERE = new Set(['mfrc522']);
 
 describe('M6.7 the library pack, as shipped', () => {
   it('has the drivers the M6 and M7 parts need', () => {
-    expect(pack.libraries.map((l) => l.id).sort()).toEqual(['bmp280', 'ds1302', 'hcsr04', 'lcd', 'max30102', 'max7219', 'mfrc522', 'mpu6050', 'rotary', 'ssd1306', 'tm1637', 'vl53l0x']);
+    expect(pack.libraries.map((l) => l.id).sort()).toEqual(['bmp280', 'ds1302', 'hcsr04', 'lcd', 'max30102', 'max7219', 'mfrc522', 'micropygps', 'mpu6050', 'rotary', 'ssd1306', 'tm1637', 'vl53l0x']);
   });
 
   it.each(pack.libraries.map((l) => [l.id, l] as const))('%s: upstream files unchanged with their licence; the micro:bit\'s own with its notice', (id, l) => {
@@ -98,7 +98,9 @@ describe('M6.7 what a part needs, and Add library', () => {
     expect(needsOf(pack, 'hc-sr04', 'microbit-v2')).toMatchObject({ kind: 'library', library: { id: 'hcsr04' } });
     expect(needsOf(pack, 'dht', 'microbit-v2')).toBeNull();
     expect(needsOf(pack, 'button', 'pico-w')).toBeNull();
-    expect(librariesFor(pack, 'microbit-v2')).toHaveLength(12);
+    expect(librariesFor(pack, 'microbit-v2')).toHaveLength(13);
+    expect(needsOf(pack, 'neopixel', 'microbit-v2')).toMatchObject({ kind: 'built-in', modules: ['neopixel'] });   // M7 slice 3
+    expect(needsOf(pack, 'gps', 'pico-w')).toMatchObject({ kind: 'library', library: { id: 'micropygps' } });   // M7 slice 5
     expect(filesFor(lib('max30102'), 'microbit-v2')).toEqual([['max30102/microbit/max30102.py', 'max30102.py']]);   // next to main.py, no licence file
   });
 

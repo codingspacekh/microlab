@@ -30,6 +30,15 @@ export interface PartModel {
   devices: (p: PartContext) => Device[];
 }
 
+/** A serial part's lines (M7 slice 5): its TX an output, high at rest (UART idle); its RX an input with a weak pull-up
+ *  — both driven by the sim while the part has power. */
+function uartLines(id: string, leg: (name: string) => string, tx: string, rx: string): Device[] {
+  return [
+    { kind: 'drive', id: `${id}:${tx}`, out: leg(tx), gnd: leg('gnd'), part: id, key: tx },
+    { kind: 'drive', id: `${id}:${rx}`, out: leg(rx), gnd: leg('gnd'), part: id, key: rx },
+  ];
+}
+
 export const MODELS: Record<string, PartModel> = {
   resistor: {
     legs: ['a', 'b'],
@@ -380,6 +389,7 @@ export const MODELS: Record<string, PartModel> = {
     devices: ({ id, leg }) => [
       { kind: 'source', id: `${id}:5v`, plus: leg('5v'), minus: leg('gnd'), volts: 5, ohms: 0.1, limitA: 0.5 },
       { kind: 'source', id: `${id}:3v3`, plus: leg('3v3'), minus: leg('gnd'), volts: 3.3, ohms: 0.5, limitA: 0.1 },
+      ...uartLines(id, leg, 'txd', 'rxd'),
     ],
   },
   /** An HC-05 / JDY-31 Bluetooth module: EN VCC GND TXD RXD STATE, points to wire; ≈ 40 mA from VCC; STATE high while a
@@ -390,13 +400,14 @@ export const MODELS: Record<string, PartModel> = {
     devices: ({ id, leg }) => [
       { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: 120 },
       { kind: 'drive', id: `${id}:state`, out: leg('state'), gnd: leg('gnd'), part: id, key: 'state' },
+      ...uartLines(id, leg, 'txd', 'rxd'),
     ],
   },
   /** A GPS module (GY-NEO6MV2): GND TX RX VCC, points to wire; ≈ 45 mA from VCC (3.3–5 V). */
   gps: {
     legs: ['gnd', 'tx', 'rx', 'vcc'],
     terminals: ['gnd', 'tx', 'rx', 'vcc'],
-    devices: ({ id, leg }) => [{ kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: 110 }],
+    devices: ({ id, leg }) => [{ kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: 110 }, ...uartLines(id, leg, 'tx', 'rx')],
   },
   /** Breadboard power supply (MB102) on a breadboard's end: two pins in each rail (t- t+ top, b+ b- bottom); `top`
    *  and `bottom` its jumpers, 5 or 3.3 V; `on` its switch (on by default). Its own jack or USB is its power. */

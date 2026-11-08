@@ -14,12 +14,13 @@ export type PartType = 'resistor' | 'led' | 'rgb-led' | 'button' | 'slide-switch
   | 'pcf8591' | 'bmp280' | 'ds18b20' | 'ds1302' | 'vl53l0x' | 'max30102'
   | 'servo' | 'motor' | 'l9110s' | 'l298n' | 'relay' | 'pump' | 'uln2003' | 'stepper'
   | 'traffic-module' | 'rgb-module' | 'buzzer-module' | 'power-supply'
-  | 'ssd1306' | 'lcd1602' | 'seven-segment' | 'tm1637' | 'max7219' | 'rc522' | 'neopixel';
+  | 'ssd1306' | 'lcd1602' | 'seven-segment' | 'tm1637' | 'max7219' | 'rc522' | 'neopixel'
+  | 'usb-serial' | 'hc05' | 'gps';
 
 export interface PartKind {
   type: PartType;
   /** Its group in the parts panel (screen 02, design/build.py PARTS). */
-  group: 'Basics' | 'Sensors' | 'Modules' | 'Chips' | 'Actuators' | 'Output modules' | 'Displays';
+  group: 'Basics' | 'Sensors' | 'Modules' | 'Chips' | 'Actuators' | 'Output modules' | 'Displays' | 'Communication';
   name: string;
   detail: string;
   prefix: string;
@@ -178,7 +179,19 @@ export const PART_KINDS: PartKind[] = [
   // M7 slice 3 (screens 27, 27b): a NeoPixel stick or ring lies beside the breadboard, its pads points to wire
   { type: 'neopixel', group: 'Displays', name: 'NeoPixel strip / ring', detail: 'WS2812B', prefix: 'neo', legs: {}, props: { shape: 'stick', leds: 8 }, rows: [],
     terminals: neopixelGeometry({}).terminals, free: { box: neopixelGeometry({}).box }, sized: neopixelGeometry },
+  // M7 slice 5 (screens 28, 28b, 28c): the UART parts lie beside the board, their headers up out of their top edges
+  { type: 'usb-serial', group: 'Communication', name: 'USB-serial adapter', detail: 'a terminal on UART', prefix: 'usb', legs: {}, props: { baud: 9600, ending: 'crlf' }, rows: [],
+    terminals: topHeader(['rxd', 'txd', 'gnd', '3v3', '5v'], 16), free: { box: [-4, -14, 100, 126] } },
+  { type: 'hc05', group: 'Communication', name: 'Bluetooth HC-05', detail: 'UART · a phone', prefix: 'bt', legs: {}, props: { kind: 'HC-05' }, rows: [],
+    terminals: topHeader(['en', 'vcc', 'gnd', 'txd', 'rxd', 'state'], 16), free: { box: [0, -14, 112, 96] } },
+  { type: 'gps', group: 'Communication', name: 'GPS NEO-6M', detail: 'UART · NMEA', prefix: 'gps', legs: {}, props: {}, rows: [],
+    terminals: topHeader(['gnd', 'tx', 'rx', 'vcc'], 20), free: { box: [0, -14, 176, 88] } },
 ];
+
+/** A module's header along its top edge (M7 slice 5): its pins a hole apart from `x0`, pointing up. */
+function topHeader(legs: string[], x0: number): Record<string, [number, number]> {
+  return Object.fromEntries(legs.map((l, i) => [l, [x0 + 16 * i, -10] as [number, number]]));
+}
 
 /** A part's terminals (M7), for its props (a NeoPixel's follow its shape and LED count). */
 export function kindTerminals(type: string, props?: Record<string, unknown>): Record<string, [number, number]> {
