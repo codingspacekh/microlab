@@ -7,6 +7,7 @@ import { EditorPrefs, lookAttrs, useEditorLook } from '../editor/EditorPrefs';
 import type { RunState } from '../app/useRun';
 import { Divider } from '../ui/Divider';
 import { Icon } from '../ui/Icon';
+import { TextField } from '../ui/TextField';
 import { MenuButton } from '../ui/Menu';
 import { AddLibrary } from './AddLibrary';
 import type { MicrolabApi } from '../app/api';
@@ -167,6 +168,14 @@ export function Workspace({
   };
 
   /** Put down from the parts panel: dragged (press), or picked up with Enter (keys). */
+  // the parts panel's search (the teacher's request, M7): by name, what it is, its type and its group
+  const [query, setQuery] = useState('');
+  // as typed: 'i2c' finds I²C, '8x8' finds 8×8, 'ohm' finds Ω
+  const plain = (t: string) => t.toLowerCase().replaceAll('²', '2').replaceAll('×', 'x').replaceAll('ω', 'ohm').replaceAll('–', '-');
+  const words = plain(query).split(/\s+/).filter(Boolean);
+  const matches = (...texts: string[]) => { const t = plain(texts.join(' ')); return words.every((w) => t.includes(w)); };
+  const BREADBOARDS = [['mini', 'Mini breadboard', '170 holes · no rails'], ['half', 'Half breadboard', '400 holes · 30 columns'], ['full', 'Full breadboard', '830 holes · 63 columns']] as const;
+  const total = PART_KINDS.filter((k) => !k.hidden).length + BREADBOARDS.length;
   const pick = (type: string) => ({
     onMouseDown: (e: React.MouseEvent) => {
       if (e.button !== 0 || running) return;
@@ -199,8 +208,11 @@ export function Workspace({
             <button type="button" className="btn ghost sm icon" aria-label="Fold the parts away" title="Fold away (P)" onClick={() => setPartsOpen(false)}><Icon name="chevl" size={14} /></button>
           </div>
         </div>
+        <div className="psearch">
+          <TextField label="Search the parts" hideLabel icon="search" clearable value={query} onChange={setQuery} placeholder={`Search ${total} parts`} />
+        </div>
         <div className="list">
-          {microbitAlone(project) && (
+          {microbitAlone(project) && matches('micro:bit GPIO board 30 pins 5V USB') && (
             // M6.9 (screen 24): the micro:bit's own group first — its GPIO board, for the pins it has no ring for
             <div className="pgroup" role="group" aria-label="micro:bit">
               <div className="gh">micro:bit<span className="n">1</span></div>
@@ -213,11 +225,13 @@ export function Workspace({
             </div>
           )}
           {(['Basics', 'Sensors', 'Modules', 'Chips', 'Actuators', 'Output modules', 'Displays'] as const).map((group) => {
-            const kinds = PART_KINDS.filter((k) => k.group === group && !k.hidden);
+            const kinds = PART_KINDS.filter((k) => k.group === group && !k.hidden && matches(k.name, k.detail, k.type, group));
+            const boards = group === 'Basics' ? BREADBOARDS.filter(([, name, detail]) => matches(name, detail, group)) : [];
+            if (!kinds.length && !boards.length) return null;
             return (
               <div key={group} className="pgroup" role="group" aria-label={group}>
-                <div className="gh">{group}<span className="n">{kinds.length + (group === 'Basics' ? 3 : 0)}</span></div>
-                {group === 'Basics' && ([['mini', 'Mini breadboard', '170 holes · no rails'], ['half', 'Half breadboard', '400 holes · 30 columns'], ['full', 'Full breadboard', '830 holes · 63 columns']] as const).map(([size, name, detail]) => {
+                <div className="gh">{group}<span className="n">{kinds.length + boards.length}</span></div>
+                {boards.map(([size, name, detail]) => {
                   const type = `${BREADBOARD_TYPE}${size}`;
                   return (
                     <button key={type} type="button" className={placing?.type === type ? 'pitem drag' : 'pitem'}
@@ -240,6 +254,9 @@ export function Workspace({
               </div>
             );
           })}
+          {words.length > 0 && !PART_KINDS.some((k) => !k.hidden && matches(k.name, k.detail, k.type, k.group)) && !BREADBOARDS.some(([, n, d]) => matches(n, d, 'Basics')) && (
+            <p className="small muted no-match" role="status">No part matches “{query}”.</p>
+          )}
           {running && <p className="small run-lock" role="note">Stop the program to change the circuit. While it runs, press a push button by holding the mouse on it, click a slide switch to slide it, drag a knob up or down to turn it, hold the mouse on a PIR to move in front of it, click a line sensor to slide it over the line, and set the light, the soil's moisture and the temperature on the Inputs card.</p>}
           <p className="tiny muted howto">Drag a part onto the breadboard, or click it and click where it goes. For a wire, drag from a pin or hole to another — or click it, click for each bend, and click where it ends.</p>
         </div>

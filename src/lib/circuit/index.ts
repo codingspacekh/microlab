@@ -27,3 +27,4 @@ export type { ModuleInput } from './sensors';
 export type { Drive, SensorInput, SensorType } from './sensors';
 export { DISPLAYS, digitsText, isDisplay, Lcd1602, Max7219, Ssd1306, Tm1637 } from './displays';
 export type { DisplayType } from './displays';
+export { crcA, MifareTag, Mfrc522, RC522, RFID_TAGS } from './rfid';

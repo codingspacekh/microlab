@@ -3,6 +3,10 @@
 # machine_touchpad.c, machine_timer.c). The hardware is src/sim/pins.ts and timers.ts via _ream.
 import _ream
 import time as _time
+import _os
+
+# os.uname() as a real board answers it (M10's goldens: tests/unit/repl/greeting.test.ts)
+_os.set_uname(('esp32', 'esp32', '1.29.0', 'v1.29.0 on 2026-08-24', 'Generic ESP32 module with ESP32'))
 
 _time.start_date(0, 2000)   # the RTC starts at 2000-01-01 00:00:00, and this port counts from 2000
 

@@ -61,7 +61,7 @@ describe('M6.7b Add a library (screen 22)', () => {
     expect(s.row('VL53L0X laser distance')).toHaveTextContent('BSD-3-Clause · Kevin McAleer');
     expect(within(s.dialog()).getByText(/TEMP1 · DS18B20/).closest('p')).toHaveTextContent('onewire and ds18x20 are part of MicroPython');
     const other = within(s.dialog()).getByRole('list', { name: 'Other parts' });
-    expect(within(other).getAllByRole('listitem')).toHaveLength(10);   // M7 slice 2 added four
+    expect(within(other).getAllByRole('listitem')).toHaveLength(11);   // M7 slice 2 added four, then the RC522's
   });
 
   it('how to start with the chosen one, to copy; Add puts its files and its licence in lib/', () => {
@@ -107,7 +107,7 @@ describe('M6.7b Add a library (screen 22)', () => {
     const s = setup('New micro:bit project');
     fireEvent.click(screen.getByRole('button', { name: 'Project files' }));
     fireEvent.click(within(screen.getByRole('complementary', { name: 'Project files' })).getByRole('button', { name: 'Add library' }));
-    expect(within(s.dialog()).getAllByRole('listitem')).toHaveLength(11);
+    expect(within(s.dialog()).getAllByRole('listitem')).toHaveLength(12);
     expect(s.row('HC-SR04 distance')).toHaveTextContent('MIT · MicroLab');
     fireEvent.click(within(s.row('HC-SR04 distance')).getByRole('button', { name: 'Add hcsr04' }));
     expect(s.row('HC-SR04 distance')).toHaveTextContent('added');

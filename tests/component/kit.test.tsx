@@ -40,10 +40,10 @@ function setup() {
 }
 
 describe('M6.5a the kit\'s modules in the editor (screens 20, 20b)', () => {
-  it('a Modules group in the parts panel, the 14 of them', () => {
+  it('a Modules group in the parts panel, the 14 of them and the RC522 RFID reader (M7)', () => {
     const s = setup();
     const group = within(s.panel).getByRole('group', { name: 'Modules' });
-    expect(within(group).getAllByRole('button')).toHaveLength(14);
+    expect(within(group).getAllByRole('button')).toHaveLength(15);
     expect(within(group).getByRole('button', { name: /^Gas \/ smoke \(MQ-2\)/ })).toBeInTheDocument();
   });
 

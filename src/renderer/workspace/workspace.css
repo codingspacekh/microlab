@@ -211,3 +211,7 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .canvas:has(> .inspector) .canvas-hint { max-width: calc(100% - clamp(260px, 42%, 320px) - 42px); }
 .canvas.with-drawer:has(> .inspector) .canvas-hint { max-width: calc(100% - var(--drawer) - clamp(260px, 42%, 320px) - 54px); }
 .canvas.with-drawer .start-card { left: calc(var(--drawer) + (100% - var(--drawer)) / 2); width: min(400px, calc(100% - var(--drawer) - 32px)); }
+
+/* the parts panel's search (M7): under its heading, always in view as the list scrolls */
+.parts .psearch { padding: 0 12px 8px; }
+.parts .no-match { padding: 8px 12px; }

@@ -1,7 +1,7 @@
 import { BREADBOARD, holeOffset, turnsOf, type Point } from '@lib/editor';
 import { COLUMNS, hasRails, railHole, type BreadboardSize } from '@lib/circuit';
 import { L298nBoard, L9110sDriver, PowerSupply, Pump, RelayModule, ServoPlug, Stepper, TtMotor, Uln2003, type ActLook } from './actuators';
-import { Lcd1602, Max7219Module, OledModule, SevenSegment, Tm1637Module, type DisplayLook } from './displays';
+import { Lcd1602, Max7219Module, OledModule, Rc522Module, SevenSegment, Tm1637Module, type DisplayLook } from './displays';
 
 /**
  * The circuit's pictures, as in the approved prototype (design/svgparts.py): the breadboard, wires, resistors, LEDs,
@@ -878,11 +878,12 @@ export function PartDrawing({ type, legs, props, look = {}, label = '' }: { type
     case 'lcd1602': return legs['@'] ? <Lcd1602 at={legs['@']} view={look.display?.view} address={Number(props?.address ?? 0x27)} /> : null;
     case 'tm1637': return legs['@'] ? <Tm1637Module at={legs['@']} view={look.display?.view} /> : null;
     case 'max7219': return legs['@'] ? <Max7219Module at={legs['@']} view={look.display?.view} /> : null;
-    case 'ssd1306': case 'seven-segment': {
+    case 'ssd1306': case 'seven-segment': case 'rc522': {
       const t = partTurns(type, legs);
       const { local, transform } = unturned(Object.fromEntries(Object.entries(legs).filter(([k]) => k !== '@')), t);
       const at = (names: string[]) => names.map((n) => local[n]!);
       const body = type === 'ssd1306' ? <OledModule pins={at(['gnd', 'vcc', 'scl', 'sda'])} view={look.display?.view} />
+        : type === 'rc522' ? <Rc522Module pins={at(['sda', 'sck', 'mosi', 'miso', 'irq', 'gnd', 'rst', 'vcc'])} view={look.display?.view} />
         : <SevenSegment bottom={at(['e', 'd', 'com2', 'c', 'dp'])} top={at(['g', 'f', 'com1', 'a', 'b'])} lit={look.display?.segments} />;
       return t ? <g transform={transform}>{body}</g> : body;
     }
@@ -1024,7 +1025,8 @@ const M7_ICONS: Record<string, string> = {
   "rgb-module": "<rect x=\"6\" y=\"9\" width=\"20\" height=\"15\" rx=\"2\" fill=\"#26282c\"/><circle cx=\"16\" cy=\"16.5\" r=\"5\" fill=\"#e9edf2\"/><circle cx=\"14\" cy=\"15\" r=\"1.6\" fill=\"#ef3b2c\"/><circle cx=\"18\" cy=\"15\" r=\"1.6\" fill=\"#22b14c\"/><circle cx=\"16\" cy=\"18.5\" r=\"1.6\" fill=\"#2f6fe0\"/>",
   "buzzer-module": "<rect x=\"6\" y=\"9\" width=\"20\" height=\"15\" rx=\"2\" fill=\"#26282c\"/><circle cx=\"16\" cy=\"16.5\" r=\"5.5\" fill=\"#15171a\" stroke=\"#3b3e43\"/>",
   "power-supply": "<rect x=\"5\" y=\"4\" width=\"22\" height=\"24\" rx=\"2\" fill=\"#26282c\"/><rect x=\"8\" y=\"8\" width=\"7\" height=\"6\" fill=\"#15171a\"/><rect x=\"8\" y=\"18\" width=\"7\" height=\"5\" fill=\"#c7ccd2\"/><rect x=\"18\" y=\"9\" width=\"6\" height=\"4\" fill=\"#efbd16\"/><rect x=\"18\" y=\"19\" width=\"6\" height=\"4\" fill=\"#efbd16\"/>",
-  // M7 slice 2's displays (design/svgparts.py ICON_PARTS oled, lcd, seg7, tm1637, matrix)
+  // M7 slice 2's displays (design/svgparts.py ICON_PARTS oled, lcd, seg7, tm1637, matrix); the RC522 RFID reader
+  "rc522": "<rect x=\"5\" y=\"3\" width=\"22\" height=\"26\" rx=\"2\" fill=\"#2457a6\"/><rect x=\"8\" y=\"5\" width=\"16\" height=\"13\" rx=\"2\" fill=\"none\" stroke=\"#d6b24c\" stroke-width=\"1.2\"/><rect x=\"11\" y=\"8\" width=\"10\" height=\"7\" rx=\"1\" fill=\"none\" stroke=\"#d6b24c\" stroke-width=\"1\"/><rect x=\"13\" y=\"20\" width=\"6\" height=\"5\" fill=\"#1d1e21\"/><rect x=\"2\" y=\"11\" width=\"13\" height=\"9\" rx=\"1.5\" fill=\"#f7f8fa\" stroke=\"#c9d0d8\" stroke-width=\".8\" transform=\"rotate(-10 8 15)\"/>",
   "ssd1306": "<rect x=\"5\" y=\"5\" width=\"22\" height=\"22\" rx=\"2\" fill=\"#16314f\"/><rect x=\"7\" y=\"9\" width=\"18\" height=\"11\" fill=\"#05070a\"/><path d=\"M9,13 h8 M9,16 h12\" stroke=\"#9be7ff\" stroke-width=\"1.4\"/>",
   "lcd1602": "<rect x=\"2\" y=\"8\" width=\"28\" height=\"16\" rx=\"2\" fill=\"#2f8f4f\"/><rect x=\"5\" y=\"11\" width=\"22\" height=\"10\" fill=\"#a8d86a\"/><path d=\"M7,14 h12 M7,18 h16\" stroke=\"#3b5a1e\" stroke-width=\"1.4\"/>",
   "seven-segment": "<rect x=\"8\" y=\"3\" width=\"16\" height=\"26\" rx=\"2\" fill=\"#2d3136\"/><path d=\"M12,8 h8 M12,16 h8 M12,24 h8 M11,9 v6 M21,9 v6 M11,17 v6 M21,17 v6\" stroke=\"#ef3b2c\" stroke-width=\"1.8\" stroke-linecap=\"round\"/>",

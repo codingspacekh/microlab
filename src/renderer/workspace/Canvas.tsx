@@ -1026,10 +1026,10 @@ function besideAll(project: Project): Point {
 
 /** The actuators that say what they do when hovered while running (M7, screens 25, 25b). */
 const ACT_TIPS = ['servo', 'motor', 'pump', 'relay', 'l9110s', 'l298n', 'uln2003', 'stepper', 'buzzer-module', 'traffic-module', 'rgb-module', 'power-supply',
-  'ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219'];
+  'ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219', 'rc522'];
 
 /** M7 slice 2's displays, and a 7-segment digit's LEDs in order (its view ids `<id>:a` …). */
-const DISPLAY_TYPES = ['ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219'];
+const DISPLAY_TYPES = ['ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219', 'rc522'];
 const SEGMENTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'dp'];
 
 /** What an actuator shows while running, from the sim's views (M7). */

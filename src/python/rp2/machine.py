@@ -2,6 +2,10 @@
 # ports/rp2/machine_pin.c and boards/RPI_PICO_W/pins.csv; the pin hardware is src/sim/pins.ts via _ream.
 import _ream
 import time as _time
+import _os
+
+# os.uname() as a real board answers it (M10's goldens: tests/unit/repl/greeting.test.ts)
+_os.set_uname(('rp2', 'rp2', '1.29.0', 'v1.29.0 on 2026-08-24 (GNU 16.1.0 MinSizeRel)', 'Raspberry Pi Pico W with RP2040'))
 
 _time.start_date(1609459200)   # 2021-01-01 00:00:00: ports/rp2/main.c sets the RTC to it at reset
 

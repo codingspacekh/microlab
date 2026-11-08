@@ -13,7 +13,7 @@ export type PartType = 'resistor' | 'led' | 'rgb-led' | 'button' | 'slide-switch
   | 'pcf8591' | 'bmp280' | 'ds18b20' | 'ds1302' | 'vl53l0x' | 'max30102'
   | 'servo' | 'motor' | 'l9110s' | 'l298n' | 'relay' | 'pump' | 'uln2003' | 'stepper'
   | 'traffic-module' | 'rgb-module' | 'buzzer-module' | 'power-supply'
-  | 'ssd1306' | 'lcd1602' | 'seven-segment' | 'tm1637' | 'max7219';
+  | 'ssd1306' | 'lcd1602' | 'seven-segment' | 'tm1637' | 'max7219' | 'rc522';
 
 export interface PartKind {
   type: PartType;
@@ -135,6 +135,9 @@ export const PART_KINDS: PartKind[] = [
   { type: 'buzzer-module', group: 'Output modules', name: 'Passive buzzer module', detail: 'plays notes', prefix: 'bzm', props: {}, rows: MODULE_ROWS, legs: header(['io', 'vcc', 'gnd']) },
   { type: 'power-supply', group: 'Output modules', name: 'Breadboard power supply', detail: '5 V · 3.3 V', prefix: 'psu', props: { top: 5, bottom: 3.3 }, rows: ['T-'],
     legs: { 't-1': [0, 0], 't-2': [16, 0], 't+1': [0, 16], 't+2': [16, 16], 'b+1': [0, 246], 'b+2': [16, 246], 'b-1': [0, 262], 'b-2': [16, 262] } },
+  // M7 (the teacher's request): the RC522 RFID reader stands in row f by its eight pins, its board and antenna above
+  { type: 'rc522', group: 'Modules', name: 'RFID reader RC522', detail: 'SPI · a card and a key fob', prefix: 'rfid', props: {}, rows: MODULE_ROWS,
+    legs: header(['sda', 'sck', 'mosi', 'miso', 'irq', 'gnd', 'rst', 'vcc']) },
   // M7 slice 2 (screens 26, 26b): the OLED stands in row f by its four pins; a 7-segment digit straddles the gap, its
   // pins in rows h and d; the LCD's backpack, the TM1637's and the matrix's headers stick out of their sides, so
   // they lie beside the breadboard, their pins points to wire

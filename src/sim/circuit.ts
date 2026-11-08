@@ -1,5 +1,5 @@
 import type { BoardData } from '@lib/boards';
-import { DISPLAYS, digitsText, isDisplay, Lcd1602, Max7219, Ssd1306, Tm1637, Bmp280, Max30102, Vl53l0x, BUZZER, BUZZER_MODULE, MOTOR, PUMP, SERVO, STEPPER, dhtBytes, Ds1302, Ds18b20, OneWireBus, type OneWireDevice, ENCODER, Pcf8591, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
+import { MifareTag, Mfrc522, RC522, RFID_TAGS, DISPLAYS, digitsText, isDisplay, Lcd1602, Max7219, Ssd1306, Tm1637, Bmp280, Max30102, Vl53l0x, BUZZER, BUZZER_MODULE, MOTOR, PUMP, SERVO, STEPPER, dhtBytes, Ds1302, Ds18b20, OneWireBus, type OneWireDevice, ENCODER, Pcf8591, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
 
@@ -70,7 +70,10 @@ export type PartView =
    *  on, brightness 0–7. */
   | { kind: 'digits'; on: boolean; brightness: number; segments: number[]; text: string }
   /** A MAX7219 8×8 matrix: its rows top to bottom (bit 7 the left dot), on, intensity 0–15, the dots lit, what it draws. */
-  | { kind: 'matrix'; on: boolean; intensity: number; rows: number[]; lit: number; amps: number };
+  | { kind: 'matrix'; on: boolean; intensity: number; rows: number[]; lit: number; amps: number }
+  /** An RC522 RFID reader (M7): its antenna on, the tag held to it (0 none, 1 the card, 2 the key fob), its UID as hex,
+   *  what the reader did last with it. */
+  | { kind: 'rfid'; antenna: boolean; tag: number; uid: string; last: string };
 
 /** [µs, part id, its new state] — one entry per change, as the window would be told. */
 export type PartTraceEntry = [number, string, PartView];
@@ -255,6 +258,17 @@ export class CircuitHost {
 
   private readonly tms = new Map<string, Tm1637>();
   private readonly mxs = new Map<string, Max7219>();
+  private readonly readers = new Map<string, Mfrc522>();
+  private readonly tags = new Map<string, MifareTag[]>();
+  /** The tag held to a reader now (its Inputs card, a script's input `position`: 0 none, 1 the card, 2 the key fob),
+   *  each the same tag through the run — what was written to it stays. */
+  private tagAt(id: string): MifareTag | undefined {
+    let t = this.tags.get(id);
+    if (!t) this.tags.set(id, (t = RFID_TAGS.map((x) => new MifareTag(x.uid))));
+    const n = Math.round(this.parts[id]?.position ?? 0);
+    return n >= 1 && n <= t.length ? t[n - 1] : undefined;
+  }
+  private reader(id: string): Mfrc522 { let r = this.readers.get(id); if (!r) this.readers.set(id, (r = new Mfrc522(() => this.tagAt(id)))); return r; }
   private tm(id: string): Tm1637 { let t = this.tms.get(id); if (!t) this.tms.set(id, (t = new Tm1637())); return t; }
   private mx(id: string): Max7219 { let m = this.mxs.get(id); if (!m) this.mxs.set(id, (m = new Max7219())); return m; }
 
@@ -271,17 +285,29 @@ export class CircuitHost {
         this.tm(part.id).lines(lv('clk'), lv('dio'));
       } else if (part.type === 'max7219' && on('cs') && before === 0 && level === 1) {
         this.mx(part.id).load();
+      } else if (part.type === 'rc522') {   // its SDA is its SPI chip select (NSS); RST rising resets it
+        if (on('sda') && before === 1 && level === 0) this.reader(part.id).select();
+        if (on('rst') && before === 0 && level === 1) this.reader(part.id).hardReset();
       }
     }
   }
 
   /** Bytes clocked out on SPI (M7 slice 2): into each powered MAX7219 whose CLK and DIN are on SCK's and MOSI's nets,
    *  and on down a chain, from each one's DOUT into the next one's DIN. */
-  spi(sck: string, mosi: string, bytes: number[]): void {
+  spi(sck: string, mosi: string, miso: string, bytes: number[]): number[] | undefined {
     this.update();
     const sckNet = this.netOfPin.get(sck);
     const mosiNet = this.netOfPin.get(mosi);
-    if (sckNet === undefined || mosiNet === undefined) return;
+    if (sckNet === undefined || mosiNet === undefined) return undefined;
+    // an RC522 on these nets answers each byte on MISO (M7)
+    let answer: number[] | undefined;
+    for (const part of this.spec.parts) {
+      if (part.type !== 'rc522' || !this.powered.get(part.id)) continue;
+      if (this.connectivity.netOf(`${part.id}.sck`) !== sckNet || this.connectivity.netOf(`${part.id}.mosi`) !== mosiNet) continue;
+      const r = this.reader(part.id);
+      const out = bytes.map((b) => r.transfer(b));
+      if (miso && this.connectivity.netOf(`${part.id}.miso`) === this.netOfPin.get(miso)) answer = out;
+    }
     const into = (dinNet: string | undefined, data: number[], depth: number) => {
       if (dinNet === undefined || !data.length || depth > 16) return;
       for (const part of this.spec.parts) {
@@ -293,6 +319,7 @@ export class CircuitHost {
       }
     };
     into(mosiNet, bytes, 0);
+    return answer;
   }
 
   /** The displays' pictures, made again only when what they show changed (an I²C write needs no solve). */
@@ -456,9 +483,10 @@ export class CircuitHost {
   private updateDrives(): boolean {
     let changed = false;
     const t = this.now();
-    for (const part of this.spec.parts) {   // a display works from its chip's lowest supply (M7 slice 2)
-      if (!isDisplay(part.type)) continue;
-      this.powered.set(part.id, this.volts_(part.id, 'vcc') - this.volts_(part.id, 'gnd') >= DISPLAYS[part.type].workVolts);
+    for (const part of this.spec.parts) {   // a display works from its chip's lowest supply (M7 slice 2); the RFID reader too
+      const need = isDisplay(part.type) ? DISPLAYS[part.type].workVolts : part.type === 'rc522' ? RC522.minVolts : undefined;
+      if (need === undefined) continue;
+      this.powered.set(part.id, this.volts_(part.id, 'vcc') - this.volts_(part.id, 'gnd') >= need);
     }
     this.updateEchoes();
     for (const part of this.spec.parts) {
@@ -650,6 +678,16 @@ export class CircuitHost {
       }
       if (part.type === 'ds1302') { this.setView(t, part.id, { kind: 'clock', time: this.ds1302(part.id).timeText(t) }); continue; }
       if (isDisplay(part.type)) continue;
+      if (part.type === 'rc522') {
+        const n = Math.round(this.parts[part.id]?.position ?? 0);
+        const r = this.readers.get(part.id);
+        const tag = RFID_TAGS[n - 1];
+        this.setView(t, part.id, {
+          kind: 'rfid', antenna: !!r && !!this.powered.get(part.id) && r.antenna, tag: tag ? n : 0,
+          uid: tag ? tag.uid.map((b) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ') : '', last: r?.last ?? '',
+        });
+        continue;
+      }
       if (isSensor(part.type)) {
         const st = this.parts[part.id];
         const first = st?.drives ? Object.values(st.drives)[0] : st?.drive;

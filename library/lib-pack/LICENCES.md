@@ -18,6 +18,7 @@ licence in its folder. *Add library* copies its files into the project's `lib/` 
 | `lcd` — 16×2 LCD (I²C) | lcd1602 | MIT | Dave Hylands | [dhylands/python_lcd](https://github.com/dhylands/python_lcd/tree/4294eed8ce340b7b87343775617ce929ce1de124) (`4294eed`) — `lcd/lcd_api.py` and `lcd/machine_i2c_lcd.py`, the second put in the project as `lib/i2c_lcd.py`, the name most tutorials use |
 | `tm1637` — TM1637 4-digit display | tm1637 | MIT | Mike Causer | [mcauser/micropython-tm1637](https://github.com/mcauser/micropython-tm1637/tree/cc9ecc642787b0c8afcb318a52865b855b4f0e5f) (`cc9ecc6`) |
 | `max7219` — MAX7219 8×8 dot matrix | max7219 | MIT | Mike Causer | [mcauser/micropython-max7219](https://github.com/mcauser/micropython-max7219/tree/29c22edfb9e6d47a0fb996a3deb141ab092b77ae) (`29c22ed`) |
+| `mfrc522` — RC522 RFID reader | rc522 | MIT | MicroLab, with the calls of danjperron's [micropython-mfrc522](https://github.com/danjperron/micropython-mfrc522) (after Stefan Wendler's) | MicroLab's own on every board: that driver builds each SPI byte with `b'%c' % v`, which MicroPython 1.29 (with `MICROPY_FULL_CHECKS`, as the Pico W and the ESP32 have it) encodes as UTF-8 — a value from 0x80 becomes two bytes, so every register read goes wrong — and its ESP32 branch calls `SPI()` with no id |
 
 **On the micro:bit** its MicroPython has no `machine.I2C` objects or numbered pins, so these drivers don't run
 there. Each library has a small one of MicroLab's own instead (`<id>/microbit/`, MIT, © 2026 MicroLab, the notice in

@@ -346,7 +346,8 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     /** Clocks `hex` out on MOSI; returns what MISO gave back (its idle level: 0x00 low, 0xff high). */
     spi_xfer: (sck: string, mosi: string, miso: string, hex: string, kind: string): string => {
       log(`spi sck=${sck} mosi=${mosi} miso=${miso} ${kind}${kind === 'read' ? ' ' + hex.length / 2 : ' ' + spaced(hex)}`);
-      if (kind !== 'read') circuit?.spi(sck, mosi, (hex.match(/../g) ?? []).map((b) => parseInt(b, 16)));
+      const got = circuit?.spi(sck, mosi, miso, (hex.match(/../g) ?? []).map((b) => parseInt(b, 16)));
+      if (got) return got.map(hexByte).join('');   // a part on MISO answered (M7: an RC522)
       const idle = miso && pins.level(miso) ? 'ff' : '00';
       return idle.repeat(hex.length / 2);
     },

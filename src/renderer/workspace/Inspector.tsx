@@ -33,6 +33,7 @@ const PRINTED: Record<string, [string, string][]> = {
   // M7: the servo's plug, the drivers' headers
   servo: [['signal', 'S'], ['vcc', '+'], ['gnd', '−']],
   ssd1306: [['gnd', 'GND'], ['vcc', 'VCC'], ['scl', 'SCL'], ['sda', 'SDA']],
+  rc522: [['sda', 'SDA'], ['sck', 'SCK'], ['mosi', 'MOSI'], ['miso', 'MISO'], ['irq', 'IRQ'], ['gnd', 'GND'], ['rst', 'RST'], ['vcc', '3.3V']],
   'seven-segment': [['e', 'e'], ['d', 'd'], ['com2', 'COM'], ['c', 'c'], ['dp', 'dp'], ['g', 'g'], ['f', 'f'], ['com1', 'COM'], ['a', 'a'], ['b', 'b']],
   l9110s: [['b-ia', 'B-IA'], ['b-ib', 'B-IB'], ['gnd', 'GND'], ['vcc', 'VCC'], ['a-ia', 'A-IA'], ['a-ib', 'A-IB']],
   relay: [['s', 'S'], ['vcc', '+'], ['gnd', '−']],
@@ -103,6 +104,7 @@ const TIPS: Record<string, string> = {
   lcd1602: 'Needs 5 V: on 3.3 V its letters are too faint to read. Its address must be the one in the code — i2c.scan() lists what answers.',
   'seven-segment': 'Each segment is an LED: a pin to each, COM to GND through a resistor (common cathode). One resistor on COM is shared by the lit segments; one on each keeps them as bright.',
   tm1637: 'Any two pins for CLK and DIO (the tm1637 library); 3.3–5 V.',
+  rc522: '3.3 V only — 5 V would damage a real one. SCK, MOSI and MISO to the board\'s SPI pins, SDA (its chip select) and RST to any two (the mfrc522 library). While it runs, hold the card or the key fob to it on the Inputs card.',
   max7219: 'Needs 5 V (VBUS, VIN or 5V). DIN to SPI MOSI, CLK to SCK, CS to any pin; its right-hand header chains another.',
 };
 const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({ value, name: value[0]!.toUpperCase() + value.slice(1), colour }));
@@ -359,8 +361,8 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
     title = `${bb.id.toUpperCase()} · Breadboard`;
     rows = (
       <>
-        <Row name="Size">
-          <Segmented<BreadboardSize> label="Breadboard size" hideLabel value={bb.size}
+        <Row name="Size" stack>
+          <Segmented<BreadboardSize> label="Breadboard size" hideLabel full value={bb.size}
             options={[{ value: 'mini', label: 'Mini · 17' }, { value: 'half', label: 'Half · 30' }, { value: 'full', label: 'Full · 63' }]}
             onChange={(size) => {
               const next = setBreadboardSize(project, bb.id, size);

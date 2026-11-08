@@ -4,6 +4,7 @@ import {
 } from './devices';
 import { DISPLAYS } from './displays';
 import { MPU6050 } from './i2c';
+import { RC522 } from './rfid';
 import { MODULES, SENSORS } from './sensors';
 
 /** What a part's devices are built from: its id, the net each leg is in, its properties. */
@@ -315,6 +316,12 @@ export const MODELS: Record<string, PartModel> = {
         switches: [{ id: 'ce', a: `${id}#c`, b: leg('gnd'), ohms: 1 }], table: { 1: '1' },
       },
     ],
+  },
+  /** The RC522 RFID reader module (M7, the teacher's request): SDA (its SPI chip select) SCK MOSI MISO IRQ GND RST
+   *  3.3V in a row; it answers on SPI (rfid.ts). */
+  rc522: {
+    legs: ['sda', 'sck', 'mosi', 'miso', 'irq', 'gnd', 'rst', 'vcc'],
+    devices: ({ id, leg }) => [{ kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: RC522.loadOhms }],
   },
   /** SSD1306 OLED module (M7 slice 2): GND VCC SCL SDA in a row; it answers on I²C (displays.ts). */
   ssd1306: {

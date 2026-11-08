@@ -46,6 +46,11 @@ const CASES: Record<string, { example: string; part: string; inputs: [number, Re
     expect(o).toContain('value 3');
     expect(o.filter((x) => !['value 1', 'value 2', 'value 3'].includes(x))).toEqual([]);
   } },
+  // M7: the RC522, the card held to it from the start
+  mfrc522: { example: 'rfid-reader', part: 'rfid1', inputs: [[0, { position: 1 }]], seconds: 1, prints: (o) => {
+    expect(o[0]).toBe('Hold a card to the reader');
+    expect(o).toContain('Card [0x93, 0x5E, 0x1A, 0x2B]');
+  } },
   // M7 slice 2: the displays, read from what they show
   ssd1306: { example: 'oled-knob', part: 'oled1', inputs: [], seconds: 0.5, shows: (v) => {
     expect(v).toMatchObject({ kind: 'oled', on: true });

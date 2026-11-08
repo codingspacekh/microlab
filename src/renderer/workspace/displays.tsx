@@ -258,3 +258,42 @@ export function Max7219Module({ at: { x, y }, view }: { at: Point; view?: PartVi
     </g>
   );
 }
+
+// ------------------------------------------------------------------ RC522 RFID reader (M7, the teacher's request)
+/** The RC522 module standing in the breadboard by its eight pins (SDA SCK MOSI MISO IRQ GND RST 3.3V), its board and
+ *  antenna above; while running, the tag held to it over its antenna (1 the white card, 2 the blue key fob). */
+export function Rc522Module({ pins, view }: { pins: Point[]; view?: PartView }) {
+  const cx = (pins[0]!.x + pins[7]!.x) / 2;
+  const y = pins[0]!.y;
+  const [w, h] = [128, 150];
+  const top = y - 16 - h;
+  const r = view?.kind === 'rfid' ? view : undefined;
+  const coil = [0, 1, 2].map((i) => <rect key={i} x={cx - 46 + i * 5} y={top + 10 + i * 5} width={92 - i * 10} height={78 - i * 10} rx={8 - i * 2} fill="none" stroke="#d6b24c" strokeWidth={1.6} />);
+  return (
+    <g className="rc522" data-tag={r?.tag ?? 0} data-antenna={r?.antenna ? '1' : '0'}>
+      <rect x={cx - w / 2} y={top} width={w} height={h} rx={4} fill={PCB_BLUE[0]} stroke={PCB_BLUE[1]} filter="url(#lift)" />
+      {[[6, 6], [w - 6, 6]].map(([dx, dy], i) => <circle key={i} cx={cx - w / 2 + dx!} cy={top + dy!} r={3} fill="#f6f4ef" stroke={PCB_BLUE[1]} />)}
+      {coil}
+      <rect x={cx - 14} y={top + 98} width={28} height={28} rx={2} fill="#1d1e21" />
+      <text x={cx} y={top + 114} fontSize={4.4} fill="#8d939b" textAnchor="middle" fontFamily={FONT} pointerEvents="none">MFRC522</text>
+      <rect x={cx + 24} y={top + 104} width={14} height={7} rx={3} fill="#c7ccd2" stroke="#8f969f" />
+      <rect x={cx - 40} y={top + 104} width={6} height={3.5} rx={1} fill="#ff5a4a" />
+      {r?.antenna && <circle cx={cx - 37} cy={top + 106} r={6} fill="url(#glow-red)" />}
+      <text x={cx} y={top + 136} fontSize={5.5} fontWeight={700} fill="#cfe0f2" textAnchor="middle" fontFamily={FONT} pointerEvents="none">RFID-RC522</text>
+      {r?.tag === 1 && (
+        <g className="rfid-tag" transform={`rotate(-8 ${cx} ${top + 48})`}>
+          <rect x={cx - 52} y={top + 18} width={104} height={64} rx={5} fill="#f7f8fa" stroke="#c9d0d8" opacity={0.96} filter="url(#lift)" />
+          <text x={cx} y={top + 54} fontSize={7} fontWeight={700} fill="#4b5563" textAnchor="middle" fontFamily={MONO} pointerEvents="none">{r.uid}</text>
+        </g>
+      )}
+      {r?.tag === 2 && (
+        <g className="rfid-tag">
+          <path d={`M${cx},${top + 14} q30,24 22,52 a24,24 0 0 1 -44,0 q-8,-28 22,-52z`} fill="#2f6fe0" stroke="#1d4f9e" filter="url(#lift)" opacity={0.96} />
+          <circle cx={cx} cy={top + 30} r={4} fill="#f6f4ef" stroke="#1d4f9e" />
+          <text x={cx} y={top + 62} fontSize={5.5} fontWeight={700} fill="#e9f0fa" textAnchor="middle" fontFamily={MONO} pointerEvents="none">{r.uid}</text>
+        </g>
+      )}
+      <ModuleHeader pins={pins} labels={['SDA', 'SCK', 'MOSI', 'MISO', 'IRQ', 'GND', 'RST', '3.3V']} bodyY={top + h} />
+    </g>
+  );
+}

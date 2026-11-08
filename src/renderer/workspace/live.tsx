@@ -3,7 +3,7 @@ import { echoUs, ldrOhms, SENSOR_START } from '@lib/circuit';
 import type { Point } from '@lib/editor';
 import type { PartView } from '../../sim/circuit';
 import { noteName } from '../audio';
-import { Icon, Slider, Switch } from '../ui';
+import { Icon, Segmented, Slider, Switch } from '../ui';
 import { UsbPlug } from './drawings';
 
 /**
@@ -139,7 +139,7 @@ const LOG = { min: -1, max: 5, step: 0.05 };
 const volts = (v: PartView | undefined, name: string) => (v?.kind !== 'sensor' ? '' : v.powered ? `${name} ${Number(v.volts.toFixed(2))} V` : 'not powered');
 
 /** The parts the Inputs card has a row for (screen 18): a light sensor, a soil moisture sensor, a temperature sensor. */
-export const SLIDER_PARTS = new Set(['ldr', 'soil-moisture', 'temp-sensor', 'dht', 'hc-sr04', 'mpu6050',
+export const SLIDER_PARTS = new Set(['ldr', 'soil-moisture', 'temp-sensor', 'dht', 'hc-sr04', 'mpu6050', 'rc522',
   'ldr-module', 'flame', 'raindrop', 'water-level', 'mq2', 'speed-sensor', 'bmp280', 'ds18b20', 'vl53l0x', 'max30102']);
 
 /** The kit's modules set with a 0–1 slider (M6.5a): its name on the card, the slider's label, its ends, its output's name. */
@@ -175,6 +175,16 @@ export function InputsCard({ parts, live, views, onClose, style }: {
             <Row key={p.id} icon={l.icon} name={name} kind={l.kind} reading={volts(views[p.id], l.out)}>
               <Slider label={`${l.label} ${name}`} value={Math.round(live.value(`position:${p.id}`) * 100)} min={0} max={100} step={1}
                 format={(v) => `${v} %`} ticks={l.ticks} onChange={(v) => live.set(`position:${p.id}`, v / 100)} />
+            </Row>
+          );
+        }
+        if (p.type === 'rc522') {   // M7: the tag held to the RFID reader
+          const n = Math.round(live.value(`position:${p.id}`));
+          const v = views[p.id];
+          return (
+            <Row key={p.id} icon="wire" name={name} kind="RFID" reading={v?.kind === 'rfid' && v.uid ? v.uid : ''}>
+              <Segmented label={`Tag held to ${name}`} hideLabel value={String(n)} onChange={(x) => live.set(`position:${p.id}`, Number(x))}
+                options={[{ value: '0', label: 'No tag' }, { value: '1', label: 'Card' }, { value: '2', label: 'Key fob' }]} />
             </Row>
           );
         }
@@ -577,6 +587,14 @@ function actTip(id: string, type: string, views: Record<string, PartView>, props
     case 'tm1637': {
       const d = v?.kind === 'digits' ? v : undefined;
       return { title: `${name} · ${d?.on ? `${d.text.trim() ? d.text : 'blank'} · brightness ${d.brightness}` : 'off'}`, line: 'It reads CLK and DIO as the program toggles them (the tm1637 library).' };
+    }
+    case 'rc522': {
+      const r = v?.kind === 'rfid' ? v : undefined;
+      const tag = r?.tag === 1 ? 'the card' : r?.tag === 2 ? 'the key fob' : '';
+      return {
+        title: `${name} · ${!r?.antenna ? 'antenna off' : tag ? `${tag} ${r!.uid}` : 'no tag'}`,
+        line: r?.last ? `Last: ${r.last}.` : 'It reads a tag held to it, 13.56 MHz, within a few cm — set one on the Inputs card.',
+      };
     }
     case 'max7219': {
       const m = v?.kind === 'matrix' ? v : undefined;

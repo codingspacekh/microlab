@@ -511,6 +511,46 @@
           }
         }
       ]
+    },
+    {
+      "id": "mfrc522",
+      "title": "RC522 RFID reader",
+      "summary": "The UID of a card or key fob held to an RC522 (MFRC522) on SPI, and its blocks read and written (MIFARE Classic 1K).",
+      "parts": [
+        "rc522"
+      ],
+      "builds": [
+        {
+          "boards": [
+            "pico-w",
+            "esp32-devkit-v1"
+          ],
+          "licence": "MIT",
+          "authors": "MicroLab",
+          "licenceFile": null,
+          "files": {
+            "microlab/mfrc522.py": "lib/mfrc522.py"
+          },
+          "use": {
+            "pico-w": "from mfrc522 import MFRC522\nimport time\n\n# SPI0: SCK GP18, MOSI GP19, MISO GP16; its SDA (chip select) on GP17, RST on GP20; 3.3 V only\nreader = MFRC522(spi_id=0, sck=18, mosi=19, miso=16, cs=17, rst=20)\nprint('Hold a card to the reader')\nwhile True:\n    reader.init()\n    stat, _ = reader.request(reader.REQIDL)    # a tag in the field?\n    if stat == reader.OK:\n        stat, uid = reader.SelectTagSN()       # its UID\n        if stat == reader.OK:\n            print('Card', reader.tohexstring(uid))\n    time.sleep(0.5)\n",
+            "esp32-devkit-v1": "from mfrc522 import MFRC522\nimport time\n\n# SCK D18, MOSI D23, MISO D19; its SDA (chip select) on D5, RST on D22; 3.3 V only\nreader = MFRC522(sck=18, mosi=23, miso=19, cs=5, rst=22)\nprint('Hold a card to the reader')\nwhile True:\n    reader.init()\n    stat, _ = reader.request(reader.REQIDL)    # a tag in the field?\n    if stat == reader.OK:\n        stat, uid = reader.SelectTagSN()       # its UID\n        if stat == reader.OK:\n            print('Card', reader.tohexstring(uid))\n    time.sleep(0.5)\n"
+          }
+        },
+        {
+          "boards": [
+            "microbit-v2"
+          ],
+          "licence": "MIT",
+          "authors": "MicroLab",
+          "licenceFile": null,
+          "files": {
+            "microlab/mfrc522.py": "mfrc522.py"
+          },
+          "use": {
+            "microbit-v2": "from microbit import *\nfrom mfrc522 import MFRC522\n\n# SCK P13, MOSI P15, MISO P14; its SDA (chip select) on P16, RST on P8; 3.3 V only\nreader = MFRC522(sck=pin13, mosi=pin15, miso=pin14, cs=pin16, rst=pin8)\nprint('Hold a card to the reader')\nwhile True:\n    reader.init()\n    stat, _ = reader.request(reader.REQIDL)    # a tag in the field?\n    if stat == reader.OK:\n        stat, uid = reader.SelectTagSN()       # its UID\n        if stat == reader.OK:\n            print('Card', reader.tohexstring(uid))\n    sleep(500)\n"
+          }
+        }
+      ]
     }
   ],
   "builtIn": [

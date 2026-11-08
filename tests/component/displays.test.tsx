@@ -95,6 +95,29 @@ describe('M7 the displays in the parts panel and on the canvas (screens 26, 26b)
   });
 });
 
+describe('M7 the parts panel\'s search (the teacher\'s request)', () => {
+  it('filters by name, what a part is and its group, as typed; groups with nothing hidden; nothing found says so; Esc empties it', () => {
+    setup();
+    const panel = screen.getByRole('region', { name: 'Parts' });
+    const search = within(panel).getByRole('textbox', { name: 'Search the parts' });
+    expect(search).toHaveAttribute('placeholder', expect.stringMatching(/^Search \d+ parts$/));
+    fireEvent.change(search, { target: { value: 'i2c' } });
+    const names = () => within(panel).getAllByRole('button').filter((b) => b.classList.contains('pitem')).map((b) => b.querySelector('.nm')!.firstChild!.textContent);
+    expect(names()).toEqual(expect.arrayContaining(['MPU6050 motion', 'OLED SSD1306', 'LCD 16×2']));
+    expect(names()).not.toContain('Resistor');
+    expect(within(panel).queryByRole('group', { name: 'Basics' })).toBeNull();
+    fireEvent.change(search, { target: { value: 'half bread' } });
+    expect(names()).toEqual(['Half breadboard']);
+    fireEvent.change(search, { target: { value: 'displays matrix' } });
+    expect(names()).toEqual(['8×8 dot matrix']);
+    fireEvent.change(search, { target: { value: 'flux capacitor' } });
+    expect(within(panel).getByRole('status')).toHaveTextContent('No part matches “flux capacitor”.');
+    fireEvent.keyDown(search, { key: 'Escape' });
+    expect(search).toHaveValue('');
+    expect(within(panel).getByRole('group', { name: 'Basics' })).toBeInTheDocument();
+  });
+});
+
 describe('M7 a display beside the breadboard turned (the teacher\'s request)', () => {
   it('Rotate in its inspector turns the LCD a quarter about its middle: its drawing, its pins, the wire on its pin', () => {
     const s = setup();
@@ -159,5 +182,25 @@ describe('M7 the displays while running (screens 26, 26b, 26c)', () => {
     expect(s.part('lcd1').querySelector('.lcd1602')).toHaveAttribute('data-faint', '1');
     fireEvent.mouseEnter(s.part('lcd1'));
     expect(screen.getByRole('tooltip')).toHaveTextContent(/too faint to read: a 16×2 LCD needs 5 V/);
+  });
+});
+
+describe('M7 the RC522 RFID reader (the teacher\'s request)', () => {
+  it('in the Modules group, in row f by its eight pins; while running, the Inputs card holds a tag to it; drawn over it; hovered, its UID', () => {
+    const s = setup();
+    s.place(/^RFID reader RC522/, 'rc522', 'bb1.f3');
+    expect(s.part('rfid1')).toHaveAttribute('data-legs', 'bb1.f3 bb1.f4 bb1.f5 bb1.f6 bb1.f7 bb1.f8 bb1.f9 bb1.f10');
+    expect(s.inspector()).toHaveTextContent(/3\.3 V only/);
+    s.run();
+    const card = screen.getByRole('group', { name: 'Inputs' });
+    const tags = within(card).getByRole('radiogroup', { name: 'Tag held to RFID1' });
+    fireEvent.click(within(tags).getByRole('radio', { name: 'Card' }));
+    expect(within(tags).getByRole('radio', { name: 'Card' })).toBeChecked();
+    s.say((e) => e.onParts({ rfid1: { kind: 'rfid', antenna: true, tag: 1, uid: '93 5E 1A 2B', last: 'card 93 5E 1A 2B selected' } }));
+    expect(s.part('rfid1').querySelector('.rc522')).toHaveAttribute('data-tag', '1');
+    expect(s.part('rfid1')).toHaveTextContent('93 5E 1A 2B');
+    fireEvent.mouseEnter(s.part('rfid1'));
+    expect(screen.getByRole('tooltip')).toHaveTextContent(/RFID1 · the card 93 5E 1A 2B/);
+    expect(screen.getByRole('tooltip')).toHaveTextContent(/Last: card 93 5E 1A 2B selected/);
   });
 });
