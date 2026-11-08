@@ -27,7 +27,20 @@ export type Device =
   | { kind: 'ldr'; id: string; a: string; b: string; part: string }
   /** A sensor module's output (M6.3): OUT driven from GND by the part's `drive` (state; the sim works it out, see
    *  sensors.ts), weakly to GND when not set. */
-  | { kind: 'drive'; id: string; out: string; gnd: string; part: string; key?: string };
+  | { kind: 'drive'; id: string; out: string; gnd: string; part: string; key?: string }
+  /** A load whose resistance the part sets as it works (M7): a servo draws more while it turns (state `ohms`). */
+  | { kind: 'load'; id: string; a: string; b: string; part: string; ohms: number }
+  /**
+   * A driver's logic (M7): switches that open and close as its inputs say — a motor driver's outputs, a relay's coil and
+   * contacts, a Darlington's sink. Each input is high from `threshold` above `gnd`; `table` gives, for the inputs' bits
+   * ('10': the first high, the second low), which switches are closed ('1001': the first and the fourth). Unlisted, or
+   * with no supply (none of `power` has its `minVolts` above `gnd`; an empty list needs none), the switches are as
+   * `rest` (all open when not given). The solver solves again until the switches agree with what it solved.
+   */
+  | {
+    kind: 'logic'; id: string; gnd: string; power: { net: string; minVolts: number }[]; threshold: number;
+    inputs: string[]; switches: { id: string; a: string; b: string; ohms: number }[]; table: Record<string, string>; rest?: string;
+  };
 
 export interface Netlist {
   nets: string[];
@@ -68,6 +81,8 @@ export interface PartState {
   tilty?: number;
   /** What drives a sensor module's OUT now (M6.3): worked out by the sim from its input and its supply. */
   drive?: { volts: number; ohms: number };
+  /** A load's resistance now (M7): a servo turning. */
+  ohms?: number;
 }
 
 /** What changes while the program runs. A pin with no state is an input with no pull. */
@@ -98,6 +113,39 @@ export const BATTERIES: Record<string, { volts: number; ohms: number; limitA: nu
 
 /** An SG90 at rest draws about 10 mA from 5 V. */
 export const SERVO_IDLE_OHMS = 500;
+
+/** An SG90 (M7): 0.5 ms → 0°, 2.5 ms → 180°, every 20 ms; it turns 60° in 0.1 s (at 4.8 V), drawing ≈ 200 mA from
+ *  5 V while it turns (`turningOhms`); below `minVolts` it can't turn. */
+export const SERVO = { minUs: 500, maxUs: 2500, minVolts: 4.5, rest: 90, degPerS: 600, turningOhms: 25, periodUs: 20_000 } as const;
+
+/**
+ * The actuators of M7 (screens 25, 25b), from their datasheets and common modules:
+ *   a TT gear motor (1:48, 3–6 V): ≈ 160 mA turning on 5 V; 36 rpm a volt (180 rpm on 5 V), stalled below 0.8 V;
+ *   a small submersible pump (3–6 V): ≈ 180 mA on 6 V, pumping from 2.5 V;
+ *   a 28BYJ-48 (5 V): four 50 Ω coils from its red common, 4096 half steps a turn; a coil is on from 20 mA.
+ */
+export const MOTOR = { ohms: 31, rpmPerVolt: 36, startVolts: 0.8 } as const;
+export const PUMP = { ohms: 33, startVolts: 2.5 } as const;
+export const STEPPER = { coilOhms: 50, onA: 0.02, halfSteps: 4096 } as const;
+
+/**
+ * The drivers and modules of M7:
+ *   L9110S (HG7881): 2.5–12 V, inputs high from 2 V, each output a ≈ 1 Ω switch to VCC or GND;
+ *   L298N module: its logic from 5V (4.5 V at least) or, with its 5V-EN jumper on (the regulator), from its 12V screw;
+ *     inputs high from 2.3 V; each output a ≈ 5 Ω switch (its bipolar bridge loses ≈ 1–2 V on a motor);
+ *   relay module (SRD-05VDC, a transistor on S): its 70 Ω coil pulls in from 3.75 V on + (not on 3.3 V), S high from 1.5 V;
+ *   ULN2003 board: Darlington sinks of ≈ 8 Ω, inputs high from 2 V (2.7 kΩ each), an LED (1 kΩ) on each output;
+ *   breadboard power supply (MB102): 5 V or 3.3 V on each rail pair, up to 700 mA.
+ */
+export const L9110S = { minVolts: 2.5, threshold: 2.0, ohms: 1, inputOhms: 10_000 } as const;
+export const L298N = { minVolts: 4.5, threshold: 2.3, ohms: 5 } as const;
+export const RELAY = { coilOhms: 70, pullInVolts: 3.75, threshold: 1.5, inputOhms: 10_000 } as const;
+export const ULN2003 = { threshold: 2.0, ohms: 8, inputOhms: 2700, ledOhms: 1000 } as const;
+export const POWER_SUPPLY = { ohms: 0.1, limitA: 1.0, maxA: 0.7, choices: [5, 3.3] } as const;
+/** The kit's output modules: their LEDs' resistors on the board; the passive buzzer module's 42 Ω buzzer, switched by a
+ *  transistor from I/O (high from 1.2 V; ≈ 1.2 kΩ into its base). */
+export const KIT_LED_OHMS = { traffic: 330, rgb: 220 } as const;
+export const BUZZER_MODULE = { ohms: 42, threshold: 1.2, inputOhms: 1200, minVolts: 2.5 } as const;
 
 /**
  * Piezo buzzers, as a kit wires straight to a pin (M6.2). An active one (TMB12A03-type, 3–5 V self-drive) has its own

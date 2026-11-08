@@ -12,7 +12,7 @@ import { UnionFind } from './union-find';
  */
 export type FaultKind =
   | 'short' | 'led-burnt' | 'led-over-current' | 'pin-over-current' | 'board-over-current'
-  | 'supply-over-current' | 'over-voltage' | 'floating' | 'servo-underpowered' | 'sensor-underpowered';
+  | 'supply-over-current' | 'over-voltage' | 'floating' | 'servo-underpowered' | 'sensor-underpowered' | 'motor-on-pin';
 
 export interface Fault {
   kind: FaultKind;
@@ -25,6 +25,8 @@ export interface Fault {
   ratedA?: number;
   volts?: number;
   limitV?: number;
+  /** The part that did it (M7: the motor on a pin). */
+  part?: string;
 }
 
 /** At its limit with its voltage collapsed: a source is short-circuited. */
@@ -84,6 +86,23 @@ export function findFaults(spec: CircuitSpec, netlist: Netlist, s: Solution, sta
 
   if (board) {
     const safeA = board.gpio.safeMa / 1000;
+    // a motor or a pump straight on a pin (M7, screen 25c): it takes all a pin can give, and more than it should — the
+    // pin is damaged (a real one would be, by the current and the motor's kick when it stops)
+    const motorOn = new Map<string, string>();   // a pin's net → the motor on it
+    for (const part of spec.parts) {
+      if (part.type !== 'motor' && part.type !== 'pump') continue;
+      const d = netlist.devices.find((x) => x.id === part.id) as Extract<Device, { kind: 'resistor' }> | undefined;
+      if (d) for (const net of [d.a, d.b]) if (!motorOn.has(net)) motorOn.set(net, part.id);
+    }
+    for (const d of netlist.devices) {
+      if (d.kind !== 'pin' || !isDriven(d, state)) continue;
+      const motor = motorOn.get(d.net);
+      const i = Math.abs(amps(d.id) ?? 0);
+      if (motor && i > safeA) {
+        shorted.add(d.id);
+        out.push({ kind: 'motor-on-pin', severity: 'damage', on: d.label, part: motor, amps: i, limitA: safeA });
+      }
+    }
     let total = 0;
     for (const src of sources) {
       if (!src.id.startsWith('pin:')) continue;
@@ -113,7 +132,7 @@ export function findFaults(spec: CircuitSpec, netlist: Netlist, s: Solution, sta
 
   for (const part of spec.parts) {
     if (part.type !== 'servo') continue;
-    const d = netlist.devices.find((x) => x.id === part.id && x.kind === 'resistor') as Extract<Device, { kind: 'resistor' }>;
+    const d = netlist.devices.find((x) => x.id === part.id && x.kind === 'load') as Extract<Device, { kind: 'load' }>;
     const u = v(d.a) - v(d.b);
     if (u > SERVO_LOW.from && u < SERVO_LOW.to) out.push({ kind: 'servo-underpowered', severity: 'warning', on: part.id, volts: u });
   }
@@ -145,7 +164,11 @@ function floating(netlist: Netlist, s: Solution, state: SimState): Fault[] {
     switch (d.kind) {
       case 'resistor':
       case 'ldr':
+      case 'load':
         uf.union(d.a, d.b);
+        break;
+      case 'logic':   // a driver's closed switches
+        for (const sw of d.switches) if (s.amps[`${d.id}:${sw.id}`] !== undefined) uf.union(sw.a, sw.b);
         break;
       case 'switch':
         if (s.amps[d.id] !== undefined) uf.union(d.a, d.b);

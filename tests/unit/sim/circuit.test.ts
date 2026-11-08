@@ -99,12 +99,18 @@ describe('M3.4 part states for the window', () => {
       parts: [{ id: 's1', type: 'servo', legs: { gnd: 'bb1.a5', vcc: 'bb1.a6', signal: 'bb1.a7' } }],
       wires: [{ id: 'w1', a: 'board.GND', b: 'bb1.e5' }, { id: 'w2', a: 'board.VBUS', b: 'bb1.e6' }, { id: 'w3', a: 'board.GP16', b: 'bb1.e7' }],
     };
+    let t = 0;
     const pins = new PinBank();
-    const h = new CircuitHost(spec, pins, () => 0);
+    const h = new CircuitHost(spec, pins, () => t);
     pins.attach(h);
     pins.setPwm('16', 50, 1500 / 20000);   // 1.5 ms of 20 ms
     expect(h.partStates()['s1']).toEqual({ kind: 'servo', angle: 90, powered: true, pulseUs: 1500 });
     pins.setPwm('16', 50, 500 / 20000);
+    // M7: it turns there at its speed, 60° in 0.1 s — not at once
+    expect(h.partStates()['s1']).toMatchObject({ angle: 90 });
+    t = 100_000;
+    expect(h.partStates()['s1']).toMatchObject({ angle: 30 });
+    t = 200_000;
     expect(h.partStates()['s1']).toMatchObject({ angle: 0 });
   });
 

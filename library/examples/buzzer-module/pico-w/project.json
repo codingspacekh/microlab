@@ -1,0 +1,39 @@
+{
+  "format": 1,
+  "title": "Passive buzzer module",
+  "board": "pico-w",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "bzm1",
+      "type": "buzzer-module",
+      "legs": {
+        "io": "bb1.f20",
+        "vcc": "bb1.f21",
+        "gnd": "bb1.f22"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.GP15",
+      "b": "bb1.j20"
+    },
+    {
+      "id": "w2",
+      "a": "board.VBUS",
+      "b": "bb1.j21"
+    },
+    {
+      "id": "w3",
+      "a": "board.GND",
+      "b": "bb1.j22"
+    }
+  ]
+}

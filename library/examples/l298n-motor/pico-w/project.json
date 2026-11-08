@@ -1,0 +1,78 @@
+{
+  "format": 1,
+  "title": "L298N on a power supply",
+  "board": "pico-w",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "psu1",
+      "type": "power-supply",
+      "props": {
+        "top": 5,
+        "bottom": 3.3
+      },
+      "legs": {
+        "t-1": "bb1.T-1",
+        "t-2": "bb1.T-2",
+        "t+1": "bb1.T+1",
+        "t+2": "bb1.T+2",
+        "b+1": "bb1.B+1",
+        "b+2": "bb1.B+2",
+        "b-1": "bb1.B-1",
+        "b-2": "bb1.B-2"
+      }
+    },
+    {
+      "id": "l298n1",
+      "type": "l298n",
+      "legs": {}
+    },
+    {
+      "id": "motor1",
+      "type": "motor",
+      "legs": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "bb1.T+3",
+      "b": "l298n1.12v"
+    },
+    {
+      "id": "w2",
+      "a": "bb1.T-4",
+      "b": "l298n1.gnd"
+    },
+    {
+      "id": "w3",
+      "a": "board.GND",
+      "b": "bb1.T-5"
+    },
+    {
+      "id": "w4",
+      "a": "board.GP17",
+      "b": "l298n1.in1"
+    },
+    {
+      "id": "w5",
+      "a": "board.GP16",
+      "b": "l298n1.in2"
+    },
+    {
+      "id": "w6",
+      "a": "l298n1.out1",
+      "b": "motor1.+"
+    },
+    {
+      "id": "w7",
+      "a": "l298n1.out2",
+      "b": "motor1.-"
+    }
+  ]
+}

@@ -75,3 +75,16 @@ describe('M6.2 a buzzer in expect.json', () => {
     ]);
   });
 });
+
+describe('M7 any part\'s state in expect.json (values)', () => {
+  it('a servo\'s angle, a motor\'s rpm, a relay on: within their range at that time; true is 1', () => {
+    const parts: RunResult['parts'] = [
+      [0, 's1', { kind: 'servo', angle: 90, powered: true }], [500_000, 's1', { kind: 'servo', angle: 180, powered: true }],
+      [0, 'rel1', { kind: 'relay', on: true }],
+    ];
+    const e = expectSchema.parse({ seconds: 1, parts: { s1: { values: [[0.2, 'angle', 85, 95], [0.6, 'angle', 175, 180]] }, rel1: { values: [[0.5, 'on', 1, 1]] } } });
+    expect(check(result({ parts, ended: 'done' }), e)).toEqual([]);
+    const wrong = expectSchema.parse({ seconds: 1, parts: { s1: { values: [[0.6, 'angle', 0, 10], [0.6, 'rpm', 1, 2]] } } });
+    expect(check(result({ parts, ended: 'done' }), wrong)).toEqual(['s1: angle 180 at 0.6 s, should be 0–10', 's1: rpm none at 0.6 s, should be 1–2']);
+  });
+});

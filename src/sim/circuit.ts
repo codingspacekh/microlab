@@ -1,5 +1,5 @@
 import type { BoardData } from '@lib/boards';
-import { Bmp280, Max30102, Vl53l0x, BUZZER, dhtBytes, Ds1302, Ds18b20, OneWireBus, type OneWireDevice, ENCODER, Pcf8591, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
+import { Bmp280, Max30102, Vl53l0x, BUZZER, BUZZER_MODULE, MOTOR, PUMP, SERVO, STEPPER, dhtBytes, Ds1302, Ds18b20, OneWireBus, type OneWireDevice, ENCODER, Pcf8591, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
 
@@ -39,8 +39,19 @@ const MAX_PWM_AVERAGED = 4;
 export type PartView =
   /** brightness = current / the LED's 20 mA rating, 0–1 (the window decides how a glow looks). */
   | { kind: 'led'; amps: number; brightness: number }
-  /** angle 0–180° from the pulse width (0.5 ms → 0°, 2.5 ms → 180°, SG90); it moves only with ≥ 4.5 V across it. */
+  /** angle 0–180° from the pulse width (0.5 ms → 0°, 2.5 ms → 180°, SG90), turning there at its speed (M7); it moves
+   *  only with ≥ 4.5 V across it. */
   | { kind: 'servo'; angle: number; powered: boolean; pulseUs?: number }
+  /** A motor (M7): how fast it turns, which way (1: + above −), what it draws. */
+  | { kind: 'motor'; rpm: number; direction: 1 | -1 | 0; amps: number }
+  /** A pump: pumping or not, what it draws. */
+  | { kind: 'pump'; running: boolean; amps: number }
+  /** A relay module: its coil pulled in (COM to NO). */
+  | { kind: 'relay'; on: boolean }
+  /** A stepper: the half steps it has turned (4096 a turn; + clockwise), the coils on now ('BC'). */
+  | { kind: 'stepper'; steps: number; coils: string }
+  /** The breadboard power supply: on or not, what each rail pair gives (A). */
+  | { kind: 'supply'; on: boolean; top: number; bottom: number }
   /** What a buzzer sounds like (M6.2): its pitch in Hz (0: silent) and its loudness 0–1. */
   | { kind: 'buzzer'; hz: number; volume: number }
   /** A sensor module's output (M6.3): its volts, and whether its supply is enough for it to work. */
@@ -57,7 +68,8 @@ const I2C_CHIPS = new Set(['mpu6050', 'pcf8591', 'bmp280', 'vl53l0x', 'max30102'
 
 const LIVE_KINDS = new Set(['pressed', 'position', 'lux', 'celsius', 'humidity', 'cm', 'tiltx', 'tilty', 'x', 'y', 'steps', 'rpm', 'hpa', 'bpm', 'spo2']);
 
-const SERVO = { minUs: 500, maxUs: 2500, minVolts: 4.5, rest: 90 };
+/** A stepper's coils on, in half-step order (A, AB, B … DA): its rotor's eight places. */
+const HALF_STEPS = ['A', 'AB', 'B', 'BC', 'C', 'CD', 'D', 'AD'];
 
 export class CircuitHost {
   readonly netlist: Netlist;
@@ -80,7 +92,12 @@ export class CircuitHost {
   private readonly connectivity: Connectivity;
   private readonly pinOfNet = new Map<string, string>();
   private readonly views = new Map<string, PartView>();
-  private readonly servoAngle = new Map<string, number>();
+  /** Each servo's arm (M7): where it is, as of when. */
+  private readonly servoArm = new Map<string, { angle: number; at: number }>();
+  /** The servos turning now (they draw more, and their arm is drawn as it goes). */
+  private readonly turning = new Set<string>();
+  /** Each stepper's rotor: its place (0–7 of HALF_STEPS) and its steps. */
+  private readonly rotors = new Map<string, { at?: number; steps: number }>();
   private readonly keyOfLabel = new Map<string, string>();   // 'GP15' → '15'
   /** The last solve, each on / off combination of the PWM pins (`pwm`, in mask order) with its weight: a buzzer
    *  hears the swing, not the average. One combination when no pin is on PWM. */
@@ -167,6 +184,7 @@ export class CircuitHost {
     for (const until of this.pirHold.values()) if (until > this.now() && until < next) next = until;   // a PIR's hold ends
     for (const e of this.echoes.values()) for (const at of [e.from, e.to]) if (at > this.now() && at < next) next = at;   // an echo
     for (const e of this.encoders.values()) for (const [at] of e.phases) if (at > this.now() && at < next) { next = at; break; }   // a detent
+    if (this.turning.size) next = Math.min(next, this.now() + SERVO.periodUs);   // a servo's arm goes on turning
     for (const part of this.spec.parts) {   // a wheel's next pulse
       const half = part.type === 'speed-sensor' ? this.pulseHalfUs(part.id) : Infinity;
       if (half < Infinity) next = Math.min(next, (Math.floor(this.now() / half) + 1) * half);
@@ -389,6 +407,25 @@ export class CircuitHost {
     return changed;
   }
 
+  /** A servo draws more while it turns (M7): true if one started or stopped turning (solve again). */
+  private updateLoads(): boolean {
+    let changed = false;
+    for (const part of this.spec.parts) {
+      if (part.type !== 'servo') continue;
+      const turning = this.arm(part.id).turning;
+      const s = (this.parts[part.id] ??= {});
+      const ohms = turning ? SERVO.turningOhms : undefined;
+      if (s.ohms !== ohms) {
+        if (ohms === undefined) delete s.ohms;
+        else s.ohms = ohms;
+        changed = true;
+      }
+      if (turning) this.turning.add(part.id);
+      else this.turning.delete(part.id);
+    }
+    return changed;
+  }
+
   private readonly previous = new Map<number, Solution>();   // the last solution of each on / off combination
 
   /** Solves if anything changed, then lets the pins see new input levels (edges, IRQs). PWM pins are averaged
@@ -398,7 +435,11 @@ export class CircuitHost {
   update(): void {
     if (this.updateParts()) this.dirty = true;
     if (this.updateDrives()) this.dirty = true;
-    if (!this.dirty) return;
+    if (this.updateLoads()) this.dirty = true;
+    if (!this.dirty) {
+      if (this.turning.size) this.traceViews();
+      return;
+    }
     // a sensor's supply comes from the solve, its output goes into it: solve again while a sensor changes (twice at
     // most — supplies don't depend on what sensors output)
     for (let i = 0; i < 3 && this.dirty; i++) {
@@ -457,9 +498,33 @@ export class CircuitHost {
       const amps = Math.max(0, this.solution!.amps[d.id] ?? 0);
       this.setView(t, d.id, { kind: 'led', amps, brightness: Math.min(1, amps / LED.ratedA) });
     }
+    const across = (id: string, a: string, b: string) => this.volts_(id, a) - this.volts_(id, b);
+    const mA = (a: number) => Math.round(Math.abs(a) * 1000) / 1000;
     for (const part of this.spec.parts) {
-      if (part.type === 'servo') this.setView(t, part.id, this.servo(part.id));
-      if (part.type === 'buzzer') this.setView(t, part.id, this.buzzer(part.id, part.props?.kind === 'passive'));
+      const id = part.id;
+      switch (part.type) {
+        case 'servo': this.setView(t, id, this.servo(id)); continue;
+        case 'motor': {
+          const u = across(id, '+', '-');
+          const rpm = Math.abs(u) >= MOTOR.startVolts ? Math.round(Math.abs(u) * MOTOR.rpmPerVolt) : 0;
+          this.setView(t, id, { kind: 'motor', rpm, direction: rpm ? (u > 0 ? 1 : -1) : 0, amps: mA(this.solution!.amps[id] ?? 0) });
+          continue;
+        }
+        case 'pump':
+          this.setView(t, id, { kind: 'pump', running: Math.abs(across(id, '+', '-')) >= PUMP.startVolts, amps: mA(this.solution!.amps[id] ?? 0) });
+          continue;
+        case 'relay': this.setView(t, id, { kind: 'relay', on: (this.solution!.amps[`${id}:coil`] ?? 0) > 0.02 }); continue;
+        case 'stepper': this.setView(t, id, this.stepper(id)); continue;
+        case 'buzzer-module': this.setView(t, id, this.buzzer(this.connectivity.netOf(`${id}.vcc`) ?? '', `${id}#c`, true, BUZZER_MODULE.minVolts)); continue;
+        case 'power-supply': {
+          const a = this.solution!.amps;
+          this.setView(t, id, { kind: 'supply', on: part.props?.on !== false, top: mA(a[`${id}:top`] ?? 0), bottom: mA(a[`${id}:bottom`] ?? 0) });
+          continue;
+        }
+      }
+      if (part.type === 'buzzer') {
+        this.setView(t, part.id, this.buzzer(this.connectivity.netOf(`${part.id}.+`) ?? '', this.connectivity.netOf(`${part.id}.-`) ?? '', part.props?.kind === 'passive'));
+      }
       if (part.type === 'ds1302') { this.setView(t, part.id, { kind: 'clock', time: this.ds1302(part.id).timeText(t) }); continue; }
       if (isSensor(part.type)) {
         const st = this.parts[part.id];
@@ -473,9 +538,7 @@ export class CircuitHost {
   /** A buzzer's sound from the voltage across it in each PWM combination (M6.2): an active one sounds at its own
    *  pitch for the part of the time it has ≥ 2 V (+ above −); a passive one at the frequency of the PWM pin that
    *  swings it most, as loud as the swing and the square wave's fundamental (sin π·duty) make it. */
-  private buzzer(id: string, passive: boolean): PartView {
-    const plus = this.connectivity.netOf(`${id}.+`) ?? '';
-    const minus = this.connectivity.netOf(`${id}.-`) ?? '';
+  private buzzer(plus: string, minus: string, passive: boolean, minSwing: number = BUZZER.passive.minSwing): PartView {
     const across = (volts: Record<string, number>) => (volts[plus] ?? 0) - (volts[minus] ?? 0);
     const round = (v: number) => Math.round(v * 100) / 100;
     if (!passive) {
@@ -488,7 +551,7 @@ export class CircuitHost {
       const high = this.combos.find((c) => c.mask === 1 << i);
       if (!base || !high) return;
       const swing = Math.abs(across(high.volts) - across(base.volts));
-      if (swing >= BUZZER.passive.minSwing && (!best || swing > best.swing)) best = { swing, label };
+      if (swing >= minSwing && (!best || swing > best.swing)) best = { swing, label };
     });
     const pwm = best && this.pins.pwmOf(this.keyOfLabel.get(best.label) ?? '');
     if (!best || !pwm || pwm.freq <= 0 || pwm.duty <= 0 || pwm.duty >= 1) return { kind: 'buzzer', hz: 0, volume: 0 };
@@ -496,18 +559,50 @@ export class CircuitHost {
     return { kind: 'buzzer', hz: Math.round(pwm.freq), volume: round(volume) };
   }
 
-  private servo(id: string): PartView {
-    const v = (leg: string) => this.solution!.volts[this.connectivity.netOf(`${id}.${leg}`) ?? ''] ?? 0;
-    const powered = v('vcc') - v('gnd') >= SERVO.minVolts;
+  /** A servo's arm now (M7): it turns towards the angle of its pulses at its speed, while it has its 5 V. */
+  private arm(id: string): { angle: number; powered: boolean; pulseUs?: number; turning: boolean } {
+    const t = this.now();
+    const v = (leg: string) => this.volts_(id, leg);
+    const powered = this.solution !== undefined && v('vcc') - v('gnd') >= SERVO.minVolts;
     const pin = this.pinOfNet.get(this.connectivity.netOf(`${id}.signal`) ?? '');
     const pwm = pin === undefined ? undefined : this.pins.pwmOf(pin);
     const pulseUs = pwm && pwm.freq > 0 ? Math.round((pwm.duty / pwm.freq) * 1e6) : undefined;
-    let angle = this.servoAngle.get(id) ?? SERVO.rest;
+    const a = this.servoArm.get(id) ?? { angle: SERVO.rest, at: t };
+    let target: number | undefined;
     if (powered && pulseUs !== undefined && pulseUs >= SERVO.minUs * 0.8 && pulseUs <= SERVO.maxUs * 1.2) {
-      angle = Math.round(Math.min(180, Math.max(0, ((pulseUs - SERVO.minUs) / (SERVO.maxUs - SERVO.minUs)) * 180)));
-      this.servoAngle.set(id, angle);
+      target = Math.min(180, Math.max(0, ((pulseUs - SERVO.minUs) / (SERVO.maxUs - SERVO.minUs)) * 180));
+      const step = (SERVO.degPerS * Math.max(0, t - a.at)) / 1e6;
+      a.angle = Math.abs(target - a.angle) <= step ? target : a.angle + Math.sign(target - a.angle) * step;
     }
-    return { kind: 'servo', angle, powered, ...(pulseUs !== undefined ? { pulseUs } : {}) };
+    a.at = t;
+    this.servoArm.set(id, a);
+    return { angle: a.angle, powered, ...(pulseUs !== undefined ? { pulseUs } : {}), turning: target !== undefined && Math.abs(target - a.angle) > 0.5 };
+  }
+
+  private servo(id: string): PartView {
+    const { angle, powered, pulseUs } = this.arm(id);
+    return { kind: 'servo', angle: Math.round(angle), powered, ...(pulseUs !== undefined ? { pulseUs } : {}) };
+  }
+
+  /** A stepper's coils as they are now, and its rotor: it follows the coils a half step or a full step at a time
+   *  (either way); a jump further than that it can't follow. */
+  private stepper(id: string): PartView {
+    const coils = [...'ABCD'].filter((c) => (this.solution!.amps[`${id}:${c}`] ?? 0) > STEPPER.onA).join('');
+    const r = this.rotors.get(id) ?? { steps: 0 };
+    const place = HALF_STEPS.indexOf(coils);
+    if (place >= 0) {
+      if (r.at === undefined) r.at = place;
+      else {
+        let d = (place - r.at + 8) % 8;
+        if (d > 4) d -= 8;
+        if (Math.abs(d) <= 2) {
+          r.steps += d;
+          r.at = place;
+        }
+      }
+    }
+    this.rotors.set(id, r);
+    return { kind: 'stepper', steps: r.steps, coils };
   }
 
   /** Records a part's new state when it differs from the last one (LEDs to 1 %, servos to 1°). */

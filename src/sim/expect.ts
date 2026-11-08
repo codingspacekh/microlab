@@ -9,7 +9,9 @@ import type { RunResult } from './run';
  *   seconds   how long the run lasts (then it is stopped, quietly)
  *   inputs    [{ at: s, part, pressed | position | lux | celsius | humidity | cm }]
  *   parts     { id: { blinks: Hz } | { lit: [[from, to], …], dark: […] } | { brightness: [[at, min, max], …] }
- *                   | { sounds: [[from, to, Hz], …], silent: [[from, to], …] } }   (a buzzer, M6.2)
+ *                   | { sounds: [[from, to, Hz], …], silent: [[from, to], …] }   (a buzzer, M6.2)
+ *                   | { values: [[at, field, min, max], …] } }   (any part's state: a servo's angle, a motor's rpm, M7;
+ *                     true is 1, false 0)
  *   console   { includes: ['line', …] }
  *   ended     'stopped' (a program that loops for ever) or 'done'
  *   faults    [] — no damage faults is the default
@@ -31,6 +33,7 @@ export const expectSchema = z.object({
     brightness: z.array(z.tuple([z.number(), z.number(), z.number()])).optional(),
     sounds: z.array(z.tuple([z.number(), z.number(), z.number().positive()])).optional(),
     silent: z.array(span).optional(),
+    values: z.array(z.tuple([z.number(), z.string(), z.number(), z.number()])).optional(),
   })).optional(),
   console: z.object({ includes: z.array(z.string()) }).optional(),
   ended: z.enum(['done', 'stopped', 'error', 'fault']).optional(),
@@ -90,6 +93,11 @@ export function check(result: RunResult, e: Expectation): string[] {
         const h = hz(s);
         if (Math.abs(h - note) > note * PITCH) { out.push(`${id}: ${h ? `${h} Hz` : 'silent'} at ${s.toFixed(2)} s, should be ${note} Hz ${from}–${to} s`); break; }
       }
+    }
+    for (const [s, field, min, max] of want.values ?? []) {
+      const raw = (at(s) as Record<string, unknown> | undefined)?.[field];
+      const v = typeof raw === 'boolean' ? Number(raw) : typeof raw === 'number' ? raw : NaN;
+      if (!(v >= min && v <= max)) out.push(`${id}: ${field} ${Number.isNaN(v) ? 'none' : v} at ${s} s, should be ${min}–${max}`);
     }
     for (const [from, to] of want.silent ?? []) {
       for (let s = from; s <= to + 1e-9; s += 0.05) {

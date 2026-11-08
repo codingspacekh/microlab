@@ -1,0 +1,39 @@
+{
+  "format": 1,
+  "title": "Servo sweep",
+  "board": "pico-w",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "servo1",
+      "type": "servo",
+      "legs": {
+        "signal": "bb1.a2",
+        "vcc": "bb1.a3",
+        "gnd": "bb1.a4"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.GP16",
+      "b": "bb1.e2"
+    },
+    {
+      "id": "w2",
+      "a": "board.VBUS",
+      "b": "bb1.e3"
+    },
+    {
+      "id": "w3",
+      "a": "board.GND",
+      "b": "bb1.e4"
+    }
+  ]
+}

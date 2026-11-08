@@ -1,0 +1,68 @@
+{
+  "format": 1,
+  "title": "Stepper quarter turn",
+  "board": "microbit-v2",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "uln1",
+      "type": "uln2003",
+      "legs": {
+        "in1": "bb1.f4",
+        "in2": "bb1.f5",
+        "in3": "bb1.f6",
+        "in4": "bb1.f7",
+        "-": "bb1.f8",
+        "+": "bb1.f9"
+      }
+    },
+    {
+      "id": "step1",
+      "type": "stepper",
+      "legs": {
+        "blue": "uln1.a",
+        "pink": "uln1.b",
+        "yellow": "uln1.c",
+        "orange": "uln1.d",
+        "red": "uln1.m"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.P0",
+      "b": "bb1.j4"
+    },
+    {
+      "id": "w2",
+      "a": "board.P1",
+      "b": "bb1.j5"
+    },
+    {
+      "id": "w3",
+      "a": "board.P2",
+      "b": "bb1.j6"
+    },
+    {
+      "id": "w4",
+      "a": "board.P8",
+      "b": "bb1.j7"
+    },
+    {
+      "id": "w5",
+      "a": "board.GND",
+      "b": "bb1.j8"
+    },
+    {
+      "id": "w6",
+      "a": "board.5V",
+      "b": "bb1.j9"
+    }
+  ]
+}
