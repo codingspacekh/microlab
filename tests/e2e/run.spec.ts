@@ -565,3 +565,44 @@ test('M7.5 (screens 28, 28d): a USB-serial adapter dropped below the Pico W, wir
   // and the board read garbage of what the terminal sent at 115200: decode() fails, as on the real one
   await expect(win.locator('.console')).toContainText('UnicodeError', { timeout: 5000 });
 });
+
+test('M9 slice 1 (screens 05, 29c): input() answered in the console; an error explained, its line marked; then the REPL in the program\'s names lights the LED', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await setCode(win, ['from machine import Pin', 'led = Pin("LED", Pin.OUT)', 'name = input("What\'s your name? ")', "print('Hello, ' + name + '!')", 'led.vlaue(1)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const field = win.getByRole('textbox', { name: /input\(\) reads it/ });
+  await expect(win.locator('.prompt.sim')).toContainText("What's your name?", { timeout: 5000 });
+  await field.fill('Sok');
+  await field.press('Enter');
+  const log = win.getByRole('log', { name: 'Console' });
+  await expect(log).toContainText('Hello, Sok!', { timeout: 5000 });
+  await expect(log.locator('.me')).toContainText("What's your name? Sok");
+  // screen 05: the real traceback, then what it means, the line marked, the note on the canvas
+  await expect(log).toContainText("AttributeError: 'Pin' object has no attribute 'vlaue'", { timeout: 5000 });
+  const why = log.getByRole('note', { name: 'What the AttributeError means' });
+  await expect(why).toContainText('A Pin has no vlaue on line 5. It has value: did you mean that?');
+  await expect(win.locator('.cm-error-line')).toContainText('led.vlaue(1)');
+  await expect(win.locator('.cbanner.error')).toContainText('The program stopped: an error in main.py, line 5. The circuit is fine.');
+  // screen 29c: the REPL, with main.py's led
+  await expect(log).toContainText('Its names are still here: type Python and press Enter.');
+  await expect(win.locator('[data-board-led]')).toHaveCount(0);
+  const repl = win.getByRole('textbox', { name: 'Python for the simulated board' });
+  await repl.fill('led.on()');
+  await repl.press('Enter');
+  await expect(log.locator('.me').last()).toContainText('>>> led.on()', { timeout: 5000 });
+  await expect(win.locator('[data-board-led]')).toHaveCount(1, { timeout: 5000 });   // the Pico W's own LED, lit from the REPL
+  await repl.fill('led.value()');
+  await repl.press('Enter');
+  await expect(log).toContainText(/>>> led\.value\(\)\s*1/, { timeout: 5000 });
+  await repl.fill('name.upper()');
+  await repl.press('Enter');
+  await expect(log).toContainText("'SOK'", { timeout: 5000 });
+  // a line that runs on, stopped with Ctrl+C
+  await repl.fill('while True: pass');
+  await repl.press('Enter');
+  await repl.press('Enter');
+  await repl.press('Control+c');
+  await expect(log).toContainText('KeyboardInterrupt', { timeout: 5000 });
+  await expect(win.locator('.prompt.sim b')).toHaveText('>>>', { timeout: 5000 });
+});

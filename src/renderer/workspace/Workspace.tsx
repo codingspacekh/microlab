@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { EMPTY_HISTORY, PART_KINDS, record, type History } from '@lib/editor';
+import { completeAt, EMPTY_HISTORY, PART_KINDS, record, type History } from '@lib/editor';
 import { microbitAlone, onGpioBoard, spaceNote, type ProjectDoc } from '@lib/project';
 import { Console, type BoardConsoleView } from '../console/Console';
 import { CodeEditor } from '../editor/CodeEditor';
@@ -61,6 +61,10 @@ export interface WorkspaceProps {
   file?: string;
   onFile?: (path: string) => void;
   runFile?: string;
+  /** What the student types in the console to the simulated board (M9): input()'s answer, the REPL's lines, Ctrl+C. */
+  onType?: (text: string) => void;
+  /** Ctrl+D at the REPL: the program runs again. */
+  onSoftReset?: () => void;
 }
 
 /** Edits of one value of one thing within this long are one undo step (a stepper held, a value typed). */
@@ -69,7 +73,7 @@ const MERGE_MS = 1000;
 const IDLE_RUN: Pick<RunState, 'parts' | 'board'> = { parts: {}, board: { pins: {} } };
 
 export function Workspace({
-  api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, onConsoleTab, banner,
+  api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, onConsoleTab, banner, onType, onSoftReset,
   history = EMPTY_HISTORY, onHistory, onUndo, onRedo, file = 'main.py', onFile, runFile = file,
 }: WorkspaceProps) {
   const { ref, width } = useWidth(fixed);
@@ -95,6 +99,23 @@ export function Workspace({
     if (p === file) onFile?.(rest[Math.max(0, shownTabs.indexOf(p) - 1)] ?? 'main.py');
   };
   const editing = file in doc.files ? file : 'main.py';
+  // M9 (screen 05): the last run's error — its line marked in the editor, "Go to line" from the console, a note on the canvas
+  const failed = !running && run.ended?.ended === 'error' ? run.ended.error : undefined;
+  const [goTo, setGoTo] = useState<{ file: string; line: number }>();
+  const [dismissed, setDismissed] = useState<unknown>(null);
+  const goToLine = (f: string, line: number) => {
+    if (f in doc.files) openFile(f);
+    setGoTo({ file: f, line });
+  };
+  const errorBanner = failed && failed.file && failed.line && dismissed !== run.ended ? (
+    <>
+      <Icon name="alert" size={14} />
+      <span>The program stopped: an error in <b>{failed.file}</b>, line {failed.line}.{run.ended!.faults.length === 0 ? ' The circuit is fine.' : ''}</span>
+      <span className="spacer" />
+      <button type="button" className="btn sm" onClick={() => goToLine(failed.file!, failed.line!)}>Go to line {failed.line}</button>
+      <button type="button" className="btn ghost icon sm" aria-label="Close the note" onClick={() => setDismissed(run.ended)}><Icon name="x" size={14} /></button>
+    </>
+  ) : undefined;
   const merging = useRef<{ key: string; at: number; n: number }>({ key: '', at: 0, n: 0 });
 
   useEffect(() => {
@@ -282,7 +303,7 @@ export function Workspace({
         onChange={(v) => setDrag({ parts: v })} onCommit={commit('parts')} />
         </div>
         )}
-        {banner && <div className="cbanner">{banner}</div>}
+        {(banner ?? errorBanner) && <div className={`cbanner${banner ? '' : ' error'}`} role={banner ? undefined : 'note'}>{banner ?? errorBanner}</div>}
         {selection.length === 1 && (
           <Inspector key={`${selection[0]!.kind}:${selection[0]!.id}`} project={project} selection={selection[0]!} onChange={setProject} onClose={() => setSelection([])} onSelect={setSelection}
             doc={doc} onDoc={onChange} onNotice={(text) => setNotice({ text })} />
@@ -320,7 +341,8 @@ export function Workspace({
           return space && space.level !== 'ok' ? <p className={`space-warn ${space.level}`} role="alert"><Icon name="warn" size={14} /> {space.text}</p> : null;
         })()}
         {typeof doc.files[editing] === 'string' || !(editing in doc.files)
-          ? <CodeEditor label={editing} board={project.board} size={look.size} value={text(doc.files[editing])} onChange={(code) => onChange({ ...doc, files: { ...doc.files, [editing]: code } })} />
+          ? <CodeEditor label={editing} board={project.board} size={look.size} value={text(doc.files[editing])} onChange={(code) => onChange({ ...doc, files: { ...doc.files, [editing]: code } })}
+              errorLine={failed?.file === editing ? failed.line : undefined} goTo={goTo?.file === editing ? goTo : undefined} />
           : <p className="small muted not-text">{editing} isn't a text file, so it can't be shown here.</p>}
         {files && (
           <FilesPanel key={files.ask ? 'ask' : 'list'} doc={doc} ask={files.ask} onDoc={onChange} onOpen={openFile} onClose={() => setFiles(null)}
@@ -337,7 +359,14 @@ export function Workspace({
             }} />
         )}
         {libraries && <AddLibrary doc={doc} onDoc={onChange} onCopy={(t) => void api.app.copy(t)} onClose={() => setLibraries(false)} />}
-        <Console chunks={run.console} running={running} entry={runFile} onClear={onClearConsole} board={realBoard} tab={consoleTab} onTab={onConsoleTab} />
+        <Console chunks={run.console} running={running} entry={runFile} onClear={onClearConsole} board={realBoard} tab={consoleTab} onTab={onConsoleTab}
+          repl={run.repl} onType={onType} onSoftReset={onSoftReset} onGoTo={goToLine}
+          complete={(line, pos) => {
+            // as the editor offers them, after main.py's code: its imports and names count
+            const code = `${text(doc.files['main.py'])}\n`;
+            const r = completeAt(project.board, code + line, code.length + pos);
+            return r ? { from: r.from - code.length, options: r.options.map((o) => o.label) } : null;
+          }} />
       </section>
     </div>
   );

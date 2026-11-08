@@ -252,3 +252,7 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .serial-card .bubbles .out { align-self: flex-end; background: var(--accent); color: #fff; }
 .serial-card .bubbles .in { align-self: flex-start; background: var(--bg-2); }
 .serial-card.phone form.row2 > :nth-child(3) { flex: 1; min-width: 0; }
+
+/* M9 (screen 05): the program stopped with an error */
+.canvas .cbanner.error > .ico { color: var(--danger); }
+.canvas .cbanner.error { border-color: var(--danger-soft); }

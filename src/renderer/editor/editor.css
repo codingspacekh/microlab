@@ -27,7 +27,7 @@
 .ftabs .libtag { font-family: var(--font); font-size: 10.5px; color: var(--tx-3); flex: none; }
 .ftabs .r { margin-left: auto; display: flex; align-items: center; gap: 2px; padding: 0 6px; flex: none; }
 .space-warn { flex: none; display: flex; gap: 6px; align-items: center; margin: 0; padding: 6px 12px; font-size: 12px; border-bottom: 1px solid var(--warn-line, #f0d08a); background: var(--warn-soft, #fff7e6); color: var(--tx-1); }
-.space-warn.over { border-color: var(--danger-line); background: var(--danger-soft, #fdecec); }
+.space-warn.over { border-color: var(--danger-line); background: var(--danger-soft); }
 .not-text { flex: 1; margin: 0; padding: 20px; background: var(--code-bg); }
 
 /* ---------- M6.8: the editor's text size and theme (screen 23) ---------- */
@@ -60,3 +60,7 @@
 .aa-themes .th:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .aa-themes .th.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
 .aa-themes .th i { display: block; height: 34px; border-radius: 5px; margin-bottom: 5px; font-style: normal; font-family: var(--mono); font-size: 9px; text-align: left; padding: 4px 6px; line-height: 12px; }
+
+/* M9 (screen 05): the line the error is on */
+.code-editor .cm-error-line { background: var(--danger-soft); }
+.code-editor .cm-error-code { text-decoration: underline wavy var(--danger); text-decoration-skip-ink: none; text-underline-offset: 3px; }

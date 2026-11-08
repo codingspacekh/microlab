@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProjectDoc } from '@lib/project';
+import { explain, type Explanation } from '@lib/errors';
 import type { PartView } from '../../sim/circuit';
-import type { RunResult } from '../../sim/run';
+import type { RunResult, SimError } from '../../sim/run';
 import type { Tone } from '../../sim/worker-core';
 import { startRun as realStart, type RunEvents, type RunHandle } from '../sim-client';
+import { PACK } from './libpack';
 
 /**
  * A run as the window sees it (F-22, F-23, screen 03): idle, running or stopping; the console's text in pieces
@@ -11,13 +13,18 @@ import { startRun as realStart, type RunEvents, type RunHandle } from '../sim-cl
  * outputs; how it ended. Restart stops the run and starts it again with the project as it is now.
  */
 export type StartRun = (req: { doc: ProjectDoc; entry: string }, events: RunEvents) => RunHandle;
-export type ConsoleKind = 'out' | 'sys' | 'err';
-export interface ConsoleChunk { kind: ConsoleKind; text: string }
+/** out: what the board prints; sys: the app's notes; err: errors; me: what the student typed, echoed (M9); why: an
+ *  error explained (M9, screen 05). */
+export type ConsoleKind = 'out' | 'sys' | 'err' | 'me' | 'why';
+export interface ConsoleChunk { kind: ConsoleKind; text: string; why?: Explanation }
 /** The board's own outputs while running: pin levels, the micro:bit's display, its speaker's pitch (Hz; M6.2). */
 export interface BoardOutputs { pins: Record<string, number>; display?: string; sound?: number; tone?: Tone; radio?: string[] }
 
 export interface RunState {
+  /** idle also while the REPL waits after the program (`repl`). */
   status: 'idle' | 'running' | 'stopping';
+  /** The program has ended and the REPL takes lines (M9, F-23): the board is still on. */
+  repl?: boolean;
   startedAt?: number;
   console: ConsoleChunk[];
   parts: Record<string, PartView>;
@@ -31,42 +38,68 @@ const IDLE: RunState = { status: 'idle', console: [], parts: {}, board: { pins: 
 
 export function useRun(start: StartRun = realStart) {
   const [state, setState] = useState<RunState>(IDLE);
+  // the session: from Run until Stop — the program, then the REPL
   const handle = useRef<RunHandle | null>(null);
+  const atRepl = useRef(false);
   const again = useRef<(() => ProjectDoc) | null>(null);
+  const typed = useRef('');
 
   const add = (chunk: ConsoleChunk) => setState((s) => ({ ...s, console: append(s.console, chunk) }));
+  /** Ends a session at the REPL at once (a new run, another project). */
+  const close = () => {
+    handle.current?.close?.();
+    handle.current = null;
+    atRepl.current = false;
+  };
 
   const run = useCallback((doc: ProjectDoc, entry: string, boardName: string) => {
-    if (handle.current) return;
+    if (handle.current && !atRepl.current) return;
+    close();
     const greeting = `${firmwareOf(doc.project.board)} on ${boardName} (simulated) — running ${entry}\n`;
     setState({ ...IDLE, status: 'running', startedAt: Date.now(), console: [{ kind: 'sys', text: greeting }] });
-    handle.current = start({ doc, entry }, {
-      onOutput: (text) => add({ kind: 'out', text }),
+    const context = { files: doc.files, board: doc.project.board, libraries: LIBRARIES };
+    const session: RunHandle = start({ doc, entry }, {
+      onOutput: (text, echo) => add({ kind: echo ? 'me' : 'out', text }),
       onParts: (states) => setState((s) => ({ ...s, parts: { ...s.parts, ...states } })),
       // the radio's messages sent (M7): the last six, as hex
       onBoard: (b) => setState((s) => ({ ...s, board: { pins: { ...s.board.pins, ...b.pins }, display: b.display ?? s.board.display, sound: b.sound ?? s.board.sound, tone: b.sound !== undefined ? b.tone : s.board.tone,
         radio: b.radio ? [...(s.board.radio ?? []), ...b.radio].slice(-6) : s.board.radio } })),
       onEnd: (result) => {
-        handle.current = null;
+        if (handle.current !== session) return;
+        if (result.repl) atRepl.current = true;
+        else handle.current = null;
+        const why = result.ended === 'error' && result.error ? explain(result.error, context) : undefined;
         setState((s) => ({
           ...s,
           status: 'idle',
           ended: result,
-          console: append(s.console, endNote(result, entry)),
-          // stopped by the student: the board goes dark; ended by itself: the parts stay as the program left them
-          ...(result.ended === 'stopped' ? { parts: {}, board: { pins: {} } } : {}),
+          repl: !!result.repl,
+          console: [...endNotes(result, entry, why)].reduce(append, s.console),
+          // stopped by the student: the board goes dark; ended by itself (or Ctrl+C, at the REPL): the parts stay
+          ...(result.ended === 'stopped' && !result.repl ? { parts: {}, board: { pins: {} } } : {}),
         }));
         const next = again.current;
         again.current = null;
         if (next) setTimeout(() => runRef.current(next(), entry, boardName), 0);
       },
+      onReplError: (error: SimError) => {
+        const why = explain(error, { ...context, typed: typed.current });
+        if (why) add({ kind: 'why', text: '', why });
+      },
     });
+    handle.current = session;
   }, [start]);
   const runRef = useRef(run);
   runRef.current = run;
 
   const stop = useCallback(() => {
     if (!handle.current) return;
+    if (atRepl.current) {
+      // at the REPL, Stop switches the board off
+      close();
+      setState((s) => ({ ...s, repl: false, parts: {}, board: { pins: {} }, console: append(s.console, { kind: 'sys', text: '\nStopped.\n' }) }));
+      return;
+    }
     setState((s) => ({ ...s, status: 'stopping' }));
     handle.current.stop();
   }, []);
@@ -74,23 +107,53 @@ export function useRun(start: StartRun = realStart) {
   /** Stop, then run again with the project as `latest` gives it then. */
   const restart = useCallback((latest: () => ProjectDoc) => {
     if (!handle.current) return;
+    if (atRepl.current) {
+      runRef.current(latest(), state.ended ? entryOf(state) : 'main.py', boardOf(state));
+      return;
+    }
     again.current = latest;
     stop();
-  }, [stop]);
+  }, [stop, state]);
 
   const setInput = useCallback((name: string, value: number) => handle.current?.setInput(name, value), []);
+  /** What the student typed in the console (M9): a line (sent with its Enter), or Ctrl+C ('\x03'). */
+  const type = useCallback((text: string) => {
+    if (!handle.current) return;
+    if (text !== '\x03') typed.current = text;
+    handle.current.type?.(text === '\x03' ? text : `${text}\n`);
+  }, []);
+  /** The REPL can't go on (the circuit changed): it ends, with why. */
+  const endRepl = useCallback((why: string) => {
+    if (!atRepl.current) return;
+    close();
+    setState((s) => ({ ...s, repl: false, console: append(s.console, { kind: 'sys', text: `\n${why}\n` }) }));
+  }, []);
   const clear = useCallback(() => setState((s) => ({ ...s, console: [] })), []);
   /** Another project: stop what runs, forget the last run. */
   const reset = useCallback(() => {
     again.current = null;
+    if (atRepl.current) close();
     handle.current?.stop();
     handle.current = null;
     setState(IDLE);
   }, []);
 
-  useEffect(() => () => handle.current?.stop(), []);
+  useEffect(() => () => { if (atRepl.current) close(); else handle.current?.stop(); }, []);
 
-  return { state, run, stop, restart, setInput, clear, reset };
+  return { state, run, stop, restart, setInput, type, endRepl, clear, reset };
+}
+
+/** The library pack's modules, for an ImportError (M9). */
+const LIBRARIES = PACK.libraries.flatMap((l) => l.builds.flatMap((b) => Object.keys(b.files).filter((f) => f.endsWith('.py')).map((f) => ({ module: f.replace(/\.py$/, '').split('/').pop()!, title: l.title }))));
+
+/** The greeting's file and board, for Restart at the REPL: "… on Pico W (simulated) — running main.py". */
+function entryOf(s: RunState): string {
+  const text = s.console[0]?.text ?? '';
+  return / — running (.+)\n/.exec(text)?.[1] ?? 'main.py';
+}
+function boardOf(s: RunState): string {
+  const text = s.console[0]?.text ?? '';
+  return / on (.+) \(simulated\)/.exec(text)?.[1] ?? '';
 }
 
 /** The firmware the simulator copies on each board (as the real board's banner names it). */
@@ -109,10 +172,27 @@ function endNote(r: RunResult, entry: string): ConsoleChunk {
   return { kind: 'sys', text: '\nThe program ended.\n' };
 }
 
+/** How the program ended; what its error means (M9, screen 05); the REPL ready (screen 29c). */
+function* endNotes(r: RunResult, entry: string, why?: Explanation): Generator<ConsoleChunk> {
+  const ready = 'Its names are still here: type Python and press Enter.';
+  if (r.repl && r.ended === 'done') yield { kind: 'sys', text: `\n${entry} ended. ${ready}\n` };
+  else if (r.repl && r.ended === 'stopped') yield { kind: 'sys', text: `\nStopped (Ctrl+C). ${ready}\n` };
+  else yield endNote(r, entry);
+  if (why) yield { kind: 'why', text: '', why };
+  if (r.repl && r.ended === 'error') yield { kind: 'sys', text: `${ready}\n` };
+}
+
 /** Adds to the console, joining text of the same kind; keeps the last CONSOLE_LIMIT characters. */
 export function append(chunks: ConsoleChunk[], c: ConsoleChunk): ConsoleChunk[] {
-  const last = chunks.at(-1);
-  let out = last?.kind === c.kind ? [...chunks.slice(0, -1), { kind: c.kind, text: last.text + c.text }] : [...chunks, c];
+  let last = chunks.at(-1);
+  // what the student typed: with the prompt it answers (>>> , input()'s), which ends the board's output
+  if (c.kind === 'me' && last?.kind === 'out' && !last.text.endsWith('\n')) {
+    const cut = last.text.lastIndexOf('\n') + 1;
+    c = { kind: 'me', text: last.text.slice(cut) + c.text };
+    chunks = cut ? [...chunks.slice(0, -1), { kind: 'out', text: last.text.slice(0, cut) }] : chunks.slice(0, -1);
+    last = chunks.at(-1);
+  }
+  let out = last?.kind === c.kind && c.kind !== 'why' ? [...chunks.slice(0, -1), { kind: c.kind, text: last.text + c.text }] : [...chunks, c];
   let size = out.reduce((n, x) => n + x.text.length, 0);
   while (size > CONSOLE_LIMIT && out.length) {
     const first = out[0]!;

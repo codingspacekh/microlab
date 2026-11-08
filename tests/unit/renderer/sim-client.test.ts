@@ -164,3 +164,39 @@ describe('M4.5 Stop (N-03)', () => {
     expect(e.onEnd).toHaveBeenCalledWith(expect.objectContaining({ ended: 'error', error: expect.objectContaining({ message: expect.stringContaining('no wasm') }) }));
   });
 });
+
+describe('M9 the REPL after the program (F-23, screen 29c)', () => {
+  it('the program\'s end is told and the worker goes on: lines typed go through the shared buffer, echoes and REPL errors come back', () => {
+    const w = new FakeWorker();
+    const e = { ...events(), onReplError: vi.fn() };
+    const run = startRun({ doc: doc(), entry: 'main.py' }, e, () => w);
+    expect(w.sent[0]).toMatchObject({ repl: true });
+    w.say({ type: 'ended', result: { ended: 'done', repl: true } as never });
+    expect(e.onEnd).toHaveBeenCalledWith(expect.objectContaining({ repl: true }));
+    expect(w.terminated).toBe(false);
+    run.type!('led.on()\n');
+    w.say({ type: 'output', text: 'led.on()\n', echo: true });
+    w.say({ type: 'parts', states: { led1: { kind: 'led', amps: 0.01, brightness: 1 } } });
+    w.say({ type: 'repl-error', error: { type: 'NameError', message: "name 'x' isn't defined", file: '<stdin>', line: 1 } });
+    expect(e.onOutput).toHaveBeenCalledWith('led.on()\n', true);
+    expect(e.onParts).toHaveBeenCalled();
+    expect(e.onReplError).toHaveBeenCalledWith(expect.objectContaining({ type: 'NameError' }));
+    // the window's ring: written count, then the characters
+    const keys = new Int32Array(w.sent[0]!.control, 8 + 8 * 2, 2);
+    expect(keys[0]).toBe('led.on()\n'.length);
+  });
+
+  it('Stop at the REPL ends the worker at once, telling nothing more; close() does the same', () => {
+    const w = new FakeWorker();
+    const e = events();
+    const run = startRun({ doc: doc(), entry: 'main.py' }, e, () => w);
+    w.say({ type: 'ended', result: { ended: 'error', repl: true } as never });
+    run.stop();
+    expect(w.terminated).toBe(true);
+    w.say({ type: 'end', result: { ended: 'stopped' } as never });
+    expect(e.onEnd).toHaveBeenCalledTimes(1);
+    const w2 = new FakeWorker();
+    startRun({ doc: doc(), entry: 'main.py' }, events(), () => w2).close!();
+    expect(w2.terminated).toBe(true);
+  });
+});

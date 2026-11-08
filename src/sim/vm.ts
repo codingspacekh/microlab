@@ -75,7 +75,8 @@ export class Console {
   private text = '';
   private pending = '';
 
-  constructor(private readonly onOutput?: (text: string) => void) {}
+  /** `echo`: what the student typed, as the board echoes it (M9: input(), the REPL). */
+  constructor(private readonly onOutput?: (text: string, echo?: boolean) => void) {}
 
   /** Where the program's output goes instead of the console (M7 slice 5: the micro:bit's print() follows its uart
    *  out of a pin after uart.init(tx=…)). */
@@ -89,6 +90,13 @@ export class Console {
     this.pending += t;
     if (t.includes('\n')) this.flush();
   };
+
+  /** What the student typed, echoed (M9): after what was printed before it. */
+  echo(text: string): void {
+    this.flush();
+    this.text += text;
+    this.onOutput?.(text, true);
+  }
 
   /** Hands what has come since the last flush to onOutput (at a newline, and at the end of a run). */
   flush(): void {

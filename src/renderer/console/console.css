@@ -22,3 +22,16 @@
 .prompt.board .fld { flex: 1; }
 .prompt.board .field { height: 28px; }
 .prompt.board .pending { display: flex; flex-direction: column; color: var(--tx-2); white-space: pre; }
+
+/* ---------- typing to the simulated board (M9, screen 29c) and an error explained (screen 05) ---------- */
+.cbody .me { color: var(--accent-ink); }
+.prompt.sim { flex-direction: column; align-items: stretch; gap: 4px; }
+.prompt.sim .row { display: flex; align-items: center; gap: 8px; }
+.prompt.sim .fld { flex: 1; }
+.prompt.sim .field { height: 28px; }
+.prompt.sim .asks { color: var(--tx-1); white-space: pre; }
+.prompt.sim .hint { color: var(--tx-2); white-space: pre-wrap; }
+.cbody .explain { margin: 6px 0 4px; padding: 10px 12px; border-radius: 9px; background: var(--accent-soft); border: 1px solid var(--accent-line); font-family: var(--font); font-size: 12.5px; line-height: 1.5; color: var(--tx-1); white-space: normal; }
+.cbody .explain > b { color: var(--accent-ink); }
+.cbody .explain code { background: var(--panel); padding: 0 4px; border-radius: 3px; font-family: var(--mono); font-size: 11.5px; }
+.cbody .explain .row { display: flex; gap: 6px; margin-top: 8px; }

@@ -92,3 +92,22 @@ describe('M2.8 the worker\'s run: output batched to ≤ 60 a second, then the en
     expect(c.stopRequested()).toBe(true);
   });
 });
+
+describe('M9 the worker\'s REPL: the program\'s end, then lines typed, until Stop', () => {
+  it('posts the end of the program, the prompt, the echo of a line typed and an error\'s explanation; Stop ends it', async () => {
+    const control = new Control();
+    const posts: WorkerMessage[] = [];
+    const done = handleStart({ type: 'start', board: 'pico-w', files: { 'main.py': 'x = 2\n' }, control: control.buffer, inputs: [], repl: true },
+      (m) => {
+        posts.push(m);
+        if (m.type === 'ended') control.type('x * 21\n');
+        if (m.type === 'output' && m.text.includes('42\n')) control.type('y\n');
+        if (m.type === 'repl-error') control.stop();
+      }, await nodeLoader());
+    await done;
+    expect(posts.find((m) => m.type === 'ended')).toMatchObject({ result: { ended: 'done', repl: true } });
+    expect(posts.filter((m) => m.type === 'output' && m.echo).map((m) => (m as { text: string }).text)).toEqual(['x * 21\n', 'y\n']);
+    expect(posts.find((m) => m.type === 'repl-error')).toMatchObject({ error: { type: 'NameError', file: '<stdin>', line: 1 } });
+    expect(posts.at(-1)).toMatchObject({ type: 'end' });
+  });
+});

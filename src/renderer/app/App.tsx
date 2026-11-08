@@ -78,6 +78,15 @@ export function App({ api, width, startRun, audio }: AppProps) {
   latest.current = open;
   const boardOf = (o: OpenProject) => BOARD_NAMES[o.doc.project.board as keyof typeof BOARD_NAMES] ?? o.doc.project.board;
   const running = sim.state.status !== 'idle';
+  // the REPL runs in the circuit the program started with (M9): a changed circuit ends it
+  const circuit = open?.doc.project;
+  const atRepl = sim.state.repl;
+  const { endRepl } = sim;
+  const replCircuit = useRef(circuit);
+  useEffect(() => {
+    if (!atRepl) { replCircuit.current = circuit; return; }
+    if (circuit !== replCircuit.current) endRepl('The circuit changed, so the REPL has ended: press Run to run the program in it.');
+  }, [circuit, atRepl, endRepl]);
   // what Run runs (F-22, Q19): the file in the editor, as Thonny does; main.py from its menu
   const target = open ? runTarget(open.doc.files, open.file ?? 'main.py', open.lastRun) : 'main.py';
   const runFile = (entry: string) => {
@@ -316,6 +325,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
         file={open.file ?? 'main.py'} onFile={(p) => setOpen((cur) => (cur ? { ...cur, file: p } : cur))}
         runFile={running ? open.lastRun ?? target : target}
         run={sim.state} running={running} onInput={sim.setInput} onClearConsole={sim.clear}
+        onType={sim.type} onSoftReset={() => sim.restart(() => latest.current!.doc)}
         consoleTab={bc.tab} onConsoleTab={bc.setTab}
         board={bc.shown ? {
           label: `${bc.shown.name} (USB)`, name: bc.shown.name, chunks: bc.chunks, ...(bc.state ? { state: bc.state } : {}),
