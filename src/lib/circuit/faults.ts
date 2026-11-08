@@ -14,7 +14,7 @@ import { UnionFind } from './union-find';
 export type FaultKind =
   | 'short' | 'led-burnt' | 'led-over-current' | 'pin-over-current' | 'board-over-current'
   | 'supply-over-current' | 'over-voltage' | 'floating' | 'servo-underpowered' | 'sensor-underpowered' | 'motor-on-pin'
-  | 'display-underpowered';
+  | 'display-underpowered' | 'neopixel-backwards' | 'neopixel-over-current';
 
 export interface Fault {
   kind: FaultKind;
@@ -52,10 +52,11 @@ export interface Analysis {
 export function analyse(spec: CircuitSpec, state: SimState, previous?: Solution): Analysis {
   const { netlist, connectivity } = toNetlist(spec);
   const solution = solve(netlist, state, previous);
-  return { connectivity, netlist, solution, faults: findFaults(spec, netlist, solution, state) };
+  return { connectivity, netlist, solution, faults: findFaults(spec, netlist, solution, state, connectivity) };
 }
 
-export function findFaults(spec: CircuitSpec, netlist: Netlist, s: Solution, state: SimState): Fault[] {
+/** `connectivity` (the nets of each leg) lets wiring faults be found too (M7 slice 3: a NeoPixel's data on its DOUT). */
+export function findFaults(spec: CircuitSpec, netlist: Netlist, s: Solution, state: SimState, connectivity?: Connectivity): Fault[] {
   const board = spec.board?.data;
   const v = (net: string) => s.volts[net] ?? 0;
   const amps = (id: string) => s.amps[id];
@@ -122,8 +123,18 @@ export function findFaults(spec: CircuitSpec, netlist: Netlist, s: Solution, sta
     if (board.gpio.totalMa !== undefined && total > board.gpio.totalMa / 1000) {
       out.push({ kind: 'board-over-current', severity: 'warning', on: 'board', amps: total, limitA: board.gpio.totalMa / 1000 });
     }
+    const neopixels = neopixelDemand(spec, netlist, state);
     for (const supply of board.supplies) {
       const src = sources.find((x) => x.id === `supply:${supply.pin}`);
+      // NeoPixels on it asking more than it gives: what they ask (the supply saturates, so it carries less) — M7 slice 3
+      const plus = (netlist.devices.find((d) => d.id === `supply:${supply.pin}`) as Extract<Device, { kind: 'source' }> | undefined)?.plus;
+      const asking = neopixels.filter((n) => n.net === plus);
+      const asked = asking.reduce((a, n) => a + n.amps(supply.volts), 0);
+      if (src && !shorted.has(src.id) && asked > supply.maxMa / 1000) {
+        const most = asking.reduce((m, n) => (n.amps(supply.volts) > m.amps(supply.volts) ? n : m));
+        out.push({ kind: 'neopixel-over-current', severity: 'warning', on: most.id, part: supply.pin, amps: asked, limitA: supply.maxMa / 1000 });
+        continue;
+      }
       if (src && !shorted.has(src.id) && src.i > supply.maxMa / 1000) {
         out.push({ kind: 'supply-over-current', severity: 'warning', on: supply.pin, amps: src.i, limitA: supply.maxMa / 1000 });
       }
@@ -137,6 +148,7 @@ export function findFaults(spec: CircuitSpec, netlist: Netlist, s: Solution, sta
   }
 
   out.push(...floating(netlist, s, state));
+  if (connectivity) out.push(...neopixelsBackwards(spec, netlist, connectivity));
 
   for (const part of spec.parts) {
     if (part.type !== 'servo') continue;
@@ -161,6 +173,29 @@ export function findFaults(spec: CircuitSpec, netlist: Netlist, s: Solution, sta
     const u = v(d.a) - v(d.b);
     const need = DISPLAYS[part.type].minVolts;
     if (u > SERVO_LOW.from && u < need) out.push({ kind: 'display-underpowered', severity: 'warning', on: part.id, partType: part.type, volts: u, limitV: need });
+  }
+  return out;
+}
+
+/** Each NeoPixel's supply net and what it asks at a supply's volts (its load is set at 5 V from its LEDs' current). */
+function neopixelDemand(spec: CircuitSpec, netlist: Netlist, state: SimState) {
+  return spec.parts.filter((p) => p.type === 'neopixel').flatMap((p) => {
+    const d = netlist.devices.find((x) => x.id === p.id && x.kind === 'load') as Extract<Device, { kind: 'load' }> | undefined;
+    if (!d) return [];
+    const ohms = state.parts?.[p.id]?.ohms ?? d.ohms;
+    return [{ id: p.id, net: d.a, amps: (volts: number) => volts / ohms }];
+  });
+}
+
+/** A board pin wired to a NeoPixel's DOUT, with no NeoPixel's DIN on it: the data never reaches its LEDs (M7 slice 3). */
+function neopixelsBackwards(spec: CircuitSpec, netlist: Netlist, c: Connectivity): Fault[] {
+  const out: Fault[] = [];
+  const pixels = spec.parts.filter((p) => p.type === 'neopixel');
+  for (const part of pixels) {
+    const net = c.netOf(`${part.id}.dout`);
+    if (net === undefined || pixels.some((p) => c.netOf(`${p.id}.din`) === net)) continue;
+    const pin = netlist.devices.find((d) => d.kind === 'pin' && d.net === net) as Extract<Device, { kind: 'pin' }> | undefined;
+    if (pin) out.push({ kind: 'neopixel-backwards', severity: 'warning', on: part.id, part: pin.label });
   }
   return out;
 }

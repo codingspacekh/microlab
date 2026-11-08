@@ -400,6 +400,7 @@ running_time() — Milliseconds since the micro:bit was switched on.
 temperature() — The temperature in °C, from the chip.
 set_volume(volume) — How loud the speaker is: 0 to 255.
 scale(value, from_, to) — value moved from one range to another: scale(accelerometer.get_x(), (-1024, 1024), (0, 9)).
+ws2812_write(pin, buffer) — Sends bytes to NeoPixels on a pin, as the neopixel module's show() does.
 `;
 
 const IMAGES = `HEART HEART_SMALL HAPPY SMILE SAD CONFUSED ANGRY ASLEEP SURPRISED SILLY FABULOUS MEH YES NO
@@ -432,6 +433,22 @@ RATE_1MBIT — Sends at 1 Mbit/s, the usual speed.
 RATE_2MBIT — Sends at 2 Mbit/s.
 `;
 
+const NEOPIXEL = `
+NeoPixel(pin, n, bpp=3, timing=1) — A NeoPixel stick or ring of n LEDs, its DIN on pin: NeoPixel(Pin(0), 8).
+NeoPixel.fill(colour) — Sets every LED to one colour, (red, green, blue) each 0–255; shown at write().
+NeoPixel.write() — Sends the colours to the LEDs: nothing changes on them until then.
+NeoPixel.ORDER — Which byte is which colour (green, red, blue, white).
+`;
+
+const MICROBIT_NEOPIXEL = `
+NeoPixel(pin, n, bpp=3) — A NeoPixel stick or ring of n LEDs, its DIN on pin: neopixel.NeoPixel(pin0, 12).
+NeoPixel.fill(colour) — Sets every LED to one colour, (red, green, blue) each 0–255; shown at show().
+NeoPixel.show() — Sends the colours to the LEDs: nothing changes on them until then.
+NeoPixel.write() — Sends the colours to the LEDs, as show().
+NeoPixel.clear() — Turns every LED off, at once.
+NeoPixel.ORDER — Which byte is which colour (green, red, blue, white).
+`;
+
 const TUNES = `DADADADUM ENTERTAINER PRELUDE ODE NYAN RINGTONE FUNK BLUES BIRTHDAY WEDDING FUNERAL PUNCHLINE PYTHON BADDY
 CHASE BA_DING WAWAWAWAA JUMP_UP JUMP_DOWN POWER_UP POWER_DOWN`;
 
@@ -457,6 +474,8 @@ export const MODULES: Record<string, { boards: ApiBoard[]; doc: string; text: st
     doc: 'Everything on the micro:bit: display, buttons, pins, accelerometer. from microbit import *',
     text: MICROBIT + words(IMAGES).map((n) => `Image.${n} — The built-in ${picture(n)} picture.`).join('\n'),
   },
+  neopixel: { boards: ['pico', 'esp32'], doc: 'NeoPixels (WS2812B): sticks and rings of LEDs in any colour, on one pin.', text: NEOPIXEL },
+  microbitNeopixel: { boards: ['microbit'], doc: 'NeoPixels (WS2812B): sticks and rings of LEDs in any colour, on one pin.', text: MICROBIT_NEOPIXEL },
   radio: { boards: ['microbit'], doc: 'The micro:bit\'s own radio, between micro:bits: send and receive messages.', text: RADIO },
   music: {
     boards: ['microbit'],
@@ -466,4 +485,4 @@ export const MODULES: Record<string, { boards: ApiBoard[]; doc: string; text: st
 };
 
 /** A module's name as imported: the micro:bit's own versions share the usual name. */
-export const IMPORT_NAME: Record<string, string> = { microbitMachine: 'machine', microbitTime: 'time', microbitOs: 'os' };
+export const IMPORT_NAME: Record<string, string> = { microbitMachine: 'machine', microbitTime: 'time', microbitOs: 'os', microbitNeopixel: 'neopixel' };

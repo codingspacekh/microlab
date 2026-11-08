@@ -404,7 +404,17 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     uart_write: (tx: string, rx: string, baud: number, hex: string) => { log(`uart tx=${tx} rx=${rx} ${baud} write ${hex}`); },
     /** Bytes waiting on RX (hex): none until M3. */
     uart_read: (): string => '',
-    bitstream: (pin: string, timing: string, hex: string) => { log(`bitstream pin=${pin} timing=${timing} ${hex}`); },
+    /** The bytes out on the pin with `timing` (ns: high and low of a 0, of a 1), each bit taking its time — into the
+     *  NeoPixels on the pin's net (M7 slice 3). */
+    bitstream: (pin: string, timing: string, hex: string) => {
+      log(`bitstream pin=${pin} timing=${timing} ${hex}`);
+      const t = timing.split(',').map(Number);
+      const bytes = (hex.match(/../g) ?? []).map((b) => parseInt(b, 16));
+      const ones = bytes.reduce((n, b) => { let k = 0; for (let v = b; v; v &= v - 1) k++; return n + k; }, 0);
+      const ns = ones * ((t[2] ?? 0) + (t[3] ?? 0)) + (bytes.length * 8 - ones) * ((t[0] ?? 0) + (t[1] ?? 0));
+      circuit?.bitstream(pin, t, bytes);
+      clock.sleepUs(Math.round(ns / 1000));
+    },
     /** _onewire (drivers/onewire, M6.5b): a reset (≈ 960 µs; true with a presence pulse), a bit (≈ 70 µs; -1 reads it),
      *  a byte (≈ 560 µs; -1 reads it), on the bus of the pin's net. */
     ow_reset: (pin: string): boolean => {

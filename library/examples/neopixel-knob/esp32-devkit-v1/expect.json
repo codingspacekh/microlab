@@ -1,0 +1,26 @@
+{
+  "seconds": 1,
+  "parts": {
+    "strip1": {
+      "values": [
+        [
+          0.5,
+          "lit",
+          8,
+          8
+        ]
+      ]
+    },
+    "ring1": {
+      "values": [
+        [
+          0.5,
+          "lit",
+          2,
+          2
+        ]
+      ]
+    }
+  },
+  "ended": "stopped"
+}

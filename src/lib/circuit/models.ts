@@ -4,6 +4,7 @@ import {
 } from './devices';
 import { DISPLAYS } from './displays';
 import { MPU6050 } from './i2c';
+import { NEOPIXEL, neopixelCount } from './neopixel';
 import { RC522 } from './rfid';
 import { MODULES, SENSORS } from './sensors';
 
@@ -361,6 +362,15 @@ export const MODELS: Record<string, PartModel> = {
     terminals: ['vcc', 'gnd', 'din', 'cs', 'clk', 'vcc2', 'gnd2', 'dout', 'cs2', 'clk2'],
     internal: [['vcc', 'vcc2'], ['gnd', 'gnd2'], ['cs', 'cs2'], ['clk', 'clk2']],
     devices: ({ id, leg }) => [{ kind: 'load', id, a: leg('vcc'), b: leg('gnd'), part: id, ohms: Math.round(5 / DISPLAYS.max7219.shutdownA) }],
+  },
+  /** A NeoPixel stick or ring (M7 slice 3; props shape 'stick' | 'ring', leds): DIN 5V GND in, DOUT out (a stick has its
+   *  5V and GND again at its out end, to chain the next one), all points to wire. It draws what its LEDs take (the
+   *  sim sets it from their colours); dark, ≈ 0.6 mA an LED. */
+  neopixel: {
+    legs: ['din', 'vcc', 'gnd', 'dout', 'vcc2', 'gnd2'],
+    terminals: ['din', 'vcc', 'gnd', 'dout', 'vcc2', 'gnd2'],
+    internal: [['vcc', 'vcc2'], ['gnd', 'gnd2']],
+    devices: ({ id, leg, props }) => [{ kind: 'load', id, a: leg('vcc'), b: leg('gnd'), part: id, ohms: Math.round(5 / (neopixelCount(props) * NEOPIXEL.idleA)) }],
   },
   /** Breadboard power supply (MB102) on a breadboard's end: two pins in each rail (t- t+ top, b+ b- bottom); `top`
    *  and `bottom` its jumpers, 5 or 3.3 V; `on` its switch (on by default). Its own jack or USB is its power. */

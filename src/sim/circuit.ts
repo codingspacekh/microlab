@@ -1,5 +1,5 @@
 import type { BoardData } from '@lib/boards';
-import { MifareTag, Mfrc522, RC522, RFID_TAGS, DISPLAYS, digitsText, isDisplay, Lcd1602, Max7219, Ssd1306, Tm1637, Bmp280, Max30102, Vl53l0x, BUZZER, BUZZER_MODULE, MOTOR, PUMP, SERVO, STEPPER, dhtBytes, Ds1302, Ds18b20, OneWireBus, type OneWireDevice, ENCODER, Pcf8591, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
+import { NEOPIXEL, neopixelCount, NeoPixels, ws2812Bits, MifareTag, Mfrc522, RC522, RFID_TAGS, DISPLAYS, digitsText, isDisplay, Lcd1602, Max7219, Ssd1306, Tm1637, Bmp280, Max30102, Vl53l0x, BUZZER, BUZZER_MODULE, MOTOR, PUMP, SERVO, STEPPER, dhtBytes, Ds1302, Ds18b20, OneWireBus, type OneWireDevice, ENCODER, Pcf8591, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
 
@@ -73,7 +73,10 @@ export type PartView =
   | { kind: 'matrix'; on: boolean; intensity: number; rows: number[]; lit: number; amps: number }
   /** An RC522 RFID reader (M7): its antenna on, the tag held to it (0 none, 1 the card, 2 the key fob), its UID as hex,
    *  what the reader did last with it. */
-  | { kind: 'rfid'; antenna: boolean; tag: number; uid: string; last: string };
+  | { kind: 'rfid'; antenna: boolean; tag: number; uid: string; last: string }
+  /** A NeoPixel stick or ring (M7 slice 3): powered, its LEDs' colours as hex ('rrggbb' an LED from LED 0; '' while
+   *  all are dark), how many are lit, what it draws, and the board supply it is on with what that gives (A). */
+  | { kind: 'pixels'; on: boolean; pixels: string; lit: number; amps: number; from?: string; limitA?: number };
 
 /** [µs, part id, its new state] — one entry per change, as the window would be told. */
 export type PartTraceEntry = [number, string, PartView];
@@ -270,6 +273,39 @@ export class CircuitHost {
   }
   private reader(id: string): Mfrc522 { let r = this.readers.get(id); if (!r) this.readers.set(id, (r = new Mfrc522(() => this.tagAt(id)))); return r; }
   private tm(id: string): Tm1637 { let t = this.tms.get(id); if (!t) this.tms.set(id, (t = new Tm1637())); return t; }
+  /** Each NeoPixel's LEDs (M7 slice 3), from its first frame; dark again when it loses its power. */
+  private readonly strips = new Map<string, NeoPixels>();
+  private strip(id: string): NeoPixels {
+    let s = this.strips.get(id);
+    if (!s) this.strips.set(id, (s = new NeoPixels(neopixelCount(this.spec.parts.find((p) => p.id === id)?.props))));
+    return s;
+  }
+  /** The board supply a NeoPixel's 5V is on, and its volts (its LEDs' current is the same from 3.5 to 5 V: it is set
+   *  as a load at the supply's own volts, so a supply that saturates doesn't change what they ask). */
+  private supplyOf(id: string): { pin: string; volts: number; limitA: number } | undefined {
+    const net = this.connectivity.netOf(`${id}.vcc`);
+    const src = this.netlist.devices.find((d) => d.kind === 'source' && d.id.startsWith('supply:') && d.plus === net) as { id: string; volts: number } | undefined;
+    const pin = src?.id.slice(7);
+    const s = this.spec.board?.data.supplies.find((x) => x.pin === pin);
+    return src && s ? { pin: s.pin, volts: src.volts, limitA: s.maxMa / 1000 } : undefined;
+  }
+
+  /** A bitstream out of a pin (M7 slice 3: neopixel.py's write(), the micro:bit's ws2812_write): read by each powered
+   *  NeoPixel whose DIN is on the pin's net — its LEDs take their bytes, the rest goes out of its DOUT to the next. */
+  bitstream(pin: string, timing: number[], bytes: number[]): void {
+    this.update();
+    const into = (net: string | undefined, data: number[], depth: number) => {
+      if (net === undefined || !data.length || depth > 32) return;
+      for (const part of this.spec.parts) {
+        if (part.type !== 'neopixel' || !this.powered.get(part.id) || this.connectivity.netOf(`${part.id}.din`) !== net) continue;
+        into(this.connectivity.netOf(`${part.id}.dout`), this.strip(part.id).take(data), depth + 1);
+      }
+    };
+    into(this.netOfPin.get(pin), ws2812Bits(timing, bytes), 0);
+    this.update();
+    this.traceDisplays();
+  }
+
   private mx(id: string): Max7219 { let m = this.mxs.get(id); if (!m) this.mxs.set(id, (m = new Max7219())); return m; }
 
   /** A pin changed (M7 slice 2): a TM1637 on its net reads CLK and DIO as they are now (its pull-ups hold an
@@ -329,6 +365,7 @@ export class CircuitHost {
     const t = this.now();
     for (const part of this.spec.parts) {
       const id = part.id;
+      if (part.type === 'neopixel') { this.tracePixels(t, id); continue; }
       if (!isDisplay(part.type)) continue;
       const powered = this.powered.get(id) ?? false;
       const supply = this.volts_(id, 'vcc') - this.volts_(id, 'gnd');
@@ -341,6 +378,21 @@ export class CircuitHost {
       this.shown.set(id, { key, view });
       this.setView(t, id, view);
     }
+  }
+
+  private tracePixels(t: number, id: string): void {
+    const powered = this.powered.get(id) ?? false;
+    const s = this.strips.get(id);
+    const key = `${powered}:${s?.version ?? -1}`;
+    const was = this.shown.get(id);
+    if (was?.key === key) { this.setView(t, id, was.view); return; }
+    const sup = this.supplyOf(id);
+    const n = neopixelCount(this.spec.parts.find((p) => p.id === id)?.props);
+    const lit = s?.lit() ?? 0;
+    const amps = powered ? s?.amps() ?? n * NEOPIXEL.idleA : 0;
+    const view: PartView = { kind: 'pixels', on: powered, pixels: lit ? s!.hex() : '', lit, amps: Math.round(amps * 1e4) / 1e4, ...(sup ? { from: sup.pin, limitA: sup.limitA } : {}) };
+    this.shown.set(id, { key, view });
+    this.setView(t, id, view);
   }
 
   private displayView(type: string, powered: boolean, supply: number, chip: Ssd1306 | Lcd1602 | Tm1637 | Max7219 | undefined): PartView {
@@ -484,9 +536,12 @@ export class CircuitHost {
     let changed = false;
     const t = this.now();
     for (const part of this.spec.parts) {   // a display works from its chip's lowest supply (M7 slice 2); the RFID reader too
-      const need = isDisplay(part.type) ? DISPLAYS[part.type].workVolts : part.type === 'rc522' ? RC522.minVolts : undefined;
+      const need = isDisplay(part.type) ? DISPLAYS[part.type].workVolts : part.type === 'rc522' ? RC522.minVolts : part.type === 'neopixel' ? NEOPIXEL.minVolts : undefined;
       if (need === undefined) continue;
-      this.powered.set(part.id, this.volts_(part.id, 'vcc') - this.volts_(part.id, 'gnd') >= need);
+      const powered = this.volts_(part.id, 'vcc') - this.volts_(part.id, 'gnd') >= need;
+      this.powered.set(part.id, powered);
+      // a NeoPixel's chips forget their colours as their power fails (it browns out: they draw only their own again)
+      if (!powered && part.type === 'neopixel') this.strips.delete(part.id);
     }
     this.updateEchoes();
     for (const part of this.spec.parts) {
@@ -555,6 +610,17 @@ export class CircuitHost {
         }
         continue;
       }
+      if (part.type === 'neopixel') {   // it draws what its LEDs' colours take (M7 slice 3)
+        const strip = this.strips.get(part.id);
+        const s = (this.parts[part.id] ??= {});
+        const ohms = strip && this.powered.get(part.id) ? Math.round((this.supplyOf(part.id)?.volts ?? 5) / strip.amps() * 1000) / 1000 : undefined;
+        if (s.ohms !== ohms) {
+          if (ohms === undefined) delete s.ohms;
+          else s.ohms = ohms;
+          changed = true;
+        }
+        continue;
+      }
       if (part.type !== 'servo') continue;
       const turning = this.arm(part.id).turning;
       const s = (this.parts[part.id] ??= {});
@@ -611,7 +677,7 @@ export class CircuitHost {
       this.previous.set(-1, this.solution);
       this.combos = [{ mask: 0, weight: 1, volts: this.solution.volts }];
       this.pwmPins = [];
-      this.faults = findFaults(this.spec, this.netlist, this.solution, state);
+      this.faults = findFaults(this.spec, this.netlist, this.solution, state, this.connectivity);
     } else {
       this.averagePwm(state, pwm);
     }
@@ -804,7 +870,7 @@ export class CircuitHost {
       this.combos.push({ mask, weight, volts: sol.volts });
       for (const [k, v] of Object.entries(sol.volts)) volts[k] = (volts[k] ?? 0) + weight * v;
       for (const [k, v] of Object.entries(sol.amps)) amps[k] = (amps[k] ?? 0) + weight * v;
-      for (const f of findFaults(this.spec, this.netlist, sol, combo)) {
+      for (const f of findFaults(this.spec, this.netlist, sol, combo, this.connectivity)) {
         const key = `${f.kind}:${f.on}`;
         const before = faults.get(key);
         if (!before || (f.amps ?? 0) > (before.amps ?? 0)) faults.set(key, f);

@@ -402,6 +402,17 @@ class MicroBitDisplay:
         return int(_ream.light())
 
 
+
+def ws2812_write(pin, buf):
+    # modmicrobit.c's microbit_ws2812_write (the neopixel module's write()): the bytes out on the pin at 800 kHz,
+    # microbithal.cpp's neopixel_send
+    if not isinstance(pin, MicroBitDigitalPin):
+        raise TypeError('expecting a pin')
+    data = bytes(buf)
+    _ream.pwm_out(pin._key, 0, -1.0)
+    _ream.pin_config(pin._key, 'out', '', 0)
+    _ream.bitstream(pin._key, '400,850,800,450', data.hex())
+
 def _display_tick(d):
     if d._iter is not None:
         d._draw(d._next())

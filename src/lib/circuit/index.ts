@@ -26,5 +26,6 @@ export { dhtBytes, echoUs, ENCODER, isSensor, minVolts, moduleDrives, MODULES, s
 export type { ModuleInput } from './sensors';
 export type { Drive, SensorInput, SensorType } from './sensors';
 export { DISPLAYS, digitsText, isDisplay, Lcd1602, Max7219, Ssd1306, Tm1637 } from './displays';
+export { NEOPIXEL, neopixelCount, neopixelShape, NeoPixels, ws2812Bits, type NeoPixelShape } from './neopixel';
 export type { DisplayType } from './displays';
 export { crcA, MifareTag, Mfrc522, RC522, RFID_TAGS } from './rfid';

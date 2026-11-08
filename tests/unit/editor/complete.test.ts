@@ -8,8 +8,8 @@ const option = (board: string, code: string, label: string) => at(board, code)?.
 
 describe('M5.5 the catalogue', () => {
   it('each board has its own modules', () => {
-    expect([...apiFor('pico-w').keys()].sort()).toEqual(['gc', 'machine', 'math', 'micropython', 'os', 'random', 'sys', 'time']);
-    expect([...apiFor('microbit-v2').keys()].sort()).toEqual(['gc', 'machine', 'math', 'microbit', 'micropython', 'music', 'os', 'radio', 'random', 'time', 'utime']);   // M7: radio
+    expect([...apiFor('pico-w').keys()].sort()).toEqual(['gc', 'machine', 'math', 'micropython', 'neopixel', 'os', 'random', 'sys', 'time']);   // M7: neopixel
+    expect([...apiFor('microbit-v2').keys()].sort()).toEqual(['gc', 'machine', 'math', 'microbit', 'micropython', 'music', 'neopixel', 'os', 'radio', 'random', 'time', 'utime']);   // M7: radio, neopixel
     expect(apiFor('esp32-devkit-v1-ext')).toBe(apiFor('esp32-devkit-v1'));
   });
 
@@ -42,7 +42,7 @@ describe('M5.5 what is offered where', () => {
   });
 
   it('import and from offer the board\'s modules; from … import its names, not the hidden classes', () => {
-    expect(labels('pico-w', 'import ')).toEqual(['gc', 'machine', 'math', 'micropython', 'os', 'random', 'sys', 'time']);
+    expect(labels('pico-w', 'import ')).toEqual(['gc', 'machine', 'math', 'micropython', 'neopixel', 'os', 'random', 'sys', 'time']);
     expect(labels('microbit-v2', 'from m')).toEqual(['machine', 'math', 'microbit', 'micropython', 'music']);
     expect(labels('pico-w', 'from machine import Pin, ')).toContain('PWM');
     expect(labels('microbit-v2', 'from microbit import ')).not.toContain('Display');

@@ -1,0 +1,39 @@
+{
+  "format": 1,
+  "title": "Rainbow ring",
+  "board": "pico-w",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "ring1",
+      "type": "neopixel",
+      "props": {
+        "shape": "ring",
+        "leds": 12
+      },
+      "legs": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "ring1.vcc",
+      "b": "board.VBUS"
+    },
+    {
+      "id": "w2",
+      "a": "ring1.gnd",
+      "b": "board.GND"
+    },
+    {
+      "id": "w3",
+      "a": "ring1.din",
+      "b": "board.GP0"
+    }
+  ]
+}
