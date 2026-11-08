@@ -25,3 +25,5 @@ export type { AdcInput, AirInput, I2CDevice, MotionInput, PulseInput } from './i
 export { dhtBytes, echoUs, ENCODER, isSensor, minVolts, moduleDrives, MODULES, sensorDrive, SENSORS, SENSOR_START, SPEED } from './sensors';
 export type { ModuleInput } from './sensors';
 export type { Drive, SensorInput, SensorType } from './sensors';
+export { DISPLAYS, digitsText, isDisplay, Lcd1602, Max7219, Ssd1306, Tm1637 } from './displays';
+export type { DisplayType } from './displays';

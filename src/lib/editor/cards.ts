@@ -60,6 +60,13 @@ const TERMINALS: Record<string, { names: Record<string, string>; line: string }>
   },
   uln2003: { names: { a: 'socket, OUT1', b: 'socket, OUT2', c: 'socket, OUT3', d: 'socket, OUT4', m: 'socket, +' }, line: 'The 28BYJ-48\'s cable plugs in here.' },
   stepper: { names: { blue: 'blue (coil A)', pink: 'pink (coil B)', yellow: 'yellow (coil C)', orange: 'orange (coil D)', red: 'red (+)' }, line: 'Its cable goes into a ULN2003\'s socket.' },
+  // M7 slice 2: the displays' headers out of their sides
+  lcd1602: { names: { gnd: 'GND', vcc: 'VCC (5 V)', sda: 'SDA (I²C data)', scl: 'SCL (I²C clock)' }, line: 'Its I²C backpack: SDA and SCL to the board\'s I²C pins, VCC to 5 V — on 3.3 V its letters are too faint to read.' },
+  tm1637: { names: { clk: 'CLK', dio: 'DIO', vcc: 'VCC', gnd: 'GND' }, line: 'CLK and DIO go to any two pins (the tm1637 library); VCC 3.3–5 V.' },
+  max7219: {
+    names: { vcc: 'VCC (5 V)', gnd: 'GND', din: 'DIN (SPI MOSI)', cs: 'CS (LOAD)', clk: 'CLK (SPI SCK)', vcc2: 'VCC out', gnd2: 'GND out', dout: 'DOUT (to the next one\'s DIN)', cs2: 'CS out', clk2: 'CLK out' },
+    line: 'DIN to SPI\'s MOSI, CLK to its SCK, CS to any pin; VCC 5 V. The right-hand header chains another matrix.',
+  },
 };
 
 /** A part's terminal (M7): what it is, and what it is wired to. */

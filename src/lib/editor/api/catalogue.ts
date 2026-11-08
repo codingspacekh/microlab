@@ -373,6 +373,12 @@ I2CBus.init(freq=100000, sda=pin20, scl=pin19) — Sets the bus up.
 I2CBus.scan() — The addresses of every device that answers.
 I2CBus.read(addr, n, repeat=False) — Reads n bytes from the device.
 I2CBus.write(addr, buf, repeat=False) — Writes the bytes in buf to the device.
+spi: SPIBus — The SPI bus: SCK on pin 13, MOSI on 15, MISO on 14.
+~SPIBus — The SPI bus.
+SPIBus.init(baudrate=1000000, bits=8, mode=0, sclk=pin13, mosi=pin15, miso=pin14) — Sets the bus up: its speed and pins.
+SPIBus.write(buf) — Clocks the bytes in buf out on MOSI.
+SPIBus.read(nbytes, out=0) — Clocks nbytes in from MISO, sending out each time.
+SPIBus.write_readinto(out, in_) — Sends out's bytes and reads as many into in_.
 Image(string) — A picture for the display: Image("09090:99999:99999:09990:00900"), each digit a brightness 0–9.
 Image.width() — How many columns: 5 for the display.
 Image.height() — How many rows.

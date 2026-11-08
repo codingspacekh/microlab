@@ -1,5 +1,5 @@
 import type { BoardData } from '@lib/boards';
-import { Bmp280, Max30102, Vl53l0x, BUZZER, BUZZER_MODULE, MOTOR, PUMP, SERVO, STEPPER, dhtBytes, Ds1302, Ds18b20, OneWireBus, type OneWireDevice, ENCODER, Pcf8591, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
+import { DISPLAYS, digitsText, isDisplay, Lcd1602, Max7219, Ssd1306, Tm1637, Bmp280, Max30102, Vl53l0x, BUZZER, BUZZER_MODULE, MOTOR, PUMP, SERVO, STEPPER, dhtBytes, Ds1302, Ds18b20, OneWireBus, type OneWireDevice, ENCODER, Pcf8591, moduleDrives, MODULES, SPEED, Mpu6050, MPU6050, type I2CDevice, echoUs, findFaults, isSensor, LED, minVolts, SENSORS, SENSOR_START, sensorDrive, solve, toNetlist, type CircuitSpec, type Connectivity, type Fault, type Netlist, type PartState, type PinState, type SimState, type Solution } from '@lib/circuit';
 import type { Control } from './control';
 import type { PinBank } from './pins';
 
@@ -59,14 +59,25 @@ export type PartView =
   /** A sensor module's output (M6.3): its volts, and whether its supply is enough for it to work. */
   | { kind: 'sensor'; volts: number; powered: boolean }
   /** A real-time clock's time, 'HH:MM:SS' (M6.5b). */
-  | { kind: 'clock'; time: string };
+  | { kind: 'clock'; time: string }
+  /** An SSD1306 OLED (M7 slice 2): what it shows, 8 pages of 128 bytes as hex (bit 0 a page's top row; '' when
+   *  nothing is lit), how many pixels are lit, its contrast (0–255). */
+  | { kind: 'oled'; on: boolean; lit: number; contrast: number; frame: string }
+  /** A 16×2 LCD: its two rows (character codes; 0–7 its own characters, in `cgram` as hex), its display and
+   *  backlight on, `faint` when its supply is too low to read it. */
+  | { kind: 'lcd'; on: boolean; backlight: boolean; faint: boolean; rows: [string, string]; cgram?: string }
+  /** A TM1637 4-digit display: each digit's segments (bit 0 a … bit 6 g; bit 7 of the second its colon), as text,
+   *  on, brightness 0–7. */
+  | { kind: 'digits'; on: boolean; brightness: number; segments: number[]; text: string }
+  /** A MAX7219 8×8 matrix: its rows top to bottom (bit 7 the left dot), on, intensity 0–15, the dots lit, what it draws. */
+  | { kind: 'matrix'; on: boolean; intensity: number; rows: number[]; lit: number; amps: number };
 
 /** [µs, part id, its new state] — one entry per change, as the window would be told. */
 export type PartTraceEntry = [number, string, PartView];
 
 /** The live input slots a part takes (sim-client's SLOT): 'pressed:btn1', 'celsius:dht1' … */
 /** Parts that answer on I²C (M6.4b, M6.5b). */
-const I2C_CHIPS = new Set(['mpu6050', 'pcf8591', 'bmp280', 'vl53l0x', 'max30102']);
+const I2C_CHIPS = new Set(['mpu6050', 'pcf8591', 'bmp280', 'vl53l0x', 'max30102', 'ssd1306', 'lcd1602']);
 
 const LIVE_KINDS = new Set(['pressed', 'position', 'lux', 'celsius', 'humidity', 'cm', 'tiltx', 'tilty', 'x', 'y', 'steps', 'rpm', 'hpa', 'bpm', 'spo2']);
 
@@ -242,6 +253,89 @@ export class CircuitHost {
     return c;
   }
 
+  private readonly tms = new Map<string, Tm1637>();
+  private readonly mxs = new Map<string, Max7219>();
+  private tm(id: string): Tm1637 { let t = this.tms.get(id); if (!t) this.tms.set(id, (t = new Tm1637())); return t; }
+  private mx(id: string): Max7219 { let m = this.mxs.get(id); if (!m) this.mxs.set(id, (m = new Max7219())); return m; }
+
+  /** A pin changed (M7 slice 2): a TM1637 on its net reads CLK and DIO as they are now (its pull-ups hold an
+   *  undriven one high); a MAX7219 whose CS (LOAD) it is takes its 16 bits as it rises. */
+  private displayEdges(pin: string, net: string | undefined, before: number | undefined, level: number): void {
+    if (net === undefined) return;
+    const pinOf = (id: string, leg: string) => this.pinOfNet.get(this.connectivity.netOf(`${id}.${leg}`) ?? '');
+    for (const part of this.spec.parts) {
+      if (!this.powered.get(part.id)) continue;
+      const on = (leg: string) => this.connectivity.netOf(`${part.id}.${leg}`) === net;
+      if (part.type === 'tm1637' && (on('clk') || on('dio'))) {
+        const lv = (leg: string) => { const k = pinOf(part.id, leg); return k === undefined ? 1 : k === pin ? level : this.levels.get(k) ?? 1; };
+        this.tm(part.id).lines(lv('clk'), lv('dio'));
+      } else if (part.type === 'max7219' && on('cs') && before === 0 && level === 1) {
+        this.mx(part.id).load();
+      }
+    }
+  }
+
+  /** Bytes clocked out on SPI (M7 slice 2): into each powered MAX7219 whose CLK and DIN are on SCK's and MOSI's nets,
+   *  and on down a chain, from each one's DOUT into the next one's DIN. */
+  spi(sck: string, mosi: string, bytes: number[]): void {
+    this.update();
+    const sckNet = this.netOfPin.get(sck);
+    const mosiNet = this.netOfPin.get(mosi);
+    if (sckNet === undefined || mosiNet === undefined) return;
+    const into = (dinNet: string | undefined, data: number[], depth: number) => {
+      if (dinNet === undefined || !data.length || depth > 16) return;
+      for (const part of this.spec.parts) {
+        if (part.type !== 'max7219' || !this.powered.get(part.id)) continue;
+        if (this.connectivity.netOf(`${part.id}.din`) !== dinNet || this.connectivity.netOf(`${part.id}.clk`) !== sckNet) continue;
+        const out: number[] = [];
+        for (const b of data) { const o = this.mx(part.id).clockIn(b); if (o !== undefined) out.push(o); }
+        into(this.connectivity.netOf(`${part.id}.dout`), out, depth + 1);
+      }
+    };
+    into(mosiNet, bytes, 0);
+  }
+
+  /** The displays' pictures, made again only when what they show changed (an I²C write needs no solve). */
+  private readonly shown = new Map<string, { key: string; view: PartView }>();
+
+  traceDisplays(): void {
+    const t = this.now();
+    for (const part of this.spec.parts) {
+      const id = part.id;
+      if (!isDisplay(part.type)) continue;
+      const powered = this.powered.get(id) ?? false;
+      const supply = this.volts_(id, 'vcc') - this.volts_(id, 'gnd');
+      const chip = part.type === 'tm1637' ? this.tms.get(id) : part.type === 'max7219' ? this.mxs.get(id) : this.chips.get(id) as Ssd1306 | Lcd1602 | undefined;
+      const version = powered ? (chip?.version ?? 0) * 2 + 1 : 0;
+      const key = `${version}:${part.type === 'lcd1602' ? supply < DISPLAYS.lcd1602.minVolts : ''}`;
+      const was = this.shown.get(id);
+      if (was?.key === key) { this.setView(t, id, was.view); continue; }
+      const view = this.displayView(part.type, powered, supply, chip);
+      this.shown.set(id, { key, view });
+      this.setView(t, id, view);
+    }
+  }
+
+  private displayView(type: string, powered: boolean, supply: number, chip: Ssd1306 | Lcd1602 | Tm1637 | Max7219 | undefined): PartView {
+    if (type === 'ssd1306') {
+      const o = powered ? chip as Ssd1306 | undefined : undefined;
+      const lit = o?.lit() ?? 0;
+      return { kind: 'oled', on: o?.on ?? false, lit, contrast: o?.contrast ?? 0x7f, frame: lit ? Array.from(o!.frame(), (b) => b.toString(16).padStart(2, '0')).join('') : '' };
+    }
+    if (type === 'lcd1602') {
+      const l = powered ? chip as Lcd1602 | undefined : undefined;
+      const cg = l?.cgram.some((b) => b) ? Array.from(l.cgram, (b) => b.toString(16).padStart(2, '0')).join('') : undefined;
+      return { kind: 'lcd', on: l?.on ?? false, backlight: l?.backlight ?? false, faint: supply < DISPLAYS.lcd1602.minVolts, rows: l?.rows() ?? [' '.repeat(16), ' '.repeat(16)], ...(cg ? { cgram: cg } : {}) };
+    }
+    if (type === 'tm1637') {
+      const d = powered ? chip as Tm1637 | undefined : undefined;
+      const segments = d ? d.grid.slice(0, 4) : [0, 0, 0, 0];
+      return { kind: 'digits', on: d?.on ?? false, brightness: d?.brightness ?? 0, segments, text: digitsText(segments) };
+    }
+    const m = powered ? chip as Max7219 | undefined : undefined;
+    return { kind: 'matrix', on: m?.on ?? false, intensity: m?.intensity ?? 0, rows: m ? [...m.rows] : [0, 0, 0, 0, 0, 0, 0, 0], lit: m?.lit() ?? 0, amps: Math.round((m?.amps() ?? 0) * 1e4) / 1e4 };
+  }
+
   private updateEchoes(): void {
     const trace = this.pins.trace;
     for (; this.traceSeen < trace.length; this.traceSeen++) {
@@ -249,6 +343,7 @@ export class CircuitHost {
       const before = this.levels.get(pin);
       this.levels.set(pin, level);
       const net = this.netOfPin.get(pin);
+      if (before !== level) this.displayEdges(pin, net, before, level);
       // DS1302s (M6.5b): CE and SCLK edges, I/O as the program drives it then
       for (const part of this.spec.parts) {
         if (part.type !== 'ds1302' || !this.powered.get(part.id) || before === level) continue;
@@ -289,7 +384,9 @@ export class CircuitHost {
       const chip = this.chipOf(part.id, part.type);
       const address = part.type === 'mpu6050' ? (above('ad0') >= 1.5 ? MPU6050.address + 1 : MPU6050.address)
         : part.type === 'bmp280' ? (above('sdo') >= 1.5 ? 0x77 : 0x76)
-        : part.type === 'vl53l0x' ? 0x29 : part.type === 'max30102' ? 0x57 : 0x48;
+        : part.type === 'vl53l0x' ? 0x29 : part.type === 'max30102' ? 0x57
+        : part.type === 'ssd1306' ? Number(part.props?.address ?? DISPLAYS.ssd1306.addresses[0])
+        : part.type === 'lcd1602' ? Number(part.props?.address ?? DISPLAYS.lcd1602.addresses[0]) : 0x48;
       if (part.type === 'vl53l0x' && above('xshut') < 1.5) continue;   // XSHUT low: shut down
       out.set(address, chip);
     }
@@ -309,6 +406,8 @@ export class CircuitHost {
     if (type === 'pcf8591') chip = new Pcf8591(() => ({ ain: [above('ain0'), above('ain1'), above('ain2'), above('ain3')], vref: above('vcc') }));
     else if (type === 'vl53l0x') chip = new Vl53l0x(() => this.now(), () => (s().cm ?? SENSOR_START.cm) * 10);
     else if (type === 'max30102') chip = new Max30102(() => this.now(), () => ({ finger: (s().position ?? 1) >= 0.5, bpm: s().bpm ?? 72, spo2: s().spo2 ?? 98 }));
+    else if (type === 'ssd1306') chip = new Ssd1306();
+    else if (type === 'lcd1602') chip = new Lcd1602();
     else if (type === 'bmp280') chip = new Bmp280(() => ({ celsius: s().celsius ?? SENSOR_START.celsius, hpa: s().hpa ?? 1013.25 }));
     else chip = new Mpu6050(() => ({ tiltx: s().tiltx ?? 0, tilty: s().tilty ?? 0, celsius: s().celsius ?? SENSOR_START.celsius }));
     this.chips.set(id, chip);
@@ -357,6 +456,10 @@ export class CircuitHost {
   private updateDrives(): boolean {
     let changed = false;
     const t = this.now();
+    for (const part of this.spec.parts) {   // a display works from its chip's lowest supply (M7 slice 2)
+      if (!isDisplay(part.type)) continue;
+      this.powered.set(part.id, this.volts_(part.id, 'vcc') - this.volts_(part.id, 'gnd') >= DISPLAYS[part.type].workVolts);
+    }
     this.updateEchoes();
     for (const part of this.spec.parts) {
       if (!isSensor(part.type)) continue;
@@ -413,6 +516,17 @@ export class CircuitHost {
   private updateLoads(): boolean {
     let changed = false;
     for (const part of this.spec.parts) {
+      if (part.type === 'max7219') {   // it draws what its lit dots take (M7 slice 2), as on 5 V
+        const m = this.mxs.get(part.id);
+        const s = (this.parts[part.id] ??= {});
+        const ohms = m && this.powered.get(part.id) ? Math.round(5 / m.amps()) : undefined;
+        if (s.ohms !== ohms) {
+          if (ohms === undefined) delete s.ohms;
+          else s.ohms = ohms;
+          changed = true;
+        }
+        continue;
+      }
       if (part.type !== 'servo') continue;
       const turning = this.arm(part.id).turning;
       const s = (this.parts[part.id] ??= {});
@@ -502,6 +616,7 @@ export class CircuitHost {
     }
     const across = (id: string, a: string, b: string) => this.volts_(id, a) - this.volts_(id, b);
     const mA = (a: number) => Math.round(Math.abs(a) * 1000) / 1000;
+    this.traceDisplays();
     for (const part of this.spec.parts) {
       const id = part.id;
       switch (part.type) {
@@ -534,6 +649,7 @@ export class CircuitHost {
         this.setView(t, part.id, this.buzzer(this.connectivity.netOf(`${part.id}.+`) ?? '', this.connectivity.netOf(`${part.id}.-`) ?? '', part.props?.kind === 'passive'));
       }
       if (part.type === 'ds1302') { this.setView(t, part.id, { kind: 'clock', time: this.ds1302(part.id).timeText(t) }); continue; }
+      if (isDisplay(part.type)) continue;
       if (isSensor(part.type)) {
         const st = this.parts[part.id];
         const first = st?.drives ? Object.values(st.drives)[0] : st?.drive;

@@ -331,6 +331,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
       log(`i2c sda=${sda} scl=${scl} write ${hexByte(addr)}${hex ? ' ' + spaced(hex) : ''}${chip ? '' : ' nack'}`);
       if (!chip) return -1;
       chip.write((hex.match(/../g) ?? []).map((b) => parseInt(b, 16)));
+      circuit?.traceDisplays();
       return hex.length / 2;
     },
     /** The bytes read (hex), or -1 when the address is not ACKed. */
@@ -345,6 +346,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     /** Clocks `hex` out on MOSI; returns what MISO gave back (its idle level: 0x00 low, 0xff high). */
     spi_xfer: (sck: string, mosi: string, miso: string, hex: string, kind: string): string => {
       log(`spi sck=${sck} mosi=${mosi} miso=${miso} ${kind}${kind === 'read' ? ' ' + hex.length / 2 : ' ' + spaced(hex)}`);
+      if (kind !== 'read') circuit?.spi(sck, mosi, (hex.match(/../g) ?? []).map((b) => parseInt(b, 16)));
       const idle = miso && pins.level(miso) ? 'ff' : '00';
       return idle.repeat(hex.length / 2);
     },

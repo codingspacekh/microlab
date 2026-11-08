@@ -9,8 +9,11 @@ const DIES: Record<string, string> = { r: 'red', y: 'yellow', g: 'green', b: 'bl
 export function describeFault(f: Fault): string {
   const mA = (a?: number) => `${Math.round((a ?? 0) * 1000)} mA`;
   const V = (v?: number) => `${(v ?? 0).toFixed(1)} V`;
-  const die = /^(.+):([rygb])$/.exec(f.on);   // an RGB LED's red, green or blue (M6.1); a traffic light's (M7)
-  const on = die ? `${die[1]} (${DIES[die[2]!]})` : f.on;
+  const die = /^(.+):([a-z]+)$/.exec(f.on);
+  // an RGB LED's red, green or blue (M6.1), a traffic light's (M7); a 7-segment digit's segment (M7 slice 2)
+  const on = !die ? f.on
+    : f.partType === 'seven-segment' ? `${die[1]} (segment ${die[2]})`
+    : die[2]! in DIES ? `${die[1]} (${DIES[die[2]!]})` : f.on;
   switch (f.kind) {
     case 'short': return `${f.on}: a short circuit — ${mA(f.amps)}, as much as it can give`;
     case 'led-burnt': return `${on}: the LED burnt out — ${mA(f.amps)} through it, it takes ${mA(f.limitA)} at most`;
@@ -23,5 +26,6 @@ export function describeFault(f: Fault): string {
     case 'servo-underpowered': return `${f.on}: the servo has ${V(f.volts)}, it needs 4.8–6 V`;
     case 'motor-on-pin': return `${f.on}: ${f.part} straight on the pin draws ${mA(f.amps)}, a pin gives ${mA(f.limitA)} at most — drive it through a driver (L9110S, L298N)`;
     case 'sensor-underpowered': return `${f.on}: the sensor has ${V(f.volts)}, it needs ${V(f.limitV)} at least`;
+    case 'display-underpowered': return `${f.on}: the display has ${V(f.volts)}, it needs ${V(f.limitV)} at least${f.partType === 'lcd1602' ? ' — its letters are too faint to read' : f.partType === 'max7219' ? ' — its dots may stay dark' : ''}`;
   }
 }

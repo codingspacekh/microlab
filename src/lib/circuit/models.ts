@@ -2,6 +2,7 @@ import {
   BATTERIES, BUZZER, BUZZER_MODULE, CONTACT_OHMS, KIT_LED_OHMS, L298N, L9110S, MOTOR, POWER_SUPPLY, PUMP, RELAY, RGB_DIES, SERVO_IDLE_OHMS, STEPPER, ULN2003,
   type Device,
 } from './devices';
+import { DISPLAYS } from './displays';
 import { MPU6050 } from './i2c';
 import { MODULES, SENSORS } from './sensors';
 
@@ -314,6 +315,45 @@ export const MODELS: Record<string, PartModel> = {
         switches: [{ id: 'ce', a: `${id}#c`, b: leg('gnd'), ohms: 1 }], table: { 1: '1' },
       },
     ],
+  },
+  /** SSD1306 OLED module (M7 slice 2): GND VCC SCL SDA in a row; it answers on I²C (displays.ts). */
+  ssd1306: {
+    legs: ['gnd', 'vcc', 'scl', 'sda'],
+    devices: ({ id, leg }) => [{ kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: DISPLAYS.ssd1306.loadOhms }],
+  },
+  /** A 16×2 LCD with its I²C backpack: the backpack's header out of its end — GND VCC SDA SCL, points to wire. */
+  lcd1602: {
+    legs: ['gnd', 'vcc', 'sda', 'scl'],
+    terminals: ['gnd', 'vcc', 'sda', 'scl'],
+    devices: ({ id, leg }) => [{ kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: DISPLAYS.lcd1602.loadOhms }],
+  },
+  /** A 7-segment digit (0.56", 5161AS): pins 1–5 e d COM c dp, 6–10 b a COM f g, its two COMs joined inside; eight
+   *  LEDs (`<id>:a` … `:g`, `:dp`), their cathodes on COM ('cathode', the default) or their anodes ('anode'). */
+  'seven-segment': {
+    legs: ['e', 'd', 'com2', 'c', 'dp', 'b', 'a', 'com1', 'f', 'g'],
+    internal: [['com1', 'com2']],
+    devices: ({ id, leg, props }) => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'dp'].map((s): Device => (props.common === 'anode'
+      ? { kind: 'led', id: `${id}:${s}`, a: leg('com1'), k: leg(s), color: String(props.color ?? 'red') }
+      : { kind: 'led', id: `${id}:${s}`, a: leg(s), k: leg('com1'), color: String(props.color ?? 'red') })),
+  },
+  /** The TM1637 4-digit module: its header out of its side — CLK DIO VCC GND, points to wire; read pin by pin.
+   *  CLK and DIO have 10 kΩ pull-ups to VCC on the module. */
+  tm1637: {
+    legs: ['clk', 'dio', 'vcc', 'gnd'],
+    terminals: ['clk', 'dio', 'vcc', 'gnd'],
+    devices: ({ id, leg }) => [
+      { kind: 'resistor', id: `${id}:supply`, a: leg('vcc'), b: leg('gnd'), ohms: DISPLAYS.tm1637.loadOhms },
+      { kind: 'resistor', id: `${id}:pull-clk`, a: leg('vcc'), b: leg('clk'), ohms: DISPLAYS.tm1637.pullOhms },
+      { kind: 'resistor', id: `${id}:pull-dio`, a: leg('vcc'), b: leg('dio'), ohms: DISPLAYS.tm1637.pullOhms },
+    ],
+  },
+  /** The MAX7219 8×8 module: VCC GND DIN CS CLK in, VCC GND DOUT CS CLK out (to chain another; VCC, GND, CS and
+   *  CLK go straight through), all points to wire. It draws what its lit dots take (the sim sets it). */
+  max7219: {
+    legs: ['vcc', 'gnd', 'din', 'cs', 'clk', 'vcc2', 'gnd2', 'dout', 'cs2', 'clk2'],
+    terminals: ['vcc', 'gnd', 'din', 'cs', 'clk', 'vcc2', 'gnd2', 'dout', 'cs2', 'clk2'],
+    internal: [['vcc', 'vcc2'], ['gnd', 'gnd2'], ['cs', 'cs2'], ['clk', 'clk2']],
+    devices: ({ id, leg }) => [{ kind: 'load', id, a: leg('vcc'), b: leg('gnd'), part: id, ohms: Math.round(5 / DISPLAYS.max7219.shutdownA) }],
   },
   /** Breadboard power supply (MB102) on a breadboard's end: two pins in each rail (t- t+ top, b+ b- bottom); `top`
    *  and `bottom` its jumpers, 5 or 3.3 V; `on` its switch (on by default). Its own jack or USB is its power. */

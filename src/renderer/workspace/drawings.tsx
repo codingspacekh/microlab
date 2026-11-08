@@ -1,6 +1,7 @@
 import { BREADBOARD, holeOffset, turnsOf, type Point } from '@lib/editor';
 import { COLUMNS, hasRails, railHole, type BreadboardSize } from '@lib/circuit';
 import { L298nBoard, L9110sDriver, PowerSupply, Pump, RelayModule, ServoPlug, Stepper, TtMotor, Uln2003, type ActLook } from './actuators';
+import { Lcd1602, Max7219Module, OledModule, SevenSegment, Tm1637Module, type DisplayLook } from './displays';
 
 /**
  * The circuit's pictures, as in the approved prototype (design/svgparts.py): the breadboard, wires, resistors, LEDs,
@@ -856,6 +857,8 @@ export interface PartLook {
   kit?: KitLook;
   /** An actuator's state while running (M7). */
   act?: ActLook;
+  /** A display's (M7 slice 2): what it shows. */
+  display?: DisplayLook;
 }
 
 /** `legs`: where its legs are — and its terminals (M7: screws, a socket), and for a part beside the breadboard, '@'
@@ -870,6 +873,18 @@ export function PartDrawing({ type, legs, props, look = {}, label = '' }: { type
     case 'stepper': {
       const plug = ['blue', 'pink', 'yellow', 'orange', 'red'].map((l) => legs[l]);
       return legs['@'] && plug.every(Boolean) ? <Stepper at={legs['@']} plug={plug as Point[]} steps={act.steps} turning={act.running} /> : null;
+    }
+    // M7 slice 2: the displays — the LCD, the TM1637 and the matrix lie beside the breadboard
+    case 'lcd1602': return legs['@'] ? <Lcd1602 at={legs['@']} view={look.display?.view} address={Number(props?.address ?? 0x27)} /> : null;
+    case 'tm1637': return legs['@'] ? <Tm1637Module at={legs['@']} view={look.display?.view} /> : null;
+    case 'max7219': return legs['@'] ? <Max7219Module at={legs['@']} view={look.display?.view} /> : null;
+    case 'ssd1306': case 'seven-segment': {
+      const t = partTurns(type, legs);
+      const { local, transform } = unturned(Object.fromEntries(Object.entries(legs).filter(([k]) => k !== '@')), t);
+      const at = (names: string[]) => names.map((n) => local[n]!);
+      const body = type === 'ssd1306' ? <OledModule pins={at(['gnd', 'vcc', 'scl', 'sda'])} view={look.display?.view} upright={-90 * t} />
+        : <SevenSegment bottom={at(['e', 'd', 'com2', 'c', 'dp'])} top={at(['g', 'f', 'com1', 'a', 'b'])} lit={look.display?.segments} upright={-90 * t} />;
+      return t ? <g transform={transform}>{body}</g> : body;
     }
     case 'power-supply':
       return <PowerSupply first={legs['t-1']!} pins={['t-1', 't-2', 't+1', 't+2', 'b+1', 'b+2', 'b-1', 'b-2'].map((l) => legs[l]!)} top={Number(props?.top ?? 5)} bottom={Number(props?.bottom ?? 3.3)} on={props?.on !== false} />;
@@ -1009,6 +1024,12 @@ const M7_ICONS: Record<string, string> = {
   "rgb-module": "<rect x=\"6\" y=\"9\" width=\"20\" height=\"15\" rx=\"2\" fill=\"#26282c\"/><circle cx=\"16\" cy=\"16.5\" r=\"5\" fill=\"#e9edf2\"/><circle cx=\"14\" cy=\"15\" r=\"1.6\" fill=\"#ef3b2c\"/><circle cx=\"18\" cy=\"15\" r=\"1.6\" fill=\"#22b14c\"/><circle cx=\"16\" cy=\"18.5\" r=\"1.6\" fill=\"#2f6fe0\"/>",
   "buzzer-module": "<rect x=\"6\" y=\"9\" width=\"20\" height=\"15\" rx=\"2\" fill=\"#26282c\"/><circle cx=\"16\" cy=\"16.5\" r=\"5.5\" fill=\"#15171a\" stroke=\"#3b3e43\"/>",
   "power-supply": "<rect x=\"5\" y=\"4\" width=\"22\" height=\"24\" rx=\"2\" fill=\"#26282c\"/><rect x=\"8\" y=\"8\" width=\"7\" height=\"6\" fill=\"#15171a\"/><rect x=\"8\" y=\"18\" width=\"7\" height=\"5\" fill=\"#c7ccd2\"/><rect x=\"18\" y=\"9\" width=\"6\" height=\"4\" fill=\"#efbd16\"/><rect x=\"18\" y=\"19\" width=\"6\" height=\"4\" fill=\"#efbd16\"/>",
+  // M7 slice 2's displays (design/svgparts.py ICON_PARTS oled, lcd, seg7, tm1637, matrix)
+  "ssd1306": "<rect x=\"5\" y=\"5\" width=\"22\" height=\"22\" rx=\"2\" fill=\"#16314f\"/><rect x=\"7\" y=\"9\" width=\"18\" height=\"11\" fill=\"#05070a\"/><path d=\"M9,13 h8 M9,16 h12\" stroke=\"#9be7ff\" stroke-width=\"1.4\"/>",
+  "lcd1602": "<rect x=\"2\" y=\"8\" width=\"28\" height=\"16\" rx=\"2\" fill=\"#2f8f4f\"/><rect x=\"5\" y=\"11\" width=\"22\" height=\"10\" fill=\"#a8d86a\"/><path d=\"M7,14 h12 M7,18 h16\" stroke=\"#3b5a1e\" stroke-width=\"1.4\"/>",
+  "seven-segment": "<rect x=\"8\" y=\"3\" width=\"16\" height=\"26\" rx=\"2\" fill=\"#2d3136\"/><path d=\"M12,8 h8 M12,16 h8 M12,24 h8 M11,9 v6 M21,9 v6 M11,17 v6 M21,17 v6\" stroke=\"#ef3b2c\" stroke-width=\"1.8\" stroke-linecap=\"round\"/>",
+  "tm1637": "<rect x=\"2\" y=\"9\" width=\"28\" height=\"15\" rx=\"2\" fill=\"#2457a6\"/><rect x=\"4\" y=\"11\" width=\"22\" height=\"11\" fill=\"#1f2023\"/><path d=\"M6,13 h3 v7 h-3z\" fill=\"none\" stroke=\"#ff3b2a\" stroke-width=\"1\"/><path d=\"M11,13 h3 v7 h-3z\" fill=\"none\" stroke=\"#ff3b2a\" stroke-width=\"1\"/><path d=\"M16,13 h3 v7 h-3z\" fill=\"none\" stroke=\"#ff3b2a\" stroke-width=\"1\"/><path d=\"M21,13 h3 v7 h-3z\" fill=\"none\" stroke=\"#ff3b2a\" stroke-width=\"1\"/><circle cx=\"15.5\" cy=\"15\" r=\".6\" fill=\"#ff3b2a\"/><circle cx=\"15.5\" cy=\"18\" r=\".6\" fill=\"#ff3b2a\"/>",
+  "max7219": "<rect x=\"4\" y=\"4\" width=\"24\" height=\"24\" rx=\"2\" fill=\"#2457a6\"/><rect x=\"6\" y=\"6\" width=\"20\" height=\"20\" fill=\"#1d1e21\"/><circle cx=\"8.2\" cy=\"8.2\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"10.45\" cy=\"8.2\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"12.7\" cy=\"8.2\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"14.95\" cy=\"8.2\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"17.2\" cy=\"8.2\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"19.45\" cy=\"8.2\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"21.7\" cy=\"8.2\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"23.95\" cy=\"8.2\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"8.2\" cy=\"10.45\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"10.45\" cy=\"10.45\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"12.7\" cy=\"10.45\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"14.95\" cy=\"10.45\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"17.2\" cy=\"10.45\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"19.45\" cy=\"10.45\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"21.7\" cy=\"10.45\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"23.95\" cy=\"10.45\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"8.2\" cy=\"12.7\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"10.45\" cy=\"12.7\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"12.7\" cy=\"12.7\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"14.95\" cy=\"12.7\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"17.2\" cy=\"12.7\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"19.45\" cy=\"12.7\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"21.7\" cy=\"12.7\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"23.95\" cy=\"12.7\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"8.2\" cy=\"14.95\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"10.45\" cy=\"14.95\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"12.7\" cy=\"14.95\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"14.95\" cy=\"14.95\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"17.2\" cy=\"14.95\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"19.45\" cy=\"14.95\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"21.7\" cy=\"14.95\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"23.95\" cy=\"14.95\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"8.2\" cy=\"17.2\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"10.45\" cy=\"17.2\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"12.7\" cy=\"17.2\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"14.95\" cy=\"17.2\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"17.2\" cy=\"17.2\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"19.45\" cy=\"17.2\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"21.7\" cy=\"17.2\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"23.95\" cy=\"17.2\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"8.2\" cy=\"19.45\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"10.45\" cy=\"19.45\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"12.7\" cy=\"19.45\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"14.95\" cy=\"19.45\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"17.2\" cy=\"19.45\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"19.45\" cy=\"19.45\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"21.7\" cy=\"19.45\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"23.95\" cy=\"19.45\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"8.2\" cy=\"21.7\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"10.45\" cy=\"21.7\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"12.7\" cy=\"21.7\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"14.95\" cy=\"21.7\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"17.2\" cy=\"21.7\" r=\".8\" fill=\"#ff3b2a\"/><circle cx=\"19.45\" cy=\"21.7\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"21.7\" cy=\"21.7\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"23.95\" cy=\"21.7\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"8.2\" cy=\"23.95\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"10.45\" cy=\"23.95\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"12.7\" cy=\"23.95\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"14.95\" cy=\"23.95\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"17.2\" cy=\"23.95\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"19.45\" cy=\"23.95\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"21.7\" cy=\"23.95\" r=\".8\" fill=\"#4a2c2a\"/><circle cx=\"23.95\" cy=\"23.95\" r=\".8\" fill=\"#4a2c2a\"/>"
 };
 
 /** A breadboard in the parts panel (M6.8): mini (no rails), half, full — wider as it grows. */

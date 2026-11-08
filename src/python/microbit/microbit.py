@@ -657,3 +657,39 @@ class MicroBitI2C:
 
 
 i2c = MicroBitI2C()
+
+
+# --- spi on P13 / P15 / P14 by default (microbit_spi.c, M7 slice 2) ----------------------------------------------
+class MicroBitSPI:
+    def __init__(self):
+        self._sck, self._mosi, self._miso = '13', '15', '14'
+        self._baud = 1000000
+
+    def __repr__(self):
+        return '<MicroBitSPI>'
+
+    def init(self, baudrate=1000000, bits=8, mode=0, sclk=None, mosi=None, miso=None):
+        self._baud = _int(baudrate)
+        if sclk is not None:
+            self._sck = sclk._key
+        if mosi is not None:
+            self._mosi = mosi._key
+        if miso is not None:
+            self._miso = miso._key
+
+    def _xfer(self, data, kind):
+        return bytes.fromhex(str(_ream.spi_xfer(self._sck, self._mosi, self._miso, bytes(data).hex(), kind)))
+
+    def write(self, buf):
+        self._xfer(buf, 'write')
+
+    def read(self, nbytes, out=0):
+        return self._xfer(bytes([out]) * _int(nbytes), 'read')
+
+    def write_readinto(self, out, in_):
+        data = self._xfer(out, 'transfer')
+        for i in range(len(in_)):
+            in_[i] = data[i]
+
+
+spi = MicroBitSPI()

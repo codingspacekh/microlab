@@ -12,6 +12,8 @@ import type { RunResult } from './run';
  *                   | { sounds: [[from, to, Hz], …], silent: [[from, to], …] }   (a buzzer, M6.2)
  *                   | { values: [[at, field, min, max], …] } }   (any part's state: a servo's angle, a motor's rpm, M7;
  *                     true is 1, false 0)
+ *                   | { text: [[at, field, 'what it shows'], …] }   (a display's text: an LCD's rows joined by a
+ *                     line break, a 4-digit display's '01:27', M7 slice 2)
  *   console   { includes: ['line', …] }
  *   ended     'stopped' (a program that loops for ever) or 'done'
  *   faults    [] — no damage faults is the default
@@ -34,6 +36,7 @@ export const expectSchema = z.object({
     sounds: z.array(z.tuple([z.number(), z.number(), z.number().positive()])).optional(),
     silent: z.array(span).optional(),
     values: z.array(z.tuple([z.number(), z.string(), z.number(), z.number()])).optional(),
+    text: z.array(z.tuple([z.number(), z.string(), z.string()])).optional(),
   })).optional(),
   console: z.object({ includes: z.array(z.string()) }).optional(),
   ended: z.enum(['done', 'stopped', 'error', 'fault']).optional(),
@@ -98,6 +101,11 @@ export function check(result: RunResult, e: Expectation): string[] {
       const raw = (at(s) as Record<string, unknown> | undefined)?.[field];
       const v = typeof raw === 'boolean' ? Number(raw) : typeof raw === 'number' ? raw : NaN;
       if (!(v >= min && v <= max)) out.push(`${id}: ${field} ${Number.isNaN(v) ? 'none' : v} at ${s} s, should be ${min}–${max}`);
+    }
+    for (const [s, field, text] of want.text ?? []) {
+      const raw = (at(s) as Record<string, unknown> | undefined)?.[field];
+      const got = Array.isArray(raw) ? raw.join('\n') : raw === undefined ? undefined : String(raw);
+      if (got !== text) out.push(`${id}: ${field} ${got === undefined ? 'none' : JSON.stringify(got)} at ${s} s, should be ${JSON.stringify(text)}`);
     }
     for (const [from, to] of want.silent ?? []) {
       for (let s = from; s <= to + 1e-9; s += 0.05) {

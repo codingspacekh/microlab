@@ -549,6 +549,42 @@ function actTip(id: string, type: string, views: Record<string, PartView>, props
       const led = (k: string) => { const x = views[`${id}:${k}`]; return x?.kind === 'led' ? x.amps : 0; };
       return { title: name, line: legs.map(([k, t]) => `${t} ${mA(led(k!))}`).join(' · ') };
     }
+    // M7 slice 2 (screens 26, 26b): what each display shows, and what it needs
+    case 'ssd1306': {
+      const o = v?.kind === 'oled' ? v : undefined;
+      return {
+        title: `${name} · ${o?.on ? `${o.lit} pixels lit` : 'off'}`,
+        line: `128×64 at 0x${Number(props.address ?? 0x3c).toString(16).toUpperCase()} — it shows what the program drew when show() sends it.`,
+      };
+    }
+    case 'lcd1602': {
+      const l = v?.kind === 'lcd' ? v : undefined;
+      const rows = l?.on ? l.rows.map((r) => `"${r.trimEnd()}"`).join(', ') : '';
+      return {
+        title: `${name} · 16×2 at 0x${Number(props.address ?? 0x27).toString(16).toUpperCase()} · ${l?.backlight ? 'backlight on' : 'backlight off'}`,
+        line: l?.on ? `Rows ${rows}. Its PCF8574 turns each I²C byte into the LCD's own 4-bit commands.` : 'Its display is off: the program hasn\'t started it.',
+        ...(l?.faint ? { note: 'Its letters are too faint to read: a 16×2 LCD needs 5 V. Give its VCC VBUS (5 V).' } : {}),
+      };
+    }
+    case 'seven-segment': {
+      const lit = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'dp'].filter((sg) => { const x = views[`${id}:${sg}`]; return x?.kind === 'led' && x.brightness > 0.01; });
+      const each = lit.length ? views[`${id}:${lit[0]}`] : undefined;
+      return {
+        title: `${name} · ${lit.length ? `${lit.join(' ')} lit` : 'dark'}`,
+        line: lit.length && each?.kind === 'led' ? `${mA(each.amps)} a segment. With one resistor on COM the lit segments share it: an 8 is dimmer than a 1.` : 'Each segment is an LED: a pin to a segment, COM to GND through a resistor.',
+      };
+    }
+    case 'tm1637': {
+      const d = v?.kind === 'digits' ? v : undefined;
+      return { title: `${name} · ${d?.on ? `${d.text.trim() ? d.text : 'blank'} · brightness ${d.brightness}` : 'off'}`, line: 'It reads CLK and DIO as the program toggles them (the tm1637 library).' };
+    }
+    case 'max7219': {
+      const m = v?.kind === 'matrix' ? v : undefined;
+      return {
+        title: `${name} · ${m?.on ? `${m.lit} dots · brightness ${m.intensity} of 15` : 'off'}`,
+        line: `${supplyMa(m?.amps ?? 0)} from its VCC — the more dots and the brighter, the more.`,
+      };
+    }
     case 'power-supply': {
       const s = v?.kind === 'supply' ? v : undefined;
       const top = Number(props.top ?? 5);

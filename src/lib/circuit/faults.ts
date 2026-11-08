@@ -1,6 +1,7 @@
 import type { Connectivity } from './connectivity';
 import { LED, type Device, type Netlist, type SimState } from './devices';
 import { toNetlist } from './netlist';
+import { DISPLAYS, isDisplay } from './displays';
 import { isSensor, minVolts } from './sensors';
 import { solve, type Solution } from './solve';
 import type { CircuitSpec } from './spec';
@@ -12,7 +13,8 @@ import { UnionFind } from './union-find';
  */
 export type FaultKind =
   | 'short' | 'led-burnt' | 'led-over-current' | 'pin-over-current' | 'board-over-current'
-  | 'supply-over-current' | 'over-voltage' | 'floating' | 'servo-underpowered' | 'sensor-underpowered' | 'motor-on-pin';
+  | 'supply-over-current' | 'over-voltage' | 'floating' | 'servo-underpowered' | 'sensor-underpowered' | 'motor-on-pin'
+  | 'display-underpowered';
 
 export interface Fault {
   kind: FaultKind;
@@ -27,6 +29,9 @@ export interface Fault {
   limitV?: number;
   /** The part that did it (M7: the motor on a pin). */
   part?: string;
+  /** The type of the part it is on, when that names it better (M7 slice 2: a 7-segment digit's segment b, not an
+   *  RGB LED's blue die; an LCD too faint). */
+  partType?: string;
 }
 
 /** At its limit with its voltage collapsed: a source is short-circuited. */
@@ -77,11 +82,14 @@ export function findFaults(spec: CircuitSpec, netlist: Netlist, s: Solution, sta
     }
   }
 
+  const typeOf = new Map(spec.parts.map((p) => [p.id, p.type]));
   for (const d of netlist.devices) {
     if (d.kind !== 'led') continue;
     const i = amps(d.id)!;
-    if (i > LED.maxA) out.push({ kind: 'led-burnt', severity: 'damage', on: d.id, amps: i, limitA: LED.maxA, ratedA: LED.ratedA });
-    else if (i > LED.ratedA) out.push({ kind: 'led-over-current', severity: 'warning', on: d.id, amps: i, limitA: LED.maxA, ratedA: LED.ratedA });
+    const partType = typeOf.get(d.id.split(':')[0]!);
+    const t = partType && partType !== 'led' ? { partType } : {};
+    if (i > LED.maxA) out.push({ kind: 'led-burnt', severity: 'damage', on: d.id, amps: i, limitA: LED.maxA, ratedA: LED.ratedA, ...t });
+    else if (i > LED.ratedA) out.push({ kind: 'led-over-current', severity: 'warning', on: d.id, amps: i, limitA: LED.maxA, ratedA: LED.ratedA, ...t });
   }
 
   if (board) {
@@ -144,6 +152,15 @@ export function findFaults(spec: CircuitSpec, netlist: Netlist, s: Solution, sta
     const u = v(d.a) - v(d.b);
     const need = minVolts(part.type, part.props);
     if (u > SERVO_LOW.from && u < need) out.push({ kind: 'sensor-underpowered', severity: 'warning', on: part.id, volts: u, limitV: need });
+  }
+  // a display given some supply, but less than it shows well from (M7 slice 2: an LCD on 3V3 is too faint to read)
+  for (const part of spec.parts) {
+    if (!isDisplay(part.type)) continue;
+    // every display has its supply's load: a resistor, or the MAX7219's load
+    const d = netlist.devices.find((x) => x.id === `${part.id}:supply` || (x.id === part.id && x.kind === 'load')) as Extract<Device, { kind: 'resistor' | 'load' }>;
+    const u = v(d.a) - v(d.b);
+    const need = DISPLAYS[part.type].minVolts;
+    if (u > SERVO_LOW.from && u < need) out.push({ kind: 'display-underpowered', severity: 'warning', on: part.id, partType: part.type, volts: u, limitV: need });
   }
   return out;
 }

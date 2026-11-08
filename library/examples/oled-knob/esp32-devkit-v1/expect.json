@@ -1,0 +1,40 @@
+{
+  "seconds": 2,
+  "inputs": [
+    {
+      "at": 0,
+      "part": "knob1",
+      "position": 0.25
+    },
+    {
+      "at": 1,
+      "part": "knob1",
+      "position": 0.75
+    }
+  ],
+  "parts": {
+    "oled1": {
+      "values": [
+        [
+          0.8,
+          "on",
+          1,
+          1
+        ],
+        [
+          0.8,
+          "lit",
+          650,
+          850
+        ],
+        [
+          1.8,
+          "lit",
+          1250,
+          1500
+        ]
+      ]
+    }
+  },
+  "ended": "stopped"
+}

@@ -1,0 +1,34 @@
+{
+  "seconds": 3,
+  "parts": {
+    "lcd1": {
+      "values": [
+        [
+          0.5,
+          "on",
+          1,
+          1
+        ],
+        [
+          0.5,
+          "backlight",
+          1,
+          1
+        ]
+      ],
+      "text": [
+        [
+          0.5,
+          "rows",
+          "Hello, MicroLab!\nCount 0         "
+        ],
+        [
+          2.5,
+          "rows",
+          "Hello, MicroLab!\nCount 2         "
+        ]
+      ]
+    }
+  },
+  "ended": "stopped"
+}

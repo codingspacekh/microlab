@@ -436,3 +436,40 @@ test('M7.1 (screens 25, 25c): a TT motor dropped beside the breadboard, wired at
   await expect(win.getByRole('log', { name: 'Console' })).toContainText(/GP15: motor1 straight on the pin draws \d+ mA, a pin gives 12 mA at most/, { timeout: 5000 });
   await expect(win.getByRole('status')).toContainText('Stopped: the circuit was damaged');
 });
+
+test('M7.2 (screens 26, 26c): a 16×2 LCD dropped beside the breadboard, wired at its backpack\'s pins, its library added from the inspector — it shows what putstr wrote; on 3V3 it is too faint', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
+  const below = await centre(win, '[data-point="bb1.B-20"]');
+  await drag(win, await centre(win, '.parts .pitem:has-text("LCD 16×2")'), { x: below.x, y: below.y + 110 });
+  for (const [pin, t] of [['board.GND@38', 'gnd'], ['board.VBUS', 'vcc'], ['board.GP21', 'scl'], ['board.GP20', 'sda']]) {
+    await drag(win, await centre(win, `[data-point="${pin}"]`), await centre(win, `[data-point="lcd1.${t}"]`));
+    await win.keyboard.press('Escape');   // the wire's inspector closed again, the canvas as it was
+    await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  }
+  await expect(win.locator('[data-wire]')).toHaveCount(4);
+  await win.keyboard.press('Escape');
+  const lcd = (await win.locator('[data-part="lcd1"] .lcd1602').boundingBox())!;
+  await win.mouse.click(lcd.x + lcd.width - 12, lcd.y + lcd.height - 12);   // its board's corner, away from the wires
+  await expect(win.getByRole('complementary', { name: 'Inspector' })).toContainText('LCD1');
+  await win.getByRole('complementary', { name: 'Inspector' }).getByRole('button', { name: 'Add the lcd library' }).click();
+  await setCode(win, ['from machine import Pin, I2C', 'from i2c_lcd import I2cLcd', 'import time',
+    'lcd = I2cLcd(I2C(0, sda=Pin(20), scl=Pin(21)), 0x27, 2, 16)', "lcd.putstr('Hello, MicroLab!')", 'time.sleep(10)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.locator('[data-part="lcd1"] .lcd1602')).toHaveAttribute('data-rows', /^Hello, MicroLab!\n/, { timeout: 5000 });
+  await expect(win.locator('[data-part="lcd1"] .lcd1602')).toHaveAttribute('data-faint', '0');
+  await win.getByRole('button', { name: 'Stop' }).click();
+  await expect(win.getByRole('button', { name: 'Run main.py' })).toBeEnabled({ timeout: 2000 });
+
+  // screen 26c: its VCC on 3V3 — the wire from VBUS taken off first
+  await win.locator('[data-wire="w2"]').dispatchEvent('mousedown', { button: 0 });
+  await win.getByRole('complementary', { name: 'Inspector' }).getByRole('button', { name: 'Delete' }).click();
+  await drag(win, await centre(win, '[data-point="board.3V3"]'), await centre(win, '[data-point="lcd1.vcc"]'));
+  await win.keyboard.press('Escape');
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.locator('[data-part="lcd1"] .lcd1602')).toHaveAttribute('data-faint', '1', { timeout: 5000 });
+  const box = (await win.locator('[data-part="lcd1"] .lcd1602').boundingBox())!;
+  await win.mouse.move(box.x + box.width / 2, box.y + 20);
+  await expect(win.getByRole('tooltip')).toContainText('too faint to read: a 16×2 LCD needs 5 V');
+});

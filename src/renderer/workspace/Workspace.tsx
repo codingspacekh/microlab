@@ -212,7 +212,7 @@ export function Workspace({
               </button>
             </div>
           )}
-          {(['Basics', 'Sensors', 'Modules', 'Chips', 'Actuators', 'Output modules'] as const).map((group) => {
+          {(['Basics', 'Sensors', 'Modules', 'Chips', 'Actuators', 'Output modules', 'Displays'] as const).map((group) => {
             const kinds = PART_KINDS.filter((k) => k.group === group && !k.hidden);
             return (
               <div key={group} className="pgroup" role="group" aria-label={group}>

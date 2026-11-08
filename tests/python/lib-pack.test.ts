@@ -17,7 +17,9 @@ const pack = parsePack(json);
 const ROOT = join(process.cwd(), 'library/lib-pack');
 
 /** The example whose circuit each library runs in, the part's inputs (s, values) and what the program prints. */
-const CASES: Record<string, { example: string; part: string; inputs: [number, Record<string, number>][]; seconds: number; prints: (out: string[]) => void }> = {
+/** What a display shows at the end of the run (M7 slice 2: the display libraries print nothing). */
+type Shown = Record<string, unknown>;
+const CASES: Record<string, { example: string; part: string; inputs: [number, Record<string, number>][]; seconds: number; prints?: (out: string[]) => void; shows?: (view: Shown) => void }> = {
   // the driver takes 29.1 µs a cm one way (sound at 343.6 m/s); the sim's echo is 58 µs a cm there and back
   hcsr04: { example: 'too-close', part: 'sonar1', inputs: [[0, { cm: 50 }], [1, { cm: 120 }]], seconds: 2, prints: (o) => {
     expect(Number(o[0]!.split(' ')[0])).toBeCloseTo(50, 0);
@@ -44,6 +46,22 @@ const CASES: Record<string, { example: string; part: string; inputs: [number, Re
     expect(o).toContain('value 3');
     expect(o.filter((x) => !['value 1', 'value 2', 'value 3'].includes(x))).toEqual([]);
   } },
+  // M7 slice 2: the displays, read from what they show
+  ssd1306: { example: 'oled-knob', part: 'oled1', inputs: [], seconds: 0.5, shows: (v) => {
+    expect(v).toMatchObject({ kind: 'oled', on: true });
+    expect(v.lit).toBeGreaterThan(400);   // two lines of 8×8 letters and a rectangle's outline (276 pixels)
+    expect(v.lit).toBeLessThan(700);
+  } },
+  lcd: { example: 'lcd-hello', part: 'lcd1', inputs: [], seconds: 0.5, shows: (v) => {
+    expect(v).toMatchObject({ kind: 'lcd', on: true, backlight: true, rows: ['Hello, MicroLab!', 'on a 16x2 LCD   '] });
+  } },
+  tm1637: { example: 'tm1637-clock', part: 'tm1', inputs: [], seconds: 0.5, shows: (v) => {
+    expect(v).toMatchObject({ kind: 'digits', on: true, brightness: 7, text: '12:34' });
+  } },
+  max7219: { example: 'dot-matrix', part: 'matrix1', inputs: [], seconds: 0.5, shows: (v) => {
+    // 'A' in framebuf's 8×8 letters
+    expect(v).toMatchObject({ kind: 'matrix', on: true, rows: [0x18, 0x3c, 0x66, 0x7e, 0x66, 0x66, 0x66, 0x00] });
+  } },
   max30102: { example: 'heart-rate', part: 'pulse1', inputs: [[0, { bpm: 80, spo2: 96 }]], seconds: 2, prints: (o) => {
     const ir = o.map((l) => Number(l.split(' ')[1]));
     expect(ir.length).toBeGreaterThan(50);
@@ -69,6 +87,7 @@ describe('M6.7 the library pack runs against the parts', () => {
     });
     expect(r.error).toBeUndefined();
     expect(r.faults).toEqual([]);
-    c.prints(r.output.trim().split('\n').filter((l) => !l.startsWith('MicroPython') && l.trim()));
+    c.prints?.(r.output.trim().split('\n').filter((l) => !l.startsWith('MicroPython') && l.trim()));
+    if (c.shows) c.shows(r.parts.filter(([, id]) => id === c.part).at(-1)![2] as unknown as Shown);
   }, 30_000);
 });

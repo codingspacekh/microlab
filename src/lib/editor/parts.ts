@@ -12,12 +12,13 @@ export type PartType = 'resistor' | 'led' | 'rgb-led' | 'button' | 'slide-switch
   | 'ldr-module' | 'pot-module' | 'joystick' | 'rotary-encoder' | 'speed-sensor'
   | 'pcf8591' | 'bmp280' | 'ds18b20' | 'ds1302' | 'vl53l0x' | 'max30102'
   | 'servo' | 'motor' | 'l9110s' | 'l298n' | 'relay' | 'pump' | 'uln2003' | 'stepper'
-  | 'traffic-module' | 'rgb-module' | 'buzzer-module' | 'power-supply';
+  | 'traffic-module' | 'rgb-module' | 'buzzer-module' | 'power-supply'
+  | 'ssd1306' | 'lcd1602' | 'seven-segment' | 'tm1637' | 'max7219';
 
 export interface PartKind {
   type: PartType;
   /** Its group in the parts panel (screen 02, design/build.py PARTS). */
-  group: 'Basics' | 'Sensors' | 'Modules' | 'Chips' | 'Actuators' | 'Output modules';
+  group: 'Basics' | 'Sensors' | 'Modules' | 'Chips' | 'Actuators' | 'Output modules' | 'Displays';
   name: string;
   detail: string;
   prefix: string;
@@ -134,6 +135,20 @@ export const PART_KINDS: PartKind[] = [
   { type: 'buzzer-module', group: 'Output modules', name: 'Passive buzzer module', detail: 'plays notes', prefix: 'bzm', props: {}, rows: MODULE_ROWS, legs: header(['io', 'vcc', 'gnd']) },
   { type: 'power-supply', group: 'Output modules', name: 'Breadboard power supply', detail: '5 V · 3.3 V', prefix: 'psu', props: { top: 5, bottom: 3.3 }, rows: ['T-'],
     legs: { 't-1': [0, 0], 't-2': [16, 0], 't+1': [0, 16], 't+2': [16, 16], 'b+1': [0, 246], 'b+2': [16, 246], 'b-1': [0, 262], 'b-2': [16, 262] } },
+  // M7 slice 2 (screens 26, 26b): the OLED stands in row f by its four pins; a 7-segment digit straddles the gap, its
+  // pins in rows h and d; the LCD's backpack, the TM1637's and the matrix's headers stick out of their sides, so
+  // they lie beside the breadboard, their pins points to wire
+  { type: 'ssd1306', group: 'Displays', name: 'OLED SSD1306', detail: '128×64 · I²C', prefix: 'oled', props: { address: 0x3c }, rows: MODULE_ROWS, legs: header(['gnd', 'vcc', 'scl', 'sda']) },
+  { type: 'lcd1602', group: 'Displays', name: 'LCD 16×2', detail: 'I²C backpack', prefix: 'lcd', legs: {}, props: { address: 0x27 }, rows: [],
+    terminals: Object.fromEntries(['gnd', 'vcc', 'sda', 'scl'].map((t, i) => [t, [-30, 34 + 14 * i]])), free: { box: [-38, 0, 300, 108] } },
+  { type: 'seven-segment', group: 'Displays', name: '7-segment digit', detail: 'common cathode', prefix: 'digit', props: { common: 'cathode' }, rows: ['h', 'i'],
+    legs: { e: [0, 0], d: [16, 0], com2: [32, 0], c: [48, 0], dp: [64, 0], b: [64, -96], a: [48, -96], com1: [32, -96], f: [16, -96], g: [0, -96] } },
+  { type: 'tm1637', group: 'Displays', name: '4-digit display', detail: 'TM1637 · with colon', prefix: 'tm', legs: {}, props: {}, rows: [],
+    terminals: Object.fromEntries(['clk', 'dio', 'vcc', 'gnd'].map((t, i) => [t, [148, 12 + 12 * i]])), free: { box: [0, 0, 152, 60] } },
+  { type: 'max7219', group: 'Displays', name: '8×8 dot matrix', detail: 'MAX7219', prefix: 'matrix', legs: {}, props: {}, rows: [],
+    terminals: Object.fromEntries([
+      ...['vcc', 'gnd', 'din', 'cs', 'clk'].map((t, i) => [t, [-8, 40 + 12 * i]]), ...['vcc2', 'gnd2', 'dout', 'cs2', 'clk2'].map((t, i) => [t, [132, 40 + 12 * i]]),
+    ]) as Record<string, [number, number]>, free: { box: [-12, 0, 136, 128] } },
 ];
 
 /** A module's header: its pins in a row, one hole apart. */

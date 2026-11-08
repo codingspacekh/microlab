@@ -13,6 +13,7 @@ import type { PartView } from '../../sim/circuit';
 import type { BoardOutputs } from '../app/useRun';
 import { Icon } from '../ui/Icon';
 import { batteryBox, KIT, type KitLook, BoardLed, Breadboard, Defs, MicrobitDisplay, PartDrawing, partTurns, polyline, Wire } from './drawings';
+import type { DisplayLook } from './displays';
 import { noteName } from '../audio';
 import { InputsCard, MicrobitCard, PartTip, SLIDER_PARTS, UsbSocket, UsbTip, useLive } from './live';
 import { psuJumpers, type ActLook } from './actuators';
@@ -745,6 +746,9 @@ export function Canvas({
           const lit = glow ?? (dies ? Math.max(...dies) : undefined);
           const says = running && ['led', 'rgb-led', 'buzzer', 'pir', 'line-sensor', 'joystick', 'rotary-encoder', 'ds1302', ...ACT_TIPS].includes(p.type);
           const act = actLook(p.type, p.id, outputs.parts, ledOf);
+          // M7 slice 2: what a display shows — the sim's view of it; a digit's eight segments
+          const display: DisplayLook | undefined = DISPLAY_TYPES.includes(p.type)
+            ? { view: running ? outputs.parts[p.id] : undefined, segments: p.type === 'seven-segment' ? SEGMENTS.map((s) => ledOf(`${p.id}:${s}`)) : undefined } : undefined;
           if (kit && (p.type === 'traffic-module' || p.type === 'rgb-module')) kit.lit = (p.type === 'traffic-module' ? ['r', 'y', 'g'] : ['r', 'g', 'b']).map((d) => ledOf(`${p.id}:${d}`)) as [number, number, number];
           if (kit && p.type === 'buzzer-module') {
             const v = outputs.parts[p.id];
@@ -769,7 +773,7 @@ export function Canvas({
                 const group = on ? chosen(selection).parts : [p.id];
                 begin((at) => ({ kind: 'parts', id: p.id, ids: group, start: at, at }))(e);
               }}>
-              <PartDrawing type={p.type} legs={legs} props={p.props} label={p.id.toUpperCase()} look={{ glow, dies, position, sounding: !!hz || measuring, motion, moisture, tilt, kit, act, pressed: pressed === p.id }} />
+              <PartDrawing type={p.type} legs={legs} props={p.props} label={p.id.toUpperCase()} look={{ glow, dies, position, sounding: !!hz || measuring, motion, moisture, tilt, kit, act, display, pressed: pressed === p.id }} />
               {on && <SelectBox type={p.type} legs={legs} props={p.props} />}
             </g>
           );
@@ -1001,7 +1005,12 @@ function besideAll(project: Project): Point {
 }
 
 /** The actuators that say what they do when hovered while running (M7, screens 25, 25b). */
-const ACT_TIPS = ['servo', 'motor', 'pump', 'relay', 'l9110s', 'l298n', 'uln2003', 'stepper', 'buzzer-module', 'traffic-module', 'rgb-module', 'power-supply'];
+const ACT_TIPS = ['servo', 'motor', 'pump', 'relay', 'l9110s', 'l298n', 'uln2003', 'stepper', 'buzzer-module', 'traffic-module', 'rgb-module', 'power-supply',
+  'ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219'];
+
+/** M7 slice 2's displays, and a 7-segment digit's LEDs in order (its view ids `<id>:a` …). */
+const DISPLAY_TYPES = ['ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219'];
+const SEGMENTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'dp'];
 
 /** What an actuator shows while running, from the sim's views (M7). */
 function actLook(type: string, id: string, views: Record<string, PartView>, ledOf: (id: string) => number): ActLook | undefined {

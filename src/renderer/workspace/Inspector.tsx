@@ -32,6 +32,8 @@ const PRINTED: Record<string, [string, string][]> = {
   mpu6050: [['vcc', 'VCC'], ['gnd', 'GND'], ['scl', 'SCL'], ['sda', 'SDA'], ['xda', 'XDA'], ['xcl', 'XCL'], ['ad0', 'AD0'], ['int', 'INT']],
   // M7: the servo's plug, the drivers' headers
   servo: [['signal', 'S'], ['vcc', '+'], ['gnd', '−']],
+  ssd1306: [['gnd', 'GND'], ['vcc', 'VCC'], ['scl', 'SCL'], ['sda', 'SDA']],
+  'seven-segment': [['e', 'e'], ['d', 'd'], ['com2', 'COM'], ['c', 'c'], ['dp', 'dp'], ['g', 'g'], ['f', 'f'], ['com1', 'COM'], ['a', 'a'], ['b', 'b']],
   l9110s: [['b-ia', 'B-IA'], ['b-ib', 'B-IB'], ['gnd', 'GND'], ['vcc', 'VCC'], ['a-ia', 'A-IA'], ['a-ib', 'A-IB']],
   relay: [['s', 'S'], ['vcc', '+'], ['gnd', '−']],
   uln2003: [['in1', 'IN1'], ['in2', 'IN2'], ['in3', 'IN3'], ['in4', 'IN4'], ['-', '−'], ['+', '+']],
@@ -44,6 +46,8 @@ const TRIGGERS = [{ value: 'high', label: 'S high' }, { value: 'low', label: 'S 
 const RAIL_VOLTS = [{ value: '5', label: '5 V' }, { value: '3.3', label: '3.3 V' }];
 const ON_OFF = [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }];
 const COMMONS = [{ value: 'cathode', label: '− cathode' }, { value: 'anode', label: '+ anode' }];
+// M7 slice 2 (screen 26): each display's I²C address, as its pads or its backpack set it
+const ADDRESSES: Record<string, number[]> = { ssd1306: [0x3c, 0x3d], lcd1602: [0x27, 0x3f] };
 /** A part's tip under its rows: what to know when it goes in. */
 const TIPS: Record<string, string> = {
   led: 'The long leg (+) goes towards the pin or 3.3 V, the short leg (−) by the flat edge towards GND. Turned round, an LED doesn\'t light.',
@@ -94,6 +98,12 @@ const TIPS: Record<string, string> = {
   'rgb-module': 'R, G and B to three pins (PWM mixes them), − to GND: each die has its resistor on the board.',
   'buzzer-module': 'I/O to a PWM pin: PWM(Pin(15), freq=440) plays A4. VCC 3.3 V or 5 V.',
   'power-supply': 'Up to 700 mA from its own jack or USB, apart from the board: join a GND to the board\'s. Each rail pair\'s jumper is 5 V or 3.3 V — click it on the canvas, or set it here.',
+  // M7 slice 2 (screens 26, 26b)
+  ssd1306: 'On I²C at 0x3C (0x3D with its pad moved); 3.3–5 V. Draw with the ssd1306 library, then show() sends the picture.',
+  lcd1602: 'Needs 5 V: on 3.3 V its letters are too faint to read. Its address must be the one in the code — i2c.scan() lists what answers.',
+  'seven-segment': 'Each segment is an LED: a pin to each, COM to GND through a resistor (common cathode). One resistor on COM is shared by the lit segments; one on each keeps them as bright.',
+  tm1637: 'Any two pins for CLK and DIO (the tm1637 library); 3.3–5 V.',
+  max7219: 'Needs 5 V (VBUS, VIN or 5V). DIN to SPI MOSI, CLK to SCK, CS to any pin; its right-hand header chains another.',
 };
 const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({ value, name: value[0]!.toUpperCase() + value.slice(1), colour }));
 
@@ -200,6 +210,17 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
             <Segmented label="Battery pack" hideLabel full value={String(part.props?.kind ?? '2xAA')} onChange={(v) => set('kind', v)} options={PACKS} />
           </Row>
         )}
+        {ADDRESSES[part.type] && (
+          <Row name="Address">
+            <Segmented label="I²C address" hideLabel value={String(Number(part.props?.address ?? ADDRESSES[part.type]![0]))} onChange={(v) => set('address', Number(v))}
+              options={ADDRESSES[part.type]!.map((a) => ({ value: String(a), label: `0x${a.toString(16).toUpperCase()}` }))} />
+          </Row>
+        )}
+        {part.type === 'seven-segment' && (
+          <Row name="Common">
+            <Segmented label="Common pins" hideLabel value={String(part.props?.common ?? 'cathode')} onChange={(v) => set('common', v)} options={COMMONS} />
+          </Row>
+        )}
         {part.type === 'relay' && (
           <Row name="On with">
             <Segmented label="Relay trigger" hideLabel value={String(part.props?.trigger ?? 'high')} onChange={(v) => set('trigger', v)} options={TRIGGERS} />
@@ -256,7 +277,7 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
           </Row>
         ) : kind.free ? (
           <Row name="Lies">
-            <span className="small">beside the breadboard — wire its {part.type === 'l298n' ? 'screws and header pins' : 'tabs'}</span>
+            <span className="small">beside the breadboard — wire its {part.type === 'l298n' ? 'screws and header pins' : ['lcd1602', 'tm1637', 'max7219'].includes(part.type) ? 'header pins' : 'tabs'}</span>
           </Row>
         ) : part.type === 'power-supply' ? (
           <Row name="Pins in"><span className="small mono">{label(part.legs['t-1']!).replace(/^T-/, 'columns ')}–{Number(label(part.legs['t-1']!).replace(/^T-/, '')) + 1}, both rail pairs</span></Row>

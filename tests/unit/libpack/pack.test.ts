@@ -16,8 +16,8 @@ const lib = (id: string) => pack.libraries.find((l) => l.id === id)!;
 const LICENCE_TEXT = { MIT: /MIT License/, 'Apache-2.0': /Apache License\s+Version 2\.0/, 'BSD-3-Clause': /BSD 3-Clause License/ };
 
 describe('M6.7 the library pack, as shipped', () => {
-  it('has the drivers the M6 parts need', () => {
-    expect(pack.libraries.map((l) => l.id).sort()).toEqual(['bmp280', 'ds1302', 'hcsr04', 'max30102', 'mpu6050', 'rotary', 'vl53l0x']);
+  it('has the drivers the M6 and M7 parts need', () => {
+    expect(pack.libraries.map((l) => l.id).sort()).toEqual(['bmp280', 'ds1302', 'hcsr04', 'lcd', 'max30102', 'max7219', 'mpu6050', 'rotary', 'ssd1306', 'tm1637', 'vl53l0x']);
   });
 
   it.each(pack.libraries.map((l) => [l.id, l] as const))('%s: upstream files unchanged with their licence; the micro:bit\'s own with its notice', (id, l) => {
@@ -50,7 +50,8 @@ describe('M6.7 the library pack, as shipped', () => {
       const mb = buildFor(l, 'microbit-v2')!;
       expect(mb.authors).toBe('MicroLab');
       const size = filesFor(l, 'microbit-v2').reduce((n, [from]) => n + read(from).length, 0);
-      expect(size, l.id).toBeLessThan(3 * 1024);   // of the micro:bit's ~20 KB
+      // of the micro:bit's ~20 KB; a display's drawing calls and 8×8 letters (768 bytes) take more (M7 slice 2)
+      expect(size, l.id).toBeLessThan((['ssd1306', 'max7219'].includes(l.id) ? 7 : 4) * 1024);
       for (const [, to] of filesFor(l, 'microbit-v2')) expect(to, 'no folders on the micro:bit').not.toContain('/');
     }
   });
@@ -90,7 +91,7 @@ describe('M6.7 what a part needs, and Add library', () => {
     expect(needsOf(pack, 'hc-sr04', 'microbit-v2')).toMatchObject({ kind: 'library', library: { id: 'hcsr04' } });
     expect(needsOf(pack, 'dht', 'microbit-v2')).toBeNull();
     expect(needsOf(pack, 'button', 'pico-w')).toBeNull();
-    expect(librariesFor(pack, 'microbit-v2')).toHaveLength(7);
+    expect(librariesFor(pack, 'microbit-v2')).toHaveLength(11);
     expect(filesFor(lib('max30102'), 'microbit-v2')).toEqual([['max30102/microbit/max30102.py', 'max30102.py']]);   // next to main.py, no licence file
   });
 
