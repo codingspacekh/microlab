@@ -1,7 +1,7 @@
 import { COLUMNS, hasRails, type BreadboardSize } from '../circuit';
 import { microbitAlone, onGpioBoard, type Project } from '../project';
 import { artOf, boardData, MICROBIT_ALONE_ART } from './library';
-import { BREADBOARD, sceneOf, snapToGrid, type Point } from './geometry';
+import { BREADBOARD, boardBox, sceneOf, snapToGrid, type Point } from './geometry';
 import { partKind } from './parts';
 import { usedPoints, type Legs } from './place';
 
@@ -132,6 +132,19 @@ export function moveBoard(project: Project, to: Point): Project {
   const view = sceneOf(project).view;
   const at = snapToGrid(to);
   return { ...project, wires: shiftBends(project, 'board', at.x - view.board.x, at.y - view.board.y), view: { ...view, board: at } };
+}
+
+/** The board a quarter turn more, clockwise (M7, the teacher's request): the wires stay on its pins; it keeps its
+ *  bottom-left corner where it was, so it grows up and right, away from the breadboard below it. */
+export function rotateBoard(project: Project): Project {
+  const scene = sceneOf(project);
+  const view = scene.view;
+  const turns = ((view.boardTurns ?? 0) + 1) % 4;
+  const rest = { board: view.board, breadboards: view.breadboards, ...(view.parts ? { parts: view.parts } : {}) };
+  const turned = { ...project, view: turns ? { ...rest, boardTurns: turns } : rest };
+  const before = boardBox(scene);
+  const after = boardBox(sceneOf(turned));
+  return moveBoard(turned, { x: view.board.x + before.x - after.x, y: view.board.y + before.y + before.h - (after.y + after.h) });
 }
 
 export function moveBreadboard(project: Project, id: string, to: Point): Project {

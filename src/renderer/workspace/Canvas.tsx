@@ -4,10 +4,10 @@ import {
   insertBend, joined, moveBend, pinCard, type HoleCard, type PinCard,
   legsCentre, moveBoard, moveBreadboard, moveParts, nearestPoint, panBy, partKind, PITCH, pointAt, rotateParts, sceneOf,
   putInGpioBoard, RING_LABELS, setUsb, snapPart, snapToGrid, usedPoints, zoomAt, ZOOM, type Art, type Box, type Legs, type Point, type Scene,
-  freeBox, freeTurn, isFree, setPartProp, terminalsOf,
+  boardAt, boardBox, freeBox, freeTurn, isFree, rotateBoard, setPartProp, terminalsOf,
 } from '@lib/editor';
 import type { BreadboardSize } from '@lib/circuit';
-import { microbitAlone, onGpioBoard, type Project } from '@lib/project';
+import { microbitAlone, type Project } from '@lib/project';
 import { boardName, boardPicture } from '../app/boards';
 import type { PartView } from '../../sim/circuit';
 import type { BoardOutputs } from '../app/useRun';
@@ -46,8 +46,8 @@ import { psuJumpers, type ActLook } from './actuators';
  * stretch dragged out to add one (F-13).
  */
 /** How long a new project's Start building card shows before it goes by itself (the teacher, 2026-11-08: a hint
- *  for a moment, not in the way); it fades over its last 0.8 s (workspace.css). */
-export const START_CARD_MS = 6000;
+ *  for a moment, not in the way — 2 s, M7); it fades over its last 0.8 s (workspace.css). */
+export const START_CARD_MS = 2000;
 
 export const MESSAGES = {
   noRoom: 'No room there: every leg needs an empty hole on the breadboard.',
@@ -299,6 +299,7 @@ export function Canvas({
   // the commands on what is selected (keys and toolbar)
   const commands = {
     rotate(proj: Project, sel: Selection[]) {
+      if (sel.some((x) => x.kind === 'board')) { say(null); onChange(rotateBoard(proj)); return; }   // M7: the board itself
       const { parts } = chosen(sel);
       if (!parts.length) return;
       const next = rotateParts(proj, parts);
@@ -354,7 +355,7 @@ export function Canvas({
       onSelect([...keep, ...inBox.filter((x) => !keep.some((k) => k.kind === x.kind && k.id === x.id))]);
       return;
     }
-    const select = (): Selection[] => (g.kind === 'board' ? (onGpioBoard(proj) ? [{ kind: 'board', id: 'board' }] : []) : g.kind === 'breadboard' ? [{ kind: 'breadboard', id: g.id }]
+    const select = (): Selection[] => (g.kind === 'board' ? [{ kind: 'board', id: 'board' }] : g.kind === 'breadboard' ? [{ kind: 'breadboard', id: g.id }]
       : g.ids.length > 1 && !still ? g.ids.map((id) => ({ kind: 'part' as const, id })) : [{ kind: 'part', id: g.id }]);
     if (still) { say(null); onSelect(select()); return; }
     const p = previewOf(proj, g);
@@ -667,6 +668,8 @@ export function Canvas({
             </g>
           );
         })}
+        {/* the board and its own outputs, turned about the picture's middle (M7, the teacher's request) */}
+        <g transform={scene.view.boardTurns ? `rotate(${90 * scene.view.boardTurns} ${scene.view.board.x + art.width / 2} ${scene.view.board.y + art.height / 2})` : undefined}>
         <image
           role="img"
           aria-label={boardName(shown)}
@@ -678,15 +681,17 @@ export function Canvas({
           height={art.height}
           onMouseDown={begin((at) => ({ kind: 'board', start: at, at }))}
         />
-        {isOn('board', 'board') && (
-          <rect className="sel" data-selected-board="" x={scene.view.board.x - 5} y={scene.view.board.y - 5} width={art.width + 10} height={art.height + 10} rx={12} />
-        )}
         {art.usb && (
           <UsbSocket at={{ x: scene.view.board.x + art.usb.socket[0], y: scene.view.board.y + art.usb.socket[1] }} plugged={project.usb !== false}
             onToggle={() => { if (!running) onChange(setUsb(project, project.usb === false)); }}
             onHover={(on) => setTipOf((t) => (on ? 'usb' : t === 'usb' ? null : t))} />
         )}
         <BoardOutputsLayer boardId={scene.boardId} art={art} at={scene.view.board} pins={outputs.board.pins} display={outputs.board.display} led={ledOf('board.LED')} />
+        </g>
+        {isOn('board', 'board') && (() => {
+          const b = boardBox(scene);
+          return <rect className="sel" data-selected-board="" x={b.x - 5} y={b.y - 5} width={b.w + 10} height={b.h + 10} rx={12} />;
+        })()}
         {lit && <Joined scene={scene} strips={lit.strips} points={lit.points} />}
         {shown.wires.filter((w) => !onTerminal(w)).map(drawWire)}
         {!running && selection.length === 1 && selection[0]!.kind === 'wire' && (() => {
@@ -841,7 +846,7 @@ export function Canvas({
         const tipPart = running && tipOf && tipOf !== 'usb' ? project.parts.find((p) => p.id === tipOf) : undefined;
         return (
           <>
-            {running && boardOpen && project.board === 'microbit-v2' && <MicrobitCard live={live} onClose={() => setBoardOpen(false)} style={{ right: 14, top: 14 }} />}
+            {running && boardOpen && project.board === 'microbit-v2' && <MicrobitCard live={live} onClose={() => setBoardOpen(false)} style={{ right: 14, top: 14 }} radio={outputs.board.radio} />}
             {sliders.length > 0 && <InputsCard parts={sliders} live={live} views={outputs.parts} onClose={() => setInputsOpen(false)} style={{ right: 14, bottom: 14 }} />}
             {tipPart && (
               <PartTip id={tipPart.id} type={tipPart.type} common={String(tipPart.props?.common ?? 'cathode')} views={outputs.parts} props={tipPart.props}
@@ -851,7 +856,7 @@ export function Canvas({
             )}
             {tipOf === 'usb' && art.usb && (
               <UsbTip plugged={project.usb !== false} style={(() => {
-                const c = screenOf({ x: scene.view.board.x + art.usb.socket[0], y: scene.view.board.y + art.usb.socket[1] });
+                const c = screenOf(boardAt(scene, art.usb.socket));
                 // left of the cable, over the empty canvas, not over the board's pins
                 return { left: Math.max(8, Math.round(c.x - 110 * scale - 240)), top: Math.round(c.y + 70 * scale) };
               })()} />
@@ -876,7 +881,7 @@ export function Canvas({
         <ToolButton icon="zoomin" label="Zoom in" keys="+" disabled={scale >= ZOOM.max - 1e-6} onClick={() => zoomBy(ZOOM.step)} />
         <ToolButton icon="fit" label="Fit" keys="0" disabled={false} onClick={fitView} />
         <span className="vsep" />
-        <ToolButton icon="rotate" label="Rotate" keys="R" disabled={!canEdit || !some.parts.length} onClick={() => commands.rotate(project, selection)} />
+        <ToolButton icon="rotate" label="Rotate" keys="R" disabled={!canEdit || (!some.parts.length && !selection.some((x) => x.kind === 'board'))} onClick={() => commands.rotate(project, selection)} />
         <ToolButton icon="copy" label="Duplicate" keys={`${MOD}D`} disabled={!canEdit || (!some.parts.length && !some.wires.length)} onClick={() => commands.duplicate(project, selection)} />
         <ToolButton icon="trash" label="Delete" keys="Delete" disabled={!canEdit || (!some.parts.length && !some.wires.length)} onClick={() => commands.remove(project, selection)} />
       </div>

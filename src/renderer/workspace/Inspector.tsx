@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { boardData, deleteMany, deleteWire, duplicate, joinsOf, partKind, rotateParts, setBreadboardSize, setPartProp, setUsb, setWireColour, straighten, takeOutOfGpioBoard } from '@lib/editor';
+import { boardData, deleteMany, deleteWire, duplicate, joinsOf, partKind, rotateBoard, rotateParts, setBreadboardSize, setPartProp, setUsb, setWireColour, straighten, takeOutOfGpioBoard } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { BreadboardSize } from '@lib/circuit';
-import type { Project, ProjectDoc } from '@lib/project';
+import { onGpioBoard, type Project, type ProjectDoc } from '@lib/project';
+import { boardName, boardPicture } from '../app/boards';
 import { formatValue } from '@lib/units';
 import { Chips, Icon, Segmented, Stepper, Swatches } from '../ui';
 import { GPIO_BOARD_TYPE, MESSAGES, wireColour, type Selection } from './Canvas';
@@ -331,6 +332,18 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
         <p className="tiny muted led-tip">Drag a bend to move it, double-click it to take it away; drag a dot in the middle of a stretch to add one.</p>
       </>
     );
+  } else if (selection.kind === 'board' && !onGpioBoard(project)) {
+    // M7 (the teacher's request): the board itself, turned a quarter at a time; its wires stay on its pins
+    icon = <img src={boardPicture(project)} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;
+    title = boardName(project);
+    rows = (
+      <>
+        <p className="tiny muted board-sub">Its pins are where its picture has them; turned, the wires stay on them.</p>
+        <div className="actions">
+          <button type="button" className="btn sm" title="Rotate (R)" onClick={() => onChange(rotateBoard(project))}><Icon name="rotate" size={14} /> Rotate</button>
+        </div>
+      </>
+    );
   } else if (selection.kind === 'board') {
     // M6.9 (screen 24b): the micro:bit's GPIO board — its micro-USB, and the micro:bit taken out of it
     icon = <PartIcon type={GPIO_BOARD_TYPE} />;
@@ -345,6 +358,7 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
         </Row>
         <p className="tiny muted led-tip">Without the GPIO board the micro:bit has its five rings: 0, 1, 2, 3V and GND.</p>
         <div className="actions">
+          <button type="button" className="btn sm" title="Rotate (R)" onClick={() => onChange(rotateBoard(project))}><Icon name="rotate" size={14} /> Rotate</button>
           <button type="button" className="btn sm danger" onClick={() => {
             const r = takeOutOfGpioBoard(project);
             onChange(r.project);

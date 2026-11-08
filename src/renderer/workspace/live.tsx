@@ -4,6 +4,7 @@ import type { Point } from '@lib/editor';
 import type { PartView } from '../../sim/circuit';
 import { noteName } from '../audio';
 import { Icon, Segmented, Slider, Switch } from '../ui';
+import { TextField } from '../ui/TextField';
 import { UsbPlug } from './drawings';
 
 /**
@@ -23,7 +24,7 @@ export const START: Record<string, number> = {
 };
 const KNOB_START = 0.5;
 /** A micro:bit's own inputs as the sim starts them (src/sim/run.ts): 25 °C, a light level of 128, silence. */
-const BOARD_START: Record<string, number> = { 'board:celsius': 25, 'board:light': 128, 'board:sound': 0, 'board:accelx': 0, 'board:accely': 0, 'board:shake': 0 };
+const BOARD_START: Record<string, number> = { 'board:celsius': 25, 'board:light': 128, 'board:sound': 0, 'board:accelx': 0, 'board:accely': 0, 'board:accelz': NaN, 'board:shake': 0, 'radio:seq': 0 };
 /** Pixels of drag from one end of a knob's turn to the other. */
 const KNOB_PX = 150;
 
@@ -299,7 +300,21 @@ const TILT_STEP = 64;
  * go), a shake, the light level and the sound level (0–255) and the temperature. Each is a live slot of the run
  * ('pressed:board.A', 'touch:LOGO', 'board:accelx' …), read by the sim's `microbit` module.
  */
-export function MicrobitCard({ live, onClose, style }: { live: Live; onClose: () => void; style: CSSProperties }) {
+/** The micro:bit's postures and moments (M7, the teacher's request): the accelerometer's vector for each, in mg —
+ *  CODAL's gestures (src/sim/motion.ts posture). A posture stays; a moment lasts while its button is held. */
+const POSES: [string, [number, number, number]][] = [['Face up', [0, 0, -1024]], ['Face down', [0, 0, 1024]], ['Up', [0, 1024, 0]], ['Down', [0, -1024, 0]], ['Left', [-1024, 0, 0]], ['Right', [1024, 0, 0]]];
+const MOMENTS: [string, [number, number, number]][] = [['Freefall', [0, 0, 0]], ['3g', [0, 0, -3500]], ['6g', [0, 0, -7000]], ['8g', [0, 0, -9000]]];
+
+/** A radio message as the program sent it (hex): a string (after modradio.c's 3-byte header) in quotes, else its bytes. */
+export function radioText(hex: string): string {
+  const bytes = (hex.match(/../g) ?? []).map((b) => parseInt(b, 16));
+  if (hex.startsWith('010001')) return `"${new TextDecoder().decode(new Uint8Array(bytes.slice(3)))}"`;
+  return `b'${bytes.map((b) => (b >= 32 && b < 127 ? String.fromCharCode(b) : `\\x${b.toString(16).padStart(2, '0')}`)).join('')}'`;
+}
+
+export function MicrobitCard({ live, onClose, style, radio = [] }: { live: Live; onClose: () => void; style: CSSProperties; radio?: string[] }) {
+  const [message, setMessage] = useState('');
+  const moment = useRef<number[] | null>(null);   // the vector before a held moment (freefall, 3g …), back on release
   const [held, setHeld] = useState<string[]>([]);
   const pad = useRef<{ left: number; top: number } | null>(null);
   const heldRef = useRef(held);
@@ -312,6 +327,7 @@ export function MicrobitCard({ live, onClose, style }: { live: Live; onClose: ()
     const p = pad.current;
     if (!p) return;
     const half = PAD / 2;
+    liveRef.current.set('board:accelz', NaN);   // tilted from face up again
     liveRef.current.set('board:accelx', clampMg(((clientX - p.left - half) / half) * G_MG));
     liveRef.current.set('board:accely', clampMg(((clientY - p.top - half) / half) * G_MG));
   };
@@ -388,6 +404,38 @@ export function MicrobitCard({ live, onClose, style }: { live: Live; onClose: ()
           <span className="tiny muted mono">x {mg(x)} · y {mg(y)}</span>
           <button type="button" className="btn sm" onClick={() => live.set('board:shake', live.value('board:shake') + 1)}><Icon name="shake" size={12} /> Shake</button>
         </span>
+      </div>
+      <div className="mb-gestures" role="group" aria-label="Gestures">
+        {POSES.map(([name, v]) => (
+          <button key={name} type="button" className="btn sm" title={`Hold it ${name.toLowerCase()}`}
+            onClick={() => { live.set('board:accelx', v[0]); live.set('board:accely', v[1]); live.set('board:accelz', name === 'Face up' ? NaN : v[2]); }}>{name}</button>
+        ))}
+        {MOMENTS.map(([name, v]) => {
+          const down = () => { moment.current = [x, y, live.value('board:accelz')]; live.set('board:accelx', v[0]); live.set('board:accely', v[1]); live.set('board:accelz', v[2]); };
+          const up = () => { const w = moment.current; if (!w) return; moment.current = null; live.set('board:accelx', w[0]!); live.set('board:accely', w[1]!); live.set('board:accelz', w[2]!); };
+          return (
+            <button key={name} type="button" className="btn sm" title={name === 'Freefall' ? 'Hold to drop it' : `Hold for a ${name} jolt`}
+              onMouseDown={(e) => { if (e.button === 0) { e.preventDefault(); down(); } }} onMouseUp={up} onMouseLeave={up}
+              onKeyDown={(e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); down(); } }} onKeyUp={up}>{name}</button>
+          );
+        })}
+      </div>
+      <div className="mb-radio" role="group" aria-label="Radio">
+        <div className="small"><Icon name="wire" size={12} /> <b>Radio</b> <span className="tiny muted">· sent by this micro:bit</span></div>
+        <ul className="tiny mono sent" aria-label="Radio messages sent">
+          {radio.length ? radio.map((h, i) => <li key={i}>{radioText(h)}</li>) : <li className="muted">nothing yet</li>}
+        </ul>
+        <form className="row" onSubmit={(e) => {
+          e.preventDefault();
+          const bytes = [...new TextEncoder().encode(message)].slice(0, 29);
+          bytes.forEach((b, i) => live.set(`radio:${i}`, b));
+          live.set('radio:len', bytes.length);
+          live.set('radio:seq', live.value('radio:seq') + 1);
+          setMessage('');
+        }}>
+          <TextField label="A message from another micro:bit" hideLabel value={message} onChange={setMessage} placeholder="From another micro:bit…" />
+          <button type="submit" className="btn sm" disabled={!message}>Send</button>
+        </form>
       </div>
       <Slider label="Light level" icon="sun" value={live.value('board:light')} min={0} max={255} step={1} onChange={(v) => live.set('board:light', v)} />
       <Slider label="Temperature" icon="therm" value={live.value('board:celsius')} min={-10} max={50} step={1} format={(v) => `${v} °C`} onChange={(v) => live.set('board:celsius', v)} />

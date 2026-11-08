@@ -21,6 +21,9 @@ export interface CodeEditorProps {
   onChange: (value: string) => void;
   /** The project's board: its modules are offered (M5.5). */
   board?: string;
+  /** The text size (px, M6.8): when it changes the editor measures its lines again — or the line numbers keep the
+   *  old height until it is next focused (the teacher, M7). */
+  size?: number;
 }
 
 /** A change put in from outside, not typed: onChange is not told. */
@@ -34,7 +37,7 @@ const colours = HighlightStyle.define([
   { tag: t.comment, color: 'var(--code-com)', fontStyle: 'italic' },
 ]);
 
-export function CodeEditor({ label, value, onChange, board }: CodeEditorProps) {
+export function CodeEditor({ label, value, onChange, board, size }: CodeEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const changed = useRef(onChange);
@@ -77,6 +80,9 @@ export function CodeEditor({ label, value, onChange, board }: CodeEditorProps) {
     if (!v || v.state.doc.toString() === value) return;
     v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: value }, annotations: fromOutside.of(true) });
   }, [value]);
+
+  // the size is a CSS variable on the code panel: once it is in the page, the lines and their numbers are measured again
+  useEffect(() => { view.current?.requestMeasure(); }, [size]);
 
   return <div className="code-editor" ref={host} />;
 }

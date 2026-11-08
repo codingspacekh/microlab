@@ -13,7 +13,7 @@ export type StartRun = (req: { doc: ProjectDoc; entry: string }, events: RunEven
 export type ConsoleKind = 'out' | 'sys' | 'err';
 export interface ConsoleChunk { kind: ConsoleKind; text: string }
 /** The board's own outputs while running: pin levels, the micro:bit's display, its speaker's pitch (Hz; M6.2). */
-export interface BoardOutputs { pins: Record<string, number>; display?: string; sound?: number }
+export interface BoardOutputs { pins: Record<string, number>; display?: string; sound?: number; radio?: string[] }
 
 export interface RunState {
   status: 'idle' | 'running' | 'stopping';
@@ -42,7 +42,9 @@ export function useRun(start: StartRun = realStart) {
     handle.current = start({ doc, entry }, {
       onOutput: (text) => add({ kind: 'out', text }),
       onParts: (states) => setState((s) => ({ ...s, parts: { ...s.parts, ...states } })),
-      onBoard: (b) => setState((s) => ({ ...s, board: { pins: { ...s.board.pins, ...b.pins }, display: b.display ?? s.board.display, sound: b.sound ?? s.board.sound } })),
+      // the radio's messages sent (M7): the last six, as hex
+      onBoard: (b) => setState((s) => ({ ...s, board: { pins: { ...s.board.pins, ...b.pins }, display: b.display ?? s.board.display, sound: b.sound ?? s.board.sound,
+        radio: b.radio ? [...(s.board.radio ?? []), ...b.radio].slice(-6) : s.board.radio } })),
       onEnd: (result) => {
         handle.current = null;
         setState((s) => ({

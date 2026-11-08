@@ -27,7 +27,7 @@ export type WorkerMessage =
   | { type: 'parts'; states: Record<string, PartView> }
   /** The board's own outputs that changed (M4.5): pin levels ('LED' is the Pico W's own LED), the display, the
    *  micro:bit speaker's pitch (Hz, 0: silence; M6.2). */
-  | { type: 'board'; pins: Record<string, number>; display?: string; sound?: number }
+  | { type: 'board'; pins: Record<string, number>; display?: string; sound?: number; radio?: string[] }
   | { type: 'end'; result: RunResult };
 
 const FRAME_MS = 1000 / 60;
@@ -44,17 +44,19 @@ export async function handleStart(
   let pins: Record<string, number> = {};
   let display: string | undefined;
   let sound: number | undefined;
+  let radio: string[] = [];
   let last = -Infinity;
   const flush = () => {
     if (pending) post({ type: 'output', text: pending });
     if (Object.keys(parts).length) post({ type: 'parts', states: parts });
-    if (Object.keys(pins).length || display !== undefined || sound !== undefined) {
-      post({ type: 'board', pins, ...(display !== undefined ? { display } : {}), ...(sound !== undefined ? { sound } : {}) });
+    if (Object.keys(pins).length || display !== undefined || sound !== undefined || radio.length) {
+      post({ type: 'board', pins, ...(display !== undefined ? { display } : {}), ...(sound !== undefined ? { sound } : {}), ...(radio.length ? { radio } : {}) });
     }
     pending = '';
     parts = {};
     pins = {};
     display = undefined;
+    radio = [];
     sound = undefined;
     last = now();
   };
@@ -88,6 +90,10 @@ export async function handleStart(
     },
     onSound: (hz) => {
       sound = hz;
+      maybeFlush();
+    },
+    onRadio: (hex) => {
+      radio.push(hex);
       maybeFlush();
     },
   });

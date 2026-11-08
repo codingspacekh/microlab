@@ -186,7 +186,7 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 
 /* ---------- M6.8: the board alone (screen 23), the parts drawer (screen 23b) ---------- */
 .start-card { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); width: min(400px, calc(100% - 32px)); padding: 14px 16px; text-align: center; z-index: 2;
-  animation: start-card-out .8s ease-in 5.2s forwards; }
+  animation: start-card-out .8s ease-in 1.2s forwards; }   /* START_CARD_MS (2 s) less its fade */
 @keyframes start-card-out { to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .start-card { animation: none; } }
 .start-card p { margin: 4px 0 10px; color: var(--tx-2); font-size: 12.5px; line-height: 1.45; }
@@ -215,3 +215,12 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 /* the parts panel's search (M7): under its heading, always in view as the list scrolls */
 .parts .psearch { padding: 0 12px 8px; }
 .parts .no-match { padding: 8px 12px; }
+
+/* the micro:bit card's gestures and radio (M7, the teacher's request) */
+.mb-gestures { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 6px; }
+.mb-gestures .btn { padding: 0 7px; }
+.mb-radio { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 6px; }
+.mb-radio .sent { list-style: none; margin: 4px 0 6px; padding: 0; max-height: 64px; overflow: auto; }
+.mb-radio .sent li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-radio form { gap: 6px; }
+.mb-radio form > :first-child { flex: 1; min-width: 0; }

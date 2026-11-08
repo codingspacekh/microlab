@@ -303,7 +303,7 @@ export function Workspace({
           return space && space.level !== 'ok' ? <p className={`space-warn ${space.level}`} role="alert"><Icon name="warn" size={14} /> {space.text}</p> : null;
         })()}
         {typeof doc.files[editing] === 'string' || !(editing in doc.files)
-          ? <CodeEditor label={editing} board={project.board} value={text(doc.files[editing])} onChange={(code) => onChange({ ...doc, files: { ...doc.files, [editing]: code } })} />
+          ? <CodeEditor label={editing} board={project.board} size={look.size} value={text(doc.files[editing])} onChange={(code) => onChange({ ...doc, files: { ...doc.files, [editing]: code } })} />
           : <p className="small muted not-text">{editing} isn't a text file, so it can't be shown here.</p>}
         {files && (
           <FilesPanel key={files.ask ? 'ask' : 'list'} doc={doc} ask={files.ask} onDoc={onChange} onOpen={openFile} onClose={() => setFiles(null)}

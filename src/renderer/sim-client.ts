@@ -22,7 +22,7 @@ export interface WorkerLike {
 export interface RunEvents {
   onOutput: (text: string) => void;
   onParts: (states: Record<string, PartView>) => void;
-  onBoard: (outputs: { pins: Record<string, number>; display?: string; sound?: number }) => void;
+  onBoard: (outputs: { pins: Record<string, number>; display?: string; sound?: number; radio?: string[] }) => void;
   onEnd: (result: RunResult) => void;
 }
 
@@ -51,7 +51,9 @@ const SLOT: Record<string, string[]> = {
 
 /** The micro:bit's own inputs (M6.6, screen 06): buttons A and B, the touch logo, its tilt (mg), a shake (a count),
  *  its temperature, light level and sound level. */
-export const MICROBIT_SLOTS = ['pressed:board.A', 'pressed:board.B', 'touch:LOGO', 'board:accelx', 'board:accely', 'board:shake', 'board:celsius', 'board:light', 'board:sound'];
+export const MICROBIT_SLOTS = ['pressed:board.A', 'pressed:board.B', 'touch:LOGO', 'board:accelx', 'board:accely', 'board:accelz', 'board:shake', 'board:celsius', 'board:light', 'board:sound',
+  // M7: a message from another micro:bit — its bytes, how many, and a count of the messages sent
+  'radio:seq', 'radio:len', ...Array.from({ length: 32 }, (_, i) => `radio:${i}`)];
 
 export function inputSlots(project: Project): string[] {
   const own = project.board === 'microbit-v2' ? MICROBIT_SLOTS : [];
@@ -81,7 +83,7 @@ export function startRun(req: { doc: ProjectDoc; entry: string }, events: RunEve
     if (ended) return;
     if (m.type === 'output') events.onOutput(m.text);
     else if (m.type === 'parts') events.onParts(m.states);
-    else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}), ...(m.sound !== undefined ? { sound: m.sound } : {}) });
+    else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}), ...(m.sound !== undefined ? { sound: m.sound } : {}), ...(m.radio ? { radio: m.radio } : {}) });
     else end(m.result);
   };
   worker.onerror = (e) => end({ ...emptyResult('error'), error: { type: 'Error', message: `The simulator couldn't start: ${e.message}` } });
@@ -109,5 +111,5 @@ export function startRun(req: { doc: ProjectDoc; entry: string }, events: RunEve
 }
 
 function emptyResult(ended: RunResult['ended']): RunResult {
-  return { output: '', trace: [], pwm: [], analog: [], display: [], sound: [], bus: [], parts: [], faults: [], ended };
+  return { output: '', trace: [], pwm: [], analog: [], display: [], sound: [], bus: [], radio: [], parts: [], faults: [], ended };
 }

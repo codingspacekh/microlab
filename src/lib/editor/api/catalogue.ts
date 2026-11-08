@@ -417,6 +417,21 @@ get_tempo() — The tempo as (ticks, bpm).
 reset() — Sets the tempo back to its start.
 `;
 
+const RADIO = `
+on() — Turns the radio on, to send and receive; it is off when the program starts.
+off() — Turns the radio off.
+config(length=32, queue=3, channel=7, power=6, data_rate=RATE_1MBIT, address=0x75626974, group=0) — Its settings: micro:bits on the same channel and group hear each other.
+reset() — Its settings back to how they start.
+send(message) — Sends a string to the micro:bits on its channel and group.
+send_bytes(message) — Sends bytes as they are.
+receive() — The oldest message waiting, as a string; None when there is none.
+receive_bytes() — The oldest message waiting, as bytes; None when there is none.
+receive_bytes_into(buffer) — The oldest message copied into buffer: how many bytes, or None.
+receive_full() — The oldest message, its signal strength and when it came: (bytes, rssi, µs).
+RATE_1MBIT — Sends at 1 Mbit/s, the usual speed.
+RATE_2MBIT — Sends at 2 Mbit/s.
+`;
+
 const TUNES = `DADADADUM ENTERTAINER PRELUDE ODE NYAN RINGTONE FUNK BLUES BIRTHDAY WEDDING FUNERAL PUNCHLINE PYTHON BADDY
 CHASE BA_DING WAWAWAWAA JUMP_UP JUMP_DOWN POWER_UP POWER_DOWN`;
 
@@ -442,6 +457,7 @@ export const MODULES: Record<string, { boards: ApiBoard[]; doc: string; text: st
     doc: 'Everything on the micro:bit: display, buttons, pins, accelerometer. from microbit import *',
     text: MICROBIT + words(IMAGES).map((n) => `Image.${n} — The built-in ${picture(n)} picture.`).join('\n'),
   },
+  radio: { boards: ['microbit'], doc: 'The micro:bit\'s own radio, between micro:bits: send and receive messages.', text: RADIO },
   music: {
     boards: ['microbit'],
     doc: 'Tunes and notes on the speaker (or a buzzer on pin 0).',

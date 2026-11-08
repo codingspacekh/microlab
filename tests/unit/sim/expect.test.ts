@@ -5,7 +5,7 @@ import type { RunResult } from '../../../src/sim/run';
 
 const led = (b: number): PartView => ({ kind: 'led', amps: b * 0.02, brightness: b });
 const result = (over: Partial<RunResult> = {}): RunResult => ({
-  output: '', trace: [], pwm: [], analog: [], display: [], sound: [], bus: [], parts: [], faults: [], ended: 'stopped', ...over,
+  output: '', trace: [], pwm: [], analog: [], display: [], sound: [], bus: [], radio: [], parts: [], faults: [], ended: 'stopped', ...over,
 });
 /** An LED blinking at `hz` for `s` seconds, as the trace would show it. */
 const blinking = (hz: number, s: number, skew = 0) => {

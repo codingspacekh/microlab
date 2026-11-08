@@ -12,7 +12,23 @@ import { freeTurn, PART_KINDS, turnsOf, type PartKind } from './parts';
  */
 export interface Point { x: number; y: number }
 /** Where things are: the board, each breadboard, and each part beside the breadboard (M7), with its quarter turns. */
-export interface View { board: Point; breadboards: Record<string, Point>; parts?: Record<string, Point & { turns?: number }> }
+export interface View { board: Point; breadboards: Record<string, Point>; parts?: Record<string, Point & { turns?: number }>; boardTurns?: number }
+
+/** A point of the board's picture ([x, y] on it) on the canvas: turned `view.boardTurns` quarters clockwise about the
+ *  picture's middle (M7, the teacher's request). */
+export function boardAt(scene: Scene, [x, y]: [number, number]): Point {
+  const { width: w, height: h } = scene.art;
+  let [dx, dy] = [x - w / 2, y - h / 2];
+  for (let i = 0; i < (scene.view.boardTurns ?? 0); i++) [dx, dy] = [-dy || 0, dx];
+  return { x: scene.view.board.x + w / 2 + dx, y: scene.view.board.y + h / 2 + dy };
+}
+
+/** The board's box on the canvas, turned. */
+export function boardBox(scene: Scene): { x: number; y: number; w: number; h: number } {
+  const { width, height } = scene.art;
+  const [w, h] = (scene.view.boardTurns ?? 0) % 2 ? [height, width] : [width, height];
+  return { x: scene.view.board.x + (width - w) / 2, y: scene.view.board.y + (height - h) / 2, w, h };
+}
 
 export const PITCH = 16;
 const ROWS: Record<string, number> = { 'T-': 18, 'T+': 34, 'B+': 264, 'B-': 280 };
@@ -63,8 +79,9 @@ function lyingDefaults(scene: Scene): Scene {
   if (!missing.length) return scene;
   const parts = { ...scene.view.parts };
   const view = { ...scene.view, parts };
-  let right = view.board.x + scene.art.width;
-  let y = view.board.y;
+  const box = boardBox(scene);
+  let right = box.x + box.w;
+  let y = box.y;
   for (const bb of scene.project.breadboards) {
     const c = view.breadboards[bb.id];
     if (c) { right = Math.max(right, c.x + BREADBOARD.size(bb.size).width); y = Math.min(y, c.y); }
@@ -112,7 +129,7 @@ export function pointAt(scene: Scene, ref: string): Point | undefined {
     // by its id, or by its label as an example may name it (board.GND: the first GND)
     const pin = boardData(scene.boardId).pins.find((p) => p.id === name) ?? findPin(boardData(scene.boardId), name);
     const xy = pin && scene.art.pins[String(pin.number)];
-    return xy ? { x: scene.view.board.x + xy[0], y: scene.view.board.y + xy[1] } : undefined;
+    return xy ? boardAt(scene, xy) : undefined;
   }
   const bb = scene.project.breadboards.find((b) => b.id === owner);
   if (!bb) {
@@ -178,7 +195,7 @@ export function allPoints(scene: Scene): PlacedPoint[] {
   const art = scene.art;
   for (const pin of boardData(scene.boardId).pins) {
     const xy = art.pins[String(pin.number)];
-    if (xy) out.push({ ref: `board.${pin.id}`, on: 'board', x: scene.view.board.x + xy[0], y: scene.view.board.y + xy[1] });
+    if (xy) out.push({ ref: `board.${pin.id}`, on: 'board', ...boardAt(scene, xy) });
   }
   for (const bb of scene.project.breadboards) {
     const at = scene.view.breadboards[bb.id];

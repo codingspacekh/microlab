@@ -36,6 +36,8 @@ export interface RunResult {
   analog: AnalogEntry[];
   /** Every change of the micro:bit's 5×5 display: [µs, 25 brightnesses 0–9, row by row] (M2.6). */
   display: [number, string][];
+  /** Every message the micro:bit's radio sent (M7): [µs, its bytes as hex]. */
+  radio: [number, string][];
   /** Every change of the micro:bit's sound (music, pitch): [µs, Hz], 0 for silence (M2.6c). */
   sound: [number, number][];
   /** Bus traffic (I²C, SPI, UART, bitstream) as it reaches the bridge: [µs, 'i2c sda=4 scl=5 write 3c 00 nack'] (M2.7). */
@@ -101,6 +103,10 @@ export interface RunOptions {
   onDisplay?: (pixels: string) => void;
   /** Each change of the micro:bit speaker's pitch, Hz (0: silence) (M6.2). */
   onSound?: (hz: number) => void;
+  /** Each message the micro:bit's radio sends (M7): its bytes as hex. */
+  onRadio?: (hex: string) => void;
+  /** Messages another micro:bit sends to this one (M7, tests and examples): [µs, the text], on its group and channel. */
+  radioIn?: [number, string][];
 }
 
 /** The sim's own Python (src/python/common) and the boards' (src/python/<folder>), written to a folder the
@@ -135,9 +141,10 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const display: [number, string][] = [];
   const sound: [number, number][] = [];
   const bus: [number, string][] = [];
+  const radio: [number, string][] = [];
   const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
   mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, {
-    display, sound, motion, bus, stop, quiet, circuit,
+    display, sound, motion, bus, radio, stop, quiet, circuit,
     asOf: (t, read) => { asOf = t; try { return read(); } finally { asOf = undefined; } },
   }, options));
   mp._module.microlabHook = () => {
@@ -176,7 +183,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const ended = damage ? 'fault' : (last.slice(0, nl) as RunResult['ended']);
   const traceback = last.slice(nl + 1);
   const withText = (f: Fault) => ({ ...f, message: describeFault(f) });
-  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, bus, parts: circuit?.partTrace ?? [],
+  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, bus, radio, parts: circuit?.partTrace ?? [],
     faults: [...(circuit?.seen.values() ?? [])].map(withText), ...(damage ? { fault: withText(damage) } : {}), ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
 }
 
@@ -190,6 +197,7 @@ function startFiles(options: RunOptions): string[] {
 /** The `_ream` bridge (architecture §2.4): the board-neutral calls the board modules make into the sim. */
 interface MicrobitParts {
   display: [number, string][];
+  radio: [number, string][];
   sound: [number, number][];
   motion: Motion;
   bus: [number, string][];
@@ -219,7 +227,7 @@ function stopper(mp: MicroPython, control: Control | undefined, faulted: () => b
 }
 
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
-  const { display, sound, motion, bus, stop, quiet, circuit, asOf } = mb;
+  const { display, sound, motion, bus, radio, stop, quiet, circuit, asOf } = mb;
   const log = (entry: string) => bus.push([clock.nowUs(), entry]);
   // the micro:bit's own inputs from the window (M6.6, screen 06): 'board:…' slots, NaN until the window sets them
   const slot = (name: string): number => {
@@ -227,24 +235,50 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     const i = c ? c.names.indexOf(name) : -1;
     return c && i >= 0 ? c.input(i) : NaN;
   };
-  let tilt: [number, number] | undefined;
+  let tilt: [number, number, number] | undefined;
   let shakes = 0;
-  /** The window's tilt (mg; z what is left of 1 g, face up) and its Shake count, into the accelerometer. */
+  /** The window's tilt (mg; z what is left of 1 g, face up — or set: face down, freefall, 3g … M7) and its Shake
+   *  count, into the accelerometer. */
   const fromWindow = () => {
     const x = slot('board:accelx');
     const y = slot('board:accely');
-    if (!Number.isNaN(x) || !Number.isNaN(y)) {
+    const z = slot('board:accelz');
+    if (!Number.isNaN(x) || !Number.isNaN(y) || !Number.isNaN(z)) {
       const xx = Number.isNaN(x) ? 0 : x;
       const yy = Number.isNaN(y) ? 0 : y;
-      if (!tilt || tilt[0] !== xx || tilt[1] !== yy) {
-        tilt = [xx, yy];
-        motion.live([xx, yy, -Math.round(Math.sqrt(Math.max(0, 1024 * 1024 - xx * xx - yy * yy)))]);
+      const zz = Number.isNaN(z) ? -Math.round(Math.sqrt(Math.max(0, 1024 * 1024 - xx * xx - yy * yy))) : z;
+      if (!tilt || tilt[0] !== xx || tilt[1] !== yy || tilt[2] !== zz) {
+        tilt = [xx, yy, zz];
+        motion.live([xx, yy, zz]);
       }
     }
     const s = slot('board:shake');
     if (!Number.isNaN(s) && s > shakes) { shakes = s; motion.shake(); }
   };
   const or = (v: number, otherwise: number) => (Number.isNaN(v) ? otherwise : v);
+  // the radio: its settings, the messages waiting (a queue of `queue`, the newest dropped when full, as modradio.c),
+  // the script's messages still to come, and the window's last ('radio:seq' counts them; 'radio:len', 'radio:0' …)
+  const air = { on: false, channel: 7, group: 0, queue: 3, length: 32, waiting: [] as { hex: string; at: number }[] };
+  const script = [...(options.radioIn ?? [])].sort((a, b) => a[0] - b[0]);
+  let heardSeq = 0;
+  const STRING = '010001';
+  const arrive = (bytes: number[], at: number) => {
+    if (!air.on || air.waiting.length >= air.queue) return;
+    air.waiting.push({ hex: STRING + bytes.slice(0, air.length - 3).map(hexByte).join(''), at });
+  };
+  const hearRadio = () => {
+    const t = clock.nowUs();
+    while (script.length && script[0]![0] <= t) {
+      const [at, text] = script.shift()!;
+      arrive([...new TextEncoder().encode(text)], at);
+    }
+    const seq = slot('radio:seq');
+    if (!Number.isNaN(seq) && seq > heardSeq) {
+      heardSeq = seq;
+      const n = Math.max(0, Math.min(32, slot('radio:len') || 0));
+      arrive(Array.from({ length: n }, (_, i) => slot(`radio:${i}`) & 0xff), t);
+    }
+  };
   return {
     ticks_us: () => clock.ticksUs(),
     /** Sleeps; returns early, with the µs left, when an IRQ or timer callback is due (it is scheduled first, and
@@ -316,6 +350,22 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     accel_values: (): string => { clock.ticksUs(); fromWindow(); return motion.values().join(' '); },
     accel_gesture: (): string => { fromWindow(); return motion.gesture(); },
     accel_events: (): string => { fromWindow(); return motion.takeEvents().join(','); },
+
+    // --- the micro:bit's radio (M7): what it sends goes to the window; what another micro:bit sends waits in its queue
+    // what came before a change is heard under the settings it came under
+    radio_config: (channel: number, group: number, queue: number, length: number) => { hearRadio(); Object.assign(air, { channel, group, queue, length }); },
+    radio_on: (on: number) => { hearRadio(); air.on = !!on; if (!on) air.waiting = []; },
+    radio_send: (hex: string) => {
+      log(`radio channel=${air.channel} group=${air.group} send ${spaced(hex)}`);
+      radio.push([clock.nowUs(), hex]);
+      options.onRadio?.(hex);
+    },
+    /** The oldest message waiting: 'hex rssi µs', or '' when none is. */
+    radio_receive: (): string => {
+      hearRadio();
+      const m = air.waiting.shift();
+      return m ? `${m.hex} -45 ${m.at}` : '';
+    },
 
     // --- buses (M2.7): transaction level; the parts on the nets answer (M6.4b: an MPU6050) ---
     /** Addresses that answer on this bus, comma-separated hex. */

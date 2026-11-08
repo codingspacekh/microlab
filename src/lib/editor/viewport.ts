@@ -1,6 +1,6 @@
 import { strips, connect } from '../circuit';
 import { toCircuit, type Project } from '../project';
-import { BREADBOARD, pointAt, type Point, type Scene } from './geometry';
+import { BREADBOARD, boardBox, pointAt, type Point, type Scene } from './geometry';
 import { boardData } from './library';
 import { freeBox, PART_KINDS } from './parts';
 
@@ -17,7 +17,7 @@ const PAD = 48;
  *  project is the board alone) it keeps room for a half one where the first goes, so the board isn't blown up. */
 export function fitBox(scene: Scene, pad = PAD): Box {
   const art = scene.art;
-  const boxes: Box[] = [{ x: scene.view.board.x, y: scene.view.board.y, w: art.width, h: art.height }];
+  const boxes: Box[] = [boardBox(scene)];   // turned (M7)
   if (!scene.project.breadboards.length) {
     const s = BREADBOARD.size('half');
     boxes.push({ x: scene.view.board.x + (art.width - s.width) / 2, y: scene.view.board.y + art.height + 40, w: s.width, h: s.height });

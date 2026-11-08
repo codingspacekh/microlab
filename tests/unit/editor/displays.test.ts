@@ -70,3 +70,31 @@ describe('M7 a display beside the breadboard turned (the teacher\'s request)', (
     expect(addPart(empty(), 'tm1637', {}, { x: 400, y: 104 }, 4).project.view!.parts!.tm1).toEqual({ x: 400, y: 104 });
   });
 });
+
+describe('M7 the board turned (the teacher\'s request)', () => {
+  it('a quarter turn: its pins turn with it, a wire still on its pin; its bottom-left corner stays; four turns, as it was', async () => {
+    const { addWire: wire, boardBox, rotateBoard } = await import('@lib/editor');
+    let p = wire(empty(), 'board.GP15', 'bb1.a5')!;
+    const scene = sceneOf(p);
+    const box0 = boardBox(scene);
+    const before = at(p, 'board.GP15')!;
+    const vbus = at(p, 'board.VBUS')!;
+    p = rotateBoard(p);
+    expect(p.view!.boardTurns).toBe(1);
+    const box1 = boardBox(sceneOf(p));
+    expect(box1).toMatchObject({ w: scene.art.height, h: scene.art.width });
+    // kept on the grid, near where its bottom-left corner was: it grows up, away from the breadboard below
+    expect(Math.abs(box1.x - box0.x)).toBeLessThanOrEqual(8);
+    expect(Math.abs(box1.y + box1.h - (box0.y + box0.h))).toBeLessThanOrEqual(8);
+    // turned clockwise: GP15 (the bottom row's right end) was right of VBUS (the top row's left end); now it is below
+    const g = at(p, 'board.GP15')!;
+    const v = at(p, 'board.VBUS')!;
+    expect(before.x).toBeGreaterThan(vbus.x);
+    expect(g.y).toBeGreaterThan(v.y);
+    expect(p.wires[0]).toMatchObject({ a: 'board.GP15' });
+    expect(parseProject(p)).toEqual(p);
+    for (let i = 0; i < 3; i++) p = rotateBoard(p);
+    expect(p.view!.boardTurns).toBeUndefined();
+    expect(Math.abs(at(p, 'board.GP15')!.x - before.x)).toBeLessThanOrEqual(16);
+  });
+});
