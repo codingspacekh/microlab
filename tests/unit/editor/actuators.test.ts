@@ -46,14 +46,14 @@ describe('M7 a part that lies beside the breadboard', () => {
     expect(legsCentre('motor')).toEqual([23, 4]);
   });
 
-  it('moved alone: on the grid; with a part in holes: the same step as it', () => {
+  it('moved alone: on the grid; with a part in holes: the same step as it; turned in place', () => {
     let p = addPart(empty(), 'motor', {}, { x: 400, y: 104 }).project;
     expect(moveParts(p, ['motor1'], { x: 13, y: 5 })!.view!.parts!.motor1).toEqual({ x: 416, y: 112 });
     p = addPart(p, 'resistor', { a: 'bb1.a3', b: 'bb1.a6' }).project;
     const q = moveParts(p, ['r1', 'motor1'], { x: 32, y: 0 })!;
     expect(q.parts.find((x) => x.id === 'r1')!.legs).toEqual({ a: 'bb1.a5', b: 'bb1.a8' });
     expect(q.view!.parts!.motor1).toEqual({ x: 432, y: 104 });
-    expect(rotateParts(p, ['motor1'])).toBe(p);   // not turned
+    expect(rotateParts(p, ['motor1'])!.view!.parts!.motor1).toEqual({ x: 400, y: 104, turns: 1 });   // turned where it lies (M7 slice 2)
   });
 
   it('copied to its right; deleted with the wires on its tabs and its place', () => {

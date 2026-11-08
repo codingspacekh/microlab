@@ -75,12 +75,12 @@ describe('M7 a motor beside the breadboard, wired at its tabs', () => {
     expect(tab).toEqual({ x: 758, y: 112 });
     s.wire('motor1.+', 'bb1.a5');
     expect(s.svg.querySelector('[data-ends="motor1.+ bb1.a5"]')).not.toBeNull();
-    // its inspector: where it lies, and no Rotate
+    // its inspector: where it lies, and Rotate (it turns where it lies, M7 slice 2)
     fireEvent.mouseDown(s.part('motor1'), { clientX: 0, clientY: 0, button: 0 });
     fireEvent.mouseUp(s.svg, { clientX: 0, clientY: 0, button: 0 });
     expect(s.inspector()).toHaveTextContent(/MOTOR1 · TT motor/);
     expect(s.inspector()).toHaveTextContent(/beside the breadboard — wire its tabs/);
-    expect(within(s.inspector()).queryByRole('button', { name: /Rotate/ })).toBeNull();
+    expect(within(s.inspector()).getByRole('button', { name: /Rotate/ })).toBeInTheDocument();
   });
 
   it('dragged, it moves on the grid; deleted, the wire on its tab goes too', () => {

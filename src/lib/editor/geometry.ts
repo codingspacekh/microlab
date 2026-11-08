@@ -2,7 +2,7 @@ import { findPin, isBoardId, type BoardId } from '../boards';
 import { COLUMNS, hasRails, railHole, type BreadboardSize } from '../circuit';
 import type { Project } from '../project';
 import { artOf, boardData, type Art } from './library';
-import { PART_KINDS, turnsOf, type PartKind } from './parts';
+import { freeTurn, PART_KINDS, turnsOf, type PartKind } from './parts';
 
 /**
  * Where everything is on the canvas (F-12, F-13), in the approved drawing's units: one pitch (0.1 in) = 16. A
@@ -11,8 +11,8 @@ import { PART_KINDS, turnsOf, type PartKind } from './parts';
  * pins they use, so they always land on real ones.
  */
 export interface Point { x: number; y: number }
-/** Where the board, each breadboard and each part that lies beside them (M7) are. */
-export interface View { board: Point; breadboards: Record<string, Point>; parts?: Record<string, Point> }
+/** Where things are: the board, each breadboard, and each part beside the breadboard (M7), with its quarter turns. */
+export interface View { board: Point; breadboards: Record<string, Point>; parts?: Record<string, Point & { turns?: number }> }
 
 export const PITCH = 16;
 const ROWS: Record<string, number> = { 'T-': 18, 'T+': 34, 'B+': 264, 'B-': 280 };
@@ -134,7 +134,9 @@ export function terminalAt(scene: Scene, part: Project['parts'][number], leg: st
   if (!kind || !off) return undefined;
   if (kind.free) {
     const at = scene.view.parts?.[part.id];
-    return at && { x: at.x + off[0], y: at.y + off[1] };
+    if (!at) return undefined;
+    const [x, y] = freeTurn(part.type, off, at.turns);
+    return { x: at.x + x, y: at.y + y };
   }
   const [k0, k1] = Object.keys(kind.legs);
   const a = pointAt(scene, part.legs[k0!] ?? '');

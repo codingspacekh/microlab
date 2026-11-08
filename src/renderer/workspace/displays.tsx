@@ -72,7 +72,7 @@ function Digit({ x, y, w, h, lit, point }: { x: number; y: number; w: number; h:
 
 /** A 0.56" 7-segment digit straddling the gap: pins e d COM c dp (bottom, left to right), g f COM a b (top); its body
  *  covers them, their names at its edges. `lit` a … g, dp, 0–1. */
-export function SevenSegment({ bottom, top, lit = [], upright }: { bottom: Point[]; top: Point[]; lit?: number[]; upright: number }) {
+export function SevenSegment({ bottom, top, lit = [] }: { bottom: Point[]; top: Point[]; lit?: number[] }) {
   const cx = (bottom[0]!.x + bottom[4]!.x) / 2;
   const cy = (bottom[0]!.y + top[0]!.y) / 2;
   const [w, h] = [80, 116];
@@ -80,9 +80,7 @@ export function SevenSegment({ bottom, top, lit = [], upright }: { bottom: Point
     <g className="seven-segment" data-segments={lit.map((b) => (b > 0.01 ? '1' : '0')).join('')}>
       <rect x={cx - w / 2} y={cy - h / 2} width={w} height={h} rx={2} fill="#e9e7e1" stroke="#c9c5bb" filter="url(#lift)" />
       <rect x={cx - w / 2 + 5} y={cy - h / 2 + 12} width={w - 10} height={h - 24} rx={1.5} fill="#1f2023" />
-      <g transform={upright ? `rotate(${upright} ${cx} ${cy})` : undefined}>
-        <Digit x={cx - 21} y={cy - 36} w={40} h={72} lit={lit} point />
-      </g>
+      <Digit x={cx - 21} y={cy - 36} w={40} h={72} lit={lit} point />
       <g fontSize={5.5} fontWeight={700} fill="#6b665c" textAnchor="middle" fontFamily={FONT} pointerEvents="none">
         {top.map((p, i) => <text key={`t${i}`} x={p.x} y={cy - h / 2 + 8.5}>{['g', 'f', 'COM', 'a', 'b'][i]}</text>)}
         {bottom.map((p, i) => <text key={`b${i}`} x={p.x} y={cy + h / 2 - 3.5}>{['e', 'd', 'COM', 'c', 'dp'][i]}</text>)}
@@ -109,7 +107,7 @@ function framePath(frame: string, x0: number, y0: number, k: number): string {
 }
 
 /** The SSD1306 0.96" module standing in the breadboard: GND VCC SCL SDA, its screen above — 128×64 pixels, 0.7 px each. */
-export function OledModule({ pins, view, upright }: { pins: Point[]; view?: PartView; upright: number }) {
+export function OledModule({ pins, view }: { pins: Point[]; view?: PartView }) {
   const cx = (pins[0]!.x + pins[3]!.x) / 2;
   const y = pins[0]!.y;
   const [w, h] = [112, 96];
@@ -124,9 +122,8 @@ export function OledModule({ pins, view, upright }: { pins: Point[]; view?: Part
       <rect x={cx - w / 2} y={top} width={w} height={h} rx={4} fill="#16314f" stroke="#0c1d30" filter="url(#lift)" />
       {[[6, 6], [w - 6, 6], [6, h - 6], [w - 6, h - 6]].map(([dx, dy], i) => <circle key={i} cx={cx - w / 2 + dx!} cy={top + dy!} r={2.6} fill="#f6f4ef" stroke="#0c1d30" />)}
       <rect x={sx - 4} y={sy - 4} width={128 * k + 8} height={64 * k + 8} rx={1.5} fill="#05070a" stroke="#2a3a4e" />
-      <g transform={upright ? `rotate(${upright} ${cx} ${sy + 32 * k})` : undefined}>
-        {o?.on && o.frame && <path d={framePath(o.frame, sx, sy, k)} fill="#9be7ff" opacity={f(0.55 + 0.45 * (o.contrast / 255))} />}
-      </g>
+      {/* the picture turns with the module, as a real screen does */}
+      {o?.on && o.frame && <path d={framePath(o.frame, sx, sy, k)} fill="#9be7ff" opacity={f(0.55 + 0.45 * (o.contrast / 255))} />}
       <text x={cx} y={top + 13} fontSize={5} fill="#cfe0f2" textAnchor="middle" fontFamily={FONT} fontWeight={600} pointerEvents="none">128×64 · I²C</text>
       <ModuleHeader pins={pins} labels={['GND', 'VCC', 'SCL', 'SDA']} bodyY={top + h} />
     </g>

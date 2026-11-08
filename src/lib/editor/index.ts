@@ -2,7 +2,7 @@ export { BREADBOARD, GRID, PITCH, allPoints, snapToGrid, defaultView, holeOffset
 export type { PlacedPoint, Point, Scene, View } from './geometry';
 export { MICROBIT_ALONE_ART, PART_ART, RING_LABELS, artOf, boardArt, boardData } from './library';
 export type { Art, PartArt } from './library';
-export { PART_KINDS, isFree, legsCentre, partKind } from './parts';
+export { PART_KINDS, freeBox, freeTurn, isFree, legsCentre, partKind } from './parts';
 export type { PartKind, PartType } from './parts';
 export { freeSpot, snapPart, usedPoints } from './place';
 export type { Legs } from './place';

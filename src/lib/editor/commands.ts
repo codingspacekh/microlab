@@ -17,11 +17,11 @@ function nextId(prefix: string, taken: string[]): string {
 
 /** A part with its legs in these holes — or, a part that lies beside the breadboard (M7), lying `at`. A part that
  *  brings another (the ULN2003 its stepper) adds it too, plugged into it, in the same edit. */
-export function addPart(project: Project, type: string, legs: Legs, at?: Point): { project: Project; id: string } {
+export function addPart(project: Project, type: string, legs: Legs, at?: Point, turns = 0): { project: Project; id: string } {
   const kind = partKind(type);
   const id = nextId(kind.prefix, project.parts.map((p) => p.id));
   let next: Project = { ...project, parts: [...project.parts, { id, type, props: { ...kind.props }, legs: { ...legs } }] };
-  if (kind.free) next = lay(next, id, at ?? { x: 0, y: 0 });
+  if (kind.free) next = lay(next, id, at ?? { x: 0, y: 0 }, turns);
   if (kind.brings) {
     const b = partKind(kind.brings.type);
     const bid = nextId(b.prefix, next.parts.map((p) => p.id));
@@ -32,10 +32,11 @@ export function addPart(project: Project, type: string, legs: Legs, at?: Point):
   return { id, project: next };
 }
 
-/** A part that lies beside the breadboard put `at` (on the grid). */
-export function lay(project: Project, id: string, at: Point): Project {
+/** A part that lies beside the breadboard put `at` (on the grid), turned `turns` quarters clockwise. */
+export function lay(project: Project, id: string, at: Point, turns = 0): Project {
   const view = sceneOf(project).view;
-  return { ...project, view: { ...view, parts: { ...view.parts, [id]: snapToGrid(at) } } };
+  const t = ((turns % 4) + 4) % 4;
+  return { ...project, view: { ...view, parts: { ...view.parts, [id]: { ...snapToGrid(at), ...(t ? { turns: t } : {}) } } } };
 }
 
 export function movePart(project: Project, id: string, legs: Legs): Project {

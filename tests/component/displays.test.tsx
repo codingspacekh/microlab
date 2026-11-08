@@ -95,6 +95,24 @@ describe('M7 the displays in the parts panel and on the canvas (screens 26, 26b)
   });
 });
 
+describe('M7 a display beside the breadboard turned (the teacher\'s request)', () => {
+  it('Rotate in its inspector turns the LCD a quarter about its middle: its drawing, its pins, the wire on its pin', () => {
+    const s = setup();
+    s.drop(/^LCD 16×2/, { x: 760, y: 200 });
+    s.wire('board.GP20', 'lcd1.sda');
+    const before = s.point('lcd1.gnd');
+    fireEvent.mouseDown(s.part('lcd1'), { clientX: 0, clientY: 0, button: 0 });
+    fireEvent.mouseUp(s.svg, { clientX: 0, clientY: 0, button: 0 });
+    fireEvent.click(within(s.inspector()).getByRole('button', { name: /Rotate/ }));
+    expect(s.part('lcd1').querySelector('g[transform^="rotate(90 "] .lcd1602')).toBeInTheDocument();
+    expect(s.point('lcd1.gnd')).not.toEqual(before);
+    // the wire's end moved with SDA: its last point is the pin's new place (it's taken: no free point there now)
+    expect(s.svg.querySelector('[data-wire="w1"]')).toBeInTheDocument();
+    fireEvent.click(within(s.inspector()).getByRole('button', { name: /Rotate/ }));
+    expect(s.part('lcd1').querySelector('g[transform^="rotate(180 "]')).toBeInTheDocument();
+  });
+});
+
 describe('M7 the displays while running (screens 26, 26b, 26c)', () => {
   it('each shows what the sim says; hovered, what it shows', () => {
     const s = setup();

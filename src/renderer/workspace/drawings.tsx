@@ -882,8 +882,8 @@ export function PartDrawing({ type, legs, props, look = {}, label = '' }: { type
       const t = partTurns(type, legs);
       const { local, transform } = unturned(Object.fromEntries(Object.entries(legs).filter(([k]) => k !== '@')), t);
       const at = (names: string[]) => names.map((n) => local[n]!);
-      const body = type === 'ssd1306' ? <OledModule pins={at(['gnd', 'vcc', 'scl', 'sda'])} view={look.display?.view} upright={-90 * t} />
-        : <SevenSegment bottom={at(['e', 'd', 'com2', 'c', 'dp'])} top={at(['g', 'f', 'com1', 'a', 'b'])} lit={look.display?.segments} upright={-90 * t} />;
+      const body = type === 'ssd1306' ? <OledModule pins={at(['gnd', 'vcc', 'scl', 'sda'])} view={look.display?.view} />
+        : <SevenSegment bottom={at(['e', 'd', 'com2', 'c', 'dp'])} top={at(['g', 'f', 'com1', 'a', 'b'])} lit={look.display?.segments} />;
       return t ? <g transform={transform}>{body}</g> : body;
     }
     case 'power-supply':

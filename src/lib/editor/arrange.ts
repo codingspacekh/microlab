@@ -2,7 +2,7 @@ import { strips } from '../circuit';
 import type { Project } from '../project';
 import { withoutParts } from './commands';
 import { allPoints, pointAt, PITCH, sceneOf, snapToGrid, type Point, type Scene } from './geometry';
-import { isFree, partKind } from './parts';
+import { freeBox, isFree, partKind } from './parts';
 import { holeIndex, holeKey, usedPoints, type HoleIndex } from './place';
 
 /**
@@ -180,7 +180,7 @@ function shiftFree(project: Project, ids: string[], d: Point): Project {
   const parts = { ...view.parts };
   for (const id of ids) {
     const at = parts[id];
-    if (at) parts[id] = { x: at.x + d.x, y: at.y + d.y };
+    if (at) parts[id] = { ...at, x: at.x + d.x, y: at.y + d.y };
   }
   const on = (ref: string) => ids.includes(ref.slice(0, ref.indexOf('.')));
   return {
@@ -205,9 +205,12 @@ function moveHeld(project: Project, scene: Scene, ids: string[], delta: Point): 
 /** The parts turned a quarter clockwise, together, about their legs' middle, then put in the nearest free holes
  *  where the turned shape fits, the wires into their strips with them; undefined if there is no room near. */
 export function rotateParts(project: Project, ids: string[]): Project | undefined {
-  const scene = sceneOf(project);
-  ids = ids.filter((id) => !isFree(partType(project, id)));   // a part beside the breadboard isn't turned (M7)
+  // a part beside the breadboard turns about its body's middle, where it lies (M7 slice 2), its wires with it
+  const free = ids.filter((id) => isFree(partType(project, id)));
+  if (free.length) project = turnFree(project, free);
+  ids = ids.filter((id) => !free.includes(id));
   if (!ids.length) return project;
+  const scene = sceneOf(project);
   const pins = partPins(scene, ids);
   if (!pins?.length) return undefined;
   const map = stripMap(project);
@@ -219,6 +222,19 @@ export function rotateParts(project: Project, ids: string[]): Project | undefine
   const turned = pins.map((p) => ({ ...p, at: { x: cx - (p.at.y - cy), y: cy + (p.at.x - cx) } }));
   const holes = fitShape(scene, turned, turned[0]!.at, used, NEAR_TURN, index);
   return settle(project, scene, turned, pins.map((p) => p.at), holes, follow, used, map, index);
+}
+
+/** Free parts each a quarter turn more, clockwise (none kept as no turns). */
+function turnFree(project: Project, ids: string[]): Project {
+  const view = sceneOf(project).view;
+  const parts = { ...view.parts };
+  for (const id of ids) {
+    const at = parts[id];
+    if (!at) continue;
+    const turns = ((at.turns ?? 0) + 1) % 4;
+    parts[id] = turns ? { x: at.x, y: at.y, turns } : { x: at.x, y: at.y };
+  }
+  return { ...project, view: { ...view, parts } };
 }
 
 function nextIds(prefix: string, taken: string[], n: number): string[] {
@@ -264,7 +280,7 @@ export function duplicate(project: Project, chosen: Chosen): { project: Project;
     renamed.set(src.id, id!);
     // a free part (M7) is copied the same way along; its plug, into a copied part's terminals
     const legs = free.includes(src.id) ? { ...src.legs } : Object.fromEntries(Object.keys(src.legs).map((leg) => [leg, where.get(`part:${src.id}:${leg}`)!]));
-    if (free.includes(src.id) && lying[src.id]) lying[id!] = { x: lying[src.id]!.x + dx, y: lying[src.id]!.y + dy };
+    if (free.includes(src.id) && lying[src.id]) lying[id!] = { ...lying[src.id]!, x: lying[src.id]!.x + dx, y: lying[src.id]!.y + dy };
     parts.push({ ...structuredClone(src), id: id!, legs });
   }
   replug(parts, partIds, renamed);
@@ -300,7 +316,7 @@ function duplicateFree(project: Project, ids: string[]): { project: Project; par
   const lying = { ...scene.view.parts };
   const boxes = ids.map((id) => {
     const at = lying[id] ?? { x: 0, y: 0 };
-    const b = partKind(partType(project, id)).free!.box;
+    const b = freeBox(partType(project, id), lying[id]?.turns);
     return { x0: at.x + b[0], x1: at.x + b[2] };
   });
   const dx = snapToGrid({ x: Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0)) + 2 * PITCH, y: 0 }).x;
@@ -311,7 +327,7 @@ function duplicateFree(project: Project, ids: string[]): { project: Project; par
     const [id] = nextIds(partKind(src.type).prefix, parts.map((p) => p.id), 1);
     partIds.push(id!);
     renamed.set(src.id, id!);
-    lying[id!] = { x: (lying[src.id]?.x ?? 0) + dx, y: lying[src.id]?.y ?? 0 };
+    lying[id!] = { ...lying[src.id], x: (lying[src.id]?.x ?? 0) + dx, y: lying[src.id]?.y ?? 0 };
     parts.push({ ...structuredClone(src), id: id! });
   }
   replug(parts, partIds, renamed);

@@ -41,7 +41,8 @@ export const projectSchema = z.object({
   view: z.object({
     board: xy, breadboards: z.record(z.string(), xy),
     /** Where each part that lies beside the breadboard is (M7: a motor, a pump, an L298N, a stepper). */
-    parts: z.record(z.string(), xy).optional(),
+    // M7: where each part beside the breadboard lies, and its quarter turns clockwise (slice 2: a display turned)
+    parts: z.record(z.string(), z.object({ x: z.number(), y: z.number(), turns: z.number().int().min(1).max(3).optional() })).optional(),
   }).optional(),
 });
 

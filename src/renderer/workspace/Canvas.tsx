@@ -4,7 +4,7 @@ import {
   insertBend, joined, moveBend, pinCard, type HoleCard, type PinCard,
   legsCentre, moveBoard, moveBreadboard, moveParts, nearestPoint, panBy, partKind, PITCH, pointAt, rotateParts, sceneOf,
   putInGpioBoard, RING_LABELS, setUsb, snapPart, snapToGrid, usedPoints, zoomAt, ZOOM, type Art, type Box, type Legs, type Point, type Scene,
-  isFree, setPartProp, terminalsOf,
+  freeBox, freeTurn, isFree, setPartProp, terminalsOf,
 } from '@lib/editor';
 import type { BreadboardSize } from '@lib/circuit';
 import { microbitAlone, onGpioBoard, type Project } from '@lib/project';
@@ -267,7 +267,7 @@ export function Canvas({
       // M7: a motor, a pump, an L298N lies beside the breadboard, where it is let go (from the keyboard: right of it all)
       const [cx, cy] = legsCentre(type);
       const spot = at ?? besideAll(proj);
-      const r = addPart(proj, type, {}, { x: spot.x - cx, y: spot.y - cy });
+      const r = addPart(proj, type, {}, { x: spot.x - cx, y: spot.y - cy }, turns);
       say(null);
       onChange(r.project);
       if (select) onSelect([{ kind: 'part', id: r.id }]);
@@ -773,8 +773,10 @@ export function Canvas({
                 const group = on ? chosen(selection).parts : [p.id];
                 begin((at) => ({ kind: 'parts', id: p.id, ids: group, start: at, at }))(e);
               }}>
-              <PartDrawing type={p.type} legs={legs} props={p.props} label={p.id.toUpperCase()} look={{ glow, dies, position, sounding: !!hz || measuring, motion, moisture, tilt, kit, act, display, pressed: pressed === p.id }} />
-              {on && <SelectBox type={p.type} legs={legs} props={p.props} />}
+              <Turned type={p.type} at={lying} turns={lying?.turns ?? 0}>
+                {(local) => <PartDrawing type={p.type} legs={local(legs)} props={p.props} label={p.id.toUpperCase()} look={{ glow, dies, position, sounding: !!hz || measuring, motion, moisture, tilt, kit, act, display, pressed: pressed === p.id }} />}
+              </Turned>
+              {on && <SelectBox type={p.type} legs={legs} props={p.props} turns={lying?.turns ?? 0} />}
             </g>
           );
         })}
@@ -932,11 +934,11 @@ const PAD: Record<string, [number, number, number, number]> = {
 };
 /** A kit module's box: its board and, over it, what it senses (a plate, a wheel, a flame …). */
 const KIT_ABOVE: Record<string, number> = { raindrop: 44, 'speed-sensor': 42, flame: 38, mq2: 30, 'ir-obstacle': 30, hall: 26, vl53l0x: 60 };
-function SelectBox({ type, legs: placedLegs, props }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown> }) {
+function SelectBox({ type, legs: placedLegs, props, turns = 0 }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown>; turns?: number }) {
   const lying = placedLegs['@'];
   const free = lying && partKind(type).free;
-  if (lying && free) {   // M7: a part beside the breadboard, its body
-    const [x0, y0, x1, y1] = free.box;
+  if (lying && free) {   // M7: a part beside the breadboard, its body (turned, slice 2)
+    const [x0, y0, x1, y1] = freeBox(type, turns);
     return <rect className="sel" x={lying.x + x0 - 6} y={lying.y + y0 - 6} width={x1 - x0 + 12} height={y1 - y0 + 12} rx={8} />;
   }
   if (type === 'power-supply') {
@@ -973,10 +975,14 @@ function Ghost({ scene, type, at, turns }: { scene: Scene; type: string; at: Poi
   const [cx, cy] = legsCentre(type, turns);
   const first = { x: at.x - cx, y: at.y - cy };
   const legs = snapPart(scene, type, first, undefined, turns);
-  if (isFree(type)) {   // M7: it lies wherever it is let go
+  if (isFree(type)) {   // M7: it lies wherever it is let go (turned with R, slice 2)
+    const [fx, fy] = legsCentre(type);
+    const lies = { x: at.x - fx, y: at.y - fy };
     return (
       <g data-ghost="ok" className="ghost" pointerEvents="none" opacity={0.55}>
-        <PartDrawing type={type} legs={{ '@': first, ...ghostTerminals(type, first, 0) }} props={partKind(type).props} label={partKind(type).prefix.toUpperCase()} />
+        <Turned type={type} at={lies} turns={turns}>
+          {() => <PartDrawing type={type} legs={{ '@': lies, ...ghostTerminals(type, lies, 0) }} props={partKind(type).props} label={partKind(type).prefix.toUpperCase()} />}
+        </Turned>
       </g>
     );
   }
@@ -987,6 +993,20 @@ function Ghost({ scene, type, at, turns }: { scene: Scene; type: string; at: Poi
       <PartDrawing type={type} legs={{ ...where, ...ghostTerminals(type, lead, turns) }} props={partKind(type).props} />
     </g>
   );
+}
+
+/** A part beside the breadboard (M7) drawn as if not turned, then turned `turns` quarters clockwise about its body's
+ *  middle (slice 2: the teacher's request) — `local` takes the points it is drawn from (its terminals, a plug in another
+ *  part's socket) back into its own unturned frame. Any other part is drawn as it is. */
+function Turned({ type, at, turns, children }: { type: string; at?: Point; turns: number; children: (local: (pts: Record<string, Point>) => Record<string, Point>) => React.ReactNode }) {
+  if (!at || !turns || !isFree(type)) return <>{children((pts) => pts)}</>;
+  const [cx, cy] = legsCentre(type);
+  const local = (pts: Record<string, Point>) => Object.fromEntries(Object.entries(pts).map(([k, p]) => {
+    if (k === '@') return [k, p];
+    const [x, y] = freeTurn(type, [p.x - at.x, p.y - at.y], turns, true);
+    return [k, { x: at.x + x, y: at.y + y }];
+  }));
+  return <g transform={`rotate(${90 * turns} ${at.x + cx} ${at.y + cy})`}>{children(local)}</g>;
 }
 
 /** Where a part's terminals would be (M7), from its first leg (or where it lies), turned `turns` quarters. */

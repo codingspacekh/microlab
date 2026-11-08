@@ -2,7 +2,7 @@ import { strips, connect } from '../circuit';
 import { toCircuit, type Project } from '../project';
 import { BREADBOARD, pointAt, type Point, type Scene } from './geometry';
 import { boardData } from './library';
-import { PART_KINDS } from './parts';
+import { freeBox, PART_KINDS } from './parts';
 
 /**
  * What the canvas shows (M5.2, F-17) and what lights up under the pointer (F-12). The canvas's viewBox is a box in
@@ -32,7 +32,7 @@ export function fitBox(scene: Scene, pad = PAD): Box {
   // the parts that lie beside the breadboard (M7)
   for (const part of scene.project.parts) {
     const at = scene.view.parts?.[part.id];
-    const b = PART_KINDS.find((k) => k.type === part.type)?.free?.box;
+    const b = PART_KINDS.find((k) => k.type === part.type)?.free ? freeBox(part.type, at?.turns) : undefined;
     if (at && b) boxes.push({ x: at.x + b[0], y: at.y + b[1], w: b[2] - b[0], h: b[3] - b[1] });
     // the power supply's body reaches left of the breadboard's end
     const first = part.type === 'power-supply' ? pointAt(scene, part.legs['t-1'] ?? '') : undefined;

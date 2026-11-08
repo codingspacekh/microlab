@@ -159,6 +159,30 @@ function header(legs: string[]): Record<string, [number, number]> {
 /** A free part (M7) lies beside the breadboard; the rest stand in its holes. */
 export const isFree = (type: string): boolean => PART_KINDS.some((k) => k.type === type && k.free);
 
+/** The middle of a free part's body, from where it lies: it turns about it (M7 slice 2: the teacher's request). */
+function freeMiddle(type: string): [number, number] {
+  const b = partKind(type).free!.box;
+  return [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+}
+
+/** A free part's body [x0, y0, x1, y1] from where it lies, after `turns` quarter turns clockwise about its middle. */
+export function freeBox(type: string, turns = 0): [number, number, number, number] {
+  const b = partKind(type).free!.box;
+  if (turns % 2 === 0) return b;
+  const [cx, cy] = freeMiddle(type);
+  const [hw, hh] = [(b[2] - b[0]) / 2, (b[3] - b[1]) / 2];
+  return [cx - hh, cy - hw, cx + hh, cy + hw];
+}
+
+/** A point of a free part (an offset from where it lies: a terminal) after `turns` quarter turns clockwise about its
+ *  body's middle (screen y is down: (x, y) → (−y, x)); `back` turns it the other way. */
+export function freeTurn(type: string, [x, y]: [number, number], turns = 0, back = false): [number, number] {
+  const [cx, cy] = freeMiddle(type);
+  let [dx, dy] = [x - cx, y - cy];
+  for (let i = 0; i < ((turns % 4) + 4) % 4; i++) [dx, dy] = back ? [dy, -dx || 0] : [-dy || 0, dx];
+  return [cx + dx, cy + dy];
+}
+
 export function partKind(type: string): PartKind {
   const k = PART_KINDS.find((p) => p.type === type);
   if (!k) throw new Error(`there is no part "${type}"`);

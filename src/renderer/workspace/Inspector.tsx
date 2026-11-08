@@ -150,12 +150,12 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
     // screen 02b: Rotate · Duplicate · Delete
     partActions = (
       <div className="actions">
-        {!kind.free && <button type="button" className="btn sm" title="Rotate (R)" onClick={() => {
+        <button type="button" className="btn sm" title="Rotate (R)" onClick={() => {
           const next = rotateParts(project, [part.id]);
           if (!next) { setError(MESSAGES.noTurn); return; }
           setError(null);
           onChange(next);
-        }}><Icon name="rotate" size={14} /> Rotate</button>}
+        }}><Icon name="rotate" size={14} /> Rotate</button>
         <button type="button" className="btn sm icon" aria-label="Duplicate" title="Duplicate (⌘D / Ctrl+D)" onClick={() => {
           const r = duplicate(project, { parts: [part.id], wires: [] });
           if (!r) { setError(MESSAGES.noCopy); return; }
