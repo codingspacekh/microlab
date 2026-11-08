@@ -1,7 +1,7 @@
 import { isBoardId, type BoardId } from '../boards';
 import { COLUMNS, hasRails, railHole, type BreadboardSize } from '../circuit';
 import type { Project } from '../project';
-import { boardArt, boardData } from './library';
+import { artOf, boardData, type Art } from './library';
 
 /**
  * Where everything is on the canvas (F-12, F-13), in the approved drawing's units: one pitch (0.1 in) = 16. A
@@ -37,16 +37,18 @@ export function holeOffset(hole: string, size: BreadboardSize): Point | undefine
   return { x: EDGE + (col - 1) * PITCH, y: ROWS[row]! };
 }
 
-/** What the canvas needs: the project, its board's data and picture, and where things are. */
+/** What the canvas needs: the project, its board's data and picture (the micro:bit's alone or in its GPIO board,
+ *  M6.9), and where things are. */
 export interface Scene {
   project: Project;
   boardId: BoardId;
+  art: Art;
   view: View;
 }
 
 export function sceneOf(project: Project): Scene {
   if (!isBoardId(project.board)) throw new Error(`there is no board "${project.board}"`);
-  return { project, boardId: project.board, view: project.view ?? defaultView(project) };
+  return { project, boardId: project.board, art: artOf(project), view: project.view ?? defaultView(project) };
 }
 
 const GAP = 40;
@@ -59,7 +61,7 @@ export function snapToGrid(p: Point): Point {
 
 /** The board above the breadboards, centred on the first; the breadboards one under another. */
 export function defaultView(project: Project): View {
-  const art = boardArt(project.board as BoardId);
+  const art = artOf(project);
   const first = project.breadboards[0];
   const bbWidth = first ? BREADBOARD.size(first.size).width : art.width;
   const breadboards: Record<string, Point> = {};
@@ -80,7 +82,7 @@ export function pointAt(scene: Scene, ref: string): Point | undefined {
   const name = ref.slice(dot + 1);
   if (owner === 'board') {
     const pin = boardData(scene.boardId).pins.find((p) => p.id === name);
-    const xy = pin && boardArt(scene.boardId).pins[String(pin.number)];
+    const xy = pin && scene.art.pins[String(pin.number)];
     return xy ? { x: scene.view.board.x + xy[0], y: scene.view.board.y + xy[1] } : undefined;
   }
   const bb = scene.project.breadboards.find((b) => b.id === owner);
@@ -106,7 +108,7 @@ const HOLE_NAMES = (size: BreadboardSize): string[] => {
 /** Every hole and board pin, where it is. */
 export function allPoints(scene: Scene): PlacedPoint[] {
   const out: PlacedPoint[] = [];
-  const art = boardArt(scene.boardId);
+  const art = scene.art;
   for (const pin of boardData(scene.boardId).pins) {
     const xy = art.pins[String(pin.number)];
     if (xy) out.push({ ref: `board.${pin.id}`, on: 'board', x: scene.view.board.x + xy[0], y: scene.view.board.y + xy[1] });

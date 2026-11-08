@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { EMPTY_HISTORY, PART_KINDS, record, type History } from '@lib/editor';
-import type { BoardId } from '@lib/boards';
-import { spaceNote, type ProjectDoc } from '@lib/project';
+import { microbitAlone, onGpioBoard, spaceNote, type ProjectDoc } from '@lib/project';
 import { Console, type BoardConsoleView } from '../console/Console';
 import { CodeEditor } from '../editor/CodeEditor';
 import { EditorPrefs, lookAttrs, useEditorLook } from '../editor/EditorPrefs';
@@ -11,8 +10,8 @@ import { Icon } from '../ui/Icon';
 import { MenuButton } from '../ui/Menu';
 import { AddLibrary } from './AddLibrary';
 import type { MicrolabApi } from '../app/api';
-import { BOARD_ART, BOARD_NAMES } from '../app/boards';
-import { BREADBOARD_TYPE, Canvas, type Placing, type Selection } from './Canvas';
+import { boardName, boardPicture } from '../app/boards';
+import { BREADBOARD_TYPE, Canvas, GPIO_BOARD_TYPE, type Placing, type Selection } from './Canvas';
 import { FilesPanel, type FilesAsk } from './FilesPanel';
 import { Inspector } from './Inspector';
 import { BreadboardIcon, PartIcon } from './drawings';
@@ -83,6 +82,8 @@ export function Workspace({
   const [libraries, setLibraries] = useState(false);
   // M6.8 (screens 23, 23b): the parts panel is folded to a rail until it is wanted; it slides out over the canvas
   const [partsOpen, setPartsOpen] = useState(false);
+  /** What the canvas says of an edit made in the inspector (M6.9: the micro:bit taken out of its GPIO board). */
+  const [notice, setNotice] = useState<{ text: string } | null>(null);
   const [look, setLook] = useEditorLook(api);
   const lookOf = lookAttrs(look);
   const shownTabs = [...tabs.filter((t) => t in doc.files), ...(tabs.includes(file) || !(file in doc.files) ? [] : [file])];
@@ -142,7 +143,8 @@ export function Workspace({
   // what was selected may be gone (an undo, a redo)
   useEffect(() => {
     setSelection((sel) => {
-      const kept = sel.filter((x) => (x.kind === 'part' ? project.parts : x.kind === 'wire' ? project.wires : project.breadboards).some((t) => t.id === x.id));
+      const kept = sel.filter((x) => (x.kind === 'board' ? onGpioBoard(project)
+        : (x.kind === 'part' ? project.parts : x.kind === 'wire' ? project.wires : project.breadboards).some((t) => t.id === x.id)));
       return kept.length === sel.length ? sel : kept;
     });
     if (project !== recorded.current) merging.current = { ...merging.current, key: '' };
@@ -164,12 +166,21 @@ export function Workspace({
     onChange({ ...doc, project: p });
   };
 
-  const board = project.board as BoardId;
+  /** Put down from the parts panel: dragged (press), or picked up with Enter (keys). */
+  const pick = (type: string) => ({
+    onMouseDown: (e: React.MouseEvent) => {
+      if (e.button !== 0 || running) return;
+      e.preventDefault();
+      setSelection([]);   // the inspector would cover the canvas
+      setPlacing({ type, how: 'press', start: { x: e.clientX, y: e.clientY } });
+    },
+    onClick: (e: React.MouseEvent) => { if (e.detail === 0 && !running) { setSelection([]); setPlacing({ type, how: 'keys' }); } },
+  });
   return (
     <div className="ws" ref={ref}>
       <nav className="rail" aria-label="Board and parts">
-        <span className="rb static" title={BOARD_NAMES[board] ?? board}>
-          <span className="pic"><img src={BOARD_ART[board]} alt="" draggable={false} /></span>Board
+        <span className="rb static" title={boardName(project)}>
+          <span className="pic"><img src={boardPicture(project)} alt="" draggable={false} /></span>Board
         </span>
         <button type="button" className={partsOpen ? 'rb on' : 'rb'} aria-expanded={partsOpen} title="Parts (P)"
           onClick={() => setPartsOpen((o) => !o)}>
@@ -179,7 +190,7 @@ export function Workspace({
       <section className={partsOpen ? 'canvas with-drawer' : 'canvas'} aria-label="Circuit" style={{ '--drawer': `${partsPx}px` } as React.CSSProperties}>
         <Canvas project={project} onChange={(p) => setProject(p)} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection}
           running={running} outputs={running || run.ended ? run : IDLE_RUN} onInput={onInput}
-          onUndo={onUndo} onRedo={onRedo} onOpenParts={() => setPartsOpen(true)} inset={partsOpen ? partsPx : 0} />
+          onUndo={onUndo} onRedo={onRedo} onOpenParts={() => setPartsOpen(true)} inset={partsOpen ? partsPx : 0} notice={notice} />
         {partsOpen && (
         <div className="drawer-wrap">
       <section className="parts" aria-label="Parts" style={{ width: partsPx }} onKeyDown={(e) => { if (e.key === 'Escape' && !placing) { e.stopPropagation(); setPartsOpen(false); } }}>
@@ -189,6 +200,18 @@ export function Workspace({
           </div>
         </div>
         <div className="list">
+          {microbitAlone(project) && (
+            // M6.9 (screen 24): the micro:bit's own group first — its GPIO board, for the pins it has no ring for
+            <div className="pgroup" role="group" aria-label="micro:bit">
+              <div className="gh">micro:bit<span className="n">1</span></div>
+              <button type="button" className={placing?.type === GPIO_BOARD_TYPE ? 'pitem drag' : 'pitem'}
+                title="Click or drag it in: the micro:bit goes into its GPIO board — 30 pins, and 5V from its own micro-USB. The wires stay on the same pins."
+                aria-disabled={running || undefined} {...pick(GPIO_BOARD_TYPE)}>
+                <span className="pic"><PartIcon type={GPIO_BOARD_TYPE} /></span>
+                <span className="nm">GPIO board<small>30 pins · 5V from its USB</small></span>
+              </button>
+            </div>
+          )}
           {(['Basics', 'Sensors', 'Modules', 'Chips'] as const).map((group) => {
             const kinds = PART_KINDS.filter((k) => k.group === group);
             return (
@@ -199,14 +222,7 @@ export function Workspace({
                   return (
                     <button key={type} type="button" className={placing?.type === type ? 'pitem drag' : 'pitem'}
                       title={`Drag the ${name.toLowerCase()} onto the canvas, or click it and then click where it goes`}
-                      aria-disabled={running || undefined}
-                      onMouseDown={(e) => {
-                        if (e.button !== 0 || running) return;
-                        e.preventDefault();
-                        setSelection([]);
-                        setPlacing({ type, how: 'press', start: { x: e.clientX, y: e.clientY } });
-                      }}
-                      onClick={(e) => { if (e.detail === 0 && !running) { setSelection([]); setPlacing({ type, how: 'keys' }); } }}>
+                      aria-disabled={running || undefined} {...pick(type)}>
                       <span className="pic"><BreadboardIcon size={size} /></span>
                       <span className="nm">{name}<small>{detail}</small></span>
                     </button>
@@ -215,14 +231,7 @@ export function Workspace({
                 {kinds.map((k) => (
                   <button key={k.type} type="button" className={placing?.type === k.type ? 'pitem drag' : 'pitem'}
                     title={`Drag the ${inText(k.name)} onto the breadboard, or click it and then click where it goes`}
-                    aria-disabled={running || undefined}
-                    onMouseDown={(e) => {
-                      if (e.button !== 0 || running) return;
-                      e.preventDefault();
-                      setSelection([]);   // the inspector would cover the canvas
-                      setPlacing({ type: k.type, how: 'press', start: { x: e.clientX, y: e.clientY } });
-                    }}
-                    onClick={(e) => { if (e.detail === 0 && !running) { setSelection([]); setPlacing({ type: k.type, how: 'keys' }); } }}>
+                    aria-disabled={running || undefined} {...pick(k.type)}>
                     <span className="pic"><PartIcon type={k.type} /></span>
                     <span className="nm">{k.name}<small>{k.detail}</small></span>
                   </button>
@@ -241,7 +250,7 @@ export function Workspace({
         {banner && <div className="cbanner">{banner}</div>}
         {selection.length === 1 && (
           <Inspector key={`${selection[0]!.kind}:${selection[0]!.id}`} project={project} selection={selection[0]!} onChange={setProject} onClose={() => setSelection([])} onSelect={setSelection}
-            doc={doc} onDoc={onChange} />
+            doc={doc} onDoc={onChange} onNotice={(text) => setNotice({ text })} />
         )}
       </section>
       <Divider label="Code panel width" value={sidePx} min={LIMITS.side[0]} max={sideMax} edge="right"

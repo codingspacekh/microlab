@@ -44,15 +44,15 @@ function place(s: ReturnType<typeof setup>, name: RegExp, type: string, hole: st
 
 describe('M4.3 the workspace draws the project', () => {
   it.each([
-    ['New Pico W project', 'Raspberry Pi Pico W'],
-    ['New micro:bit project', 'BBC micro:bit V2'],
-    ['New ESP32 project', 'ESP32 DevKit V1 (30 pins)'],
-  ])('%s: the board\'s picture and a half breadboard, every pin and hole free to wire', (button, name) => {
+    ['New Pico W project', 'Raspberry Pi Pico W', 40],
+    ['New micro:bit project', 'BBC micro:bit V2', 5],   // M6.9: the micro:bit alone, its five rings
+    ['New ESP32 project', 'ESP32 DevKit V1 (30 pins)', 30],
+  ])('%s: the board\'s picture and a half breadboard, every pin and hole free to wire', (button, name, pins) => {
     const s = setup(button);
     expect(within(s.svg as unknown as HTMLElement).getByRole('img', { name })).toBeInTheDocument();
     expect(within(s.svg as unknown as HTMLElement).getByRole('img', { name: 'Breadboard bb1 (half)' })).toBeInTheDocument();
     expect(s.svg.querySelectorAll('[data-point^="bb1."]')).toHaveLength(400);   // 300 holes + 100 rail holes
-    expect(s.svg.querySelectorAll('[data-point^="board."]').length).toBeGreaterThanOrEqual(30);
+    expect(s.svg.querySelectorAll('[data-point^="board."]')).toHaveLength(pins);
   });
 
   it('the rail names the board; the parts panel lists the parts of M4', () => {

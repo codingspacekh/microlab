@@ -207,4 +207,7 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 /* the open drawer covers the canvas's left: its tools and hints move out from under it */
 .canvas.with-drawer .ctools, .canvas.with-drawer .canvas-hint { left: calc(var(--drawer) + 20px); }
 .canvas.with-drawer .canvas-hint { max-width: calc(100% - var(--drawer) - 40px); }
+/* beside the inspector, not under it (M6.9: the GPIO board's inspector opens with what the canvas says) */
+.canvas:has(> .inspector) .canvas-hint { max-width: calc(100% - clamp(260px, 42%, 320px) - 42px); }
+.canvas.with-drawer:has(> .inspector) .canvas-hint { max-width: calc(100% - var(--drawer) - clamp(260px, 42%, 320px) - 54px); }
 .canvas.with-drawer .start-card { left: calc(var(--drawer) + (100% - var(--drawer)) / 2); width: min(400px, calc(100% - var(--drawer) - 32px)); }

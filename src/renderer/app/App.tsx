@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NewProjectBoard } from '@lib/boards';
-import { newProject, runTarget, type ProjectDoc } from '@lib/project';
+import { newProject, onGpioBoard, runTarget, type ProjectDoc } from '@lib/project';
 import { EMPTY_HISTORY, redo, undo, type History } from '@lib/editor';
 import { Icon, Logo } from '../ui/Icon';
 import { Dialog } from '../ui/Dialog';
 import { MenuButton } from '../ui/Menu';
 import type { MicrolabApi, RecentItem, Recovered } from './api';
-import { BOARD_NAMES } from './boards';
+import { BOARD_NAMES, boardName } from './boards';
 import { ControlsPage } from './ControlsPage';
 import { StartPage } from './StartPage';
 import { Workspace } from '../workspace/Workspace';
@@ -74,7 +74,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
   const sound = useSound(api, sim.state, audio);
   const latest = useRef(open);
   latest.current = open;
-  const boardName = (o: OpenProject) => BOARD_NAMES[o.doc.project.board as keyof typeof BOARD_NAMES] ?? o.doc.project.board;
+  const boardOf = (o: OpenProject) => BOARD_NAMES[o.doc.project.board as keyof typeof BOARD_NAMES] ?? o.doc.project.board;
   const running = sim.state.status !== 'idle';
   // what Run runs (F-22, Q19): the file in the editor, as Thonny does; main.py from its menu
   const target = open ? runTarget(open.doc.files, open.file ?? 'main.py', open.lastRun) : 'main.py';
@@ -82,7 +82,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
     if (!open) return;
     setOpen((cur) => (cur ? { ...cur, lastRun: entry } : cur));
     if (open.doc !== open.saved) keepCopy(open);   // a run is a moment worth keeping (F-03)
-    sim.run(open.doc, entry, boardName(open));
+    sim.run(open.doc, entry, boardOf(open));
   };
   const runControls: RunControls = {
     state: sim.state,
@@ -364,7 +364,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
       </div>
       {helping && open && (
         <ConnectionHelper api={api} detection={boards} kind={kindOf(open.doc.project.board as BoardId)}
-          projectBoard={boardName(open)} chosen={chosen} onClose={() => setHelping(false)}
+          projectBoard={boardOf(open)} chosen={chosen} onClose={() => setHelping(false)}
           onInstall={(k) => { setHelping(false); setInstalling(k); }} />
       )}
       {installing && (
@@ -451,7 +451,7 @@ function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, o
           <div className="vsep" />
           <div className="proj" role="group" aria-label="Project">
             <b>{project.name}{dirty && <span className="unsaved" title="Not saved" />}</b>
-            <span>{BOARD_NAMES[project.doc.project.board as keyof typeof BOARD_NAMES] ?? project.doc.project.board}{project.path ? '' : ' · not saved'}</span>
+            <span>{boardName(project.doc.project)}{project.path ? '' : ' · not saved'}</span>
           </div>
           <MenuButton label="Project menu" items={[
             { label: 'New project…', icon: 'plus', onSelect: onNewProject },
@@ -555,7 +555,7 @@ function StatusBar({ project, run, board, sound }: { project: OpenProject | null
           <Icon name={sound.muted ? 'soundoff' : 'sound'} size={12} /> {sound.muted ? 'Sound off' : 'Sound on (from the laptop)'}
         </button>
       )}
-      <span className="r">{p ? `${BOARD_NAMES[p.board as keyof typeof BOARD_NAMES] ?? p.board} + ${count(p.parts.length, 'part')} · ${count(p.wires.length, 'wire')}` : 'MicroLab'}</span>
+      <span className="r">{p ? `${BOARD_NAMES[p.board as keyof typeof BOARD_NAMES] ?? p.board}${onGpioBoard(p) ? ' + GPIO board' : ''} + ${count(p.parts.length, 'part')} · ${count(p.wires.length, 'wire')}` : 'MicroLab'}</span>
     </footer>
   );
 }

@@ -39,22 +39,23 @@ def glows(svg: str, name: str):
     return [(float(x), float(y)) for x, y in re.findall(rf'<circle cx="([-\d.]+)" cy="([-\d.]+)" r="[\d.]+" fill="url\(#glow-{name}\)"', svg)]
 
 
-def write(kind: str, ident: str, svg: str, points: dict, key: str, extra=None) -> None:
-    """`extra`: {name: point or [points]} in the drawing's units, written relative like the pins (outputs, M4.5)."""
+def write(kind: str, ident: str, svg: str, points: dict, key: str, extra=None, name: str = "art") -> None:
+    """`extra`: {name: point or [points]} in the drawing's units, written relative like the pins (outputs, M4.5).
+    `name`: the files' name in the folder — a board drawn another way has its own (M6.9: the micro:bit alone)."""
     x0, y0, x1, y1 = bbox(svg, points.values())
     w, h = x1 - x0, y1 - y0
     folder = ROOT / "library" / kind / ident
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "art.svg").write_text(
+    (folder / f"{name}.svg").write_text(
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{s.f(x0)} {s.f(y0)} {s.f(w)} {s.f(h)}" '
         f'width="{s.f(w)}" height="{s.f(h)}">{s.defs()}{svg}</svg>\n')
     rel = {str(k): [round(x - x0, 2), round(y - y0, 2)] for k, (x, y) in points.items()}
     data = {"width": round(w, 2), "height": round(h, 2), "pitch": s.P, key: rel}
-    for name, value in (extra or {}).items():
+    for k, value in (extra or {}).items():
         move = lambda p: [round(p[0] - x0, 2), round(p[1] - y0, 2)]
-        data[name] = {k: move(v) for k, v in value.items()} if isinstance(value, dict) else [move(p) for p in value]
-    (folder / "art.json").write_text(json.dumps(data, indent=2) + "\n")
-    print(f"library/{kind}/{ident}: {len(rel)} {key}, {w:.0f} × {h:.0f}")
+        data[k] = {n: move(v) for n, v in value.items()} if isinstance(value, dict) else [move(p) for p in value]
+    (folder / f"{name}.json").write_text(json.dumps(data, indent=2) + "\n")
+    print(f"library/{kind}/{ident}/{name}: {len(rel)} {key}, {w:.0f} × {h:.0f}")
 
 
 def boards() -> None:
@@ -79,6 +80,12 @@ def boards() -> None:
     lit, _ = s.microbit(200, 600, image=["11111"] * 5)  # the 25 pixels, row by row
     write("boards", "microbit-v2", svg, {n: pins[pid] for n, pid, _ in s.mbit_pins()}, "pins",
           {"display": glows(lit, "mbit"), "usb": {"socket": s.mbit_usb(200, 600)}})   # M6.1: the GPIO board's micro-USB
+    # M6.9 (screen 24): the micro:bit alone — its five rings are its only pins (keyed by number, as on the GPIO board)
+    svg, rings = s.microbit_bare(200, 600)
+    lit, _ = s.microbit_bare(200, 600, image=["11111"] * 5)
+    number = {pid: n for n, pid, _ in s.mbit_pins()}
+    write("boards", "microbit-v2", svg, {number[pid]: xy for pid, xy in rings.items()}, "pins",
+          {"display": glows(lit, "mbit")}, name="alone")
 
 
 def parts() -> None:

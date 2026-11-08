@@ -1013,6 +1013,14 @@ export function PartIcon({ type }: { type: string }) {
         <rect x="6" y="11" width="9" height="10" fill="#e8b10f" /><text x="20" y="19.5" fontSize="7" fontWeight="700" fill="#fff" textAnchor="middle">+</text>
       </>
     ),
+    // the micro:bit GPIO board (M6.9, design/svgparts.py ICON_PARTS gpioboard): the micro:bit in its slot, two rows of pins
+    'gpio-board': (
+      <>
+        <rect x="3" y="12" width="26" height="15" rx="2" fill="#1d4f9e" /><rect x="7" y="4" width="18" height="11" rx="2" fill="#1d1e21" />
+        <rect x="6" y="13" width="20" height="3" rx="1" fill="#121a24" />
+        {[20, 24].flatMap((y) => Array.from({ length: 9 }, (_, i) => <circle key={`${i}-${y}`} cx={6 + i * 2.5} cy={y} r={0.8} fill="#d3d7dc" />))}
+      </>
+    ),
   }[type];
   return <svg viewBox="0 0 32 32" aria-hidden="true">{body}</svg>;
 }

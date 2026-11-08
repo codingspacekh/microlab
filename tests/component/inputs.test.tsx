@@ -6,7 +6,7 @@ import { App } from '../../src/renderer/app/App';
 import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
-import { startBuilding } from './start-building';
+import { addGpioBoard, startBuilding } from './start-building';
 
 /** M6.1 the inputs pack (screens 17, 17b): the slide switch, the light sensor, the RGB LED and the battery pack in
  *  the parts panel, drawn and set in the inspector; while running a switch is clicked, a knob dragged, the light on
@@ -203,6 +203,7 @@ describe('M6.1 while running (screen 17)', () => {
 describe('M6.1 the micro:bit GPIO board\'s micro-USB (screen 17b)', () => {
   it('a new micro:bit project has it plugged in; a click takes it out (an undo step) and puts it back', () => {
     const s = setup('New micro:bit project');
+    addGpioBoard();   // M6.9: a new micro:bit project is the micro:bit alone
     const usb = () => s.svg.querySelector('[data-usb]')!;
     expect(usb()).toHaveAttribute('data-usb', 'in');
     expect(usb().querySelector('.usb-plug')).not.toBeNull();
@@ -218,6 +219,7 @@ describe('M6.1 the micro:bit GPIO board\'s micro-USB (screen 17b)', () => {
 
   it('the run is told: unplugged, the project says usb: false', () => {
     const s = setup('New micro:bit project');
+    addGpioBoard();
     fireEvent.click(s.svg.querySelector('[data-usb]')!);
     s.run();
     expect(s.sim.runs[0]!.doc.project.usb).toBe(false);

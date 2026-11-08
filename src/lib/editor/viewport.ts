@@ -1,7 +1,7 @@
 import { strips, connect } from '../circuit';
 import { toCircuit, type Project } from '../project';
 import { BREADBOARD, type Point, type Scene } from './geometry';
-import { boardArt, boardData } from './library';
+import { boardData } from './library';
 
 /**
  * What the canvas shows (M5.2, F-17) and what lights up under the pointer (F-12). The canvas's viewBox is a box in
@@ -15,7 +15,7 @@ const PAD = 48;
 /** The board, the breadboards and every wire bend, with room around them. With no breadboard yet (M6.8: a new
  *  project is the board alone) it keeps room for a half one where the first goes, so the board isn't blown up. */
 export function fitBox(scene: Scene, pad = PAD): Box {
-  const art = boardArt(scene.boardId);
+  const art = scene.art;
   const boxes: Box[] = [{ x: scene.view.board.x, y: scene.view.board.y, w: art.width, h: art.height }];
   if (!scene.project.breadboards.length) {
     const s = BREADBOARD.size('half');

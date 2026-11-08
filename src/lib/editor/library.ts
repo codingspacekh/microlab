@@ -1,8 +1,10 @@
 import { parseBoard, type BoardData, type BoardId } from '../boards';
+import { microbitAlone, type Project } from '../project';
 import esp32ExtArt from '../../../library/boards/esp32-devkit-v1-ext/art.json';
 import esp32ExtJson from '../../../library/boards/esp32-devkit-v1-ext/board.json';
 import esp32Art from '../../../library/boards/esp32-devkit-v1/art.json';
 import esp32Json from '../../../library/boards/esp32-devkit-v1/board.json';
+import microbitAloneArt from '../../../library/boards/microbit-v2/alone.json';
 import microbitArt from '../../../library/boards/microbit-v2/art.json';
 import microbitJson from '../../../library/boards/microbit-v2/board.json';
 import picoArt from '../../../library/boards/pico-w/art.json';
@@ -53,6 +55,17 @@ const parsed = new Map<BoardId, BoardData>();
 
 export function boardArt(id: BoardId): Art {
   return ARTS[id];
+}
+
+/** The micro:bit alone (M6.9, screen 24): its five rings are its only pins. */
+export const MICROBIT_ALONE_ART = microbitAloneArt as unknown as Art;
+
+/** What is printed on each ring, by the pin it is (the GPIO board's header names them P0, P1, P2, 3.3V, GND). */
+export const RING_LABELS: Record<string, string> = { P0: '0', P1: '1', P2: '2', '3.3V': '3V', GND: 'GND' };
+
+/** The project's board as it is drawn: the micro:bit alone or in its GPIO board, any other board as it is. */
+export function artOf(project: Pick<Project, 'board' | 'gpioBoard'>): Art {
+  return microbitAlone(project) ? MICROBIT_ALONE_ART : ARTS[project.board as BoardId];
 }
 
 /** board.json, checked once. */

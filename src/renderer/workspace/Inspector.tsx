@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { boardData, deletePart, deleteWire, duplicate, joinsOf, partKind, rotateParts, setBreadboardSize, setPartProp, setWireColour, straighten } from '@lib/editor';
+import { boardData, deletePart, deleteWire, duplicate, joinsOf, partKind, rotateParts, setBreadboardSize, setPartProp, setUsb, setWireColour, straighten, takeOutOfGpioBoard } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { BreadboardSize } from '@lib/circuit';
 import type { Project, ProjectDoc } from '@lib/project';
 import { formatValue } from '@lib/units';
 import { Chips, Icon, Segmented, Stepper, Swatches } from '../ui';
-import { MESSAGES, wireColour, type Selection } from './Canvas';
+import { GPIO_BOARD_TYPE, MESSAGES, wireColour, type Selection } from './Canvas';
 import { LibraryLine } from './AddLibrary';
 import { bands, KIT, LED_SWATCHES, PartIcon, WIRE_COLOURS } from './drawings';
 
@@ -86,9 +86,13 @@ export interface InspectorProps {
   /** The project's files, for a part's Library line (M6.7, screen 22b): what it needs, and Add. */
   doc?: ProjectDoc;
   onDoc?: (doc: ProjectDoc) => void;
+  /** Said on the canvas: what an edit here did there (M6.9: the wires that went with the GPIO board). */
+  onNotice?: (text: string) => void;
 }
 
-export function Inspector({ project, selection, onChange, onClose, onSelect, doc, onDoc }: InspectorProps) {
+const USB = [{ value: 'in', label: 'Plugged in · 5V' }, { value: 'out', label: 'Out' }];
+
+export function Inspector({ project, selection, onChange, onClose, onSelect, doc, onDoc, onNotice }: InspectorProps) {
   const [error, setError] = useState<string | null>(null);
   const board = project.board as BoardId;
   const label = (ref: string) => {
@@ -247,6 +251,29 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
           </span>
         </Row>
         <p className="tiny muted led-tip">Drag a bend to move it, double-click it to take it away; drag a dot in the middle of a stretch to add one.</p>
+      </>
+    );
+  } else if (selection.kind === 'board') {
+    // M6.9 (screen 24b): the micro:bit's GPIO board — its micro-USB, and the micro:bit taken out of it
+    icon = <PartIcon type={GPIO_BOARD_TYPE} />;
+    title = 'micro:bit GPIO board';
+    rows = (
+      <>
+        <p className="tiny muted board-sub">The micro:bit is in its slot.</p>
+        <Row name="Pins"><span className="small">P0–P20 in two rows · I²C header · 3.3V, 5V, GND</span></Row>
+        <Row name="micro-USB">
+          <Segmented label="micro-USB cable" hideLabel value={project.usb === false ? 'out' : 'in'} options={USB}
+            onChange={(v) => onChange(setUsb(project, v === 'in'))} />
+        </Row>
+        <p className="tiny muted led-tip">Without the GPIO board the micro:bit has its five rings: 0, 1, 2, 3V and GND.</p>
+        <div className="actions">
+          <button type="button" className="btn sm danger" onClick={() => {
+            const r = takeOutOfGpioBoard(project);
+            onChange(r.project);
+            onNotice?.(MESSAGES.outOfGpioBoard(r.removed));
+            onClose();
+          }}><Icon name="trash" size={14} /> Take the micro:bit out</button>
+        </div>
       </>
     );
   } else {

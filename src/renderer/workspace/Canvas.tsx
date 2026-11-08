@@ -1,13 +1,13 @@
 import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import {
-  addBreadboard, addPart, addWire, allPoints, boardArt, boardData, BREADBOARD, deleteBend, deleteMany, duplicate, fitBox, footprint, freeSpot, holeCard,
+  addBreadboard, addPart, addWire, allPoints, boardData, BREADBOARD, deleteBend, deleteMany, duplicate, fitBox, footprint, freeSpot, holeCard,
   insertBend, joined, moveBend, pinCard, type HoleCard, type PinCard,
   legsCentre, moveBoard, moveBreadboard, moveParts, nearestPoint, panBy, partKind, PITCH, pointAt, rotateParts, sceneOf,
-  setUsb, snapPart, snapToGrid, usedPoints, zoomAt, ZOOM, type Box, type Legs, type Point, type Scene,
+  putInGpioBoard, RING_LABELS, setUsb, snapPart, snapToGrid, usedPoints, zoomAt, ZOOM, type Art, type Box, type Legs, type Point, type Scene,
 } from '@lib/editor';
 import type { BreadboardSize } from '@lib/circuit';
-import type { Project } from '@lib/project';
-import { BOARD_ART, BOARD_NAMES } from '../app/boards';
+import { microbitAlone, onGpioBoard, type Project } from '@lib/project';
+import { boardName, boardPicture } from '../app/boards';
 import type { PartView } from '../../sim/circuit';
 import type { BoardOutputs } from '../app/useRun';
 import { Icon } from '../ui/Icon';
@@ -31,6 +31,8 @@ import { InputsCard, MicrobitCard, PartTip, SLIDER_PARTS, UsbSocket, UsbTip, use
  * switch is clicked to slide it, a knob dragged up or down to turn it, the light on a light sensor set on its card
  * (live.tsx); an RGB LED mixes its dies; hovering an LED says its current. Screen 17b: the micro:bit GPIO board's
  * micro-USB is clicked to plug it in or take it out (an edit, while building).
+ * M6.9 (screens 24, 24b): a new micro:bit project is the micro:bit alone, wired at its five rings; the GPIO board from
+ * the parts panel (dragged in or clicked) puts the micro:bit into it, and clicked, the GPIO board shows its inspector.
  * M5.2 (F-17): the wheel or a pinch zooms at the pointer (as in Tinkercad: the M5 gate), Shift + wheel pans, and so
  * does a drag with the middle or right button or with Space held; the toolbar zooms out, in, to 100 % and fits; + − 0 do the same.
  * The drawing is fitted when it opens and when a breadboard changes size. Hovering a free hole or pin lights every hole
@@ -55,7 +57,21 @@ export const MESSAGES = {
   noTurn: 'No room to turn it here: move it where there are more free holes first.',
   noCopy: 'No free place on the breadboard for a copy.',
   several: (n: number, mod: string) => `${n} selected. Drag one to move them all, R turns them, ${mod}D copies them, Delete removes them. Shift-click adds or takes away.`,
+  /** The micro:bit put into its GPIO board (screen 24b): the wires on its rings, and the header pins they are on now. */
+  inGpioBoard: (rings: [string, string][]) => `The micro:bit is in its GPIO board: 30 pins in two rows and an I²C header, and 5V from its own micro-USB.${
+    rings.length ? ` The wires on ${and(rings.map(([r]) => r))} are on its ${and(rings.map(([, p]) => p))}.` : ''}`,
+  /** Taken out (screen 24b): how many wires went with the GPIO board. */
+  outOfGpioBoard: (removed: number) => `The micro:bit is out of its GPIO board: wire it at its rings 0, 1, 2, 3V and GND.${
+    removed ? ` ${removed === 1 ? 'The wire' : `The ${removed} wires`} on its other pins went with the GPIO board — Undo brings ${removed === 1 ? 'it' : 'them'} back.` : ''}`,
 } as const;
+
+/** 'a', 'a and b', 'a, b and c'. */
+function and(items: string[]): string {
+  return items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+}
+
+/** The micro:bit's GPIO board in the parts panel (M6.9): placed, it doesn't go on the canvas — the micro:bit goes into it. */
+export const GPIO_BOARD_TYPE = 'gpio-board';
 
 const MOD = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
@@ -65,7 +81,10 @@ export type Placing = (
   | { type: string; how: 'keys' }                  // Enter: moved with the arrows
 ) & { /** Quarter turns clockwise, R while placing (M5.1). */ turns?: number };
 
-export type Selection = { kind: 'part' | 'wire' | 'breadboard'; id: string };
+/** 'board' is the micro:bit's GPIO board (M6.9), id 'board': the other boards have nothing to set. */
+export type Selection = { kind: 'part' | 'wire' | 'breadboard' | 'board'; id: string };
+/** Alone in the selection: a breadboard, the GPIO board — not added to with shift-click or a box. */
+const alone = (x: Selection) => x.kind === 'breadboard' || x.kind === 'board';
 
 /** A breadboard from the parts panel is placed like a part (M6.8): its "type" is 'breadboard:mini' and so on. */
 export const BREADBOARD_TYPE = 'breadboard:';
@@ -100,6 +119,9 @@ export interface CanvasProps {
   onOpenParts?: () => void;
   /** Screen pixels at the left covered by the open parts panel (M6.8): the drawing is fitted beside it. */
   inset?: number;
+  /** Something done outside the canvas that it says (M6.9: the micro:bit taken out of its GPIO board); a new object
+   *  each time, so the same text is said again. */
+  notice?: { text: string } | null;
 }
 
 /** `box` fitted into the part of a `w` × `h` canvas right of `inset` px, as a viewBox for the whole canvas; just
@@ -119,7 +141,7 @@ const NO_OUTPUTS = { parts: {}, board: { pins: {} } };
 
 export function Canvas({
   project, onChange, placing, onPlacing, selection, onSelect, running = false, outputs = NO_OUTPUTS, onInput,
-  onUndo, onRedo, onOpenParts, inset = 0,
+  onUndo, onRedo, onOpenParts, inset = 0, notice,
 }: CanvasProps) {
   const svg = useRef<SVGSVGElement>(null);
   const [pressed, setPressed] = useState<string | null>(null);
@@ -138,7 +160,11 @@ export function Canvas({
   const [gesture, setGesture] = useState<Gesture | null>(null);
   const [placeAt, setPlaceAt] = useState<Point | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const sizes = project.breadboards.map((b) => b.size).join();
+  /** What the canvas says that isn't a problem (M6.9: the micro:bit in its GPIO board). */
+  const [info, setInfo] = useState<string | null>(null);
+  useEffect(() => { if (notice) { setProblem(null); setInfo(notice.text); } }, [notice]);
+  // fitted again when a breadboard changes size, and when the micro:bit goes into its GPIO board or out (M6.9)
+  const sizes = `${project.breadboards.map((b) => b.size).join()}|${microbitAlone(project)}`;
   const [viewBox, setViewBox] = useState<Box>(() => fitBox(sceneOf(project)));
   /** The drawing fitted to what can be seen of the canvas (beside the parts panel when it is open). */
   const fitted = (p: Project) => {
@@ -208,12 +234,23 @@ export function Canvas({
   const shown = preview.project;
   const scene = sceneOf(shown);
 
-  const say = (text: string | null) => setProblem(text);
+  const say = (text: string | null) => { setProblem(text); setInfo(null); };
+  const tell = (text: string) => { setProblem(null); setInfo(text); };
   const endPlacing = () => { setPlaceAt(null); onPlacing(null); };
 
   /** Put the part with its legs' middle at `at`; false (and why) if it can't go there. A breadboard goes under the
    *  board (the first) or where it is dropped; a part dropped while there is no breadboard brings one with it. */
   const drop = (proj: Project, type: string, at: Point | undefined, turns = 0, select = true): boolean => {
+    if (type === GPIO_BOARD_TYPE) {
+      const next = putInGpioBoard(proj);
+      if (next === proj) return false;
+      const ends = new Set(proj.wires.flatMap((w) => [w.a, w.b]));
+      const labels = new Map(boardData('microbit-v2').pins.map((p) => [p.id, p.label]));
+      tell(MESSAGES.inGpioBoard(Object.entries(RING_LABELS).filter(([pin]) => ends.has(`board.${pin}`)).map(([pin, ring]) => [ring, labels.get(pin) ?? pin])));
+      onChange(next);
+      onSelect([{ kind: 'board', id: 'board' }]);
+      return true;
+    }
     const size = breadboardSize(type);
     if (size) {
       const r = addBreadboard(proj, size, proj.breadboards.length ? at : undefined);
@@ -241,7 +278,7 @@ export function Canvas({
   const isOn = (kind: Selection['kind'], id: string) => selection.some((x) => x.kind === kind && x.id === id);
   /** Shift-click: in or out of the selection (parts and wires only; a breadboard is selected alone). */
   const toggle = (kind: 'part' | 'wire', id: string) => {
-    const rest = selection.filter((x) => x.kind !== 'breadboard');
+    const rest = selection.filter((x) => !alone(x));
     onSelect(isOn(kind, id) ? rest.filter((x) => !(x.kind === kind && x.id === id)) : [...rest, { kind, id }]);
   };
 
@@ -299,11 +336,11 @@ export function Canvas({
       say(null);
       if (still) { if (!g.add) onSelect([]); return; }
       const inBox = boxed(sceneOf(proj), g.start, g.at);
-      const keep = g.add ? latest.current.selection.filter((x) => x.kind !== 'breadboard') : [];
+      const keep = g.add ? latest.current.selection.filter((x) => !alone(x)) : [];
       onSelect([...keep, ...inBox.filter((x) => !keep.some((k) => k.kind === x.kind && k.id === x.id))]);
       return;
     }
-    const select = (): Selection[] => (g.kind === 'board' ? [] : g.kind === 'breadboard' ? [{ kind: 'breadboard', id: g.id }]
+    const select = (): Selection[] => (g.kind === 'board' ? (onGpioBoard(proj) ? [{ kind: 'board', id: 'board' }] : []) : g.kind === 'breadboard' ? [{ kind: 'breadboard', id: g.id }]
       : g.ids.length > 1 && !still ? g.ids.map((id) => ({ kind: 'part' as const, id })) : [{ kind: 'part', id: g.id }]);
     if (still) { say(null); onSelect(select()); return; }
     const p = previewOf(proj, g);
@@ -345,8 +382,8 @@ export function Canvas({
   // Keyboard placing starts where the part would go first.
   useEffect(() => {
     if (placing?.how !== 'keys' || placeAt) return;
-    // a breadboard, or the first part (it brings one): put down at once, where they go first
-    if (breadboardSize(placing.type) || !project.breadboards.length) { drop(project, placing.type, undefined, placing.turns); endPlacing(); return; }
+    // a breadboard, the GPIO board, or the first part (it brings a breadboard): put down at once, where they go first
+    if (breadboardSize(placing.type) || placing.type === GPIO_BOARD_TYPE || !project.breadboards.length) { drop(project, placing.type, undefined, placing.turns); endPlacing(); return; }
     const legs = freeSpot(sceneOf(project), placing.type);
     if (!legs) { say(MESSAGES.full); endPlacing(); return; }
     const pts = Object.values(legs).map((ref) => pointAt(sceneOf(project), ref)!);
@@ -368,6 +405,8 @@ export function Canvas({
       const { project: proj, gesture: g, placing: p, pressed: held } = latest.current;
       if (held) { onInput?.(`pressed:${held}`, 0); setPressed(null); return; }
       if (p?.how === 'press') {
+        // the GPIO board is clicked or dragged in, never carried: the micro:bit goes into it wherever it is let go
+        if (p.type === GPIO_BOARD_TYPE) { drop(proj, p.type, undefined); endPlacing(); return; }
         if (Math.hypot(e.clientX - p.start.x, e.clientY - p.start.y) < MOVED && !inside(e)) {
           onPlacing({ type: p.type, how: 'carry', turns: p.turns });   // a click on the panel: the part follows the mouse
           return;
@@ -431,7 +470,7 @@ export function Canvas({
         setGesture({ ...g, via: g.via.slice(0, -1) });
         return;
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && !g && !p && s.some((x) => x.kind !== 'breadboard')) {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !g && !p && s.some((x) => !alone(x))) {
         e.preventDefault();
         commands.remove(proj, s);
       }
@@ -500,7 +539,7 @@ export function Canvas({
   };
 
   const used = usedPoints(shown);
-  const art = boardArt(scene.boardId);
+  const art = scene.art;
   const roles = new Map(boardData(scene.boardId).pins.map((p) => [`board.${p.id}`, p]));
   const press = (id: string) => (e: ReactMouseEvent) => {
     if (e.button !== 0) return;
@@ -537,7 +576,7 @@ export function Canvas({
   const hovered = hover && !usedPoints(shown).has(hover) ? hover : null;
   const litFrom = running ? null : gesture?.kind === 'wire' ? nearestPoint(scene, gesture.at) ?? gesture.from : gesture ? null : hovered;
   const lit = useMemo(() => (litFrom ? joined(shown, litFrom) : null), [shown, litFrom]);
-  const hint = problem ?? (placing?.how === 'carry' ? MESSAGES.carry : placing?.how === 'keys' ? MESSAGES.keys
+  const hint = problem ?? info ?? (placing?.how === 'carry' ? MESSAGES.carry : placing?.how === 'keys' ? MESSAGES.keys
     : gesture?.kind === 'wire' && gesture.mode === 'click' ? MESSAGES.bending
     : selection.length > 1 && !gesture ? MESSAGES.several(selection.length, MOD) : null);
   const some = chosen(selection);
@@ -581,21 +620,24 @@ export function Canvas({
         })}
         <image
           role="img"
-          aria-label={BOARD_NAMES[scene.boardId]}
-          className="board"
-          href={BOARD_ART[scene.boardId]}
+          aria-label={boardName(shown)}
+          className={microbitAlone(shown) ? 'board alone' : 'board'}
+          href={boardPicture(shown)}
           x={scene.view.board.x}
           y={scene.view.board.y}
           width={art.width}
           height={art.height}
           onMouseDown={begin((at) => ({ kind: 'board', start: at, at }))}
         />
+        {isOn('board', 'board') && (
+          <rect className="sel" data-selected-board="" x={scene.view.board.x - 5} y={scene.view.board.y - 5} width={art.width + 10} height={art.height + 10} rx={12} />
+        )}
         {art.usb && (
           <UsbSocket at={{ x: scene.view.board.x + art.usb.socket[0], y: scene.view.board.y + art.usb.socket[1] }} plugged={project.usb !== false}
             onToggle={() => { if (!running) onChange(setUsb(project, project.usb === false)); }}
             onHover={(on) => setTipOf((t) => (on ? 'usb' : t === 'usb' ? null : t))} />
         )}
-        <BoardOutputsLayer boardId={scene.boardId} at={scene.view.board} pins={outputs.board.pins} display={outputs.board.display} led={ledOf('board.LED')} />
+        <BoardOutputsLayer boardId={scene.boardId} art={art} at={scene.view.board} pins={outputs.board.pins} display={outputs.board.display} led={ledOf('board.LED')} />
         {lit && <Joined scene={scene} strips={lit.strips} points={lit.points} />}
         {shown.wires.map((w) => {
           const a = pointAt(scene, w.a);
@@ -715,7 +757,9 @@ export function Canvas({
         // screen 23: a new project is the board alone
         <div className="float start-card" role="group" aria-label="Start building">
           <b>Start building</b>
-          <p>Put a breadboard under the board, then parts in it. Wire them to the board's pins.</p>
+          {microbitAlone(project)
+            ? <p>Wire parts to the micro:bit's rings 0, 1, 2, 3V and GND — for its other pins, add its GPIO board from Parts.</p>
+            : <p>Put a breadboard under the board, then parts in it. Wire them to the board's pins.</p>}
           <span className="row">
             <button type="button" className="btn sm" onClick={() => drop(project, `${BREADBOARD_TYPE}half`, undefined, 0, false)}>Add a breadboard</button>
             {onOpenParts && <button type="button" className="btn primary sm" onClick={onOpenParts}><Icon name="grid" size={14} /> Add parts</button>}
@@ -780,8 +824,7 @@ export function Canvas({
 
 /** The board's own outputs where its picture has them: the Pico W's LED (its 'LED' pin), the ESP32's blue LED (a
  *  circuit part, board.LED), the micro:bit's display. */
-function BoardOutputsLayer({ boardId, at, pins, display, led }: { boardId: Scene['boardId']; at: Point; pins: Record<string, number>; display?: string; led: number }) {
-  const art = boardArt(boardId);
+function BoardOutputsLayer({ boardId, art, at, pins, display, led }: { boardId: Scene['boardId']; art: Art; at: Point; pins: Record<string, number>; display?: string; led: number }) {
   const ledAt = art.leds?.LED;
   const place = ([x, y]: [number, number]) => ({ x: at.x + x, y: at.y + y });
   return (
@@ -842,6 +885,7 @@ function SelectBox({ type, legs: placedLegs, props }: { type: string; legs: Reco
 
 /** The part being placed, where it would go — or, faded, where the pointer is when it can't go there. */
 function Ghost({ scene, type, at, turns }: { scene: Scene; type: string; at: Point; turns: number }) {
+  if (type === GPIO_BOARD_TYPE) return null;
   const size = breadboardSize(type);
   if (size) {
     const s = BREADBOARD.size(size);
