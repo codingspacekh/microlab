@@ -18,7 +18,7 @@ export function useSound(api: MicrolabApi, state: RunState, audio: () => AudioLi
 
   const player = useRef<SoundPlayer | null>(null);
   player.current ??= new SoundPlayer(audio);
-  const voices = state.status === 'idle' ? [] : voicesOf(state.parts, Math.round(state.board.sound ?? 0));
+  const voices = state.status === 'idle' ? [] : voicesOf(state.parts, state.board.sound ?? 0, state.board.tone);
   const key = JSON.stringify(voices);
   useEffect(() => { player.current!.set(JSON.parse(key) as typeof voices, muted); }, [key, muted]);
   useEffect(() => () => player.current?.close(), []);

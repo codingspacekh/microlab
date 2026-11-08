@@ -517,3 +517,18 @@ test('M7.3 (screens 27, 27c): a NeoPixel dropped beside the breadboard, made a r
   await expect(win.locator('[data-part="neo1"] .neopixel')).toHaveAttribute('data-lit', '0', { timeout: 5000 });
   await expect(win.getByRole('status')).toContainText('NeoPixels: 12 LEDs draw');
 });
+
+test('M7.4 (screen 06): the micro:bit\'s speaker in the real worker — a built-in sound, a sine sound effect, and silence once the program turns the speaker off', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New micro:bit project' }).click();
+  await setCode(win, ['from microbit import *', 'import audio, music', 'audio.play(Sound.HELLO)',
+    'audio.play(audio.SoundEffect(freq_start=400, freq_end=400, duration=1500, waveform=audio.SoundEffect.WAVEFORM_SINE, shape=audio.SoundEffect.SHAPE_LINEAR))',
+    'speaker.off()', 'music.pitch(440, 5000)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const speaker = win.locator('.speaker');
+  await expect(speaker).not.toHaveAttribute('data-hz', '0', { timeout: 3000 });   // hello
+  await expect(speaker).toHaveAttribute('data-wave', 'sine', { timeout: 3000 });  // the sound effect
+  await expect(win.getByRole('button', { name: /Sound on/ })).toBeVisible();
+  await expect(speaker).toHaveAttribute('data-hz', '0', { timeout: 4000 });      // the speaker off: pin 0 plays alone
+  await win.getByRole('button', { name: 'Stop' }).click();
+});

@@ -38,7 +38,8 @@ function fakeAudio() {
     close: async () => {},
   };
   const playing = () => oscillators.filter((o) => !o.stopped).map((o) => Math.round(o.frequency.value));
-  return { make: () => ctx as unknown as AudioLike, playing };
+  const types = () => oscillators.filter((o) => !o.stopped).map((o) => o.type);
+  return { make: () => ctx as unknown as AudioLike, playing, types };
 }
 
 function setup(board = 'New Pico W project', api: MicrolabApi = fakeApi()) {
@@ -129,6 +130,18 @@ describe('M6.2 while running: seen and heard', () => {
     expect(s.audio.playing()).toEqual([523]);
     s.sim.end();
     expect(s.audio.playing()).toEqual([]);
+  });
+
+  it('M7 slice 4: the speaker plays its sound effect\'s waveform; at volume 0 it is not heard; a later note is square again', () => {
+    const s = setup('New micro:bit project');
+    s.run();
+    s.sim.say((e) => e.onBoard({ pins: {}, sound: 600, tone: { volume: 0.5, wave: 'triangle' } }));
+    expect(s.audio.playing()).toEqual([600]);
+    expect(s.audio.types()).toEqual(['triangle']);
+    s.sim.say((e) => e.onBoard({ pins: {}, sound: 600, tone: { volume: 0, wave: 'triangle' } }));
+    expect(s.audio.playing()).toEqual([]);
+    s.sim.say((e) => e.onBoard({ pins: {}, sound: 440 }));
+    expect(s.audio.types()).toEqual(['square']);
   });
 
   it('nothing to hear (a Pico W with no buzzer): no sound button', () => {

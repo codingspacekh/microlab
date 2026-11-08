@@ -43,7 +43,7 @@ for _name, _notes in _data.TUNES.items():
 
 def _output():
     hz = 1000000 / _m.period_us if _m.amp and _m.period_us else 0
-    _ream.sound(hz)
+    _mb._tone(hz)
     if _m.pin is not None:
         _ream.pwm_out(_m.pin._key, hz, 0.5 if hz else -1.0)
 
@@ -63,10 +63,8 @@ def _period(us):
 
 
 def _select(pin):
-    # microbit_pin_audio_select: the default is pin 0 (with the speaker)
-    pin = _mb.pin0 if pin is None else pin
-    _mb._acquire(pin, 'music')
-    _m.pin = pin
+    # microbit_pin_audio_select: the default is pin 0 (with the speaker); None, the speaker alone (M7 slice 4)
+    _m.pin = _mb._audio_select(pin, 'music')
 
 
 def _start_timer():
@@ -159,7 +157,7 @@ def _wait():
         raise
 
 
-def play(music, pin=None, wait=True, loop=False):
+def play(music, pin=_mb.pin0, wait=True, loop=False):
     _m.octave, _m.duration = _DEFAULT_OCTAVE, _DEFAULT_DURATION
     if isinstance(music, (str, bytes)):
         notes = (music,)
@@ -178,7 +176,7 @@ def play(music, pin=None, wait=True, loop=False):
         _wait()
 
 
-def pitch(frequency, duration=-1, pin=None, wait=True):
+def pitch(frequency, duration=-1, pin=_mb.pin0, wait=True):
     frequency = int(frequency)
     duration = int(duration)
     _m.state = _IDLE
@@ -196,7 +194,7 @@ def pitch(frequency, duration=-1, pin=None, wait=True):
             _wait()
 
 
-def stop(pin=None):
+def stop(pin=_mb.pin0):
     _select(pin)
     _m.state = _IDLE
     _amplitude(False)

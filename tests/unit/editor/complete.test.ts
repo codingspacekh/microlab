@@ -9,7 +9,7 @@ const option = (board: string, code: string, label: string) => at(board, code)?.
 describe('M5.5 the catalogue', () => {
   it('each board has its own modules', () => {
     expect([...apiFor('pico-w').keys()].sort()).toEqual(['gc', 'machine', 'math', 'micropython', 'neopixel', 'os', 'random', 'sys', 'time']);   // M7: neopixel
-    expect([...apiFor('microbit-v2').keys()].sort()).toEqual(['gc', 'machine', 'math', 'microbit', 'micropython', 'music', 'neopixel', 'os', 'radio', 'random', 'time', 'utime']);   // M7: radio, neopixel
+    expect([...apiFor('microbit-v2').keys()].sort()).toEqual(['audio', 'gc', 'machine', 'math', 'microbit', 'micropython', 'music', 'neopixel', 'os', 'radio', 'random', 'time', 'utime']);   // M7: radio, neopixel, audio
     expect(apiFor('esp32-devkit-v1-ext')).toBe(apiFor('esp32-devkit-v1'));
   });
 

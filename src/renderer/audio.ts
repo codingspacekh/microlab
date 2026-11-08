@@ -1,4 +1,6 @@
 import type { PartView } from '../sim/circuit';
+import type { Wave } from '../sim/soundfx';
+import type { Tone } from '../sim/worker-core';
 
 /**
  * What is heard while a program runs (M6.2, F-36): each sounding buzzer and the micro:bit's speaker is a voice — a
@@ -9,13 +11,16 @@ export interface Voice {
   id: string;
   hz: number;
   volume: number;
+  /** Its waveform (M7 slice 4: a micro:bit sound effect's); square if not said. */
+  wave?: Wave;
 }
 
-/** The voices of a run now: the buzzers that sound, then the micro:bit's speaker (`speakerHz`, 0 for silence). */
-export function voicesOf(parts: Record<string, PartView>, speakerHz = 0): Voice[] {
+/** The voices of a run now: the buzzers that sound, then the micro:bit's speaker (`speakerHz`, 0 for silence; `tone`
+ *  its volume and waveform). */
+export function voicesOf(parts: Record<string, PartView>, speakerHz = 0, tone?: Tone): Voice[] {
   const out: Voice[] = [];
   for (const [id, v] of Object.entries(parts)) if (v.kind === 'buzzer' && v.hz > 0 && v.volume > 0) out.push({ id, hz: v.hz, volume: v.volume });
-  if (speakerHz > 0) out.push({ id: 'speaker', hz: speakerHz, volume: 1 });
+  if (speakerHz > 0 && (tone?.volume ?? 1) > 0) out.push({ id: 'speaker', hz: speakerHz, volume: tone?.volume ?? 1, ...(tone && tone.wave !== 'square' ? { wave: tone.wave } : {}) });
   return out;
 }
 
@@ -88,6 +93,9 @@ export class SoundPlayer {
         p = { osc, gain };
         this.playing.set(v.id, p);
       }
+      // noise has no oscillator of its own: a sawtooth at its pitch is as buzzy (M7 slice 4)
+      const type = v.wave === 'noise' ? 'sawtooth' : v.wave ?? 'square';
+      if (p.osc.type !== type) p.osc.type = type;
       p.osc.frequency.setValueAtTime(v.hz, ctx.currentTime);
       p.gain.gain.setValueAtTime(LEVEL * v.volume, ctx.currentTime);
     }

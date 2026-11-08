@@ -235,6 +235,72 @@ _volume = [255]
 def set_volume(v):
     v = _int(v)
     _volume[0] = 0 if v < 0 else 255 if v > 255 else v
+    _tone(_spk['hz'], _spk['vol'], _spk['wave'])   # the mixer's volume: what plays now changes with it
+
+
+# --- the speaker and the audio pin (M7 slice 4: microbit_speaker.c, microbit_pinaudio.c, microbithal_audio.cpp) ----
+# music and audio play through one mixer: to the speaker (unless it is off) and to one routed pin — pin0 by default,
+# none when the program says pin=None. What the speaker plays is the sound at set_volume's share.
+_spk = {'on': True, 'hz': 0, 'vol': 1.0, 'wave': 'square'}
+_routed = [None]
+
+
+def _tone(hz, vol=1.0, wave='square'):
+    _spk['hz'], _spk['vol'], _spk['wave'] = hz, vol, wave
+    _ream.sound(hz if _spk['on'] else 0, vol * _volume[0] / 255, wave)
+
+
+def _audio_select(pin, mode):
+    # microbit_pin_audio_select: None routes to no pin; the speaker's own pin is not allowed
+    if pin is None:
+        chosen = None
+    elif pin is pin_speaker:
+        raise ValueError('pin_speaker not allowed')
+    elif isinstance(pin, MicroBitDigitalPin):
+        chosen = pin
+    else:
+        raise TypeError('expecting a pin')
+    if chosen is not _routed[0]:
+        old = _routed[0]
+        if old is not None:   # microbit_obj_pin_free
+            _ream.pwm_out(old._key, 0, -1.0)
+            _modes[old._number] = 'unused'
+        _routed[0] = chosen
+        if chosen is not None:
+            _acquire(chosen, mode)
+    elif chosen is not None:
+        _modes[chosen._number] = mode
+    return chosen
+
+
+class MicroBitSpeaker:
+    def __repr__(self):
+        return '<MicroBitSpeaker>'
+
+    def on(self):
+        _spk['on'] = True
+        _tone(_spk['hz'], _spk['vol'], _spk['wave'])
+
+    def off(self):
+        _spk['on'] = False
+        _tone(_spk['hz'], _spk['vol'], _spk['wave'])
+
+
+speaker = MicroBitSpeaker()
+
+
+class MicroBitSound:
+    # microbit_sound.c: the built-in sounds, played by name (CODAL's sound expressions)
+    def __init__(self, name):
+        self._name = name
+
+    def __repr__(self):
+        return "Sound('%s')" % self._name
+
+
+for _n in ('giggle', 'happy', 'hello', 'mysterious', 'sad', 'slide', 'soaring', 'spring', 'twinkle', 'yawn'):
+    setattr(MicroBitSound, _n.upper(), MicroBitSound(_n))
+Sound = MicroBitSound
 
 
 def scale(value, from_, to):
@@ -704,3 +770,7 @@ class MicroBitSPI:
 
 
 spi = MicroBitSPI()
+
+
+# the audio module is the microbit module's too (modmicrobit.c: microbit.audio), M7 slice 4
+import audio  # noqa: E402

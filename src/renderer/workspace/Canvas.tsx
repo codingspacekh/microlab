@@ -687,7 +687,8 @@ export function Canvas({
             onToggle={() => { if (!running) onChange(setUsb(project, project.usb === false)); }}
             onHover={(on) => setTipOf((t) => (on ? 'usb' : t === 'usb' ? null : t))} />
         )}
-        <BoardOutputsLayer boardId={scene.boardId} art={art} at={scene.view.board} pins={outputs.board.pins} display={outputs.board.display} led={ledOf('board.LED')} />
+        <BoardOutputsLayer boardId={scene.boardId} art={art} at={scene.view.board} pins={outputs.board.pins} display={outputs.board.display} led={ledOf('board.LED')}
+          speaker={running ? outputs.board.sound ?? 0 : 0} wave={outputs.board.tone?.wave} />
         </g>
         {isOn('board', 'board') && (() => {
           const b = boardBox(scene);
@@ -897,7 +898,7 @@ export function Canvas({
 
 /** The board's own outputs where its picture has them: the Pico W's LED (its 'LED' pin), the ESP32's blue LED (a
  *  circuit part, board.LED), the micro:bit's display. */
-function BoardOutputsLayer({ boardId, art, at, pins, display, led }: { boardId: Scene['boardId']; art: Art; at: Point; pins: Record<string, number>; display?: string; led: number }) {
+function BoardOutputsLayer({ boardId, art, at, pins, display, led, speaker = 0, wave }: { boardId: Scene['boardId']; art: Art; at: Point; pins: Record<string, number>; display?: string; led: number; speaker?: number; wave?: string }) {
   const ledAt = art.leds?.LED;
   const place = ([x, y]: [number, number]) => ({ x: at.x + x, y: at.y + y });
   return (
@@ -905,6 +906,8 @@ function BoardOutputsLayer({ boardId, art, at, pins, display, led }: { boardId: 
       {ledAt && boardId === 'pico-w' && pins.LED === 1 && <BoardLed at={place(ledAt)} colour="green" />}
       {ledAt && boardId !== 'pico-w' && led > 0.01 && <BoardLed at={place(ledAt)} colour="blue" />}
       {art.display && display && <MicrobitDisplay at={art.display.map(place)} pixels={display} />}
+      {/* M7 slice 4: what the micro:bit's speaker plays now (it is heard from the laptop) */}
+      {boardId === 'microbit-v2' && <g className="speaker" data-hz={Math.round(speaker)} data-wave={speaker ? wave ?? 'square' : ''} />}
     </>
   );
 }

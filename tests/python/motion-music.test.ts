@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { VirtualClock } from '../../src/sim/clock';
 import type { InputChange } from '../../src/sim/pins';
-import { runProject } from '../../src/sim/run';
+import { runProject, type SoundEntry } from '../../src/sim/run';
 import { nodeLoader } from './vm';
 
 /** M2 slice 6c: the micro:bit's accelerometer and music (micropython-microbit-v2 v2.1.2:
@@ -9,7 +9,7 @@ import { nodeLoader } from './vm';
 const run = async (main: string, inputs: InputChange[] = []) =>
   runProject(await nodeLoader(), { board: 'microbit-v2', files: { 'main.py': `from microbit import *\nimport music\n${main}` }, clock: new VirtualClock(), inputs });
 const at = (line: number) => line + 2;
-const tones = (sound: [number, number][]) => sound.map(([t, f]) => [Math.round(t / 1000), Math.round(f * 10) / 10]);
+const tones = (sound: SoundEntry[]) => sound.map(([t, f]) => [Math.round(t / 1000), Math.round(f * 10) / 10]);
 
 describe('M2.6c accelerometer', () => {
   it('lying flat, face up: 0, 0, -1024 mg; strength 1024; the gesture "face up"', async () => {

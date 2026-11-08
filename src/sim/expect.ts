@@ -14,6 +14,7 @@ import type { RunResult } from './run';
  *                     true is 1, false 0)
  *                   | { text: [[at, field, 'what it shows'], …] }   (a display's text: an LCD's rows joined by a
  *                     line break, a 4-digit display's '01:27', M7 slice 2)
+ *   speaker   { heard: [[from, to], …], silent: [[from, to], …] }   (the micro:bit's own speaker, M7 slice 4)
  *   console   { includes: ['line', …] }
  *   ended     'stopped' (a program that loops for ever) or 'done'
  *   faults    [] — no damage faults is the default
@@ -38,6 +39,7 @@ export const expectSchema = z.object({
     values: z.array(z.tuple([z.number(), z.string(), z.number(), z.number()])).optional(),
     text: z.array(z.tuple([z.number(), z.string(), z.string()])).optional(),
   })).optional(),
+  speaker: z.object({ heard: z.array(span).optional(), silent: z.array(span).optional() }).optional(),
   console: z.object({ includes: z.array(z.string()) }).optional(),
   ended: z.enum(['done', 'stopped', 'error', 'fault']).optional(),
   faults: z.array(z.string()).optional(),
@@ -65,6 +67,16 @@ export function check(result: RunResult, e: Expectation): string[] {
   const wanted = e.faults ?? [];
   for (const d of damage) if (!wanted.includes(d)) out.push(`a fault: ${d}`);
   for (const line of e.console?.includes ?? []) if (!result.output.includes(line)) out.push(`the console has no "${line}"`);
+  // the micro:bit's speaker (M7 slice 4): heard at some moment in each span, silent all through each other
+  const speaker = (s: number) => { let hz = 0; for (const [t, h] of result.sound) if (t / 1e6 <= s) hz = h; return hz; };
+  const spans = (from: number, to: number) => { const at: number[] = []; for (let s = from; s <= to + 1e-9; s += 0.01) at.push(s); return at; };
+  for (const [from, to] of e.speaker?.heard ?? []) {
+    if (!spans(from, to).some((s) => speaker(s) > 0)) out.push(`the speaker is silent ${from}–${to} s, should be heard`);
+  }
+  for (const [from, to] of e.speaker?.silent ?? []) {
+    const s = spans(from, to).find((x) => speaker(x) > 0);
+    if (s !== undefined) out.push(`the speaker sounds at ${s.toFixed(2)} s, should be silent ${from}–${to} s`);
+  }
 
   for (const [id, want] of Object.entries(e.parts ?? {})) {
     const trace = result.parts.filter(([, pid]) => pid === id).map(([t, , v]) => [t / 1e6, v] as [number, PartView]);

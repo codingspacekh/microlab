@@ -88,3 +88,12 @@ describe('M7 any part\'s state in expect.json (values)', () => {
     expect(check(result({ parts, ended: 'done' }), wrong)).toEqual(['s1: angle 180 at 0.6 s, should be 0–10', 's1: rpm none at 0.6 s, should be 1–2']);
   });
 });
+
+describe('M7 slice 4: the micro:bit\'s speaker in expect.json', () => {
+  it('heard at some moment in each span; silent all through each other', () => {
+    const e = expectSchema.parse({ seconds: 2, ended: 'stopped', speaker: { heard: [[0, 0.5]], silent: [[1, 2]] } });
+    expect(check(result({ sound: [[100_000, 440], [400_000, 0]] }), e)).toEqual([]);
+    expect(check(result({ sound: [[100_000, 440], [400_000, 0], [1_500_000, 880, 0.5, 'sine']] }), e)).toEqual(['the speaker sounds at 1.50 s, should be silent 1–2 s']);
+    expect(check(result({ sound: [] }), e)).toEqual(['the speaker is silent 0–0.5 s, should be heard']);
+  });
+});

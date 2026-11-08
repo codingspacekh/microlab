@@ -2,6 +2,7 @@ import type { BoardId } from '@lib/boards';
 import { boardData } from '@lib/editor';
 import { toCircuit, type Project, type ProjectDoc } from '@lib/project';
 import type { PartView } from '../sim/circuit';
+import type { Tone } from '../sim/worker-core';
 import { Control } from '../sim/control';
 import type { RunResult, SimBoard } from '../sim/run';
 import type { StartMessage, WorkerMessage } from '../sim/worker-core';
@@ -22,7 +23,7 @@ export interface WorkerLike {
 export interface RunEvents {
   onOutput: (text: string) => void;
   onParts: (states: Record<string, PartView>) => void;
-  onBoard: (outputs: { pins: Record<string, number>; display?: string; sound?: number; radio?: string[] }) => void;
+  onBoard: (outputs: { pins: Record<string, number>; display?: string; sound?: number; tone?: Tone; radio?: string[] }) => void;
   onEnd: (result: RunResult) => void;
 }
 
@@ -83,7 +84,7 @@ export function startRun(req: { doc: ProjectDoc; entry: string }, events: RunEve
     if (ended) return;
     if (m.type === 'output') events.onOutput(m.text);
     else if (m.type === 'parts') events.onParts(m.states);
-    else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}), ...(m.sound !== undefined ? { sound: m.sound } : {}), ...(m.radio ? { radio: m.radio } : {}) });
+    else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}), ...(m.sound !== undefined ? { sound: m.sound, ...(m.tone ? { tone: m.tone } : {}) } : {}), ...(m.radio ? { radio: m.radio } : {}) });
     else end(m.result);
   };
   worker.onerror = (e) => end({ ...emptyResult('error'), error: { type: 'Error', message: `The simulator couldn't start: ${e.message}` } });

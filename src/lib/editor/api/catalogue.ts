@@ -401,6 +401,28 @@ temperature() — The temperature in °C, from the chip.
 set_volume(volume) — How loud the speaker is: 0 to 255.
 scale(value, from_, to) — value moved from one range to another: scale(accelerometer.get_x(), (-1024, 1024), (0, 9)).
 ws2812_write(pin, buffer) — Sends bytes to NeoPixels on a pin, as the neopixel module's show() does.
+speaker: Speaker — The speaker on the back (V2): music, pitch and audio play on it, and on pin 0.
+~Speaker — The micro:bit's speaker.
+Speaker.on() — Turns the speaker on again (it starts on).
+Speaker.off() — Turns the speaker off: sounds still go to pin 0, to a buzzer or headphones there.
+Sound — The built-in sounds, played with audio.play(Sound.HAPPY).
+Sound.GIGGLE — The built-in giggle sound.
+Sound.HAPPY — The built-in happy sound.
+Sound.HELLO — The built-in hello sound.
+Sound.MYSTERIOUS — The built-in mysterious sound.
+Sound.SAD — The built-in sad sound.
+Sound.SLIDE — The built-in slide sound.
+Sound.SOARING — The built-in soaring sound.
+Sound.SPRING — The built-in spring sound.
+Sound.TWINKLE — The built-in twinkle sound.
+Sound.YAWN — The built-in yawn sound.
+audio: Audio — Plays the built-in sounds and sound effects you make: audio.play(Sound.GIGGLE).
+~Audio — The audio module (also import audio).
+Audio.play(source, wait=True, pin=pin0, return_pin=None) — Plays a Sound, a SoundEffect (or a list of them) or AudioFrames, on the speaker and pin 0; pin=None: the speaker alone.
+Audio.is_playing() — True while something plays.
+Audio.stop() — Stops what audio is playing.
+Audio.SoundEffect(freq_start=500, freq_end=2500, duration=500, vol_start=255, vol_end=0, waveform=SoundEffect.WAVEFORM_SQUARE, fx=SoundEffect.FX_NONE, shape=SoundEffect.SHAPE_LOG) — A sound effect: a sweep from one pitch to another, getting louder or quieter.
+Audio.AudioFrame() — 32 samples of sound, 0–255 (128 is silence), played one frame after another.
 `;
 
 const IMAGES = `HEART HEART_SMALL HAPPY SMILE SAD CONFUSED ANGRY ASLEEP SURPRISED SILLY FABULOUS MEH YES NO
@@ -449,6 +471,28 @@ NeoPixel.clear() — Turns every LED off, at once.
 NeoPixel.ORDER — Which byte is which colour (green, red, blue, white).
 `;
 
+const AUDIO = `
+play(source, wait=True, pin=pin0, return_pin=None) — Plays a Sound, a SoundEffect (or a list of them) or AudioFrames, on the speaker and pin 0; pin=None: the speaker alone.
+is_playing() — True while something plays.
+stop() — Stops what audio is playing.
+SoundEffect(freq_start=500, freq_end=2500, duration=500, vol_start=255, vol_end=0, waveform=SoundEffect.WAVEFORM_SQUARE, fx=SoundEffect.FX_NONE, shape=SoundEffect.SHAPE_LOG) — A sound effect: a sweep from one pitch to another (Hz), over duration ms, from one volume (0–255) to another.
+SoundEffect.copy() — A copy of it, to change.
+SoundEffect.WAVEFORM_SINE — waveform: smooth, like a whistle.
+SoundEffect.WAVEFORM_SAWTOOTH — waveform: buzzy.
+SoundEffect.WAVEFORM_TRIANGLE — waveform: soft, like a flute.
+SoundEffect.WAVEFORM_SQUARE — waveform: bright, like a beep.
+SoundEffect.WAVEFORM_NOISE — waveform: a hiss.
+SoundEffect.SHAPE_LINEAR — shape: the pitch moves evenly.
+SoundEffect.SHAPE_CURVE — shape: the pitch moves along a curve.
+SoundEffect.SHAPE_LOG — shape: the pitch moves fast, then slowly.
+SoundEffect.FX_NONE — fx: no effect.
+SoundEffect.FX_TREMOLO — fx: the volume wobbles.
+SoundEffect.FX_VIBRATO — fx: the pitch wobbles.
+SoundEffect.FX_WARBLE — fx: the pitch warbles.
+AudioFrame() — 32 samples of sound, 0–255 (128 is silence): play a list of them with play().
+AudioFrame.copyfrom(other) — Copies the samples from another frame or from bytes.
+`;
+
 const TUNES = `DADADADUM ENTERTAINER PRELUDE ODE NYAN RINGTONE FUNK BLUES BIRTHDAY WEDDING FUNERAL PUNCHLINE PYTHON BADDY
 CHASE BA_DING WAWAWAWAA JUMP_UP JUMP_DOWN POWER_UP POWER_DOWN`;
 
@@ -476,6 +520,7 @@ export const MODULES: Record<string, { boards: ApiBoard[]; doc: string; text: st
   },
   neopixel: { boards: ['pico', 'esp32'], doc: 'NeoPixels (WS2812B): sticks and rings of LEDs in any colour, on one pin.', text: NEOPIXEL },
   microbitNeopixel: { boards: ['microbit'], doc: 'NeoPixels (WS2812B): sticks and rings of LEDs in any colour, on one pin.', text: MICROBIT_NEOPIXEL },
+  audio: { boards: ['microbit'], doc: 'The micro:bit\'s sounds: the built-in Sounds and your own sound effects.', text: AUDIO },
   radio: { boards: ['microbit'], doc: 'The micro:bit\'s own radio, between micro:bits: send and receive messages.', text: RADIO },
   music: {
     boards: ['microbit'],

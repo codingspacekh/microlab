@@ -4,6 +4,7 @@ import { RealClock, type Clock } from './clock';
 import type { Control } from './control';
 import { PinBank, RP2040_RESET, type AnalogEntry, type InputChange, type Level, type PinMode, type PinState, type Pull, type PwmEntry, type TraceEntry } from './pins';
 import { Motion, type MotionChange } from './motion';
+import { soundSteps, type Wave } from './soundfx';
 import { TimerBank } from './timers';
 import { Console, lineBeingRun, startMicroPython, type LoadMicroPython, type MicroPython, type Where } from './vm';
 
@@ -38,8 +39,9 @@ export interface RunResult {
   display: [number, string][];
   /** Every message the micro:bit's radio sent (M7): [µs, its bytes as hex]. */
   radio: [number, string][];
-  /** Every change of the micro:bit's sound (music, pitch): [µs, Hz], 0 for silence (M2.6c). */
-  sound: [number, number][];
+  /** Every change of the micro:bit's speaker (music, pitch, audio): [µs, Hz], 0 for silence (M2.6c); with its volume
+   *  (0–1) and waveform when not full and square (M7 slice 4: set_volume, a sound effect). */
+  sound: SoundEntry[];
   /** Bus traffic (I²C, SPI, UART, bitstream) as it reaches the bridge: [µs, 'i2c sda=4 scl=5 write 3c 00 nack'] (M2.7). */
   bus: [number, string][];
   /** Every change of a part in the circuit (M3.4); [] without a circuit. The Pico W's LED is in `trace` ('LED'). */
@@ -102,7 +104,9 @@ export interface RunOptions {
   /** Each new frame of the micro:bit's display: 25 brightnesses 0–9, row by row. */
   onDisplay?: (pixels: string) => void;
   /** Each change of the micro:bit speaker's pitch, Hz (0: silence) (M6.2). */
-  onSound?: (hz: number) => void;
+  onSound?: (hz: number, volume: number, wave: Wave) => void;
+  /** Seeds the sound effects' randomness (M7 slice 4: tests); otherwise each run differs, as on the real one. */
+  seed?: number;
   /** Each message the micro:bit's radio sends (M7): its bytes as hex. */
   onRadio?: (hex: string) => void;
   /** Messages another micro:bit sends to this one (M7, tests and examples): [µs, the text], on its group and channel. */
@@ -139,7 +143,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const timers = new TimerBank(now);
   const events = new Events(mp, pins, timers);
   const display: [number, string][] = [];
-  const sound: [number, number][] = [];
+  const sound: SoundEntry[] = [];
   const bus: [number, string][] = [];
   const radio: [number, string][] = [];
   const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
@@ -194,11 +198,26 @@ function startFiles(options: RunOptions): string[] {
   return options.board === 'microbit-v2' ? [entry] : ['boot.py', entry];
 }
 
+/** [µs, Hz] — or [µs, Hz, volume 0–1, waveform] when not full and square. */
+export type SoundEntry = [number, number] | [number, number, number, Wave];
+
+/** A small seeded generator (mulberry32): random(n) is 0 … n − 1. */
+function seeded(seed: number): (n: number) => number {
+  let a = seed >>> 0;
+  return (n: number) => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * n);
+  };
+}
+
 /** The `_ream` bridge (architecture §2.4): the board-neutral calls the board modules make into the sim. */
 interface MicrobitParts {
   display: [number, string][];
   radio: [number, string][];
-  sound: [number, number][];
+  sound: SoundEntry[];
   motion: Motion;
   bus: [number, string][];
   /** True once Stop is asked for (and KeyboardInterrupt is on its way). */
@@ -228,6 +247,7 @@ function stopper(mp: MicroPython, control: Control | undefined, faulted: () => b
 
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
   const { display, sound, motion, bus, radio, stop, quiet, circuit, asOf } = mb;
+  const random = seeded(options.seed ?? Date.now());
   const log = (entry: string) => bus.push([clock.nowUs(), entry]);
   // the micro:bit's own inputs from the window (M6.6, screen 06): 'board:…' slots, NaN until the window sets them
   const slot = (name: string): number => {
@@ -335,18 +355,27 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     light: (): number => or(slot('board:light'), options.lightLevel ?? 128),
     /** The microphone's sound level, 0–255 (M6.6): the window's slider; 0 in a silent room. */
     sound_level: (): number => or(slot('board:sound'), 0),
-    /** Several changes at one moment (a note switches on, then gets its pitch) are one change. */
-    sound: (hz: number) => {
+    /** The speaker's sound now: its pitch, volume (0–1) and waveform. Several changes at one moment (a note switches on,
+     *  then gets its pitch) are one change. */
+    sound: (hz: number, volume = 1, wave: Wave = 'square') => {
       const t = clock.nowUs();
+      const v = Math.round(volume * 1000) / 1000;
+      const h = Math.round(hz * 100) / 100;
+      const entry: SoundEntry = !h || (v === 1 && wave === 'square') ? [t, h] : [t, h, v, wave];   // silence is silence, at any volume
+      const same = (a?: SoundEntry, b?: SoundEntry) => (a?.[1] ?? 0) === (b?.[1] ?? 0) && (a?.[2] ?? 1) === (b?.[2] ?? 1) && (a?.[3] ?? 'square') === (b?.[3] ?? 'square');
       const last = sound.at(-1);
       if (last && last[0] === t) {
-        last[1] = hz;
-        if ((sound.at(-2)?.[1] ?? 0) === hz) sound.pop();
-      } else if ((last?.[1] ?? 0) !== hz) {
-        sound.push([t, hz]);
+        sound[sound.length - 1] = entry;
+        if (same(sound.at(-2), entry) || (sound.length === 1 && !h)) sound.pop();
+      } else if (!same(last, entry)) {
+        sound.push(entry);
       }
-      options.onSound?.(hz);
+      options.onSound?.(h, v, wave);
     },
+    /** A sound expression's steps (M7 slice 4: audio.play of a Sound or a SoundEffect), as CODAL synthesizes it:
+     *  'µs,Hz,volume,wave;…', '' when it isn't one. */
+    sound_steps: (expression: string): string =>
+      soundSteps(expression, random)?.map((x) => `${x.us},${Math.round(x.hz * 100) / 100},${Math.round(x.volume * 1000) / 1000},${x.wave}`).join(';') ?? '',
     accel_values: (): string => { clock.ticksUs(); fromWindow(); return motion.values().join(' '); },
     accel_gesture: (): string => { fromWindow(); return motion.gesture(); },
     accel_events: (): string => { fromWindow(); return motion.takeEvents().join(','); },
