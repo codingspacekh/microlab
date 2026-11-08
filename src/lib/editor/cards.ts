@@ -67,6 +67,11 @@ const TERMINALS: Record<string, { names: Record<string, string>; line: string }>
     names: { vcc: 'VCC (5 V)', gnd: 'GND', din: 'DIN (SPI MOSI)', cs: 'CS (LOAD)', clk: 'CLK (SPI SCK)', vcc2: 'VCC out', gnd2: 'GND out', dout: 'DOUT (to the next one\'s DIN)', cs2: 'CS out', clk2: 'CLK out' },
     line: 'DIN to SPI\'s MOSI, CLK to its SCK, CS to any pin; VCC 5 V. The right-hand header chains another matrix.',
   },
+  // M7 slice 3: a NeoPixel's pads
+  neopixel: {
+    names: { din: 'DIN (data in)', vcc: '5V', gnd: 'GND', dout: 'DOUT (to the next one\'s DIN)', vcc2: '5V out', gnd2: 'GND out' },
+    line: 'DIN to any pin (neopixel); 5V to VBUS, VIN or 5V. Its data goes in at DIN only — DOUT goes on to the next stick or ring.',
+  },
 };
 
 /** A part's terminal (M7): what it is, and what it is wired to. */

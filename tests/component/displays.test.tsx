@@ -59,12 +59,12 @@ function setup() {
 const HEX_ONE_PIXEL = `01${'00'.repeat(1023)}`;
 
 describe('M7 the displays in the parts panel and on the canvas (screens 26, 26b)', () => {
-  it('a Displays group of five; the OLED in row f; the digit across the gap, its pins in rows h and d', () => {
+  it('a Displays group of six; the OLED in row f; the digit across the gap, its pins in rows h and d', () => {
     const s = setup();
     const group = screen.getByRole('group', { name: 'Displays' });
     expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual([
       expect.stringMatching(/^OLED SSD1306/), expect.stringMatching(/^LCD 16×2/), expect.stringMatching(/^7-segment digit/),
-      expect.stringMatching(/^4-digit display/), expect.stringMatching(/^8×8 dot matrix/),
+      expect.stringMatching(/^4-digit display/), expect.stringMatching(/^8×8 dot matrix/), expect.stringMatching(/^NeoPixel strip \/ ring/),   // M7 slice 3
     ]);
     s.place(/^OLED SSD1306/, 'ssd1306', 'bb1.f14');
     expect(s.part('oled1')).toHaveAttribute('data-legs', 'bb1.f14 bb1.f15 bb1.f16 bb1.f17');
@@ -220,5 +220,49 @@ describe('M7 the RC522 RFID reader (the teacher\'s request)', () => {
     fireEvent.mouseEnter(s.part('rfid1'));
     expect(screen.getByRole('tooltip')).toHaveTextContent(/RFID1 · the card 93 5E 1A 2B/);
     expect(screen.getByRole('tooltip')).toHaveTextContent(/Last: card 93 5E 1A 2B selected/);
+  });
+});
+
+describe('M7 NeoPixels (screens 27, 27b, 27c)', () => {
+  it('a stick of 8 lies where it is let go, its pads points; its inspector makes it a ring of 12, then 24 — its pads with it', () => {
+    const s = setup();
+    s.drop(/^NeoPixel strip \/ ring/, { x: 760, y: 200 });
+    const np = () => s.part('neo1').querySelector('.neopixel')!;
+    expect(np()).toHaveAttribute('data-shape', 'stick');
+    expect(np().querySelectorAll('[data-led]')).toHaveLength(8);
+    for (const t of ['din', 'vcc', 'gnd', 'dout', 'vcc2', 'gnd2']) expect(s.point(`neo1.${t}`)).toBeDefined();
+    s.wire('board.GP0', 'neo1.din');
+    fireEvent.mouseDown(s.part('neo1'), { clientX: 0, clientY: 0, button: 0 });
+    fireEvent.mouseUp(s.svg, { clientX: 0, clientY: 0, button: 0 });
+    expect(s.inspector()).toHaveTextContent('up to 480 mA — 8 LEDs × 60 mA');
+    fireEvent.click(within(within(s.inspector()).getByRole('radiogroup', { name: 'NeoPixel shape' })).getByRole('radio', { name: 'Ring' }));
+    expect(np()).toHaveAttribute('data-shape', 'ring');
+    expect(np().querySelectorAll('[data-led]')).toHaveLength(12);
+    expect(() => s.point('neo1.vcc2')).toThrow();   // a ring has no 5V out
+    expect(s.svg.querySelectorAll('[data-wire]')).toHaveLength(1);   // the wire on DIN stays
+    fireEvent.click(within(within(s.inspector()).getByRole('radiogroup', { name: 'LEDs' })).getByRole('radio', { name: '24' }));
+    expect(np().querySelectorAll('[data-led]')).toHaveLength(24);
+    expect(s.inspector()).toHaveTextContent('up to 1440 mA — 24 LEDs × 60 mA');
+  });
+
+  it('while running each LED shows the colour the sim says; hovered, an LED says its colour and current; the status bar adds them up', () => {
+    const s = setup();
+    s.drop(/^NeoPixel strip \/ ring/, { x: 760, y: 200 });
+    s.run();
+    s.say((e) => e.onParts({ neo1: { kind: 'pixels', on: true, pixels: `ff0000${'000000'.repeat(2)}000050${'000000'.repeat(4)}`, lit: 2, amps: 0.0313, from: 'VBUS', limitA: 0.5 } }));
+    const np = s.part('neo1').querySelector('.neopixel')!;
+    expect(np).toHaveAttribute('data-lit', '2');
+    expect(np.querySelector('[data-led="0"] circle[fill="#ff0000"]')).toBeInTheDocument();
+    expect(np.querySelector('[data-led="3"] circle[fill="#0000ff"]')).toBeInTheDocument();   // (0, 0, 80) drawn in its full colour
+    expect(np.querySelector('[data-led="1"] circle[fill="#e2ddd0"]')).toBeInTheDocument();   // dark
+    fireEvent.mouseEnter(s.part('neo1'));
+    fireEvent.mouseMove(np.querySelector('[data-led="3"] .np-body')!);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('NEO1 · LED 3 of 8');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('(0, 0, 80) — blue, 31 % · about 7 mA');
+    fireEvent.mouseMove(np.querySelector('text')!);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('NEO1 · 2 of 8 lit · 31 mA');
+    expect(screen.getByRole('status')).toHaveTextContent("NeoPixels: 8 LEDs draw 31 mA of USB's 500 mA");
+    s.say((e) => e.onParts({ neo1: { kind: 'pixels', on: true, pixels: 'ffffff'.repeat(8), lit: 8, amps: 0.4848, from: 'VBUS', limitA: 0.3 } }));
+    expect(screen.getByRole('status')).toHaveTextContent("NeoPixels: 8 LEDs ask 485 mA of USB's 300 mA");
   });
 });

@@ -316,7 +316,7 @@ function duplicateFree(project: Project, ids: string[]): { project: Project; par
   const lying = { ...scene.view.parts };
   const boxes = ids.map((id) => {
     const at = lying[id] ?? { x: 0, y: 0 };
-    const b = freeBox(partType(project, id), lying[id]?.turns);
+    const b = freeBox(partType(project, id), lying[id]?.turns, project.parts.find((p) => p.id === id)?.props);
     return { x0: at.x + b[0], x1: at.x + b[2] };
   });
   const dx = snapToGrid({ x: Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0)) + 2 * PITCH, y: 0 }).x;

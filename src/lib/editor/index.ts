@@ -2,11 +2,11 @@ export { BREADBOARD, GRID, PITCH, allPoints, boardAt, boardBox, snapToGrid, defa
 export type { PlacedPoint, Point, Scene, View } from './geometry';
 export { MICROBIT_ALONE_ART, PART_ART, RING_LABELS, artOf, boardArt, boardData } from './library';
 export type { Art, PartArt } from './library';
-export { PART_KINDS, freeBox, freeTurn, isFree, legsCentre, partKind } from './parts';
+export { PART_KINDS, freeBox, freeTurn, isFree, kindBox, kindTerminals, legsCentre, NEOPIXEL_DRAWN, partKind } from './parts';
 export type { PartKind, PartType } from './parts';
 export { freeSpot, snapPart, usedPoints } from './place';
 export type { Legs } from './place';
-export { addBreadboard, addPart, addWire, deletePart, deleteWire, lay, moveBoard, moveBreadboard, rotateBoard, movePart, putInGpioBoard, withoutParts, ringPins, setBreadboardSize, setPartProp, setUsb, setWireColour, takeOutOfGpioBoard } from './commands';
+export { addBreadboard, addPart, addWire, deletePart, deleteWire, lay, moveBoard, moveBreadboard, rotateBoard, movePart, putInGpioBoard, withoutParts, ringPins, setBreadboardSize, setNeoPixel, setPartProp, setUsb, setWireColour, takeOutOfGpioBoard } from './commands';
 export { footprint, turnsOf } from './parts';
 export { deleteMany, duplicate, moveParts, rotateParts } from './arrange';
 export type { Chosen } from './arrange';

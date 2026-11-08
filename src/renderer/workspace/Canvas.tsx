@@ -4,7 +4,7 @@ import {
   insertBend, joined, moveBend, pinCard, type HoleCard, type PinCard,
   legsCentre, moveBoard, moveBreadboard, moveParts, nearestPoint, panBy, partKind, PITCH, pointAt, rotateParts, sceneOf,
   putInGpioBoard, RING_LABELS, setUsb, snapPart, snapToGrid, usedPoints, zoomAt, ZOOM, type Art, type Box, type Legs, type Point, type Scene,
-  boardAt, boardBox, freeBox, freeTurn, isFree, rotateBoard, setPartProp, terminalsOf,
+  boardAt, boardBox, freeBox, freeTurn, isFree, kindTerminals, rotateBoard, setPartProp, terminalsOf,
 } from '@lib/editor';
 import type { BreadboardSize } from '@lib/circuit';
 import { microbitAlone, type Project } from '@lib/project';
@@ -770,7 +770,11 @@ export function Canvas({
               {...(position !== undefined ? { 'data-position': String(position) } : {})}
               {...(hz !== undefined ? { 'data-hz': String(hz) } : {})}
               {...(p.type === 'button' ? { 'data-pressed': pressed === p.id ? '1' : '0' } : {})}
-              {...(says ? { onMouseEnter: () => setTipOf(p.id), onMouseLeave: () => setTipOf((t) => (t === p.id ? null : t)) } : {})}
+              {...(says ? { onMouseEnter: () => setTipOf(p.id), onMouseLeave: () => setTipOf((t) => (t?.split('#')[0] === p.id ? null : t)) } : {})}
+              {...(says && p.type === 'neopixel' ? { onMouseMove: (e: React.MouseEvent) => {   // M7 slice 3: the LED under the mouse
+                const led = (e.target as Element).closest('[data-led]')?.getAttribute('data-led');
+                setTipOf(led ? `${p.id}#${led}` : p.id);
+              } } : {})}
               aria-label={`${safeName(p.type)} ${p.id}`} className={['part', p.type, moving && preview.blocked && 'blocked'].filter(Boolean).join(' ')}
               aria-selected={on || undefined}
               onMouseDown={running ? runInput(p.type, p.id) : (e) => {
@@ -779,7 +783,7 @@ export function Canvas({
                 const group = on ? chosen(selection).parts : [p.id];
                 begin((at) => ({ kind: 'parts', id: p.id, ids: group, start: at, at }))(e);
               }}>
-              <Turned type={p.type} at={lying} turns={lying?.turns ?? 0}>
+              <Turned type={p.type} at={lying} turns={lying?.turns ?? 0} props={p.props}>
                 {(local) => <PartDrawing type={p.type} legs={local(legs)} props={p.props} label={p.id.toUpperCase()} look={{ glow, dies, position, sounding: !!hz || measuring, motion, moisture, tilt, kit, act, display, pressed: pressed === p.id }} />}
               </Turned>
               {on && <SelectBox type={p.type} legs={legs} props={p.props} turns={lying?.turns ?? 0} />}
@@ -844,7 +848,8 @@ export function Canvas({
           return { left: Math.max(8, Math.min(Math.round(c.x - 120), (room.w || 1e4) - 290)), top: Math.max(8, Math.round(c.y + dy * scale)) };
         };
         const sliders = running && inputsOpen ? project.parts.filter((p) => SLIDER_PARTS.has(p.type)) : [];
-        const tipPart = running && tipOf && tipOf !== 'usb' ? project.parts.find((p) => p.id === tipOf) : undefined;
+        const tipPart = running && tipOf && tipOf !== 'usb' ? project.parts.find((p) => p.id === tipOf.split('#')[0]) : undefined;
+        const tipLed = tipOf?.includes('#') ? Number(tipOf.split('#')[1]) : undefined;
         return (
           <>
             {running && boardOpen && project.board === 'microbit-v2' && <MicrobitCard live={live} onClose={() => setBoardOpen(false)} style={{ right: 14, top: 14 }} radio={outputs.board.radio} />}
@@ -853,7 +858,7 @@ export function Canvas({
               <PartTip id={tipPart.id} type={tipPart.type} common={String(tipPart.props?.common ?? 'cathode')} views={outputs.parts} props={tipPart.props}
                 overLine={live.value(`position:${tipPart.id}`) >= 0.5}
                 style={near(isFree(tipPart.type) ? Object.keys(terminalsOf(scene, tipPart)).map((t) => `${tipPart.id}.${t}`).concat(Object.values(tipPart.legs)) : Object.values(tipPart.legs), 46)}
-                values={{ x: live.value(`x:${tipPart.id}`), y: live.value(`y:${tipPart.id}`), steps: live.value(`steps:${tipPart.id}`) }} />
+                values={{ x: live.value(`x:${tipPart.id}`), y: live.value(`y:${tipPart.id}`), steps: live.value(`steps:${tipPart.id}`), ...(tipLed !== undefined ? { led: tipLed } : {}) }} />
             )}
             {tipOf === 'usb' && art.usb && (
               <UsbTip plugged={project.usb !== false} style={(() => {
@@ -944,7 +949,7 @@ function SelectBox({ type, legs: placedLegs, props, turns = 0 }: { type: string;
   const lying = placedLegs['@'];
   const free = lying && partKind(type).free;
   if (lying && free) {   // M7: a part beside the breadboard, its body (turned, slice 2)
-    const [x0, y0, x1, y1] = freeBox(type, turns);
+    const [x0, y0, x1, y1] = freeBox(type, turns, props);
     return <rect className="sel" x={lying.x + x0 - 6} y={lying.y + y0 - 6} width={x1 - x0 + 12} height={y1 - y0 + 12} rx={8} />;
   }
   if (type === 'power-supply') {
@@ -986,7 +991,7 @@ function Ghost({ scene, type, at, turns }: { scene: Scene; type: string; at: Poi
     const lies = { x: at.x - fx, y: at.y - fy };
     return (
       <g data-ghost="ok" className="ghost" pointerEvents="none" opacity={0.55}>
-        <Turned type={type} at={lies} turns={turns}>
+        <Turned type={type} at={lies} turns={turns} props={partKind(type).props}>
           {() => <PartDrawing type={type} legs={{ '@': lies, ...ghostTerminals(type, lies, 0) }} props={partKind(type).props} label={partKind(type).prefix.toUpperCase()} />}
         </Turned>
       </g>
@@ -1004,12 +1009,12 @@ function Ghost({ scene, type, at, turns }: { scene: Scene; type: string; at: Poi
 /** A part beside the breadboard (M7) drawn as if not turned, then turned `turns` quarters clockwise about its body's
  *  middle (slice 2: the teacher's request) — `local` takes the points it is drawn from (its terminals, a plug in another
  *  part's socket) back into its own unturned frame. Any other part is drawn as it is. */
-function Turned({ type, at, turns, children }: { type: string; at?: Point; turns: number; children: (local: (pts: Record<string, Point>) => Record<string, Point>) => React.ReactNode }) {
+function Turned({ type, at, turns, props, children }: { type: string; at?: Point; turns: number; props?: Record<string, unknown>; children: (local: (pts: Record<string, Point>) => Record<string, Point>) => React.ReactNode }) {
   if (!at || !turns || !isFree(type)) return <>{children((pts) => pts)}</>;
-  const [cx, cy] = legsCentre(type);
+  const [cx, cy] = legsCentre(type, 0, props);
   const local = (pts: Record<string, Point>) => Object.fromEntries(Object.entries(pts).map(([k, p]) => {
     if (k === '@') return [k, p];
-    const [x, y] = freeTurn(type, [p.x - at.x, p.y - at.y], turns, true);
+    const [x, y] = freeTurn(type, [p.x - at.x, p.y - at.y], turns, true, props);
     return [k, { x: at.x + x, y: at.y + y }];
   }));
   return <g transform={`rotate(${90 * turns} ${at.x + cx} ${at.y + cy})`}>{children(local)}</g>;
@@ -1017,7 +1022,7 @@ function Turned({ type, at, turns, children }: { type: string; at?: Point; turns
 
 /** Where a part's terminals would be (M7), from its first leg (or where it lies), turned `turns` quarters. */
 function ghostTerminals(type: string, from: Point, turns: number): Record<string, Point> {
-  return Object.fromEntries(Object.entries(partKind(type).terminals ?? {}).map(([k, [dx, dy]]) => {
+  return Object.fromEntries(Object.entries(kindTerminals(type)).map(([k, [dx, dy]]) => {
     let [x, y] = [dx, dy];
     for (let i = 0; i < ((turns % 4) + 4) % 4; i++) [x, y] = [-y || 0, x];
     return [k, { x: from.x + x, y: from.y + y }];
@@ -1032,10 +1037,10 @@ function besideAll(project: Project): Point {
 
 /** The actuators that say what they do when hovered while running (M7, screens 25, 25b). */
 const ACT_TIPS = ['servo', 'motor', 'pump', 'relay', 'l9110s', 'l298n', 'uln2003', 'stepper', 'buzzer-module', 'traffic-module', 'rgb-module', 'power-supply',
-  'ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219', 'rc522'];
+  'ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219', 'rc522', 'neopixel'];
 
 /** M7 slice 2's displays, and a 7-segment digit's LEDs in order (its view ids `<id>:a` …). */
-const DISPLAY_TYPES = ['ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219', 'rc522'];
+const DISPLAY_TYPES = ['ssd1306', 'lcd1602', 'seven-segment', 'tm1637', 'max7219', 'rc522', 'neopixel'];
 const SEGMENTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'dp'];
 
 /** What an actuator shows while running, from the sim's views (M7). */

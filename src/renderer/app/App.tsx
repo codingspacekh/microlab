@@ -21,6 +21,8 @@ import type { ConsoleAction, SendRequest } from '@lib/repl';
 import { kindOf, type Detection, type FoundBoard } from '@lib/usb';
 import { useRun, type RunState, type StartRun } from './useRun';
 import { useSound } from './useSound';
+import { neopixelCount } from '@lib/circuit/neopixel';
+import type { PartView } from '../../sim/circuit';
 import type { AudioLike } from '../audio';
 
 /**
@@ -544,11 +546,23 @@ function StatusBar({ project, run, board, sound }: { project: OpenProject | null
     : board ? <span className="st running"><span className="dot" />{board}</span>
     : project?.savedNote ? <span className="st saved">{project.savedNote}</span>
     : <span>Ready</span>;
+  // screen 27 (M7 slice 3): while running, what the NeoPixels draw, against what their supply gives
+  const pixels = run.status === 'running' ? Object.values(run.parts).filter((v): v is Extract<PartView, { kind: 'pixels' }> => v.kind === 'pixels') : [];
+  const leds = p ? p.parts.filter((x) => x.type === 'neopixel').reduce((n, x) => n + neopixelCount(x.props), 0) : 0;
+  const drawn = pixels.reduce((a, v) => a + v.amps, 0);
+  const from = pixels.find((v) => v.from);
+  const over = !!from?.limitA && drawn > from.limitA;
+  const neo = pixels.length > 0 && (
+    <span className={over ? 'st warn' : undefined}>
+      NeoPixels: {leds} LEDs {over ? 'ask' : 'draw'} {drawn >= 1 ? `${drawn.toFixed(2)} A` : `${Math.round(drawn * 1000)} mA`}{from ? ` of ${from.from === 'VBUS' || from.from === '5V' || from.from === 'VIN' ? 'USB' : from.from}'s ${Math.round((from.limitA ?? 0) * 1000)} mA` : ''}
+    </span>
+  );
   // screen 06: while running, what can be heard says so, and a click turns it off (M6.2)
   const audible = run.status !== 'idle' && !!p && (p.board === 'microbit-v2' || p.parts.some((x) => x.type === 'buzzer'));
   return (
     <footer className="statusbar" role="status">
       {left}
+      {neo}
       {audible && (
         <button type="button" className="btn ghost sm sound" aria-pressed={!sound.muted} onClick={sound.toggle}
           title={sound.muted ? 'Turn the sound on' : 'Turn the sound off'}>

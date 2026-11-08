@@ -1,3 +1,4 @@
+import { neopixelShape } from '../circuit/neopixel';
 import { PART_ART } from './library';
 
 /**
@@ -13,7 +14,7 @@ export type PartType = 'resistor' | 'led' | 'rgb-led' | 'button' | 'slide-switch
   | 'pcf8591' | 'bmp280' | 'ds18b20' | 'ds1302' | 'vl53l0x' | 'max30102'
   | 'servo' | 'motor' | 'l9110s' | 'l298n' | 'relay' | 'pump' | 'uln2003' | 'stepper'
   | 'traffic-module' | 'rgb-module' | 'buzzer-module' | 'power-supply'
-  | 'ssd1306' | 'lcd1602' | 'seven-segment' | 'tm1637' | 'max7219' | 'rc522';
+  | 'ssd1306' | 'lcd1602' | 'seven-segment' | 'tm1637' | 'max7219' | 'rc522' | 'neopixel';
 
 export interface PartKind {
   type: PartType;
@@ -33,6 +34,9 @@ export interface PartKind {
   /** It lies beside the breadboard, on no hole (M7: a motor, a pump, an L298N, a stepper): its place is
    *  view.parts[id]; `box` is its body [x0, y0, x1, y1] from there. Its `legs` are none. */
   free?: { box: [number, number, number, number] };
+  /** Its terminals and body follow its props (M7 slice 3: a NeoPixel's shape and LED count); `terminals` and
+   *  `free.box` are then its first props'. */
+  sized?: (props: Record<string, unknown>) => { terminals: Record<string, [number, number]>; box: [number, number, number, number] };
   /** Not in the parts panel: it comes with another part (a stepper with its ULN2003). */
   hidden?: boolean;
   /** Added with this part, its legs in this part's terminals (the ULN2003's stepper, by its cable in the socket); it
@@ -48,6 +52,25 @@ function fromArt(type: keyof typeof PART_ART): Record<string, [number, number]> 
 
 const ROWS = [...'abcdefghij'];
 const MODULE_ROWS = [...'fghijabcde'];
+
+/** A NeoPixel's pads and body (screen 27): a stick lies from its body's top-left — DIN 5V GND out of its left end,
+ *  DOUT 5V GND out of its right, an LED every 22; a ring from its middle, LED 0 at the top — DIN GND 5V DOUT on a
+ *  header below it. */
+export const NEOPIXEL_DRAWN = { pitch: 22, margin: 20, height: 44, pads: [10, 22, 34], ringRadius: { 8: 30, 12: 42, 16: 54, 24: 78 } as Record<number, number>, band: 12 } as const;
+function neopixelGeometry(props: Record<string, unknown>): { terminals: Record<string, [number, number]>; box: [number, number, number, number] } {
+  const { shape, leds } = neopixelShape(props);
+  const d = NEOPIXEL_DRAWN;
+  if (shape === 'ring') {
+    const ro = (d.ringRadius[leds] ?? leds * 3.3) + d.band;
+    const terminals = Object.fromEntries(['din', 'gnd', 'vcc', 'dout'].map((t, i) => [t, [-18 + 12 * i, ro + 22]])) as Record<string, [number, number]>;
+    return { terminals, box: [-ro, -ro, ro, ro + 26] };
+  }
+  const w = leds * d.pitch + 2 * d.margin;
+  const terminals = Object.fromEntries([
+    ...['din', 'vcc', 'gnd'].map((t, i) => [t, [-8, d.pads[i]!]]), ...['dout', 'vcc2', 'gnd2'].map((t, i) => [t, [w + 8, d.pads[i]!]]),
+  ]) as Record<string, [number, number]>;
+  return { terminals, box: [-12, 0, w + 12, d.height] };
+}
 
 export const PART_KINDS: PartKind[] = [
   { type: 'resistor', name: 'Resistor', detail: '220 Ω', group: 'Basics', prefix: 'r', legs: { a: [0, 0], b: [48, 0] }, props: { ohms: 220 }, rows: ROWS },
@@ -152,7 +175,22 @@ export const PART_KINDS: PartKind[] = [
     terminals: Object.fromEntries([
       ...['vcc', 'gnd', 'din', 'cs', 'clk'].map((t, i) => [t, [-8, 40 + 12 * i]]), ...['vcc2', 'gnd2', 'dout', 'cs2', 'clk2'].map((t, i) => [t, [132, 40 + 12 * i]]),
     ]) as Record<string, [number, number]>, free: { box: [-12, 0, 136, 128] } },
+  // M7 slice 3 (screens 27, 27b): a NeoPixel stick or ring lies beside the breadboard, its pads points to wire
+  { type: 'neopixel', group: 'Displays', name: 'NeoPixel strip / ring', detail: 'WS2812B', prefix: 'neo', legs: {}, props: { shape: 'stick', leds: 8 }, rows: [],
+    terminals: neopixelGeometry({}).terminals, free: { box: neopixelGeometry({}).box }, sized: neopixelGeometry },
 ];
+
+/** A part's terminals (M7), for its props (a NeoPixel's follow its shape and LED count). */
+export function kindTerminals(type: string, props?: Record<string, unknown>): Record<string, [number, number]> {
+  const k = partKind(type);
+  return k.sized ? k.sized({ ...k.props, ...props }).terminals : k.terminals ?? {};
+}
+
+/** A free part's body [x0, y0, x1, y1] from where it lies, not turned, for its props. */
+export function kindBox(type: string, props?: Record<string, unknown>): [number, number, number, number] {
+  const k = partKind(type);
+  return k.sized ? k.sized({ ...k.props, ...props }).box : k.free!.box;
+}
 
 /** A module's header: its pins in a row, one hole apart. */
 function header(legs: string[]): Record<string, [number, number]> {
@@ -163,24 +201,24 @@ function header(legs: string[]): Record<string, [number, number]> {
 export const isFree = (type: string): boolean => PART_KINDS.some((k) => k.type === type && k.free);
 
 /** The middle of a free part's body, from where it lies: it turns about it (M7 slice 2: the teacher's request). */
-function freeMiddle(type: string): [number, number] {
-  const b = partKind(type).free!.box;
+function freeMiddle(type: string, props?: Record<string, unknown>): [number, number] {
+  const b = kindBox(type, props);
   return [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
 }
 
 /** A free part's body [x0, y0, x1, y1] from where it lies, after `turns` quarter turns clockwise about its middle. */
-export function freeBox(type: string, turns = 0): [number, number, number, number] {
-  const b = partKind(type).free!.box;
+export function freeBox(type: string, turns = 0, props?: Record<string, unknown>): [number, number, number, number] {
+  const b = kindBox(type, props);
   if (turns % 2 === 0) return b;
-  const [cx, cy] = freeMiddle(type);
+  const [cx, cy] = freeMiddle(type, props);
   const [hw, hh] = [(b[2] - b[0]) / 2, (b[3] - b[1]) / 2];
   return [cx - hh, cy - hw, cx + hh, cy + hw];
 }
 
 /** A point of a free part (an offset from where it lies: a terminal) after `turns` quarter turns clockwise about its
  *  body's middle (screen y is down: (x, y) → (−y, x)); `back` turns it the other way. */
-export function freeTurn(type: string, [x, y]: [number, number], turns = 0, back = false): [number, number] {
-  const [cx, cy] = freeMiddle(type);
+export function freeTurn(type: string, [x, y]: [number, number], turns = 0, back = false, props?: Record<string, unknown>): [number, number] {
+  const [cx, cy] = freeMiddle(type, props);
   let [dx, dy] = [x - cx, y - cy];
   for (let i = 0; i < ((turns % 4) + 4) % 4; i++) [dx, dy] = back ? [dy, -dx || 0] : [-dy || 0, dx];
   return [cx + dx, cy + dy];
@@ -193,9 +231,8 @@ export function partKind(type: string): PartKind {
 }
 
 /** Where the legs' middle is from the first leg: the point a part is held by while it is dragged. */
-export function legsCentre(type: string, turns = 0): [number, number] {
-  const free = partKind(type).free;
-  if (free) return [(free.box[0] + free.box[2]) / 2, (free.box[1] + free.box[3]) / 2];   // a free part: its body's middle
+export function legsCentre(type: string, turns = 0, props?: Record<string, unknown>): [number, number] {
+  if (partKind(type).free) return freeMiddle(type, props);   // a free part: its body's middle
   const offs = Object.values(footprint(type, turns));
   return [offs.reduce((s, [x]) => s + x, 0) / offs.length, offs.reduce((s, [, y]) => s + y, 0) / offs.length];
 }

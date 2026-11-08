@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { boardData, deleteMany, deleteWire, duplicate, joinsOf, partKind, rotateBoard, rotateParts, setBreadboardSize, setPartProp, setUsb, setWireColour, straighten, takeOutOfGpioBoard } from '@lib/editor';
+import { boardData, deleteMany, deleteWire, duplicate, joinsOf, partKind, rotateBoard, rotateParts, setBreadboardSize, setNeoPixel, setPartProp, setUsb, setWireColour, straighten, takeOutOfGpioBoard } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { BreadboardSize } from '@lib/circuit';
+import { NEOPIXEL, neopixelShape, type NeoPixelShape } from '@lib/circuit/neopixel';
 import { onGpioBoard, type Project, type ProjectDoc } from '@lib/project';
 import { boardName, boardPicture } from '../app/boards';
 import { formatValue } from '@lib/units';
@@ -107,7 +108,10 @@ const TIPS: Record<string, string> = {
   tm1637: 'Any two pins for CLK and DIO (the tm1637 library); 3.3–5 V.',
   rc522: '3.3 V only — 5 V would damage a real one. SCK, MOSI and MISO to the board\'s SPI pins, SDA (its chip select) and RST to any two (the mfrc522 library). While it runs, hold the card or the key fob to it on the Inputs card.',
   max7219: 'Needs 5 V (VBUS, VIN or 5V). DIN to SPI MOSI, CLK to SCK, CS to any pin; its right-hand header chains another.',
+  // M7 slice 3 (screen 27)
+  neopixel: 'Its 5V to VBUS, VIN or 5V (3.3 V works, a little dim). DIN to any pin — NeoPixel(Pin(0), 8); DOUT goes on to the next one\'s DIN. Each LED draws up to 60 mA at full white: keep them dim on USB.',
 };
+const SHAPES = [{ value: 'stick', label: 'Stick' }, { value: 'ring', label: 'Ring' }];
 const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({ value, name: value[0]!.toUpperCase() + value.slice(1), colour }));
 
 export interface InspectorProps {
@@ -219,6 +223,22 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
               options={ADDRESSES[part.type]!.map((a) => ({ value: String(a), label: `0x${a.toString(16).toUpperCase()}` }))} />
           </Row>
         )}
+        {part.type === 'neopixel' && (() => {
+          const { shape, leds } = neopixelShape(part.props);
+          const size = (s: NeoPixelShape, n: number) => onChange(setNeoPixel(project, part.id, s, n));
+          return (
+            <>
+              <Row name="Shape">
+                <Segmented label="NeoPixel shape" hideLabel value={shape} onChange={(v) => size(v as NeoPixelShape, v === 'ring' ? 12 : 8)} options={SHAPES} />
+              </Row>
+              <Row name="LEDs">
+                <Segmented label="LEDs" hideLabel value={String(leds)} onChange={(v) => size(shape, Number(v))}
+                  options={NEOPIXEL.sizes[shape].map((n) => ({ value: String(n), label: String(n) }))} />
+              </Row>
+              <Row name="Full white"><span className="small">up to {leds * 60} mA — {leds} LEDs × 60 mA</span></Row>
+            </>
+          );
+        })()}
         {part.type === 'seven-segment' && (
           <Row name="Common">
             <Segmented label="Common pins" hideLabel value={String(part.props?.common ?? 'cathode')} onChange={(v) => set('common', v)} options={COMMONS} />
@@ -280,7 +300,7 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
           </Row>
         ) : kind.free ? (
           <Row name="Lies">
-            <span className="small">beside the breadboard — wire its {part.type === 'l298n' ? 'screws and header pins' : ['lcd1602', 'tm1637', 'max7219'].includes(part.type) ? 'header pins' : 'tabs'}</span>
+            <span className="small">beside the breadboard — wire its {part.type === 'l298n' ? 'screws and header pins' : ['lcd1602', 'tm1637', 'max7219'].includes(part.type) ? 'header pins' : part.type === 'neopixel' ? 'pads' : 'tabs'}</span>
           </Row>
         ) : part.type === 'power-supply' ? (
           <Row name="Pins in"><span className="small mono">{label(part.legs['t-1']!).replace(/^T-/, 'columns ')}–{Number(label(part.legs['t-1']!).replace(/^T-/, '')) + 1}, both rail pairs</span></Row>

@@ -475,3 +475,45 @@ test('M7.2 (screens 26, 26c): a 16×2 LCD dropped beside the breadboard, wired a
   await win.mouse.move(box.x + box.width / 2, box.y + 20);
   await expect(win.getByRole('tooltip')).toContainText('too faint to read: a 16×2 LCD needs 5 V');
 });
+
+test('M7.3 (screens 27, 27c): a NeoPixel dropped beside the breadboard, made a ring of 12 in its inspector, wired at its pads — its LEDs show what write() sent; hovered, an LED says its colour; data on DOUT lights nothing', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
+  const below = await centre(win, '[data-point="bb1.B-20"]');
+  await drag(win, await centre(win, '.parts .pitem:has-text("NeoPixel")'), { x: below.x, y: below.y + 120 });
+  await expect(win.locator('[data-part="neo1"] .neopixel')).toHaveAttribute('data-shape', 'stick');
+  const stick = (await win.locator('[data-part="neo1"] .neopixel').boundingBox())!;
+  await win.mouse.click(stick.x + stick.width / 2, stick.y + 4);   // its strip, above the LEDs
+  const inspector = win.getByRole('complementary', { name: 'Inspector' });
+  await expect(inspector).toContainText('NEO1');
+  await inspector.getByRole('radio', { name: 'Ring' }).click();
+  await expect(win.locator('[data-part="neo1"] .neopixel')).toHaveAttribute('data-leds', '12');
+  await win.keyboard.press('Escape');
+  for (const [pin, t] of [['board.GND@38', 'gnd'], ['board.VBUS', 'vcc'], ['board.GP0', 'din']]) {
+    await drag(win, await centre(win, `[data-point="${pin}"]`), await centre(win, `[data-point="neo1.${t}"]`));
+    await win.keyboard.press('Escape');
+    await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  }
+  await expect(win.locator('[data-wire]')).toHaveCount(3);
+  await setCode(win, ['from machine import Pin', 'from neopixel import NeoPixel', 'import time', 'np = NeoPixel(Pin(0), 12)',
+    'np[0] = (40, 0, 0)', 'np[3] = (0, 0, 80)', 'np.write()', 'time.sleep(10)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.locator('[data-part="neo1"] .neopixel')).toHaveAttribute('data-lit', '2', { timeout: 5000 });
+  await expect(win.getByRole('status')).toContainText(/NeoPixels: 12 LEDs draw \d+ mA of USB's 500 mA/);
+  const led = (await win.locator('[data-part="neo1"] [data-led="3"] .np-body').boundingBox())!;
+  await win.mouse.move(led.x + led.width / 2, led.y + led.height / 2);
+  await expect(win.getByRole('tooltip')).toContainText('NEO1 · LED 3 of 12');
+  await expect(win.getByRole('tooltip')).toContainText('(0, 0, 80) — blue, 31 %');
+  await win.getByRole('button', { name: 'Stop' }).click();
+  await expect(win.getByRole('button', { name: 'Run main.py' })).toBeEnabled({ timeout: 2000 });
+
+  // screen 27c: GP0's wire on DOUT instead — nothing lights
+  await win.locator('[data-wire="w3"]').dispatchEvent('mousedown', { button: 0 });
+  await inspector.getByRole('button', { name: 'Delete' }).click();
+  await drag(win, await centre(win, '[data-point="board.GP0"]'), await centre(win, '[data-point="neo1.dout"]'));
+  await win.keyboard.press('Escape');
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.locator('[data-part="neo1"] .neopixel')).toHaveAttribute('data-lit', '0', { timeout: 5000 });
+  await expect(win.getByRole('status')).toContainText('NeoPixels: 12 LEDs draw');
+});

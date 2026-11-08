@@ -2,7 +2,7 @@ import { strips, connect } from '../circuit';
 import { toCircuit, type Project } from '../project';
 import { BREADBOARD, boardBox, pointAt, type Point, type Scene } from './geometry';
 import { boardData } from './library';
-import { freeBox, PART_KINDS } from './parts';
+import { freeBox, kindTerminals, PART_KINDS } from './parts';
 
 /**
  * What the canvas shows (M5.2, F-17) and what lights up under the pointer (F-12). The canvas's viewBox is a box in
@@ -32,7 +32,7 @@ export function fitBox(scene: Scene, pad = PAD): Box {
   // the parts that lie beside the breadboard (M7)
   for (const part of scene.project.parts) {
     const at = scene.view.parts?.[part.id];
-    const b = PART_KINDS.find((k) => k.type === part.type)?.free ? freeBox(part.type, at?.turns) : undefined;
+    const b = PART_KINDS.find((k) => k.type === part.type)?.free ? freeBox(part.type, at?.turns, part.props) : undefined;
     if (at && b) boxes.push({ x: at.x + b[0], y: at.y + b[1], w: b[2] - b[0], h: b[3] - b[1] });
     // the power supply's body reaches left of the breadboard's end
     const first = part.type === 'power-supply' ? pointAt(scene, part.legs['t-1'] ?? '') : undefined;
@@ -69,7 +69,7 @@ export function joined(project: Project, ref: string): { points: string[]; strip
   const terminal = (p: string) => {
     const part = project.parts.find((q) => q.id === p.slice(0, p.indexOf('.')));
     const leg = p.slice(p.indexOf('.') + 1);
-    return !!part && !part.legs[leg] && !!PART_KINDS.find((k) => k.type === part.type)?.terminals?.[leg];
+    return !!part && !part.legs[leg] && !!PART_KINDS.find((k) => k.type === part.type) && !!kindTerminals(part.type, part.props)[leg];
   };
   const points = net.pointsInNet(ref).filter((p) => p.startsWith('board.') || project.breadboards.some((b) => p.startsWith(`${b.id}.`)) || terminal(p));
   const set = new Set(points);

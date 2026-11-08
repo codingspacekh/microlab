@@ -2,7 +2,7 @@ import { COLUMNS, hasRails, type BreadboardSize } from '../circuit';
 import { microbitAlone, onGpioBoard, type Project } from '../project';
 import { artOf, boardData, MICROBIT_ALONE_ART } from './library';
 import { BREADBOARD, boardBox, sceneOf, snapToGrid, type Point } from './geometry';
-import { partKind } from './parts';
+import { kindTerminals, legsCentre, partKind } from './parts';
 import { usedPoints, type Legs } from './place';
 
 /**
@@ -83,6 +83,26 @@ export function setWireColour(project: Project, id: string, color: string): Proj
 
 export function setPartProp(project: Project, id: string, key: string, value: number | string | boolean): Project {
   return { ...project, parts: project.parts.map((p) => (p.id === id ? { ...p, props: { ...p.props, [key]: value } } : p)) };
+}
+
+/** A NeoPixel made a stick or a ring of `leds` (M7 slice 3, screen 27's inspector): the middle of its body stays where it
+ *  was; the wires on pads it no longer has (a ring has no 5V and GND out) go with them. */
+export function setNeoPixel(project: Project, id: string, shape: 'stick' | 'ring', leds: number): Project {
+  const part = project.parts.find((p) => p.id === id);
+  if (!part) return project;
+  const props = { ...part.props, shape, leds };
+  const pads = kindTerminals(part.type, props);
+  const gone = (ref: string) => ref.startsWith(`${id}.`) && !(ref.slice(id.length + 1) in pads);
+  const next: Project = {
+    ...project,
+    parts: project.parts.map((p) => (p.id === id ? { ...p, props } : p)),
+    wires: project.wires.filter((w) => !gone(w.a) && !gone(w.b)),
+  };
+  const at = sceneOf(project).view.parts?.[id];
+  if (!at) return next;
+  const [ox, oy] = legsCentre(part.type, 0, part.props);
+  const [nx, ny] = legsCentre(part.type, 0, props);
+  return lay(next, id, { x: at.x + ox - nx, y: at.y + oy - ny }, at.turns ?? 0);
 }
 
 /** Mini, half or full; undefined when a smaller one would leave a leg or a wire end off its end (or on a rail a

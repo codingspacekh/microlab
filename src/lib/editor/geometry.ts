@@ -2,7 +2,7 @@ import { findPin, isBoardId, type BoardId } from '../boards';
 import { COLUMNS, hasRails, railHole, type BreadboardSize } from '../circuit';
 import type { Project } from '../project';
 import { artOf, boardData, type Art } from './library';
-import { freeTurn, PART_KINDS, turnsOf, type PartKind } from './parts';
+import { freeTurn, kindBox, kindTerminals, PART_KINDS, turnsOf, type PartKind } from './parts';
 
 /**
  * Where everything is on the canvas (F-12, F-13), in the approved drawing's units: one pitch (0.1 in) = 16. A
@@ -88,8 +88,7 @@ function lyingDefaults(scene: Scene): Scene {
     if (c && bb === scene.project.breadboards[0]) y = c.y;
   }
   for (const part of missing) {
-    const kind = kindOf(part.type)!;
-    const [x0, y0, , y1] = kind.free!.box;
+    const [x0, y0, , y1] = kindBox(part.type, part.props);
     parts[part.id] = snapToGrid({ x: right + 40 - x0, y: y - y0 });
     y += y1 - y0 + 24;
   }
@@ -147,12 +146,12 @@ const kindOf = (type: string): PartKind | undefined => PART_KINDS.find((k) => k.
  *  leg's hole, turned with it. Undefined for a leg that is no terminal, or a part not placed. */
 export function terminalAt(scene: Scene, part: Project['parts'][number], leg: string): Point | undefined {
   const kind = kindOf(part.type);
-  const off = kind?.terminals?.[leg];
+  const off = kind ? kindTerminals(part.type, part.props)[leg] : undefined;
   if (!kind || !off) return undefined;
   if (kind.free) {
     const at = scene.view.parts?.[part.id];
     if (!at) return undefined;
-    const [x, y] = freeTurn(part.type, off, at.turns);
+    const [x, y] = freeTurn(part.type, off, at.turns, false, part.props);
     return { x: at.x + x, y: at.y + y };
   }
   const [k0, k1] = Object.keys(kind.legs);
@@ -167,7 +166,7 @@ export function terminalAt(scene: Scene, part: Project['parts'][number], leg: st
 /** Each of a part's terminals, where it is (M7); not those plugged into something (a stepper's cable in its socket). */
 export function terminalsOf(scene: Scene, part: Project['parts'][number]): Record<string, Point> {
   const out: Record<string, Point> = {};
-  for (const leg of Object.keys(kindOf(part.type)?.terminals ?? {})) {
+  for (const leg of Object.keys(kindOf(part.type) ? kindTerminals(part.type, part.props) : {})) {
     if (part.legs[leg]) continue;
     const at = terminalAt(scene, part, leg);
     if (at) out[leg] = at;

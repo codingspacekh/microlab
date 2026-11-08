@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { echoUs, ldrOhms, SENSOR_START } from '@lib/circuit';
+import { echoUs, ldrOhms, NEOPIXEL, neopixelCount, SENSOR_START } from '@lib/circuit';
 import type { Point } from '@lib/editor';
 import type { PartView } from '../../sim/circuit';
 import { noteName } from '../audio';
 import { Icon, Segmented, Select, Slider, Switch } from '../ui';
 import { TextField } from '../ui/TextField';
+import { pixelsOf } from './displays';
 import { UsbPlug } from './drawings';
 
 /**
@@ -471,7 +472,7 @@ export function PartTip({ id, type, common, views, overLine = false, values = {}
   id: string; type: string; common?: string; views: Record<string, PartView>; overLine?: boolean; values?: Record<string, number>;
   props?: Record<string, unknown>; style: CSSProperties;
 }) {
-  const m7 = actTip(id, type, views, props);
+  const m7 = actTip(id, type, views, props, values.led);
   if (m7) return <div className="tip part-tip" role="tooltip" style={style}><b>{m7.title}</b>{m7.line && <div>{m7.line}</div>}{m7.note && <div className="note">{m7.note}</div>}</div>;
   if (type === 'ds1302') {
     const v = views[id];
@@ -570,7 +571,21 @@ const WAY = (d: number) => (d > 0 ? 'forward' : d < 0 ? 'backward' : 'stopped');
 const supplyMa = (a: number) => `${Math.round(a * 1000)} mA`;
 
 /** What M7's actuators and output modules say while running (screens 25, 25b: hovered, what each is doing). */
-function actTip(id: string, type: string, views: Record<string, PartView>, props: Record<string, unknown>): { title: string; line?: string; note?: string } | undefined {
+/** A colour in words, for an LED's tip: its hue (or white), and how bright, as a part of 255. */
+export function colourName(rgb: number[]): string {
+  const [r, g, b] = rgb as [number, number, number];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (!max) return 'off';
+  const part = max >= 250 ? 'full' : `${Math.round((max / 255) * 100)} %`;
+  if (max - min <= max * 0.15) return `white, ${part}`;
+  const d = max - min;
+  const h = ((max === r ? (g - b) / d + 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60) % 360;
+  const hue = h < 15 ? 'red' : h < 45 ? 'orange' : h < 70 ? 'yellow' : h < 160 ? 'green' : h < 200 ? 'cyan' : h < 255 ? 'blue' : h < 290 ? 'purple' : h < 345 ? 'pink' : 'red';
+  return `${hue}, ${part}`;
+}
+
+function actTip(id: string, type: string, views: Record<string, PartView>, props: Record<string, unknown>, led?: number): { title: string; line?: string; note?: string } | undefined {
   const v = views[id];
   const name = id.toUpperCase();
   switch (type) {
@@ -660,6 +675,20 @@ function actTip(id: string, type: string, views: Record<string, PartView>, props
       return {
         title: `${name} · ${m?.on ? `${m.lit} dots · brightness ${m.intensity} of 15` : 'off'}`,
         line: `${supplyMa(m?.amps ?? 0)} from its VCC — the more dots and the brighter, the more.`,
+      };
+    }
+    case 'neopixel': {   // M7 slice 3 (screen 27): the LED under the mouse, or the whole stick or ring
+      const n = neopixelCount(props);
+      const px = v?.kind === 'pixels' ? v : undefined;
+      if (!px?.on) return { title: `${name} · no power`, line: 'Its 5V needs 3–5 V: VBUS, VIN or 5V (3.3 V works, a little dim).' };
+      if (led !== undefined && led < n) {
+        const rgb = pixelsOf(px, n)[led]!;
+        const amps = NEOPIXEL.idleA + ((rgb[0]! + rgb[1]! + rgb[2]!) / 255) * NEOPIXEL.channelA;
+        return { title: `${name} · LED ${led} of ${n}`, line: `(${rgb.join(', ')}) — ${colourName(rgb)} · about ${Math.round(amps * 1000)} mA` };
+      }
+      return {
+        title: `${name} · ${px.lit ? `${px.lit} of ${n} lit` : 'dark'} · ${supplyMa(px.amps)}`,
+        line: `${px.from ? `From ${px.from}, which gives ${supplyMa(px.limitA ?? 0)}. ` : ''}Each LED draws up to 60 mA at full white: ${n} of them up to ${n * 60} mA.`,
       };
     }
     case 'power-supply': {

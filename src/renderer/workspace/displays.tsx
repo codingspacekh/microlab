@@ -1,3 +1,4 @@
+import { neopixelShape } from '@lib/circuit/neopixel';
 import type { Point } from '@lib/editor';
 import type { PartView } from '../../sim/circuit';
 
@@ -294,6 +295,115 @@ export function Rc522Module({ pins, view }: { pins: Point[]; view?: PartView }) 
         </g>
       )}
       <ModuleHeader pins={pins} labels={['SDA', 'SCK', 'MOSI', 'MISO', 'IRQ', 'GND', 'RST', '3.3V']} bodyY={top + h} />
+    </g>
+  );
+}
+
+// ------------------------------------------------------------------ NeoPixels (M7 slice 3, screens 27, 27b, 27c)
+/** How a WS2812's colour looks (design/svgparts.py _np_look): its hue at full strength — the eye sees one at an eighth
+ *  as plainly lit — with a glow as big as it is bright. */
+export function pixelLook([r, g, b]: number[]): { fill?: string; glow: number } {
+  const m = Math.max(r!, g!, b!);
+  if (!m) return { glow: 0 };
+  const hex = [r!, g!, b!].map((c) => Math.round((c * 255) / m).toString(16).padStart(2, '0')).join('');
+  return { fill: `#${hex}`, glow: 0.35 + 0.65 * Math.sqrt(m / 255) };
+}
+
+/** The colours [r, g, b] in a view's hex, LED 0 first; dark ones when it shows nothing. */
+export function pixelsOf(view: PartView | undefined, n: number): number[][] {
+  const hex = view?.kind === 'pixels' && view.on ? view.pixels : '';
+  return Array.from({ length: n }, (_, i) => {
+    const h = hex.slice(6 * i, 6 * i + 6);
+    return h.length === 6 ? [0, 2, 4].map((k) => parseInt(h.slice(k, k + 2), 16)) : [0, 0, 0];
+  });
+}
+
+/** One WS2812B (a 5050 LED): its white body, the round window over its three dies; lit, its colour and a glow. */
+function Pixel({ cx, cy, rgb, s, id, i }: { cx: number; cy: number; rgb: number[]; s: number; id: string; i: number }) {
+  const { fill, glow } = pixelLook(rgb);
+  const gid = `npg-${id}-${i}`;
+  return (
+    <g data-led={i}>
+      {fill && (
+        <>
+          <radialGradient id={gid}><stop offset="0" stopColor={fill} stopOpacity={0.85} /><stop offset="0.45" stopColor={fill} stopOpacity={0.35} /><stop offset="1" stopColor={fill} stopOpacity={0} /></radialGradient>
+          <circle cx={cx} cy={cy} r={f(s * 1.15)} fill={`url(#${gid})`} opacity={f(glow)} pointerEvents="none" />
+        </>
+      )}
+      <rect className="np-body" x={f(cx - s / 2)} y={f(cy - s / 2)} width={s} height={s} rx={1.4} fill="#f4f2ec" stroke="#c9c4b8" strokeWidth={0.8} />
+      <circle cx={cx} cy={cy} r={f(s * 0.36)} fill={fill ?? '#e2ddd0'} stroke="#d3cdbf" strokeWidth={0.6} />
+      {!fill && [-3, 0, 3].map((dx) => <rect key={dx} x={f(cx + dx - 1)} y={f(cy - 1.4)} width={2} height={2.8} fill="#b9b2a2" />)}
+    </g>
+  );
+}
+
+/** A NeoPixel stick lying beside the breadboard, at `at` (its body's top left): `n` LEDs, LED 0 at DIN's end; DIN 5V GND
+ *  out of its left end, DOUT 5V GND out of its right; arrows printed between the LEDs the way the data goes. */
+function NeoPixelStick({ at: { x, y }, n, colours, id }: { at: Point; n: number; colours: number[][]; id: string }) {
+  const [p, m, h] = [22, 20, 44];
+  const w = n * p + 2 * m;
+  const pads = [10, 22, 34].map((o) => y + o);
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={h} rx={3} fill="#1d1e21" stroke="#0f1012" filter="url(#lift)" />
+      <text x={x + w / 2} y={y + 7.5} fontSize={4.6} fontWeight={700} fill="#8f969f" textAnchor="middle" fontFamily={FONT} pointerEvents="none">WS2812B · {n}</text>
+      {colours.map((c, i) => {
+        const cx = x + m + p / 2 + i * p;
+        return (
+          <g key={i}>
+            <Pixel cx={cx} cy={y + 21} rgb={c} s={15} id={id} i={i} />
+            <text x={cx} y={y + 38} fontSize={4.8} fontWeight={700} fill="#8f969f" textAnchor="middle" fontFamily={FONT} pointerEvents="none">{i}</text>
+            {i < n - 1 && <path d={`M${f(cx + p / 2 - 1.4)},${y + 18.5} l2.6,2.5 l-2.6,2.5`} fill="none" stroke="#c7ccd2" strokeWidth={0.9} pointerEvents="none" />}
+          </g>
+        );
+      })}
+      <SideHeader x={x} ys={pads} labels={['DIN', '5V', 'GND']} right={false} />
+      <SideHeader x={x + w} ys={pads} labels={['DOUT', '5V', 'GND']} right />
+    </g>
+  );
+}
+
+/** A NeoPixel ring lying beside the breadboard, at `at` (its middle): `n` LEDs, LED 0 at the top and on clockwise; its
+ *  four pads on a header below it — DIN GND 5V DOUT, left to right. */
+function NeoPixelRing({ at: { x: cx, y: cy }, n, colours, id }: { at: Point; n: number; colours: number[][]; id: string }) {
+  const r = ({ 8: 30, 12: 42, 16: 54, 24: 78 } as Record<number, number>)[n] ?? n * 3.3;
+  const [ro, ri] = [r + 12, r - 12];
+  const xs = [-18, -6, 6, 18].map((d) => cx + d);
+  const hy = cy + ro - 4;
+  return (
+    <g>
+      <rect x={xs[0]! - 8} y={hy} width={52} height={16} rx={2} fill="#26282c" filter="url(#lift)" />
+      <path d={`M${cx},${cy - ro} a${ro},${ro} 0 1 0 .01,0z M${cx},${cy - ri} a${ri},${ri} 0 1 1 -.01,0z`} fill="#1d1e21" stroke="#0f1012" fillRule="evenodd" filter="url(#lift)" />
+      {xs.map((px, i) => (
+        <g key={i}>
+          <line x1={px} y1={hy + 16} x2={px} y2={cy + ro + 22} stroke="#c7ccd2" strokeWidth={2} />
+          <circle cx={px} cy={cy + ro + 22} r={3.6} fill="#d6b24c" stroke="#a8862a" strokeWidth={0.8} />
+          <circle cx={px} cy={cy + ro + 22} r={1.5} fill="#1b2b22" />
+          <text x={px} y={hy + 11} fontSize={4.4} fontWeight={700} fill="#e9edf2" textAnchor="middle" fontFamily={FONT} pointerEvents="none">{['DIN', 'GND', '5V', 'DOUT'][i]}</text>
+        </g>
+      ))}
+      {colours.map((c, i) => {
+        const a = ((-90 + (360 * i) / n) * Math.PI) / 180;
+        return (
+          <g key={i}>
+            <Pixel cx={f(cx + r * Math.cos(a))} cy={f(cy + r * Math.sin(a))} rgb={c} s={n > 16 ? 12 : 13} id={id} i={i} />
+            {n <= 16 && <text x={f(cx + (ri - 6) * Math.cos(a))} y={f(cy + (ri - 6) * Math.sin(a) + 1.8)} fontSize={4.8} fontWeight={700} fill="#8f969f" textAnchor="middle" fontFamily={FONT} pointerEvents="none">{i}</text>}
+          </g>
+        );
+      })}
+      <text x={cx} y={cy + 2} fontSize={4.8} fontWeight={700} fill="#8f969f" textAnchor="middle" fontFamily={FONT} pointerEvents="none">WS2812B · {n}</text>
+    </g>
+  );
+}
+
+/** A NeoPixel stick or ring (its props' shape and LED count), each LED in the colour the sim says it shows. */
+export function NeoPixel({ at, props, view, id }: { at: Point; props?: Record<string, unknown>; view?: PartView; id: string }) {
+  const { shape, leds } = neopixelShape(props);
+  const colours = pixelsOf(view, leds);
+  const v = view?.kind === 'pixels' ? view : undefined;
+  return (
+    <g className="neopixel" data-shape={shape} data-leds={leds} data-lit={v?.on ? v.lit : 0} data-pixels={v?.on ? v.pixels : ''}>
+      {shape === 'ring' ? <NeoPixelRing at={at} n={leds} colours={colours} id={id} /> : <NeoPixelStick at={at} n={leds} colours={colours} id={id} />}
     </g>
   );
 }
