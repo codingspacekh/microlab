@@ -60,6 +60,10 @@
   <a href="27-neopixels-running.html"><b>27 · NeoPixels, running</b><span>M7: a NeoPixel stick of 8 and a ring of 12 on a Pico W, each LED in the colour write() sent; hovered, its colour and current; the ring's inspector</span></a>
   <a href="27b-neopixels-microbit.html"><b>27b · NeoPixels on the micro:bit</b><span>M7: a ring on P0 of the GPIO board, the micro:bit's own neopixel module (show())</span></a>
   <a href="27c-neopixel-faults.html"><b>27c · NeoPixel mistakes</b><span>M7: data wired to DOUT lights nothing; a ring of 24 at full white asks more than USB gives</span></a>
+  <a href="28-uart-running.html"><b>28 · UART, running</b><span>M7: a USB-serial adapter on a Pico W's UART0 and its terminal card: what the board sends, a line to send it</span></a>
+  <a href="28b-bluetooth.html"><b>28b · Bluetooth, from a phone</b><span>M7: an HC-05 on the micro:bit's UART and a phone card that sends and receives</span></a>
+  <a href="28c-gps.html"><b>28c · A GPS module</b><span>M7: a NEO-6M on the ESP32's UART2 sending NMEA once a second; the GPS card sets where it is</span></a>
+  <a href="28d-uart-faults.html"><b>28d · UART mistakes</b><span>M7: a terminal at the wrong baud rate shows garbage; TX wired to TX is a warning</span></a>
 </div>
 <h2>Rebuild</h2>
 <ol><li>Edit <code>design/src/*.html</code>, the drawings in <code>design/svgparts.py</code> or the circuits in <code>design/scenes.py</code>.</li><li>Run <code>python3 design/build.py</code> — it writes <code>design/screens/</code>.</li></ol>

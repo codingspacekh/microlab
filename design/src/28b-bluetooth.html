@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>28b Bluetooth phone</title>
+{{include:head}}
+<style>
+.rail { flex: 0 0 56px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; z-index: 3; }
+.rail .rb { width: 44px; padding: 6px 0 5px; border-radius: 9px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; color: var(--tx-2); font-weight: 550; }
+.rail .rb .pic { width: 30px; height: 30px; display: grid; place-items: center; }
+.card2 { padding: 10px 12px; } .card2 .ih { display: flex; align-items: center; gap: 6px; font-weight: 650; font-size: 12.5px; }
+.card2 .row2 { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 11.5px; } .card2 .row2 .muted { min-width: 54px; }
+.term { margin-top: 8px; background: #14171c; color: #d7dde5; border-radius: 7px; padding: 8px 9px; font-family: var(--mono); font-size: 11px; line-height: 1.5; min-height: 92px; white-space: pre-wrap; }
+.term .me { color: #7fb4ff; } .term .bad { color: #f0a35a; }
+.sendrow { display: flex; gap: 6px; margin-top: 8px; } .sendrow .field { flex: 1; border: 1px solid var(--line-strong); border-radius: 7px; padding: 5px 8px; font-size: 11.5px; color: var(--tx-3); background: var(--panel); }
+.bubbles { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; font-size: 11.5px; } .bubbles span { padding: 5px 9px; border-radius: 11px; max-width: 75%; }
+.bubbles .out { align-self: flex-end; background: var(--accent); color: #fff; } .bubbles .in { align-self: flex-start; background: var(--bg-2); }
+.hint { margin-top: 8px; font-size: 11px; line-height: 1.4; color: var(--warn); }
+</style>
+</head>
+<body>
+<!--@PROJECT: Bluetooth heart-->
+<!--@PROJECT_SUB: micro:bit V2 · saved just now-->
+<!--@BOARD: BBC micro:bit V2 on its GPIO board-->
+<!--@BOARD_PIC: {{part:microbit:bp}}-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 01:05-->
+<!--@EDITOR: {{code:btphone:cur=8}}-->
+<!--@COUNTS: micro:bit + GPIO board + 1 part · 4 wires-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">micro:bit v2.1.2 on BBC micro:bit V2 (simulated)</span>
+<span class="sys">uart.init() with pins: the console is off until the program ends (print() goes nowhere), as on the micro:bit</span>
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running main.py</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span><span>UART 9600 baud on P1 / P0 · BT1 connected to the phone</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.04 ms</span>-->
+<p class="frame-label"><b>28b · Bluetooth, from a phone</b> (M7 design, slice 5) — an <b>HC-05</b> Bluetooth module lies below the micro:bit's GPIO board, its header up: <b>EN VCC GND TXD RXD STATE</b>, points to wire — VCC on 5V (it has its own 3.3 V regulator), the micro:bit's TX (P1) to its RXD, its TXD to the micro:bit's RX (P0): <code>uart.init(baudrate=9600, tx=pin1, rx=pin0)</code>, any two pins. The <b>phone card</b> is a phone paired with it: Connect, then what you send arrives on the micro:bit's UART, what it sends shows as a reply. Its LED blinks fast until a phone connects, then twice every 2 s; STATE is high while connected. 9600 baud, as the HC-05 comes. On the micro:bit, <code>uart.init()</code> with pins takes the USB console away (print() goes nowhere) until <code>uart.init()</code> with none, or the program ends — the console says so. The JDY-31 is the same module to the program (its inspector's <i>Kind</i>). The HC-05's AT commands (EN high as it powers up) are not modelled yet</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    <nav class="rail">
+      <span class="rb" title="BBC micro:bit V2 on its GPIO board — its pinout"><span class="pic">{{part:microbit:bp}}</span>Board</span>
+      <span class="rb">{{i:grid:s20}}Parts</span>
+    </nav>
+    <div class="canvas">
+      <div class="stage">{{scene:bluetooth}}
+      <div class="float card2" style="right:14px;top:14px;width:230px">
+        <div class="ih">{{i:phone:s14}} Phone · Bluetooth <span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+        <div class="row2"><span style="color:var(--run)">{{i:bt:s12}}</span><span>Connected to <b>BT1 · HC-05</b></span><span class="spacer"></span><button class="btn sm">Disconnect</button></div>
+        <div class="bubbles"><span class="out">on</span><span class="in">Heart on</span></div>
+        <div class="sendrow"><span class="btn sm">on</span><span class="btn sm">off</span><span class="field">Message…</span><button class="btn sm primary">{{i:send:s14}}</button></div>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

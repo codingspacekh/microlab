@@ -1646,6 +1646,84 @@ def neopixel_ring(cx, cy, colours, hl: int = -1):
     return "".join(o) + "</g>", pins
 
 
+def _top_header(x0, y, labels, label_fill="#e9edf2"):
+    """A module's header along its top edge: its pins up out of it, a hole apart (points to wire), names under them."""
+    n = len(labels)
+    o = [f'<rect x="{f(x0 - 9)}" y="{f(y - 1)}" width="{f(16 * (n - 1) + 18)}" height="7" rx="1" fill="#26282c"/>']
+    pins = {}
+    for i, lab in enumerate(labels):
+        px = x0 + 16 * i
+        o.append(f'<line x1="{f(px)}" y1="{f(y)}" x2="{f(px)}" y2="{f(y - 10)}" stroke="#c7ccd2" stroke-width="2"/>' + pad(px, y - 10)
+                 + f'<text x="{f(px)}" y="{f(y + 14)}" font-size="5.5" font-weight="700" fill="{label_fill}" text-anchor="middle" font-family="Inter">{lab}</text>')
+        pins[lab] = (px, y - 10)
+    return "".join(o), pins
+
+
+def usb_serial(x, y, tx=False, rx=False):
+    """A USB-serial adapter (CP2102) lying beside the board: its header out of its top edge — RXD TXD GND 3V3 5V,
+    points to wire — its USB plug and cable to the laptop below; its TXD and RXD LEDs flash as bytes go. Returns
+    (svg, {pin: (x, y)})."""
+    w, h = 96, 64
+    o = ['<g class="usb-serial">',
+         f'<rect x="{x + 26}" y="{y + h - 2}" width="44" height="30" rx="2" fill="#c9cdd2" stroke="#8f969f"/>',
+         f'<rect x="{x + 32}" y="{y + h + 6}" width="32" height="12" rx="1" fill="#8f969f"/>',
+         f'<path d="M{x + 48},{y + h + 28} q0,22 -30,34" fill="none" stroke="#3a3d42" stroke-width="5" stroke-linecap="round"/>',
+         f'<text x="{x + 58}" y="{y + h + 48}" font-size="6" fill="#8f969f" font-family="Inter">to the laptop</text>',
+         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="3" fill="#b8322a" stroke="#7d1f19" filter="url(#lift)"/>',
+         f'<rect x="{x + 34}" y="{y + 24}" width="22" height="22" rx="1.5" fill="#1d1e21"/>',
+         f'<text x="{x + 45}" y="{y + 37}" font-size="4.5" fill="#8f969f" text-anchor="middle" font-family="Inter">CP2102</text>']
+    for i, (lab, on) in enumerate((("TXD", tx), ("RXD", rx), ("PWR", True))):
+        ly = y + 26 + 9 * i
+        o.append(f'<rect x="{x + 66}" y="{ly}" width="6" height="4" rx="1" fill="{("#ff3b2a" if lab != "PWR" else "#ff3b2a") if on else "#5a2420"}"/>'
+                 f'<text x="{x + 75}" y="{ly + 4}" font-size="4.5" font-weight="700" fill="#f6d9d6" font-family="Inter">{lab}</text>')
+        if on and lab != "PWR":
+            o.append(f'<circle cx="{x + 69}" cy="{ly + 2}" r="6" fill="url(#glow-red)"/>')
+    hsvg, pins = _top_header(x + 16, y, ("RXD", "TXD", "GND", "3V3", "5V"))
+    o.append(hsvg)
+    o.append(f'<text x="{x + 10}" y="{y + 56}" font-size="5.5" font-weight="700" fill="#f6d9d6" font-family="Inter">USB · serial</text>')
+    return "".join(o) + "</g>", pins
+
+
+def hc05(x, y, connected=True):
+    """An HC-05 Bluetooth module on its carrier board, lying beside the board, its header up — EN VCC GND TXD RXD
+    STATE, points to wire; the white radio board with its antenna; its LED blinks fast until a phone connects, then
+    twice every 2 s. Returns (svg, {pin: (x, y)})."""
+    w, h = 112, 96
+    o = ['<g class="hc05">',
+         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="3" fill="#2457a6" stroke="#173c78" filter="url(#lift)"/>',
+         f'<rect x="{x + 14}" y="{y + 22}" width="{w - 28}" height="{h - 28}" rx="1.5" fill="#f4f5f7" stroke="#c9cdd2"/>',
+         f'<path d="M{x + 22},{y + h - 14} h14 v-8 h10 v8 h10 v-8 h10 v8 h10 v-8 h8" fill="none" stroke="#d6b24c" stroke-width="1.6"/>',
+         f'<rect x="{x + 36}" y="{y + 32}" width="24" height="24" rx="1" fill="#26282c"/>',
+         f'<text x="{x + w / 2}" y="{y + 66}" font-size="7" font-weight="700" fill="#3a3d42" text-anchor="middle" font-family="Inter">HC-05</text>',
+         f'<circle cx="{x + w - 22}" cy="{y + 40}" r="3" fill="#ff3b2a"/>',
+         f'<circle cx="{x + w - 22}" cy="{y + 40}" r="8" fill="url(#glow-red)"/>' if connected else '']
+    hsvg, pins = _top_header(x + 16, y, ("EN", "VCC", "GND", "TXD", "RXD", "STATE"))
+    o.append(hsvg)
+    return "".join(o) + "</g>", pins
+
+
+def gps_neo6m(x, y, fix=True):
+    """A GPS module (GY-NEO6MV2: a u-blox NEO-6M) lying beside the board, its header up — GND TX RX VCC, points to
+    wire — its patch antenna on its cable beside it; its PPS LED blinks once a second with a fix. Returns
+    (svg, {pin: (x, y)})."""
+    w, h = 88, 88
+    o = ['<g class="gps">',
+         f'<path d="M{x + w - 10},{y + 60} q30,10 46,-6" fill="none" stroke="#3a3d42" stroke-width="2.5"/>',
+         f'<rect x="{x + w + 30}" y="{y + 10}" width="58" height="58" rx="4" fill="#d9c79a" stroke="#a58f5a" filter="url(#lift)"/>',
+         f'<rect x="{x + w + 42}" y="{y + 22}" width="34" height="34" rx="2" fill="#e7dcbc" stroke="#b9a676"/>',
+         f'<circle cx="{x + w + 59}" cy="{y + 39}" r="4" fill="#c7ccd2" stroke="#8f969f"/>',
+         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="3" fill="#2457a6" stroke="#173c78" filter="url(#lift)"/>',
+         f'<rect x="{x + 22}" y="{y + 28}" width="40" height="40" rx="1.5" fill="#c9cdd2" stroke="#8f969f"/>',
+         f'<text x="{x + 42}" y="{y + 46}" font-size="4.6" font-weight="700" fill="#3a3d42" text-anchor="middle" font-family="Inter">u-blox</text>',
+         f'<text x="{x + 42}" y="{y + 54}" font-size="4.6" font-weight="700" fill="#3a3d42" text-anchor="middle" font-family="Inter">NEO-6M</text>',
+         f'<circle cx="{x + 12}" cy="{y + 76}" r="2.6" fill="{"#3ddc6a" if fix else "#244a31"}"/>',
+         f'<circle cx="{x + 12}" cy="{y + 76}" r="7" fill="url(#glow-green)"/>' if fix else '',
+         f'<text x="{x + 18}" y="{y + 78}" font-size="4.5" font-weight="700" fill="#cfe0f2" font-family="Inter">PPS</text>']
+    hsvg, pins = _top_header(x + 20, y, ("GND", "TX", "RX", "VCC"))
+    o.append(hsvg)
+    return "".join(o) + "</g>", pins
+
+
 # ------------------------------------------------------------------ part icons (parts panel, examples)
 def icon_svg(kind: str, cls: str = "") -> str:
     body = ICON_PARTS[kind]
@@ -1703,6 +1781,9 @@ ICON_PARTS = {
     "seg7": '<rect x="8" y="3" width="16" height="26" rx="2" fill="#2d3136"/><path d="M12,8 h8 M12,16 h8 M12,24 h8 M11,9 v6 M21,9 v6 M11,17 v6 M21,17 v6" stroke="#ef3b2c" stroke-width="1.8" stroke-linecap="round"/>',
     "tm1637": '<rect x="2" y="9" width="28" height="15" rx="2" fill="#2457a6"/><rect x="4" y="11" width="22" height="11" fill="#1f2023"/>' + "".join(f'<path d="M{6 + i * 5},13 h3 v7 h-3z" fill="none" stroke="#ff3b2a" stroke-width="1"/>' for i in range(4)) + '<circle cx="15.5" cy="15" r=".6" fill="#ff3b2a"/><circle cx="15.5" cy="18" r=".6" fill="#ff3b2a"/>',
     "matrix": '<rect x="4" y="4" width="24" height="24" rx="2" fill="#2457a6"/><rect x="6" y="6" width="20" height="20" fill="#1d1e21"/>' + "".join(f'<circle cx="{8.2 + c * 2.25}" cy="{8.2 + r * 2.25}" r=".8" fill="{"#ff3b2a" if (0x00, 0x66, 0xFF, 0xFF, 0x7E, 0x3C, 0x18, 0x00)[r] >> (7 - c) & 1 else "#4a2c2a"}"/>' for r in range(8) for c in range(8)),
+    "usbserial": '<rect x="3" y="11" width="20" height="12" rx="1.5" fill="#b8322a"/><rect x="23" y="13" width="7" height="8" rx="1" fill="#c9cdd2"/><path d="M5 9v2M9 9v2M13 9v2M17 9v2M21 9v2" stroke="#a5abb2" stroke-width="1.3"/><rect x="9" y="14" width="6" height="6" fill="#1d1e21"/>',
+    "hc05": '<rect x="6" y="7" width="20" height="21" rx="2" fill="#2457a6"/><rect x="9" y="12" width="14" height="13" rx="1" fill="#f4f5f7"/><path d="M8 5v2M12 5v2M16 5v2M20 5v2M24 5v2" stroke="#a5abb2" stroke-width="1.3"/><path d="M13 15l6 5-3 2.5V13l3 2.5-6 5" fill="none" stroke="#2457a6" stroke-width="1.1"/>',
+    "gps": '<rect x="3" y="9" width="15" height="17" rx="2" fill="#2457a6"/><rect x="17" y="6" width="12" height="12" rx="2" fill="#d9c79a" stroke="#a58f5a"/><circle cx="23" cy="12" r="1.6" fill="#c7ccd2"/><path d="M6 7v2M10 7v2M14 7v2" stroke="#a5abb2" stroke-width="1.3"/><rect x="7" y="14" width="7" height="7" fill="#c9cdd2"/>',
     "neopixel": "".join(f'<circle cx="{16 + 10 * math.cos(math.radians(a))}" cy="{16 + 10 * math.sin(math.radians(a))}" r="2.6" fill="{c}"/>' for a, c in zip(range(0, 360, 45), ("#ef3b2c", "#ff8a00", "#f5d000", "#22b14c", "#16b8c9", "#2f6fe0", "#8d5bd1", "#e0409a"))) + '<circle cx="16" cy="16" r="13" fill="none" stroke="#2d3136" stroke-width="2.4" opacity=".25"/>',
     "stepper": '<circle cx="16" cy="17" r="11" fill="#c7ccd2" stroke="#8f969f"/><circle cx="16" cy="19" r="7.5" fill="#2f6fd6"/><circle cx="16" cy="13" r="2.6" fill="#d6b24c"/>',
     "pump": '<path d="M7,8 L9,27 Q16,29 23,27 L25,8Z" fill="#9fd0f2" stroke="#7fa9c8"/><rect x="12" y="16" width="8" height="10" rx="2.5" fill="#26282c"/><path d="M17,16 C17,6 26,4 27,8" stroke="#d9e2ea" stroke-width="2" fill="none"/>',

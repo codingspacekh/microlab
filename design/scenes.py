@@ -7,7 +7,7 @@ on the ESP32 and *Heart & knob* on the micro:bit. Every wire ends on a real pin 
 import math
 
 from svgparts import (P, f, Breadboard, microbit_bare, servo_in, l9110s, tt_motor, relay_module, pump, uln2003, stepper, l298n,
-                      kit_traffic, kit_rgb, kit_passive_buzzer, power_supply, oled_in, lcd1602, seg7_digit, tm1637, max7219, neopixel_strip, neopixel_ring, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
+                      kit_traffic, kit_rgb, kit_passive_buzzer, power_supply, oled_in, lcd1602, seg7_digit, tm1637, max7219, neopixel_strip, neopixel_ring, usb_serial, hc05, gps_neo6m, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
                       microbit, oled, hcsr04, servo, HEART, slide_switch, ldr, rgb_led, battery,
                       pir, line_sensor, soil_sensor, temp_sensor, dht, mpu6050, hcsr04_in,
                       kit_button, kit_touch, kit_vibration, kit_ir_obstacle, kit_hall, kit_flame, kit_raindrop, kit_water, kit_mq2,
@@ -826,7 +826,70 @@ def neopixel_faults() -> str:
     return _svg("".join(o), vb="40 0 640 806")
 
 
-SCENES = {"neopixels": neopixels, "neopixelsmb": neopixels_microbit, "neopixelfaults": neopixel_faults, "displays": displays, "digits": digits, "displayfaults": display_faults, "actuators": actuators, "moreoutputs": more_outputs, "outputfaults": output_faults, "mbitalone": mbit_alone, "mbitgpio": mbit_gpio, "bare": bare, "placebb": place_breadboard, "chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
+def uart() -> str:
+    """Screen 28 (M7 design, slice 5): a Pico W running — a USB-serial adapter lying below it, wired straight to UART0:
+    GP0 (TX) to its RXD, GP1 (RX) from its TXD, GND to GND; an LED on GP16 that "on" / "off" from the terminal switch."""
+    bb = Breadboard(120, 290)
+    o = [bb.svg(rail_labels={"B-": ("GND", "#3a3d42")})]
+    o.append(resistor(bb.xy(18, "i"), bb.xy(21, "i"), "220"))
+    o.append(led(bb.xy(21, "h"), bb.xy(23, "h"), "green", "on"))
+    psvg, pins = pico(110, 772)
+    o.append(psvg)
+    o.append(wire([pins[21], (pins[21][0], 640), (bb.xy(18, "j")[0], 640), bb.xy(18, "j")], "yellow"))   # GP16 → the LED
+    o.append(wire([bb.xy(23, "j"), bb.xy(23, "B-")], "black"))
+    o.append(wire([pins[38], (pins[38][0], 632), (bb.xy(3, "B-")[0], 632), bb.xy(3, "B-")], "black"))
+    usvg, up = usb_serial(94, 820, tx=True, rx=False)
+    o.append(usvg)
+    o.append(wire([pins[1], up["RXD"]], "green"))    # GP0 (TX) → RXD
+    o.append(wire([pins[2], up["TXD"]], "blue"))     # GP1 (RX) ← TXD
+    o.append(wire([pins[3], up["GND"]], "black"))
+    return _svg("".join(o), vb="40 270 640 700")
+
+
+def bluetooth() -> str:
+    """Screen 28b (M7 design, slice 5): a micro:bit in its GPIO board running — an HC-05 lying below it, wired straight
+    to its header: 5V → VCC, GND → GND, P0 (RX) ← TXD, P1 (TX) → RXD; a phone connected, its "on" shows a heart."""
+    msvg, mp = microbit(150, 330, image=HEART, usb=True)
+    hsvg, hp = hc05(118, 470, connected=True)
+    o = [msvg, hsvg]
+    for pin, to, colour in (("5V", "VCC", "red"), ("GND@15", "GND", "black"), ("P0", "TXD", "blue"), ("P1", "RXD", "green")):
+        o.append(wire([mp[pin], hp[to]], colour))
+    return _svg("".join(o), vb="70 -6 600 600")
+
+
+def gps() -> str:
+    """Screen 28c (M7 design, slice 5): an ESP32 running — a NEO-6M GPS lying below it (turned, its header up): its TX
+    to RX2 (GPIO 16), its RX from TX2 (GPIO 17), GND, and 3V3 round its left side to its VCC."""
+    esvg, ep = esp32(152, 200)
+    gsvg, gp = gps_neo6m(148, 300, fix=True)
+    o = [esvg, gsvg]
+    o.append(wire([ep["B:GND"], gp["GND"]], "black"))
+    o.append(wire([ep["B:RX2"], (ep["B:RX2"][0], 240), (gp["TX"][0], 240), gp["TX"]], "blue"))     # GPS TX → RX2
+    o.append(wire([ep["B:TX2"], (ep["B:TX2"][0], 256), (gp["RX"][0], 256), gp["RX"]], "green"))   # TX2 → GPS RX
+    o.append(wire([ep["B:3V3"], (ep["B:3V3"][0], 224), (128, 224), (128, 410), (346, 410), (346, 274), (gp["VCC"][0], 274), gp["VCC"]], "red"))
+    return _svg("".join(o), vb="80 -30 560 470")
+
+
+def uart_faults() -> str:
+    """Screen 28d (M7 design, slice 5): the UART mistakes — USB1 on UART0, wired right, but its terminal at 115200 baud
+    where the board sends at 9600 (garbled); USB2 on UART1 (GP4 / GP5) wired TX to TX and RX to RX (nothing arrives)."""
+    psvg, pins = pico(110, 772)
+    o = [psvg]
+    u1, p1 = usb_serial(94, 820, tx=False, rx=True)
+    u2, p2 = usb_serial(270, 820)
+    o += [u1, u2]
+    o.append(wire([pins[1], p1["RXD"]], "green"))
+    o.append(wire([pins[2], p1["TXD"]], "blue"))
+    o.append(wire([pins[3], p1["GND"]], "black"))
+    o.append(wire([pins[6], (pins[6][0], 790), (p2["TXD"][0], 790), p2["TXD"]], "green"))   # GP4 (TX) → TXD: wrong
+    o.append(wire([pins[7], (pins[7][0], 798), (p2["RXD"][0], 798), p2["RXD"]], "blue"))    # GP5 (RX) → RXD: wrong
+    o.append(wire([pins[8], (pins[8][0], 782), (p2["GND"][0], 782), p2["GND"]], "black"))
+    for x, y in (p2["TXD"], pins[6]):
+        o.append(f'<circle cx="{x}" cy="{y}" r="10" fill="none" stroke="#e8a317" stroke-width="2"/><circle cx="{x}" cy="{y}" r="16" fill="#e8a317" opacity=".16"/>')
+    return _svg("".join(o), vb="40 640 640 340")
+
+
+SCENES = {"uart": uart, "bluetooth": bluetooth, "gps": gps, "uartfaults": uart_faults, "neopixels": neopixels, "neopixelsmb": neopixels_microbit, "neopixelfaults": neopixel_faults, "displays": displays, "digits": digits, "displayfaults": display_faults, "actuators": actuators, "moreoutputs": more_outputs, "outputfaults": output_faults, "mbitalone": mbit_alone, "mbitgpio": mbit_gpio, "bare": bare, "placebb": place_breadboard, "chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
           "servowiring": servo_wiring, "servopulses": servo_pulses, "plot": plot}
 
 

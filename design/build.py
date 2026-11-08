@@ -49,6 +49,9 @@ ICONS = {
     "warn": '<path d="M12 3.5l9 16H3zM12 10v4M12 17h.01"/>',
     "alert": '<path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18M12 8v5M12 16h.01"/>',
     "check": '<path d="M5 12.5l4.5 4.5L19 7"/>',
+    "phone": '<path d="M8 2.5h8a1.5 1.5 0 0 1 1.5 1.5v16a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 20V4A1.5 1.5 0 0 1 8 2.5M11 18.5h2"/>',
+    "bt": '<path d="M7 7.5l10 9-5 4.5V3l5 4.5-10 9"/>',
+    "gps": '<path d="M12 21s6.5-6.2 6.5-11.2a6.5 6.5 0 0 0-13 0C5.5 14.8 12 21 12 21M12 7.5a2.3 2.3 0 1 0 0 4.6a2.3 2.3 0 0 0 0-4.6"/>',
     "chevr": '<path d="M9 6l6 6-6 6"/>', "chevd": '<path d="M6 9l6 6 6-6"/>', "chevl": '<path d="M15 6l-6 6 6 6"/>',
     "x": '<path d="M6 6l12 12M18 6L6 18"/>',
     "file": '<path d="M6 3h8l4 4v14H6zM14 3v4h4"/>',
@@ -469,6 +472,59 @@ strip.write()
 
 ring.fill((255, 255, 255))   # full white
 ring.write()''',
+    "uartecho": '''from machine import Pin, UART
+import time
+
+uart = UART(0, baudrate=9600, tx=Pin(0), rx=Pin(1))
+led = Pin(16, Pin.OUT)
+uart.write('Hello! Type on or off.\\r\\n')
+
+while True:
+    if uart.any():
+        text = uart.readline().decode().strip()
+        if text == 'on':
+            led.on()
+        elif text == 'off':
+            led.off()
+        uart.write('LED %s\\r\\n' % ('on' if led.value() else 'off'))
+    time.sleep_ms(10)''',
+    "btphone": '''from microbit import *
+
+# the HC-05: P1 to its RXD, P0 from its TXD
+uart.init(baudrate=9600, tx=pin1, rx=pin0)
+
+while True:
+    if uart.any():
+        msg = uart.read().decode().strip()
+        if msg == 'on':
+            display.show(Image.HEART)
+            uart.write('Heart on\\n')
+        elif msg == 'off':
+            display.clear()
+            uart.write('Off\\n')
+    sleep(20)''',
+    "gpsread": '''from machine import UART
+import time
+
+gps = UART(2, baudrate=9600)   # RX2 = GPIO 16, TX2 = 17
+
+while True:
+    line = gps.readline()      # one NMEA sentence
+    if line and line.startswith(b'$GPGGA'):
+        f = line.decode().split(',')
+        print('fix', f[6], 'satellites', f[7],
+              f[2], f[3], f[4], f[5])
+    time.sleep_ms(100)''',
+    "uartfaults": '''from machine import Pin, UART
+import time
+
+usb1 = UART(0, baudrate=9600, tx=Pin(0), rx=Pin(1))
+usb2 = UART(1, baudrate=9600, tx=Pin(4), rx=Pin(5))
+
+while True:
+    usb1.write('Hello from UART0\\r\\n')
+    usb2.write('Hello from UART1\\r\\n')
+    time.sleep(1)''',
     "servo": '''from machine import Pin, PWM
 import time
 
@@ -556,6 +612,8 @@ PARTS = [
                    ("stepper", "Stepper 28BYJ-48", "with ULN2003")]),
     ("Output modules", [("traffic", "Traffic light module", "R Y G"), ("krgb", "RGB LED module", "R G B"), ("kbuzzer", "Passive buzzer module", "plays notes"),
                         ("psu", "Breadboard power supply", "5 V · 3.3 V")]),
+    ("Communication", [("usbserial", "USB-serial adapter", "a terminal on UART"), ("hc05", "Bluetooth HC-05", "UART · a phone"),
+                       ("gps", "GPS NEO-6M", "UART · NMEA")]),
     ("Displays", [("oled", "OLED SSD1306", "128×64 · I²C"), ("lcd", "LCD 16×2", "I²C backpack"), ("seg7", "7-segment digit", "common cathode"),
                   ("tm1637", "4-digit display", "TM1637 · with colon"), ("matrix", "8×8 dot matrix", "MAX7219"),
                   ("neopixel", "NeoPixel strip / ring", "WS2812")]),

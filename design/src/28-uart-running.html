@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>28 UART running</title>
+{{include:head}}
+<style>
+.rail { flex: 0 0 56px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; z-index: 3; }
+.rail .rb { width: 44px; padding: 6px 0 5px; border-radius: 9px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; color: var(--tx-2); font-weight: 550; }
+.rail .rb .pic { width: 30px; height: 30px; display: grid; place-items: center; }
+.card2 { padding: 10px 12px; } .card2 .ih { display: flex; align-items: center; gap: 6px; font-weight: 650; font-size: 12.5px; }
+.card2 .row2 { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 11.5px; } .card2 .row2 .muted { min-width: 54px; }
+.term { margin-top: 8px; background: #14171c; color: #d7dde5; border-radius: 7px; padding: 8px 9px; font-family: var(--mono); font-size: 11px; line-height: 1.5; min-height: 92px; white-space: pre-wrap; }
+.term .me { color: #7fb4ff; } .term .bad { color: #f0a35a; }
+.sendrow { display: flex; gap: 6px; margin-top: 8px; } .sendrow .field { flex: 1; border: 1px solid var(--line-strong); border-radius: 7px; padding: 5px 8px; font-size: 11.5px; color: var(--tx-3); background: var(--panel); }
+.bubbles { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; font-size: 11.5px; } .bubbles span { padding: 5px 9px; border-radius: 11px; max-width: 75%; }
+.bubbles .out { align-self: flex-end; background: var(--accent); color: #fff; } .bubbles .in { align-self: flex-start; background: var(--bg-2); }
+.hint { margin-top: 8px; font-size: 11px; line-height: 1.4; color: var(--warn); }
+</style>
+</head>
+<body>
+<!--@PROJECT: Serial LED-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 00:41-->
+<!--@EDITOR: {{code:uartecho:cur=9}}-->
+<!--@COUNTS: Pico W + 3 parts · 6 wires-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.29.0 on Raspberry Pi Pico W (simulated)</span>
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running main.py — Stop or <span class="kbd">Ctrl</span>+<span class="kbd">C</span> breaks in</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span><span>UART0 9600 baud: sent 38 bytes · received 4</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.06 ms</span>-->
+<p class="frame-label"><b>28 · UART, running</b> (M7 design, slice 5) — a <b>USB-serial adapter</b> (CP2102) lies below the Pico W, its header up: <b>RXD TXD GND</b> (and 3V3, 5V out), points to wire — the board's <b>TX to its RXD, the board's RX from its TXD</b>, GND to GND. Its <b>terminal card</b> is what a serial monitor on the laptop shows: what the board sends, and a line to send it (with its line ending). Bytes go as the wire would carry them: a start bit, 8 data bits, a stop bit, at the baud rate — 9600 baud is about 1 ms a byte; they wait in the board's receive buffer (<code>any()</code>, <code>read()</code>, <code>readline()</code>), as long as it is. The terminal's baud rate and line ending are in the adapter's inspector, and on the card. The adapter's TXD and RXD LEDs flash as bytes go. The status bar counts them. Wiring TX to RX between two of the board's own UARTs works too (a loopback); the ESP32's UART0 is its USB console, as on the real one</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    <nav class="rail">
+      <span class="rb" title="Raspberry Pi Pico W — its pinout"><span class="pic">{{part:pico:bp}}</span>Board</span>
+      <span class="rb">{{i:grid:s20}}Parts</span>
+    </nav>
+    <div class="canvas">
+      <div class="stage">{{scene:uart}}
+      <div class="float card2" style="right:14px;top:14px;width:250px">
+        <div class="ih">{{i:term:s14}} USB1 · serial terminal <span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+        <div class="row2"><span class="muted">Baud</span><div class="seg"><span class="on">9600</span><span>115200</span><span>…</span></div></div>
+        <div class="term">Hello! Type on or off.
+<span class="me">&gt; on</span>
+LED on</div>
+        <div class="sendrow"><span class="field">Send to the board…</span><span class="seg"><span class="on">↵ \r\n</span></span><button class="btn sm primary">{{i:send:s14}}</button></div>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>
