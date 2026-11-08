@@ -51,7 +51,7 @@ test('the editor and the console below it fill the code side', async () => {
   expect(ed.height).toBeGreaterThan(con.height);   // the code gets the most room
 });
 
-test('M5.5 typing on the Pico W: machine. offers Pin with its arguments, Enter takes it, ( shows what it needs', async () => {
+test('M5.5 typing on the Pico W: machine. offers Pin with its arguments, Enter takes it with its brackets, inside them it shows what it needs', async () => {
   const win = await app.firstWindow();
   await win.getByRole('button', { name: 'New Pico W project' }).click();
   const editor = win.getByRole('textbox', { name: 'main.py' });
@@ -73,14 +73,15 @@ test('M5.5 typing on the Pico W: machine. offers Pin with its arguments, Enter t
   await expect(list.locator('li[aria-selected]')).toContainText('Pin(id, mode=-1, pull=-1, …)');
   await expect(win.locator('.cm-completionInfo')).toContainText('GPIO pin');
   await pick();
-  await win.keyboard.type('(14, ');
+  await expect(editor).toContainText('button = machine.Pin()');   // the teacher (2026-11-08): the brackets come with it, the cursor inside
+  await win.keyboard.type('14, ');
   await expect(win.locator('.ml-signature b')).toHaveText('mode=-1');
   await win.keyboard.type('machine.Pin.IN, machine.Pin.PULL_U');
   await expect(list.locator('li[aria-selected]')).toContainText('PULL_UP');
   await expect(win.locator('.ml-signature')).toHaveCount(0);   // the list's explanation is not covered
   await pick();
   await expect(win.locator('.ml-signature b')).toHaveText('pull=-1');
-  await win.keyboard.type(')');
+  await win.keyboard.press('End');
   await expect(editor).toContainText('button = machine.Pin(14, machine.Pin.IN, machine.Pin.PULL_UP)');
   await expect(win.locator('.ml-signature')).toHaveCount(0);
 });

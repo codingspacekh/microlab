@@ -20,7 +20,8 @@ function setup(board = 'New Pico W project') {
   const editorFor = (name: string) => screen.queryByRole('textbox', { name });
   /** + New file, a name, Enter. */
   const newFile = (name: string) => {
-    fireEvent.click(screen.getByRole('button', { name: 'Add a new file' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add a file or a library' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'New file…' }));
     const field = within(panel()).getByRole('textbox', { name: 'New file' });
     fireEvent.change(field, { target: { value: name } });
     fireEvent.keyDown(field, { key: 'Enter' });

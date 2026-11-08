@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { parseBoard } from '@lib/boards';
 import { connect } from '@lib/circuit';
 import { addPart, addWire, deletePart, deleteWire, moveBoard, moveBreadboard, movePart, sceneOf, setBreadboardSize, setPartProp, setWireColour, snapToGrid } from '@lib/editor';
-import { newProject, parseProject, toCircuit } from '@lib/project';
+import { parseProject, toCircuit } from '@lib/project';
+import { newProject } from './with-breadboard';
 import picoJson from '../../../library/boards/pico-w/board.json';
 
 /** M4.3 F-10, F-11, F-13: the edits, as pure functions on the project (undo comes in M5). */
@@ -114,5 +115,18 @@ describe('M4.3b F-11, F-13, F-14: bends, colours, values, delete, the breadboard
     p = addWire(deletePart(p, 'r1'), 'board.GP15', 'bb1.T-55')!;
     expect(setBreadboardSize(p, 'bb1', 'half')).toBeUndefined();
     expect(setBreadboardSize(deleteWire(p, 'w1'), 'bb1', 'half')!.breadboards[0]!.size).toBe('half');
+  });
+});
+
+describe('M6.1 the micro:bit GPIO board\'s micro-USB (screen 17b)', () => {
+  it('taken out: usb false; plugged back in: not set, as a new project', async () => {
+    const { setUsb } = await import('@lib/editor');
+    const { newProject } = await import('@lib/project');
+    const p = newProject('microbit-v2').project;
+    expect(p.usb).toBeUndefined();
+    const out = setUsb(p, false);
+    expect(out.usb).toBe(false);
+    expect('usb' in setUsb(out, true)).toBe(false);
+    expect(setUsb(p, true)).toBe(p);   // nothing changed: no undo step
   });
 });

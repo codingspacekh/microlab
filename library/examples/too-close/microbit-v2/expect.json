@@ -1,0 +1,38 @@
+{
+  "seconds": 2,
+  "inputs": [
+    {
+      "at": 0,
+      "part": "sonar1",
+      "cm": 50
+    },
+    {
+      "at": 1.0,
+      "part": "sonar1",
+      "cm": 10
+    }
+  ],
+  "parts": {
+    "led1": {
+      "dark": [
+        [
+          0.05,
+          0.95
+        ]
+      ],
+      "lit": [
+        [
+          1.25,
+          1.95
+        ]
+      ]
+    }
+  },
+  "console": {
+    "includes": [
+      "50 cm",
+      "10 cm"
+    ]
+  },
+  "ended": "stopped"
+}

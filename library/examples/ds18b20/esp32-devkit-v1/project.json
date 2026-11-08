@@ -1,0 +1,39 @@
+{
+  "format": 1,
+  "title": "Thermometer (DS18B20)",
+  "board": "esp32-devkit-v1",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "temp1",
+      "type": "ds18b20",
+      "legs": {
+        "out": "bb1.a10",
+        "vcc": "bb1.a11",
+        "gnd": "bb1.a12"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "a": "board.D4",
+      "b": "bb1.e10",
+      "id": "w1"
+    },
+    {
+      "a": "board.3V3",
+      "b": "bb1.e11",
+      "id": "w2"
+    },
+    {
+      "a": "board.GND",
+      "b": "bb1.e12",
+      "id": "w3"
+    }
+  ]
+}

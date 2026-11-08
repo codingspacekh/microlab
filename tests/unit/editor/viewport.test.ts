@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addPart, addWire, BREADBOARD, fitBox, joined, panBy, pointAt, sceneOf, zoomAt, ZOOM, type Box } from '@lib/editor';
-import { newProject } from '@lib/project';
+import { newProject } from './with-breadboard';
 
 /** M5.2 F-17 zoom, pan, fit; F-12 hovering a hole lights everything joined to it. */
 const empty = () => newProject('pico-w').project;

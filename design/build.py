@@ -74,10 +74,15 @@ ICONS = {
     "clock": '<path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18M12 7v5l3 2"/>',
     "list": '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
     "tilt": '<path d="M5 15l7-11 7 11zM3 20h18"/>',
+    "ruler": '<path d="M3 8h18v8H3zM7 8v3M11 8v4M15 8v3M19 8v4"/>',
     "shake": '<path d="M8 4h8v16H8zM4 8v8M20 8v8M2 10v4M22 10v4"/>',
     "sun": '<path d="M12 8a4 4 0 1 0 0 8a4 4 0 0 0 0-8M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>',
+    "drop": '<path d="M12 3s-6 6.6-6 11a6 6 0 0 0 12 0c0-4.4-6-11-6-11z"/>',
+    "sliders": '<path d="M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4"/>',
     "therm": '<path d="M10 14V5a2 2 0 0 1 4 0v9a4 4 0 1 1-4 0zM12 9v7"/>',
     "mic": '<path d="M9 5a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0zM6 11a6 6 0 0 0 12 0M12 17v4"/>',
+    "sound": '<path d="M4 9h4l5-4v14l-5-4H4zM16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/>',
+    "soundoff": '<path d="M4 9h4l5-4v14l-5-4H4zM17 9.5l5 5M22 9.5l-5 5"/>',
     "touch": '<path d="M12 4a6 6 0 0 0-6 6M12 4a6 6 0 0 1 6 6M9 13a3 3 0 0 1 6 0v5"/>',
     "heart": '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
     "usb": '<path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/>',
@@ -116,6 +121,103 @@ while True:
         show(0, 0, 1)
         print("Green again")
     time.sleep(0.05)''',
+    "moodlamp": '''from machine import Pin, ADC
+import time
+
+red = Pin(15, Pin.OUT)
+green = Pin(14, Pin.OUT)
+blue = Pin(13, Pin.OUT)
+switch = Pin(16, Pin.IN, Pin.PULL_UP)   # slid to 3: reads 0
+light = ADC(26)                         # more light: more volts
+
+while True:
+    on = switch.value() == 0
+    dark = light.read_u16() < 20000
+    red.value(on and dark)
+    blue.value(on and dark)             # red + blue: purple
+    green.value(on and not dark)
+    print(light.read_u16())
+    time.sleep(0.5)''',
+    "bmp280lib": '''from machine import I2C, Pin
+from bmp280 import BMP280
+import time
+
+bmp = BMP280(I2C(0, sda=Pin(4), scl=Pin(5)))
+bmp.normal_measure()
+while True:
+    print(bmp.temperature, 'C', bmp.pressure / 100, 'hPa')
+    time.sleep(1)''',
+    "weather": '''from machine import I2C, Pin
+from bmp280 import BMP280
+from vl53l0x import VL53L0X
+import time
+
+i2c = I2C(0, sda=Pin(4), scl=Pin(5))
+bmp = BMP280(i2c)
+tof = VL53L0X(i2c)
+bmp.normal_measure()
+
+while True:
+    print(bmp.pressure / 100, 'hPa', tof.ping(), 'mm')
+    time.sleep(1)''',
+    "chips": '''from machine import I2C, Pin
+import time
+from ds1302 import DS1302
+
+i2c = I2C(0, sda=Pin(4), scl=Pin(5))
+rtc = DS1302(Pin(13), Pin(14), Pin(16))
+print(i2c.scan())            # [41, 72, 87, 118]
+
+while True:
+    h, m, s = rtc.time()[3:]
+    print('%02d:%02d:%02d' % (h, m, s),
+          distance(), 'mm', pressure(), 'hPa')
+    time.sleep(1)''',
+    "kit": '''from machine import Pin, ADC
+import time
+
+joy_x = ADC(26)                      # VRx: 0 – 3.3 V
+gas = ADC(27)                        # MQ-2's AO (5 V supply)
+obstacle = Pin(14, Pin.IN)           # 0: something in front
+magnet = Pin(13, Pin.IN)             # 0: a magnet near
+
+while True:
+    print(joy_x.read_u16() // 655, '%',
+          'gas!' if gas.read_u16() > 40000 else 'air',
+          'blocked' if not obstacle.value() else 'clear',
+          'magnet' if not magnet.value() else '-')
+    time.sleep(0.5)''',
+    "modules": '''from machine import Pin, I2C, time_pulse_us
+import dht, struct, time
+
+air = dht.DHT22(Pin(20))
+trig, echo = Pin(22, Pin.OUT), Pin(21, Pin.IN)
+i2c = I2C(1, sda=Pin(26), scl=Pin(27))
+i2c.writeto_mem(0x68, 0x6B, b'\\x00')   # wake it up
+
+while True:
+    air.measure()
+    trig.value(1); time.sleep_us(10); trig.value(0)
+    cm = time_pulse_us(echo, 1, 30000) / 58
+    x, y, z = struct.unpack('>hhh', i2c.readfrom_mem(0x68, 0x3B, 6))
+    print('%.1f C %.0f %%  %d cm  x %.2f g' % (
+        air.temperature(), air.humidity(), cm, x / 16384))
+    time.sleep(2)''',
+    "greenhouse": '''from machine import Pin, ADC
+import time
+
+pir = Pin(22, Pin.IN)     # HC-SR501 on VBUS (5 V)
+line = Pin(21, Pin.IN)    # 0 over white, 1 over the line
+soil = ADC(27)            # dry 2.4 V … wet 0.9 V
+temp = ADC(26)            # TMP36: 0.5 V + 10 mV per °C
+
+while True:
+    c = (temp.read_u16() * 3.3 / 65535 - 0.5) * 100
+    dry = soil.read_u16() > 30000
+    print(round(c), 'C', 'dry' if dry else 'wet',
+          'motion' if pir.value() else '-',
+          'line' if line.value() else 'white')
+    time.sleep(0.5)''',
     "traffic_typing": '''from machine import Pin
 import time
 
@@ -248,12 +350,19 @@ def code(name: str, *opts: str) -> str:
 
 # ---------------------------------------------------------------- parts panel
 PARTS = [
-    ("Basics", [("breadboard", "Breadboard", "half · full"), ("resistor", "Resistor", "220 Ω – 10 kΩ"), ("led", "LED", "5 colours"),
+    ("Basics", [("breadboard", "Breadboard", "mini · half · full"), ("resistor", "Resistor", "220 Ω – 10 kΩ"), ("led", "LED", "5 colours"),
                 ("rgb", "RGB LED", "common cathode"), ("button", "Push button", "12 mm"), ("switch", "Slide switch", ""),
                 ("pot", "Potentiometer", "10 kΩ knob"), ("ldr", "Light sensor (LDR)", ""), ("buzzer", "Buzzer", "active · passive"),
                 ("battery", "Battery pack", "2×AA · 4×AA · 9 V")]),
-    ("Sensors", [("hcsr04", "Ultrasonic HC-SR04", "distance"), ("dht", "DHT11 / DHT22", "temperature, humidity"), ("pir", "PIR motion", ""),
+    ("Sensors", [("hcsr04", "Ultrasonic HC-SR04", "distance"), ("dht", "DHT11 / DHT22", "temperature, humidity"), ("mpu6050", "MPU6050 motion", "accelerometer · I²C"), ("pir", "PIR motion", ""),
                  ("line", "Line sensor (IR)", ""), ("soil", "Soil moisture", ""), ("tmp36", "TMP36 temperature", "")]),
+    ("Modules", [("kbutton", "Button module", ""), ("ktouch", "Touch (TTP223)", ""), ("kvibration", "Vibration (SW-420)", ""),
+                 ("kir", "IR obstacle", ""), ("khall", "Hall", "magnet"), ("kflame", "Flame", "AO · DO"), ("krain", "Raindrop", "AO · DO"),
+                 ("kwater", "Water level", ""), ("kgas", "Gas / smoke (MQ-2)", "5 V"), ("kldr", "Photoresistor module", ""),
+                 ("kpot", "Potentiometer module", ""), ("kjoystick", "Joystick", "X · Y · button"), ("kencoder", "Rotary encoder", "KY-040"),
+                 ("kspeed", "IR speed sensor", "20-slot wheel")]),
+    ("Chips", [("pcf8591", "PCF8591", "ADC · DAC · I²C"), ("bmp280", "BMP280", "pressure · I²C"), ("ds18b20", "DS18B20", "temperature · 1-Wire"),
+               ("ds1302", "DS1302 clock", "real-time clock"), ("vl53l0x", "VL53L0X", "laser distance · I²C"), ("max30102", "MAX30102", "pulse · SpO2 · I²C")]),
     ("Actuators", [("servo", "Servo SG90", "0–180°"), ("motor", "DC motor", "TT gear motor"), ("driver", "Motor driver", "L298N · L9110S"),
                    ("relay", "Relay module", "")]),
     ("Displays", [("oled", "OLED SSD1306", "128×64 · I²C"), ("lcd", "LCD 16×2", "I²C"), ("seg7", "7-segment digit", ""),
@@ -261,9 +370,13 @@ PARTS = [
 ]
 
 
-def parts(hover: str = "", drag: str = "") -> str:
+MICROBIT_PARTS = [("micro:bit", [("gpioboard", "GPIO board", "30 pins · 5V from its USB")])]
+
+
+def parts(hover: str = "", drag: str = "", board: str = "") -> str:
+    """`board` = microbit: the micro:bit's own group first (screen 24: its GPIO board)."""
     out = []
-    for group, items in PARTS:
+    for group, items in (MICROBIT_PARTS if board == "microbit" else []) + PARTS:
         out.append(f'<div class="pgroup"><div class="gh">{icon("chevd", "s12")} {group}<span class="n">{len(items)}</span></div>')
         for kind, name, sub in items:
             cls = " hover" if kind == hover else " drag" if kind == drag else ""

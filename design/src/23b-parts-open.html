@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>23b Parts panel open</title>
+{{include:head}}
+<style>
+.rail { flex: 0 0 56px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; z-index: 3; }
+.rail .rb { width: 44px; padding: 6px 0 5px; border-radius: 9px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; color: var(--tx-2); font-weight: 550; }
+.rail .rb.on { background: var(--accent-soft); color: var(--accent-ink); }
+.rail .rb .pic { width: 30px; height: 30px; display: grid; place-items: center; }
+.drawer { position: absolute; left: 0; top: 0; bottom: 0; width: 280px; z-index: 4; box-shadow: var(--shadow-l); }
+.drawer .head .x { margin-left: auto; }
+.hintbar { position: absolute; left: 330px; bottom: 70px; }
+.canvas .ctools { left: 296px; }
+</style>
+</head>
+<body>
+<!--@PROJECT: Untitled project-->
+<!--@PROJECT_SUB: Pico W · not saved-->
+<!--@COUNTS: Pico W · 0 parts · 0 wires-->
+<p class="frame-label"><b>23b · The parts panel, opened</b> — it slides out over the canvas from the rail (it doesn't squeeze the circuit), with <b>Breadboard</b> (half · full) first in Basics. A breadboard is dragged in like a part and goes under the board; a second one can sit beside it. The panel stays open while building, and folds away by itself when a program runs or with ⟨ / Esc / P. A part dropped where there is no breadboard yet brings a half breadboard with it (the canvas says so), so the first part is never refused</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    <nav class="rail">
+      <span class="rb" title="Raspberry Pi Pico W — its pinout"><span class="pic">{{part:pico:bp}}</span>Board</span>
+      <span class="rb on">{{i:grid:s20}}Parts</span>
+    </nav>
+    <div class="canvas">
+      <div class="stage">{{scene:placebb}}</div>
+      <aside class="parts drawer">
+        <div class="head">
+          <div class="row" style="gap:8px"><b style="font-size:13px">Parts</b><span class="tiny muted">drag onto the canvas</span><button class="btn ghost sm icon x" title="Fold away (P)">{{i:chevl:s14}}</button></div>
+          <div class="field" style="height:30px">{{i:search:s14}}<span class="ph">Search 37 parts</span></div>
+        </div>
+        <div class="list">{{PARTS_LIST}}</div>
+      </aside>
+      <div class="float tip hintbar"><b>Breadboard · half</b><div style="opacity:.85">Drop it under the board. 30 columns; Full has 63.</div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

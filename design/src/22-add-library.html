@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>22 Add a library</title>
+{{include:head}}
+<style>
+.libs { display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 16px; margin-top: 10px; }
+.lib { display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; align-items: center; padding: 7px 12px; border: 1px solid var(--line); border-radius: 10px; margin-top: 5px; }
+.lib.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.lib .meta { grid-column: 1; font-size: 11.5px; color: var(--tx-3); }
+.lib .act { grid-row: 1 / span 2; grid-column: 2; }
+.lib .for { font-size: 11.5px; font-weight: 600; color: var(--accent-ink); }
+.pre { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; }
+.pre .ph { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.pre .editor { font-size: 11px; padding: 6px 0; flex: 1; }
+.pre .editor .ln .no { width: 22px; }
+.note { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 9px; background: var(--bg); font-size: 12px; color: var(--tx-2); margin-top: 6px; line-height: 1.45; }
+</style>
+</head>
+<body>
+<!--@PROJECT: Weather box-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@EDITOR: {{code:chips}}-->
+<!--@COUNTS: Pico W + 6 parts · 0 wires-->
+<p class="frame-label"><b>22 · Add a library</b> (M6.7 design, F-54) — from the files panel's <b>Add library</b> (or the + menu by the file tabs): the drivers of the library pack that run on this board, the ones for <b>the parts in this circuit</b> first, each as its authors wrote it, with who wrote it and its licence. <b>Add</b> puts its files in <code>lib/</code> with its licence (<code>lib/LICENSE-bmp280.txt</code>), so the notice goes onto the board with the code; it works offline. On the right: how to start with the chosen one, to copy into <code>main.py</code>. A file of the same name that the student changed is never replaced without asking. Parts that need nothing say so (DS18B20: MicroPython's own <code>onewire</code>, <code>ds18x20</code>)</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:chips}}</div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+  <div class="overlay"></div>
+  <div class="dialog center" style="--dw:960px">
+    <div class="dh"><span style="color:var(--accent)">{{i:book:s20}}</span><h2>Add a library</h2><span class="pill">Pico W</span><span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+    <div class="db">
+      <p class="small muted">Drivers for the parts, as their authors wrote them. They go in <span class="mono">lib/</span> with their licence, and onto the board with <i>Send to board</i>.</p>
+      <div class="libs">
+        <div>
+          <div class="tag" style="margin-top:4px">For the parts in this circuit</div>
+          <div class="lib on"><div><b>BMP280 air pressure</b> <span class="mono tiny muted">bmp280.py</span> <span class="for">· BARO1</span></div><span class="act"><button class="btn sm primary">{{i:plus:s12}} Add</button></span>
+            <span class="meta">MIT · David Stenwall Wahlund · <a>dafvid/micropython-bmp280</a></span></div>
+          <div class="lib"><div><b>VL53L0X laser distance</b> <span class="mono tiny muted">vl53l0x.py</span> <span class="for">· TOF1</span></div><span class="act"><span class="pill ok">{{i:check:s12}} in lib/</span></span>
+            <span class="meta">BSD-3-Clause · Kevin McAleer · <a>kevinmcaleer/vl53l0x</a></span></div>
+          <div class="lib"><div><b>DS1302 clock</b> <span class="mono tiny muted">ds1302.py</span> <span class="for">· RTC1</span></div><span class="act"><button class="btn sm">Replace…</button></span>
+            <span class="meta"><span style="color:var(--warn-ink)">Your <span class="mono">lib/ds1302.py</span> is different — it would be replaced.</span> MIT · shaoziyang, Omar Benhamid</span></div>
+          <div class="lib"><div><b>MAX30102 pulse oximeter</b> <span class="mono tiny muted">max30102/ · 2 files</span> <span class="for">· PULSE1</span></div><span class="act"><button class="btn sm">{{i:plus:s12}} Add</button></span>
+            <span class="meta">MIT · Nicola Elia, after SparkFun · <a>n-elia/MAX30102-MicroPython-driver</a></span></div>
+          <div class="note">{{i:check:s14}}<span><b>TEMP1 · DS18B20</b> needs nothing: <span class="mono">onewire</span> and <span class="mono">ds18x20</span> are part of MicroPython. <b>ADC1 · PCF8591</b> is a few I²C bytes — see its example.</span></div>
+          <div class="tag" style="margin-top:10px">Other parts</div>
+          <div class="lib"><div><b>HC-SR04 distance</b> <span class="mono tiny muted">hcsr04.py</span></div><span class="act"><button class="btn sm">{{i:plus:s12}} Add</button></span><span class="meta">Apache-2.0 · Roberto Sánchez</span></div>
+          <div class="lib"><div><b>MPU6050 motion (imu)</b> <span class="mono tiny muted">imu.py, vector3d.py</span></div><span class="act"><button class="btn sm">{{i:plus:s12}} Add</button></span><span class="meta">MIT · Peter Hinch, Sebastian Plamauer</span></div>
+          <div class="lib"><div><b>Rotary encoder</b> <span class="mono tiny muted">rotary.py, rotary_irq_rp2.py</span></div><span class="act"><button class="btn sm">{{i:plus:s12}} Add</button></span><span class="meta">MIT · Mike Teachman</span></div>
+        </div>
+        <div class="pre">
+          <div class="ph">{{i:file:s14}} <b>How to start</b> <span class="muted">· bmp280</span><span class="spacer"></span><button class="btn ghost sm">{{i:copy:s12}} Copy</button></div>
+          <div class="editor">{{code:bmp280lib}}</div>
+          <div class="small muted" style="padding:8px 10px;border-top:1px solid var(--line);line-height:1.45">The temperature (°C) and air pressure (Pa) from a BMP280 on I²C, with the chip's own calibration. Pins as in this circuit: SDA GP4, SCL GP5.</div>
+        </div>
+      </div>
+    </div>
+    <div class="df"><span class="small muted row" style="gap:6px">{{i:lock:s14}} In the app — no internet needed. Licences in <span class="mono">lib/LICENSE-…txt</span></span><span class="spacer"></span><button class="btn">Close</button></div>
+  </div>
+</div>
+</body></html>

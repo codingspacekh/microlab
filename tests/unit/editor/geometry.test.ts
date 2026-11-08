@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BOARD_IDS } from '@lib/boards';
 import { BREADBOARD, boardArt, boardData, defaultView, holeOffset, nearestPoint, pointAt, sceneOf } from '@lib/editor';
-import { newProject } from '@lib/project';
+import { newProject } from './with-breadboard';
 
 /** M4.3 F-12, F-13: where every hole and pin is on the canvas, as in the approved drawing (16 units = 0.1 in). */
 describe('M4.3 the breadboard\'s holes', () => {
@@ -18,7 +18,7 @@ describe('M4.3 the breadboard\'s holes', () => {
 
   it('a full breadboard has 63 columns; a half one is 512 × 298', () => {
     expect(holeOffset('a63', 'full')).toEqual({ x: 24 + 62 * 16, y: 62 });
-    expect(BREADBOARD.size('half')).toEqual({ width: 512, height: 298 });
+    expect(BREADBOARD.size('half')).toEqual({ width: 512, top: 0, height: 298 });
   });
 });
 

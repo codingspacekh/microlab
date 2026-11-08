@@ -17,6 +17,11 @@ const blinking = (hz: number, s: number, skew = 0) => {
 describe('M3.6 checking a run against expect.json', () => {
   it('inputs in seconds become part changes in µs', () => {
     expect(inputsOf(expectSchema.parse({ seconds: 1, inputs: [{ at: 0.5, part: 'btn1', pressed: true }] }))).toEqual([{ atUs: 500_000, part: 'btn1', pressed: true }]);
+    expect(inputsOf(expectSchema.parse({ seconds: 1, inputs: [{ at: 0, part: 'tmp1', celsius: 30 }] }))).toEqual([{ atUs: 0, part: 'tmp1', celsius: 30 }]);   // M6.3
+    expect(inputsOf(expectSchema.parse({ seconds: 1, inputs: [{ at: 0, part: 'dht1', humidity: 70 }, { at: 1, part: 'sonar1', cm: 12 }] })))
+      .toEqual([{ atUs: 0, part: 'dht1', humidity: 70 }, { atUs: 1_000_000, part: 'sonar1', cm: 12 }]);   // M6.4
+    expect(inputsOf(expectSchema.parse({ seconds: 1, inputs: [{ at: 0, part: 'joy1', x: 1, y: 0 }, { at: 0, part: 'enc1', steps: 3 }, { at: 0, part: 's1', rpm: 60 }] })))
+      .toEqual([{ atUs: 0, part: 'joy1', x: 1, y: 0 }, { atUs: 0, part: 'enc1', steps: 3 }, { atUs: 0, part: 's1', rpm: 60 }]);   // M6.5a
   });
 
   it('a good blink passes; too slow, too few, or an LED not in the circuit are said in words', () => {
@@ -49,5 +54,24 @@ describe('M3.6 checking a run against expect.json', () => {
       "the run ended error (NameError: name 'x' isn't defined), not done",
     ]);
     expect(check(result({ ended: 'fault', fault, faults: [fault], output: 'Hello' }), expectSchema.parse({ seconds: 1, ended: 'fault', faults: ['led-burnt led1'], console: { includes: ['Hello'] } }))).toEqual([]);
+  });
+});
+
+describe('M6.2 a buzzer in expect.json', () => {
+  const tone = (hz: number, volume = 1): PartView => ({ kind: 'buzzer', hz, volume });
+  const parts: RunResult['parts'] = [[0, 'bz1', tone(0, 0)], [100_000, 'bz1', tone(440)], [600_000, 'bz1', tone(880)], [1_100_000, 'bz1', tone(0, 0)]];
+
+  it('sounds at a pitch over a span (±2 %), silent over another', () => {
+    const e = expectSchema.parse({ seconds: 1.5, ended: 'stopped', parts: { bz1: { sounds: [[0.15, 0.55, 440], [0.65, 1.05, 880]], silent: [[1.15, 1.45]] } } });
+    expect(check(result({ parts }), e)).toEqual([]);
+  });
+
+  it('a wrong note, a silence or a sound where it shouldn\'t be are said in words', () => {
+    const e = expectSchema.parse({ seconds: 1.5, ended: 'stopped', parts: { bz1: { sounds: [[0.15, 0.55, 523], [1.15, 1.2, 440]], silent: [[0.3, 0.4]] } } });
+    expect(check(result({ parts }), e)).toEqual([
+      'bz1: 440 Hz at 0.15 s, should be 523 Hz 0.15–0.55 s',
+      'bz1: silent at 1.15 s, should be 440 Hz 1.15–1.2 s',
+      'bz1: 440 Hz at 0.30 s, should be silent 0.3–0.4 s',
+    ]);
   });
 });

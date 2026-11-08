@@ -183,7 +183,8 @@ function addDevice(
       return;
     }
     case 'pot': {
-      const p = Math.min(1, Math.max(0, state.parts?.[d.part]?.position ?? 0.5));
+      const st = state.parts?.[d.part];
+      const p = Math.min(1, Math.max(0, (d.axis ? st?.[d.axis] : st?.position) ?? 0.5));
       resistors.push(
         { id: `${d.id}:1-2`, a: node(d.e1), b: node(d.w), g: 1 / (p * d.ohms + WIPER_OHMS) },
         { id: `${d.id}:2-3`, a: node(d.w), b: node(d.e2), g: 1 / ((1 - p) * d.ohms + WIPER_OHMS) },
@@ -193,8 +194,14 @@ function addDevice(
     case 'ldr':
       resistors.push({ id: d.id, a: node(d.a), b: node(d.b), g: 1 / ldrOhms(state.parts?.[d.part]?.lux ?? 300) });
       return;
+    case 'drive': {
+      const st = state.parts?.[d.part];
+      const dr = (d.key ? st?.drives?.[d.key] : st?.drive) ?? { volts: 0, ohms: 1e6 };
+      sources.push({ id: d.id, p: node(d.out), m: node(d.gnd), volts: dr.volts, ohms: dr.ohms, limitA: 0.05 });
+      return;
+    }
     case 'led': {
-      const vf = (LED_COLORS[d.color] ?? LED_COLORS.red!).vf;
+      const vf = d.vf ?? (LED_COLORS[d.color] ?? LED_COLORS.red!).vf;
       const vcrit = vf + LED.nvt * Math.log(LED.nvt / (Math.SQRT2 * LED.refA));
       leds.push({ id: d.id, a: node(d.a), j: node(`${d.id}#j`), k: node(d.k), vf, vcrit });
     }

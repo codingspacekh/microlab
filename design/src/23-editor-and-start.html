@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>23 Board only, editor settings</title>
+{{include:head}}
+<style>
+.rail { flex: 0 0 56px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; }
+.rail .rb { width: 44px; padding: 6px 0 5px; border-radius: 9px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; color: var(--tx-2); font-weight: 550; }
+.rail .rb.on { background: var(--accent-soft); color: var(--accent-ink); }
+.rail .rb .pic { width: 30px; height: 30px; display: grid; place-items: center; }
+.empty { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); width: 380px; padding: 14px 16px; text-align: center; }
+.empty p { margin: 4px 0 10px; color: var(--tx-2); font-size: 12.5px; line-height: 1.45; }
+.aa { position: absolute; right: 12px; top: 40px; width: 300px; padding: 12px 14px; z-index: 5; }
+.aa .lbl { font-size: 11px; font-weight: 600; color: var(--tx-3); text-transform: uppercase; letter-spacing: .05em; margin: 2px 0 6px; }
+.aa .themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.aa .th { border: 1px solid var(--line); border-radius: 9px; padding: 6px; font-size: 11.5px; text-align: center; color: var(--tx-2); }
+.aa .th.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.aa .th i { display: block; height: 34px; border-radius: 5px; margin-bottom: 5px; font-style: normal; font-family: var(--mono); font-size: 9px; text-align: left; padding: 4px 6px; line-height: 12px; }
+.side.dark .editor { --code-bg: #1e2430; --code-kw: #c792ea; --code-fn: #82aaff; --code-str: #c3e88d; --code-num: #f78c6c; --code-com: #6b7689; --code-cur: #2a3242; color: #d6deeb; font-size: 14px; line-height: 22px; }
+.side.dark .editor .no { color: #56607a; }
+</style>
+</head>
+<body>
+<!--@PROJECT: Untitled project-->
+<!--@PROJECT_SUB: Pico W · not saved-->
+<!--@EDITOR: {{code:traffic}}-->
+<!--@COUNTS: Pico W · 0 parts · 0 wires-->
+<p class="frame-label"><b>23 · A new project: the board alone; the editor's text size and theme</b> (the teacher's requests, 2026-11-08) — the parts panel is folded away to a slim rail (the board, its pinout, <b>Parts</b>); the canvas starts with the board only, and says how to begin. <b>Parts</b> (or the card's button, or P) opens the panel (screen 23b). In the code panel, <b>Aa</b> sets the editor's text size (11–24 px; ⌘+ / ⌘− / ⌘0 too) and its theme — Light, Dark or High contrast — kept for next time</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    <nav class="rail">
+      <span class="rb" title="Raspberry Pi Pico W — its pinout"><span class="pic">{{part:pico:bp}}</span>Board</span>
+      <span class="rb">{{i:grid:s20}}Parts</span>
+    </nav>
+    <div class="canvas">
+      <div class="stage">{{scene:bare}}
+        <div class="float empty"><b>Start building</b><p>Put a breadboard under the board, then parts in it. Wire them to the board's pins.</p>
+          <span class="row" style="gap:8px;justify-content:center"><button class="btn primary sm">{{i:grid:s14}} Add parts</button><span class="tiny muted">or press P</span></span></div>
+      </div>
+      {{include:ctools}}
+    </div>
+    <section class="side dark" style="position:relative">
+      <div class="ftabs"><a class="on">{{i:file:s14}} main.py</a><span class="r"><button class="btn ghost sm icon" title="Text size and theme" style="background:var(--bg-2);font-weight:700;font-size:12px">Aa</button><button class="btn ghost sm icon">{{i:plus:s14}}</button><button class="btn ghost sm icon">{{i:more:s14}}</button></span></div>
+      <div class="float aa">
+        <div class="lbl">Text size</div>
+        <div class="row" style="gap:8px"><div class="stepper sm" style="flex:0 0 132px"><button>{{i:minus:s12}}</button><span class="v">14 px</span><button>{{i:plus:s12}}</button></div><span class="tiny muted">⌘+ ⌘− · ⌘0 back to 13</span></div>
+        <div class="lbl" style="margin-top:12px">Theme</div>
+        <div class="themes">
+          <span class="th"><i style="background:#fbfcfd;color:#8b3fd1;border:1px solid var(--line)">while <span style="color:#1b6ac9">True</span>:</i>Light</span>
+          <span class="th on"><i style="background:#1e2430;color:#c792ea">while <span style="color:#82aaff">True</span>:</i>Dark</span>
+          <span class="th"><i style="background:#000;color:#ffd700;border:1px solid #fff">while <span style="color:#7fdbff">True</span>:</i>High contrast</span>
+        </div>
+      </div>
+      <div class="editor">{{EDITOR}}</div>
+      <div class="console">
+        <div class="chead">{{CTABS}}<span class="spacer"></span><button class="btn ghost sm">Clear</button></div>
+        {{CONSOLE}}
+      </div>
+    </section>
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

@@ -213,6 +213,8 @@ h3 { font-size: 13px; font-weight: 650; }
 .fc .st { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--tx-3); min-width: 0; }
 .statusbar .st.running { color: var(--run); } .statusbar .st.running .dot { background: var(--run); }
 .statusbar .st.bad { color: var(--danger); }
+.statusbar .sound { height: 22px; padding: 0 8px; gap: 5px; font-size: 11.5px; color: var(--tx-2); }
+.statusbar .sound[aria-pressed="false"] { color: var(--tx-3); }
 .statusbar .st.saved { color: var(--success); }
 .topbar .undo { display: flex; align-items: center; gap: 2px; }
 

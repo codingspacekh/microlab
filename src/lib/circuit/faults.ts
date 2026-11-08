@@ -1,6 +1,7 @@
 import type { Connectivity } from './connectivity';
 import { LED, type Device, type Netlist, type SimState } from './devices';
 import { toNetlist } from './netlist';
+import { isSensor, minVolts } from './sensors';
 import { solve, type Solution } from './solve';
 import type { CircuitSpec } from './spec';
 import { UnionFind } from './union-find';
@@ -11,7 +12,7 @@ import { UnionFind } from './union-find';
  */
 export type FaultKind =
   | 'short' | 'led-burnt' | 'led-over-current' | 'pin-over-current' | 'board-over-current'
-  | 'supply-over-current' | 'over-voltage' | 'floating' | 'servo-underpowered';
+  | 'supply-over-current' | 'over-voltage' | 'floating' | 'servo-underpowered' | 'sensor-underpowered';
 
 export interface Fault {
   kind: FaultKind;
@@ -116,6 +117,15 @@ export function findFaults(spec: CircuitSpec, netlist: Netlist, s: Solution, sta
     const u = v(d.a) - v(d.b);
     if (u > SERVO_LOW.from && u < SERVO_LOW.to) out.push({ kind: 'servo-underpowered', severity: 'warning', on: part.id, volts: u });
   }
+  // a sensor module given some supply, but less than it works from (M6.3)
+  for (const part of spec.parts) {
+    if (!isSensor(part.type)) continue;
+    const d = netlist.devices.find((x) => x.id === `${part.id}:supply`) as Extract<Device, { kind: 'resistor' }> | undefined;
+    if (!d) continue;
+    const u = v(d.a) - v(d.b);
+    const need = minVolts(part.type, part.props);
+    if (u > SERVO_LOW.from && u < need) out.push({ kind: 'sensor-underpowered', severity: 'warning', on: part.id, volts: u, limitV: need });
+  }
   return out;
 }
 
@@ -126,7 +136,7 @@ function isDriven(d: Extract<Device, { kind: 'pin' }>, state: SimState): boolean
 
 /**
  * An input pin is floating when nothing joins its net to ground through something that conducts: resistors,
- * closed switches, sources, driven or pulled pins, lit LEDs. The pin itself (high impedance) doesn't count.
+ * closed switches, sources, a sensor's output, driven or pulled pins, lit LEDs. The pin itself (high impedance) doesn't count.
  */
 function floating(netlist: Netlist, s: Solution, state: SimState): Fault[] {
   const uf = new UnionFind();
@@ -146,6 +156,9 @@ function floating(netlist: Netlist, s: Solution, state: SimState): Fault[] {
         break;
       case 'source':
         uf.union(d.plus, d.minus);
+        break;
+      case 'drive':   // a sensor's output stage drives its OUT (M6.3)
+        uf.union(d.out, d.gnd);
         break;
       case 'pin':
         if (s.amps[d.id] !== undefined) uf.union(d.net, d.gnd);

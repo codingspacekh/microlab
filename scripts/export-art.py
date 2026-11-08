@@ -4,8 +4,8 @@ For each board and each fixed-footprint part it writes
   library/<boards|parts>/<id>/art.svg    a standalone picture (its own <defs>)
   library/<boards|parts>/<id>/art.json   {width, height, pitch, pins|legs: {key: [x, y]}} in the picture's units
 Board pins are keyed by their `number` in board.json; part legs by leg name. One pitch (0.1 in) = 16 units,
-so every pin and leg lands on a breadboard hole (F-12, F-13). Resistors and LEDs have no fixed art: they are
-drawn from the holes their legs are in (the renderer, M4).
+so every pin and leg lands on a breadboard hole (F-12, F-13). Resistors, LEDs, RGB LEDs, light sensors and battery
+packs have no fixed art: they are drawn from the holes their legs are in (the renderer, M4, M6).
 """
 import json
 import pathlib
@@ -39,22 +39,23 @@ def glows(svg: str, name: str):
     return [(float(x), float(y)) for x, y in re.findall(rf'<circle cx="([-\d.]+)" cy="([-\d.]+)" r="[\d.]+" fill="url\(#glow-{name}\)"', svg)]
 
 
-def write(kind: str, ident: str, svg: str, points: dict, key: str, extra=None) -> None:
-    """`extra`: {name: point or [points]} in the drawing's units, written relative like the pins (outputs, M4.5)."""
+def write(kind: str, ident: str, svg: str, points: dict, key: str, extra=None, name: str = "art") -> None:
+    """`extra`: {name: point or [points]} in the drawing's units, written relative like the pins (outputs, M4.5).
+    `name`: the files' name in the folder — a board drawn another way has its own (M6.9: the micro:bit alone)."""
     x0, y0, x1, y1 = bbox(svg, points.values())
     w, h = x1 - x0, y1 - y0
     folder = ROOT / "library" / kind / ident
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "art.svg").write_text(
+    (folder / f"{name}.svg").write_text(
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{s.f(x0)} {s.f(y0)} {s.f(w)} {s.f(h)}" '
         f'width="{s.f(w)}" height="{s.f(h)}">{s.defs()}{svg}</svg>\n')
     rel = {str(k): [round(x - x0, 2), round(y - y0, 2)] for k, (x, y) in points.items()}
     data = {"width": round(w, 2), "height": round(h, 2), "pitch": s.P, key: rel}
-    for name, value in (extra or {}).items():
+    for k, value in (extra or {}).items():
         move = lambda p: [round(p[0] - x0, 2), round(p[1] - y0, 2)]
-        data[name] = {k: move(v) for k, v in value.items()} if isinstance(value, dict) else [move(p) for p in value]
-    (folder / "art.json").write_text(json.dumps(data, indent=2) + "\n")
-    print(f"library/{kind}/{ident}: {len(rel)} {key}, {w:.0f} × {h:.0f}")
+        data[k] = {n: move(v) for n, v in value.items()} if isinstance(value, dict) else [move(p) for p in value]
+    (folder / f"{name}.json").write_text(json.dumps(data, indent=2) + "\n")
+    print(f"library/{kind}/{ident}/{name}: {len(rel)} {key}, {w:.0f} × {h:.0f}")
 
 
 def boards() -> None:
@@ -77,7 +78,14 @@ def boards() -> None:
 
     svg, pins = s.microbit(200, 600)                   # keys: pin id (GND@3); 1–13 top row, 14–26 bottom, 27–30 I²C
     lit, _ = s.microbit(200, 600, image=["11111"] * 5)  # the 25 pixels, row by row
-    write("boards", "microbit-v2", svg, {n: pins[pid] for n, pid, _ in s.mbit_pins()}, "pins", {"display": glows(lit, "mbit")})
+    write("boards", "microbit-v2", svg, {n: pins[pid] for n, pid, _ in s.mbit_pins()}, "pins",
+          {"display": glows(lit, "mbit"), "usb": {"socket": s.mbit_usb(200, 600)}})   # M6.1: the GPIO board's micro-USB
+    # M6.9 (screen 24): the micro:bit alone — its five rings are its only pins (keyed by number, as on the GPIO board)
+    svg, rings = s.microbit_bare(200, 600)
+    lit, _ = s.microbit_bare(200, 600, image=["11111"] * 5)
+    number = {pid: n for n, pid, _ in s.mbit_pins()}
+    write("boards", "microbit-v2", svg, {number[pid]: xy for pid, xy in rings.items()}, "pins",
+          {"display": glows(lit, "mbit")}, name="alone")
 
 
 def parts() -> None:
@@ -88,6 +96,9 @@ def parts() -> None:
     # Potentiometer: ends 1 and 3, wiper 2, two holes apart in one row.
     legs = {"1": bb.xy(21, "e"), "2": bb.xy(23, "e"), "3": bb.xy(25, "e")}
     write("parts", "potentiometer", s.pot(legs["1"], legs["2"], legs["3"]), legs, "legs")
+    # Slide switch (M6.1): legs 1, 2 (the common) and 3 side by side in one row.
+    legs = {"1": bb.xy(21, "e"), "2": bb.xy(22, "e"), "3": bb.xy(23, "e")}
+    write("parts", "slide-switch", s.slide_switch(legs["1"], legs["2"], legs["3"]), legs, "legs")
 
 
 if __name__ == "__main__":

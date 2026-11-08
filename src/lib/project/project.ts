@@ -13,7 +13,7 @@ export const projectSchema = z.object({
   format: z.literal(1),
   title: z.string().optional(),
   board: z.string(),
-  breadboards: z.array(z.object({ id: z.string(), size: z.enum(['half', 'full']) })),
+  breadboards: z.array(z.object({ id: z.string(), size: z.enum(['mini', 'half', 'full']) })),
   parts: z.array(z.object({
     id: z.string(),
     type: z.string(),
@@ -31,12 +31,27 @@ export const projectSchema = z.object({
   plugs: z.record(z.string(), point).optional(),
   /** Supply jumpers (the ESP32 extension board's V): pin → volts. */
   jumpers: z.record(z.string(), z.number()).optional(),
+  /** The micro:bit GPIO board's own micro-USB is plugged in (M6.1): its 5V pins give 5 V only then. Not set: plugged in. */
+  usb: z.boolean().optional(),
+  /** The micro:bit is in its GPIO board (M6.9, screens 24, 24b). Only false is written: a new micro:bit project is the
+   *  micro:bit alone, wired at its five rings; not set, it is in its GPIO board, as every project before M6.9. */
+  gpioBoard: z.boolean().optional(),
   /** Where the board and each breadboard are on the canvas (M4.3), in drawing units (16 = 0.1 in); parts and wires
    *  are placed by their holes and pins. A project without it gets the default layout (lib/editor). */
   view: z.object({ board: xy, breadboards: z.record(z.string(), xy) }).optional(),
 });
 
 export type Project = z.infer<typeof projectSchema>;
+
+/** The micro:bit on its own, out of its GPIO board (M6.9): only its rings 0, 1, 2, 3V and GND can be wired. */
+export function microbitAlone(project: Pick<Project, 'board' | 'gpioBoard'>): boolean {
+  return project.board === 'microbit-v2' && project.gpioBoard === false;
+}
+
+/** The micro:bit in its GPIO board: every pin on its header, and 5V from the board's own micro-USB. */
+export function onGpioBoard(project: Pick<Project, 'board' | 'gpioBoard'>): boolean {
+  return project.board === 'microbit-v2' && project.gpioBoard !== false;
+}
 
 /** Checks a project.json; throws with every problem and where it is. */
 export function parseProject(json: unknown): Project {
@@ -51,7 +66,12 @@ export function parseProject(json: unknown): Project {
 export function toCircuit(project: Project, board: BoardData): CircuitSpec {
   if (board.id !== project.board) throw new Error(`the project is for ${project.board}, not ${board.id}`);
   return {
-    board: { data: board, ...(project.plugs ? { plugs: project.plugs } : {}), ...(project.jumpers ? { jumpers: project.jumpers } : {}) },
+    board: {
+      data: board,
+      ...(project.plugs ? { plugs: project.plugs } : {}),
+      ...(project.jumpers ? { jumpers: project.jumpers } : {}),
+      ...(project.usb !== undefined ? { usb: project.usb } : {}),
+    },
     breadboards: project.breadboards,
     parts: project.parts,
     wires: project.wires,

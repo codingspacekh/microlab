@@ -1,0 +1,38 @@
+{
+  "seconds": 2,
+  "inputs": [
+    {
+      "at": 0,
+      "part": "tmp1",
+      "celsius": 20
+    },
+    {
+      "at": 0.9,
+      "part": "tmp1",
+      "celsius": 30
+    }
+  ],
+  "parts": {
+    "led1": {
+      "dark": [
+        [
+          0.05,
+          0.95
+        ]
+      ],
+      "lit": [
+        [
+          1.05,
+          1.95
+        ]
+      ]
+    }
+  },
+  "console": {
+    "includes": [
+      "Temperature: 20 C",
+      "Temperature: 30 C"
+    ]
+  },
+  "ended": "stopped"
+}

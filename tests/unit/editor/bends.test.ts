@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addPart, addWire, boardData, deleteBend, holeCard, insertBend, joinsOf, moveBend, pinCard, straighten } from '@lib/editor';
-import { newProject, parseProject } from '@lib/project';
+import { parseProject } from '@lib/project';
+import { newProject } from './with-breadboard';
 
 /** M5.3 F-13 a wire's bends moved, added and taken away; F-15 / F-12 what a pin and a hole are (screen 02). */
 const empty = () => newProject('pico-w').project;

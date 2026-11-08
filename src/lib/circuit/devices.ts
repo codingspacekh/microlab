@@ -16,14 +16,18 @@ export type Device =
     kind: 'pin'; id: string; net: string; gnd: string; label: string;
     volts: number; ohms: number; limitA: number; pullOhms: number; noPulls?: boolean;
   }
-  /** a: anode, k: cathode. Fixed forward voltage by colour plus a small series resistance (decision 1). */
-  | { kind: 'led'; id: string; a: string; k: string; color: string }
+  /** a: anode, k: cathode. Fixed forward voltage by colour plus a small series resistance (decision 1); `vf` when
+   *  the die is not the plain LED's of that colour (an RGB LED's green). */
+  | { kind: 'led'; id: string; a: string; k: string; color: string; vf?: number }
   /** Closed while the part is pressed, or while its position is `closedWhen` (a slide switch). */
   | { kind: 'switch'; id: string; a: string; b: string; part: string; closedWhen: 'pressed' | number }
-  /** Ends e1, e2 and wiper w; position 0–1 from e1 (state), 0.5 when not set. */
-  | { kind: 'pot'; id: string; e1: string; w: string; e2: string; ohms: number; part: string }
+  /** Ends e1, e2 and wiper w; position 0–1 from e1 (state), 0.5 when not set; a joystick's axis reads `x` or `y`. */
+  | { kind: 'pot'; id: string; e1: string; w: string; e2: string; ohms: number; part: string; axis?: 'x' | 'y' }
   /** Resistance from the light level (state lux), 300 lux when not set. */
-  | { kind: 'ldr'; id: string; a: string; b: string; part: string };
+  | { kind: 'ldr'; id: string; a: string; b: string; part: string }
+  /** A sensor module's output (M6.3): OUT driven from GND by the part's `drive` (state; the sim works it out, see
+   *  sensors.ts), weakly to GND when not set. */
+  | { kind: 'drive'; id: string; out: string; gnd: string; part: string; key?: string };
 
 export interface Netlist {
   nets: string[];
@@ -44,6 +48,26 @@ export interface PartState {
   /** Potentiometer 0–1 from leg 1; slide switch 0 (2 joined to 1) or 1 (2 joined to 3). */
   position?: number;
   lux?: number;
+  /** A temperature sensor's °C (M6.3); a DHT's too, and its humidity %; how far an HC-SR04's object is, cm (M6.4). */
+  celsius?: number;
+  humidity?: number;
+  cm?: number;
+  /** A module's several outputs, by leg (M6.5a): what drives each now. */
+  drives?: Record<string, { volts: number; ohms: number }>;
+  /** A joystick's two axes 0–1 (0.5 at rest); an encoder's steps (counted on, + one way, − the other); a wheel's rpm. */
+  x?: number;
+  y?: number;
+  steps?: number;
+  rpm?: number;
+  /** A BMP280's air pressure, hPa; a MAX30102's heart rate and oxygen (M6.5b). */
+  hpa?: number;
+  bpm?: number;
+  spo2?: number;
+  /** An MPU6050's tilt, degrees (M6.4b). */
+  tiltx?: number;
+  tilty?: number;
+  /** What drives a sensor module's OUT now (M6.3): worked out by the sim from its input and its supply. */
+  drive?: { volts: number; ohms: number };
 }
 
 /** What changes while the program runs. A pin with no state is an input with no pull. */
@@ -75,6 +99,17 @@ export const BATTERIES: Record<string, { volts: number; ohms: number; limitA: nu
 /** An SG90 at rest draws about 10 mA from 5 V. */
 export const SERVO_IDLE_OHMS = 500;
 
+/**
+ * Piezo buzzers, as a kit wires straight to a pin (M6.2). An active one (TMB12A03-type, 3–5 V self-drive) has its own
+ * oscillator: from `minVolts` (+ above −) it sounds at `hz`, drawing ≈ 7 mA at 3.3 V (as `ohms`). A passive one is a
+ * bare piezo disc: it draws next to nothing and sounds only with a square wave across it, at the wave's frequency,
+ * from a swing of `minSwing`. (A magnetic buzzer, 16–42 Ω, would need a transistor: M7.)
+ */
+export const BUZZER = {
+  active: { ohms: 470, hz: 2300, minVolts: 2.0 },
+  passive: { ohms: 10_000, minSwing: 1.0 },
+} as const;
+
 /** Forward voltages as on screen 12b; rated 20 mA, burnt above 30 mA (decision 1). */
 export const LED_COLORS: Record<string, { vf: number }> = {
   red: { vf: 2.0 },
@@ -83,6 +118,10 @@ export const LED_COLORS: Record<string, { vf: number }> = {
   blue: { vf: 3.0 },
   white: { vf: 3.0 },
 };
+
+/** A 5 mm RGB LED's three dies (typical datasheet values, at 20 mA): its green and blue are InGaN, ≈ 3.0 V — not
+ *  the 2.2 V of a plain green LED — so on 3.3 V through 220 Ω they are dim. */
+export const RGB_DIES: [leg: 'r' | 'g' | 'b', color: string, vf: number][] = [['r', 'red', 2.0], ['g', 'green', 3.0], ['b', 'blue', 3.0]];
 
 export const LED = {
   /** Series resistance. */

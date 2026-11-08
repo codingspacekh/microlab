@@ -22,7 +22,7 @@ export interface WorkerLike {
 export interface RunEvents {
   onOutput: (text: string) => void;
   onParts: (states: Record<string, PartView>) => void;
-  onBoard: (outputs: { pins: Record<string, number>; display?: string }) => void;
+  onBoard: (outputs: { pins: Record<string, number>; display?: string; sound?: number }) => void;
   onEnd: (result: RunResult) => void;
 }
 
@@ -33,9 +33,28 @@ export interface RunHandle {
 
 export const STOP_GRACE_MS = 300;
 
-/** The live inputs of the circuit's parts: a push button is pressed or not, a knob has a position (0–1). */
+/** The live input each kind of part takes: a push button is pressed or not, a knob has a position (0–1), a slide
+ *  switch is at 0 or 1 (M6.1), a light sensor has the light on it in lux; a PIR sees motion or not, a line sensor is
+ *  over white (0) or the line (1), a soil sensor's moisture is 0–1, a temperature sensor has °C (M6.3). */
+const SLOT: Record<string, string[]> = {
+  button: ['pressed'], potentiometer: ['position'], 'slide-switch': ['position'], ldr: ['lux'],
+  pir: ['pressed'], 'line-sensor': ['position'], 'soil-moisture': ['position'], 'temp-sensor': ['celsius'],
+  dht: ['celsius', 'humidity'], 'hc-sr04': ['cm'],   // M6.4: a DHT's air, how far an HC-SR04's object is
+  mpu6050: ['tiltx', 'tilty'],                        // M6.4b: its tilt
+  // M6.5a, the SunFounder kit's modules
+  'button-module': ['pressed'], 'ldr-module': ['lux'], 'pot-module': ['position'], touch: ['pressed'], vibration: ['pressed'],
+  'ir-obstacle': ['position'], hall: ['position'], 'water-level': ['position'], flame: ['position'], raindrop: ['position'], mq2: ['position'],
+  joystick: ['x', 'y', 'pressed'], 'rotary-encoder': ['steps', 'pressed'], 'speed-sensor': ['rpm'],
+  bmp280: ['celsius', 'hpa'], ds18b20: ['celsius'], vl53l0x: ['cm'], max30102: ['bpm', 'spo2', 'position'],                          // M6.5b: the air (the PCF8591 reads the circuit)
+};
+
+/** The micro:bit's own inputs (M6.6, screen 06): buttons A and B, the touch logo, its tilt (mg), a shake (a count),
+ *  its temperature, light level and sound level. */
+export const MICROBIT_SLOTS = ['pressed:board.A', 'pressed:board.B', 'touch:LOGO', 'board:accelx', 'board:accely', 'board:shake', 'board:celsius', 'board:light', 'board:sound'];
+
 export function inputSlots(project: Project): string[] {
-  return project.parts.flatMap((p) => (p.type === 'button' ? [`pressed:${p.id}`] : p.type === 'potentiometer' ? [`position:${p.id}`] : []));
+  const own = project.board === 'microbit-v2' ? MICROBIT_SLOTS : [];
+  return [...own, ...project.parts.flatMap((p) => (SLOT[p.type] ?? []).map((kind) => `${kind}:${p.id}`))];
 }
 
 const newWorker = (): WorkerLike => new Worker(new URL('../sim/worker.ts', import.meta.url), { type: 'module' }) as unknown as WorkerLike;
@@ -61,7 +80,7 @@ export function startRun(req: { doc: ProjectDoc; entry: string }, events: RunEve
     if (ended) return;
     if (m.type === 'output') events.onOutput(m.text);
     else if (m.type === 'parts') events.onParts(m.states);
-    else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}) });
+    else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}), ...(m.sound !== undefined ? { sound: m.sound } : {}) });
     else end(m.result);
   };
   worker.onerror = (e) => end({ ...emptyResult('error'), error: { type: 'Error', message: `The simulator couldn't start: ${e.message}` } });

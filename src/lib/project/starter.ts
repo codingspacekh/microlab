@@ -2,8 +2,9 @@ import { isBoardId, type BoardId } from '../boards';
 import type { ProjectDoc } from './format';
 
 /**
- * A new project (F-01): the chosen board with one half breadboard, nothing else placed, and a starter main.py that
- * runs as it is and shows something on the board itself — the display, or the board's own LED.
+ * A new project (F-01): the chosen board alone (M6.8: a breadboard comes from the parts panel), nothing else placed, and a starter main.py that
+ * runs as it is and shows something on the board itself — the display, or the board's own LED. A micro:bit is out of
+ * its GPIO board (M6.9, screen 24), as a student first holds it; the GPIO board comes from the parts panel.
  */
 const STARTERS: Record<BoardId, string> = {
   'microbit-v2': `from microbit import *
@@ -45,7 +46,7 @@ while True:
 export function newProject(board: BoardId): ProjectDoc {
   if (!isBoardId(board)) throw new Error(`there is no board "${String(board)}"`);
   return {
-    project: { format: 1, title: 'Untitled project', board, breadboards: [{ id: 'bb1', size: 'half' }], parts: [], wires: [] },
+    project: { format: 1, title: 'Untitled project', board, ...(board === 'microbit-v2' ? { gpioBoard: false } : {}), breadboards: [], parts: [], wires: [] },
     files: { 'main.py': STARTERS[board] },
   };
 }

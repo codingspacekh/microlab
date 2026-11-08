@@ -1,0 +1,47 @@
+{
+  "format": 1,
+  "title": "Air pressure (BMP280)",
+  "board": "microbit-v2",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "baro1",
+      "type": "bmp280",
+      "legs": {
+        "vcc": "bb1.a10",
+        "gnd": "bb1.a11",
+        "scl": "bb1.a12",
+        "sda": "bb1.a13",
+        "csb": "bb1.a14",
+        "sdo": "bb1.a15"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "a": "board.3.3V",
+      "b": "bb1.e10",
+      "id": "w1"
+    },
+    {
+      "a": "board.GND",
+      "b": "bb1.e11",
+      "id": "w2"
+    },
+    {
+      "a": "board.P19",
+      "b": "bb1.e12",
+      "id": "w3"
+    },
+    {
+      "a": "board.P20",
+      "b": "bb1.e13",
+      "id": "w4"
+    }
+  ]
+}

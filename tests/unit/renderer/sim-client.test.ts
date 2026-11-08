@@ -41,6 +41,71 @@ describe('M4.5 starting a run', () => {
     expect(inputSlots(doc().project)).toEqual(['pressed:btn1', 'position:pot1']);
   });
 
+  it('M6.1: a slide switch has a position (0 / 1), a light sensor the light on it (lux); an RGB LED and a battery take none', () => {
+    const p = newProject('pico-w').project;
+    p.parts = [
+      { id: 'sw1', type: 'slide-switch', legs: { 1: 'bb1.a1', 2: 'bb1.a2', 3: 'bb1.a3' } },
+      { id: 'ldr1', type: 'ldr', legs: { a: 'bb1.a10', b: 'bb1.a12' } },
+      { id: 'rgb1', type: 'rgb-led', legs: { r: 'bb1.f1', common: 'bb1.f2', g: 'bb1.f3', b: 'bb1.f4' } },
+      { id: 'bat1', type: 'battery', props: { kind: '9V' }, legs: { '+': 'bb1.T+1', '-': 'bb1.T-1' } },
+    ];
+    expect(inputSlots(p)).toEqual(['position:sw1', 'lux:ldr1']);
+  });
+
+  it('M6.3: a PIR sees motion (pressed), a line sensor its surface and a soil sensor its moisture (position), a temperature sensor °C', () => {
+    const p = newProject('pico-w').project;
+    const legs = { vcc: 'bb1.a1', out: 'bb1.a2', gnd: 'bb1.a3' };
+    p.parts = [
+      { id: 'pir1', type: 'pir', legs }, { id: 'line1', type: 'line-sensor', legs }, { id: 'soil1', type: 'soil-moisture', legs },
+      { id: 'tmp1', type: 'temp-sensor', props: { kind: 'TMP36' }, legs },
+    ];
+    expect(inputSlots(p)).toEqual(['pressed:pir1', 'position:line1', 'position:soil1', 'celsius:tmp1']);
+  });
+
+  it('M6.4: a DHT has a temperature and a humidity, an HC-SR04 how far its object is (cm), an MPU6050 its tilt', () => {
+    const p = newProject('pico-w').project;
+    p.parts = [
+      { id: 'dht1', type: 'dht', props: { kind: 'DHT22' }, legs: { vcc: 'bb1.a1', out: 'bb1.a2', gnd: 'bb1.a3' } },
+      { id: 'sonar1', type: 'hc-sr04', legs: { vcc: 'bb1.a5', trig: 'bb1.a6', echo: 'bb1.a7', gnd: 'bb1.a8' } },
+      { id: 'mpu1', type: 'mpu6050', legs: Object.fromEntries(['vcc', 'gnd', 'scl', 'sda', 'xda', 'xcl', 'ad0', 'int'].map((l, i) => [l, `bb1.f${i + 1}`])) },
+    ];
+    expect(inputSlots(p)).toEqual(['celsius:dht1', 'humidity:dht1', 'cm:sonar1', 'tiltx:mpu1', 'tilty:mpu1']);   // M6.4b: its tilt
+  });
+
+  it('M6.5a: the kit\'s modules — held, a position 0–1, the light; a joystick\'s axes and button, an encoder\'s steps and button, a wheel\'s rpm', () => {
+    const p = newProject('pico-w').project;
+    const three = { out: 'bb1.a1', vcc: 'bb1.a2', gnd: 'bb1.a3' };
+    p.parts = [
+      { id: 'btn1', type: 'button-module', legs: three }, { id: 'ldr1', type: 'ldr-module', legs: three }, { id: 'pot1', type: 'pot-module', legs: three },
+      { id: 'touch1', type: 'touch', legs: three }, { id: 'vib1', type: 'vibration', legs: three }, { id: 'ir1', type: 'ir-obstacle', legs: three },
+      { id: 'hall1', type: 'hall', legs: three }, { id: 'water1', type: 'water-level', legs: three },
+      { id: 'flame1', type: 'flame', legs: { ...three, ao: 'bb1.a4' } }, { id: 'rain1', type: 'raindrop', legs: { ...three, ao: 'bb1.a4' } }, { id: 'gas1', type: 'mq2', legs: { ...three, ao: 'bb1.a4' } },
+      { id: 'joy1', type: 'joystick', legs: { gnd: 'bb1.f1', vcc: 'bb1.f2', vrx: 'bb1.f3', vry: 'bb1.f4', sw: 'bb1.f5' } },
+      { id: 'enc1', type: 'rotary-encoder', legs: { clk: 'bb1.f6', dt: 'bb1.f7', sw: 'bb1.f8', vcc: 'bb1.f9', gnd: 'bb1.f10' } },
+      { id: 'speed1', type: 'speed-sensor', legs: { vcc: 'bb1.f11', gnd: 'bb1.f12', out: 'bb1.f13' } },
+    ];
+    expect(inputSlots(p)).toEqual([
+      'pressed:btn1', 'lux:ldr1', 'position:pot1', 'pressed:touch1', 'pressed:vib1', 'position:ir1', 'position:hall1', 'position:water1',
+      'position:flame1', 'position:rain1', 'position:gas1', 'x:joy1', 'y:joy1', 'pressed:joy1', 'steps:enc1', 'pressed:enc1', 'rpm:speed1',
+    ]);
+  });
+
+  it('M6.6: a micro:bit project has its own inputs too — A, B, the logo, the tilt, a shake, the temperature, the light, the sound', () => {
+    expect(inputSlots(newProject('microbit-v2').project)).toEqual([
+      'pressed:board.A', 'pressed:board.B', 'touch:LOGO', 'board:accelx', 'board:accely', 'board:shake', 'board:celsius', 'board:light', 'board:sound',
+    ]);
+  });
+
+  it('M6.5b: a BMP280 has the air\'s temperature and pressure, a DS18B20 °C; a PCF8591 and a DS1302 take none (they read the circuit, the clock)', () => {
+    const p = newProject('pico-w').project;
+    p.parts = [
+      { id: 'baro1', type: 'bmp280', legs: { vcc: 'bb1.a1', gnd: 'bb1.a2', scl: 'bb1.a3', sda: 'bb1.a4', csb: 'bb1.a5', sdo: 'bb1.a6' } },
+      { id: 'temp1', type: 'ds18b20', legs: { out: 'bb1.a8', vcc: 'bb1.a9', gnd: 'bb1.a10' } },
+      { id: 'rtc1', type: 'ds1302', legs: { vcc: 'bb1.f1', gnd: 'bb1.f2', clk: 'bb1.f3', dat: 'bb1.f4', rst: 'bb1.f5' } },
+    ];
+    expect(inputSlots(p)).toEqual(['celsius:baro1', 'hpa:baro1', 'celsius:temp1']);
+  });
+
   it('passes on what the worker says, and ends the worker with the run', () => {
     const w = new FakeWorker();
     const e = events();

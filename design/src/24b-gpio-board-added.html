@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>24b The GPIO board added</title>
+{{include:head}}
+<style>
+.rail { flex: 0 0 56px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; z-index: 3; }
+.rail .rb { width: 44px; padding: 6px 0 5px; border-radius: 9px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; color: var(--tx-2); font-weight: 550; }
+.rail .rb .pic { width: 30px; height: 30px; display: grid; place-items: center; }
+</style>
+</head>
+<body>
+<!--@PROJECT: Untitled project-->
+<!--@PROJECT_SUB: micro:bit V2 · not saved-->
+<!--@UNSAVED: <span class="unsaved" title="Not saved"></span>-->
+<!--@BOARD: BBC micro:bit V2 on its GPIO board-->
+<!--@BOARD_PIC: {{part:microbit:bp}}-->
+<!--@EDITOR: {{code:heart}}-->
+<!--@COUNTS: micro:bit + GPIO board + 2 parts · 2 wires-->
+<p class="frame-label"><b>24b · The GPIO board added</b> — the micro:bit is now <b>in its GPIO board</b>, as the projects before were: the board in use is the micro:bit on its GPIO board (the top bar says so; the sim and the 5V pins as before). The wires that were on rings 0 and GND are on the header's <b>P0</b> and <b>GND</b> — the same pins. Clicked, the GPIO board shows its inspector: its micro-USB (5V in), and <b>Take the micro:bit out</b>, which puts the micro:bit back alone — the wires on pins it has no ring for (P3–P20, 5V, the I²C header) are taken off with it, the canvas says how many, and Undo brings them back. One undo step each way</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    <nav class="rail">
+      <span class="rb" title="BBC micro:bit V2 on its GPIO board — its pinout"><span class="pic">{{part:microbit:bp}}</span>Board</span>
+      <span class="rb">{{i:grid:s20}}Parts</span>
+    </nav>
+    <div class="canvas">
+      <div class="stage">{{scene:mbitgpio}}
+      <div class="float inspector" style="right:14px;top:14px">
+        <div class="ih"><span class="pic" style="width:28px;height:28px;border-radius:6px;background:var(--bg);display:grid;place-items:center">{{part:gpioboard:bp}}</span><div class="col" style="gap:0"><b>micro:bit GPIO board</b><span class="tiny muted">the micro:bit is in its slot</span></div><span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+        <div class="prop"><span>Pins</span><span class="small">P0–P20 in two rows · I²C header · 3.3V, 5V, GND</span></div>
+        <div class="prop"><span>micro-USB</span><div class="seg"><span class="on">Plugged in · 5V</span><span>Out</span></div></div>
+        <p class="tiny muted" style="margin:8px 0 0;line-height:1.45">Without the GPIO board the micro:bit has its five rings: 0, 1, 2, 3V and GND.</p>
+        <div class="row" style="gap:6px;margin-top:12px"><button class="btn sm danger">{{i:trash:s14}} Take the micro:bit out</button></div>
+      </div>
+      <div class="float canvas-hint" style="position:absolute;left:24px;bottom:72px;padding:8px 12px;max-width:440px">The micro:bit is in its GPIO board: 30 pins. The wires on 0 and GND are on its P0 and GND.</div>
+      </div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

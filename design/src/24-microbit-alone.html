@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>24 The micro:bit alone</title>
+{{include:head}}
+<style>
+.rail { flex: 0 0 56px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; z-index: 3; }
+.rail .rb { width: 44px; padding: 6px 0 5px; border-radius: 9px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; color: var(--tx-2); font-weight: 550; }
+.rail .rb.on { background: var(--accent-soft); color: var(--accent-ink); }
+.rail .rb .pic { width: 30px; height: 30px; display: grid; place-items: center; }
+.drawer { position: absolute; left: 0; top: 0; bottom: 0; width: 280px; z-index: 4; box-shadow: var(--shadow-l); }
+.drawer .head .x { margin-left: auto; }
+.canvas .ctools { left: 296px; }
+.startcard { width: 270px; padding: 10px; margin: 18px 0 0 40px; }
+.startcard .art { background: var(--bg); border-radius: 8px; overflow: hidden; }
+</style>
+</head>
+<body>
+<!--@PROJECT: Untitled project-->
+<!--@PROJECT_SUB: micro:bit V2 · not saved-->
+<!--@BOARD: BBC micro:bit V2-->
+<!--@BOARD_PIC: {{part:microbit:bp}}-->
+<!--@EDITOR: {{code:heart}}-->
+<!--@COUNTS: micro:bit + 2 parts · 2 wires-->
+<!--@PARTS_LIST: {{parts:gpioboard::microbit}}-->
+<p class="frame-label"><b>24 · The micro:bit alone</b> (the teacher's request, 2026-11-08) — the Start screen's card and a new micro:bit project show <b>the micro:bit on its own</b>, as a student first holds it. Its five big rings — <b>0, 1, 2, 3V, GND</b> — are its pins: a wire goes to a ring as a crocodile clip would (dashed: the rings still free), and hovering a ring says its pin, as for any pin. For the other pins (P3–P20, 5V, the I²C header) the <b>GPIO board</b> is first in the parts panel when the project is a micro:bit's (the micro:bit group) — dragged in or clicked, the micro:bit goes into it (screen 24b). Projects saved before keep their GPIO board</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    <nav class="rail">
+      <span class="rb" title="BBC micro:bit V2 — its pinout"><span class="pic">{{part:microbit:bp}}</span>Board</span>
+      <span class="rb on">{{i:grid:s20}}Parts</span>
+    </nav>
+    <div class="canvas">
+      <div class="stage">{{scene:mbitalone}}</div>
+      <aside class="parts drawer">
+        <div class="head">
+          <div class="row" style="gap:8px"><b style="font-size:13px">Parts</b><span class="tiny muted">drag onto the canvas</span><button class="btn ghost sm icon x" title="Fold away (P)">{{i:chevl:s14}}</button></div>
+          <div class="field" style="height:30px">{{i:search:s14}}<span class="ph">Search 38 parts</span></div>
+        </div>
+        <div class="list">{{PARTS_LIST}}</div>
+      </aside>
+      <div class="float tip" style="left:292px;top:44px;width:230px;z-index:5"><b>GPIO board</b><div style="opacity:.85;margin-top:2px">The micro:bit goes into its slot: <b>30 pins</b> in two rows and an I²C header, and 5V from its own micro-USB. The wires on 0, 1, 2, 3V and GND stay on the same pins.</div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+<div class="card startcard">
+        <div class="tiny muted" style="margin-bottom:6px">The Start screen's micro:bit card (screen 01) — the micro:bit alone</div>
+        <div class="art">{{scene:board:microbit}}</div>
+        <div class="col" style="gap:2px;margin-top:6px"><b style="font-size:13px">BBC micro:bit V2</b><span class="tiny muted">5×5 display, buttons, speaker, motion sensor, radio</span></div>
+        <button class="btn sm" style="justify-content:center;margin-top:8px;width:100%">{{i:plus:s14}} New micro:bit project</button>
+      </div>
+</body></html>

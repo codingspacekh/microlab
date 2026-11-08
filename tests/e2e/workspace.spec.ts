@@ -3,6 +3,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
 
+/** M6.8: a new project is the board alone and the parts panel is folded — put down a half breadboard (where new
+ *  projects had theirs) and open the panel, as building a circuit starts. */
+const startBuilding = async (win: Page) => {
+  await win.getByRole('button', { name: 'Parts', exact: true }).click();
+  // a half breadboard taken with the keyboard goes where new projects had theirs (not the Start building card: it goes by itself)
+  await win.getByRole('region', { name: 'Parts' }).getByRole('button', { name: /^Half breadboard/ }).press('Enter');
+  // opening it fits the circuit beside it again: let that be drawn before anything is measured
+  await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+};
+
 /** M4.3 with the real mouse: a part dragged from the panel snaps to holes; a wire from a pin to a hole; the circuit
  *  fits the canvas at the smallest window (N-13). */
 let app: ElectronApplication;
@@ -34,10 +44,11 @@ test('build part of Blink with the mouse: a resistor dragged onto a5–a8, a wir
   const win = await app.firstWindow();
   await resize(win, 1440, 900);
   await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
 
   const a5 = await centre(win, '[data-point="bb1.a5"]');
   const a8 = await centre(win, '[data-point="bb1.a8"]');
-  const item = await centre(win, '.parts .pitem:has-text("Resistor")');
+  const item = await centre(win, '.parts .pitem:has-text("220 Ω")');
   await win.mouse.move(item.x, item.y);
   await win.mouse.down();
   await win.mouse.move((a5.x + a8.x) / 2 + 3, a5.y - 2, { steps: 8 });
@@ -74,6 +85,7 @@ test('at 1280 × 720 the micro:bit and its breadboard fit in the canvas', async 
   const win = await app.firstWindow();
   await resize(win, 1280, 720);
   await win.getByRole('button', { name: 'New micro:bit project' }).click();
+  await startBuilding(win);
   const canvas = (await win.getByRole('region', { name: 'Circuit' }).boundingBox())!;
   for (const name of ['BBC micro:bit V2', 'Breadboard bb1 (half)']) {
     const b = (await win.getByRole('img', { name }).boundingBox())!;
@@ -84,13 +96,59 @@ test('at 1280 × 720 the micro:bit and its breadboard fit in the canvas', async 
   }
 });
 
+test('M6.9 (screens 24, 24b) with the real mouse: a wire on ring 0, the GPIO board clicked in, the micro:bit taken out', async () => {
+  const win = await app.firstWindow();
+  await resize(win, 1280, 720);
+  await win.getByRole('button', { name: 'New micro:bit project' }).click();
+  await startBuilding(win);
+  await expect(win.locator('[data-point^="board."]')).toHaveCount(5);   // its rings
+  const ring = await centre(win, '[data-point="board.P0"]');
+  const e5 = await centre(win, '[data-point="bb1.e5"]');
+  await win.mouse.move(ring.x, ring.y);
+  await win.mouse.down();
+  await win.mouse.move(e5.x, e5.y, { steps: 6 });
+  await win.mouse.up();
+  await expect(win.locator('[data-wire="w1"]')).toHaveAttribute('data-ends', 'board.P0 bb1.e5');
+
+  await win.getByRole('group', { name: 'micro:bit' }).getByRole('button', { name: /^GPIO board/ }).click();
+  await expect(win.getByRole('img', { name: 'BBC micro:bit V2 on its GPIO board' })).toBeVisible();
+  await expect(win.locator('[data-point^="board."]')).toHaveCount(29);   // 30 pins, P0 wired
+  await expect(win.locator('[data-wire="w1"]')).toHaveAttribute('data-ends', 'board.P0 bb1.e5');
+  await expect(win.locator('.canvas-hint')).toContainText('The wires on 0 are on its P0.');
+  const inspector = win.getByRole('complementary', { name: 'Inspector' });
+  await expect(inspector).toContainText('micro:bit GPIO board');
+
+  // Fit: the GPIO board and the breadboard both in the canvas
+  await win.getByRole('button', { name: 'Fit' }).click();
+  const canvas = (await win.getByRole('region', { name: 'Circuit' }).boundingBox())!;
+  for (const name of ['BBC micro:bit V2 on its GPIO board', 'Breadboard bb1 (half)']) {
+    const b = (await win.getByRole('img', { name }).boundingBox())!;
+    expect(b.y).toBeGreaterThanOrEqual(canvas.y - 1);
+    expect(b.y + b.height).toBeLessThanOrEqual(canvas.y + canvas.height + 1);
+  }
+
+  const p8 = await centre(win, '[data-point="board.P8"]');
+  const e8 = await centre(win, '[data-point="bb1.e8"]');
+  await win.mouse.move(p8.x, p8.y);
+  await win.mouse.down();
+  await win.mouse.move(e8.x, e8.y, { steps: 6 });
+  await win.mouse.up();
+  await expect(win.locator('[data-wire]')).toHaveCount(2);
+  await win.getByRole('img', { name: 'BBC micro:bit V2 on its GPIO board' }).click({ position: { x: 60, y: 20 } });
+  await inspector.getByRole('button', { name: /Take the micro:bit out/ }).click();
+  await expect(win.locator('[data-point^="board."]')).toHaveCount(4);
+  await expect(win.locator('[data-wire]')).toHaveCount(1);
+  await expect(win.locator('.canvas-hint')).toContainText('The wire on its other pins went with the GPIO board');
+});
+
 test('M4.3b with the real mouse: a part clicked then placed, a wire with two bends, a value from the inspector', async () => {
   const win = await app.firstWindow();
   await resize(win, 1440, 900);
   await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
 
   // click the LED in the panel, then click on the breadboard
-  await win.locator('.parts .pitem:has-text("LED")').click();
+  await win.locator('.parts .pitem:has-text("red, 5 mm")').click();
   const c10 = await centre(win, '[data-point="bb1.c10"]');
   const c12 = await centre(win, '[data-point="bb1.c12"]');
   await win.mouse.move((c10.x + c12.x) / 2, c10.y, { steps: 4 });
@@ -120,12 +178,13 @@ test('M5.1 with the real keyboard and mouse: R turns, shift-click, ⌘D / Ctrl+D
   const win = await app.firstWindow();
   await resize(win, 1440, 900);
   await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
   const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
   const legs = (id: string) => win.locator(`[data-part="${id}"]`);
 
   const a5 = await centre(win, '[data-point="bb1.a5"]');
   const a8 = await centre(win, '[data-point="bb1.a8"]');
-  const item = await centre(win, '.parts .pitem:has-text("Resistor")');
+  const item = await centre(win, '.parts .pitem:has-text("220 Ω")');
   await win.mouse.move(item.x, item.y);
   await win.mouse.down();
   await win.mouse.move((a5.x + a8.x) / 2 + 3, a5.y - 2, { steps: 8 });
@@ -166,6 +225,7 @@ test('M5.2 with the real mouse: hover lights a strip, the wheel zooms at the poi
   const win = await app.firstWindow();
   await resize(win, 1440, 900);
   await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
   const zoom = win.getByRole('button', { name: 'Zoom to 100 %' });
   const pct = async () => Number((await zoom.textContent())!.replace('%', ''));
   const fitted = await pct();
@@ -208,6 +268,7 @@ test('M5.3 with the real mouse: GP15\'s card, a hole\'s card, a bend dragged and
   const win = await app.firstWindow();
   await resize(win, 1440, 900);
   await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
   const gp15 = await centre(win, '[data-point="board.GP15"]');
   await win.mouse.move(gp15.x, gp15.y);
   await expect(win.getByRole('tooltip')).toContainText('GP15 · pin 20');

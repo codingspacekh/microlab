@@ -1,18 +1,20 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { EMPTY_HISTORY, PART_KINDS, record, type History } from '@lib/editor';
-import type { BoardId } from '@lib/boards';
-import { spaceNote, type ProjectDoc } from '@lib/project';
+import { microbitAlone, onGpioBoard, spaceNote, type ProjectDoc } from '@lib/project';
 import { Console, type BoardConsoleView } from '../console/Console';
 import { CodeEditor } from '../editor/CodeEditor';
+import { EditorPrefs, lookAttrs, useEditorLook } from '../editor/EditorPrefs';
 import type { RunState } from '../app/useRun';
 import { Divider } from '../ui/Divider';
 import { Icon } from '../ui/Icon';
+import { MenuButton } from '../ui/Menu';
+import { AddLibrary } from './AddLibrary';
 import type { MicrolabApi } from '../app/api';
-import { BOARD_ART, BOARD_NAMES } from '../app/boards';
-import { Canvas, type Placing, type Selection } from './Canvas';
+import { boardName, boardPicture } from '../app/boards';
+import { BREADBOARD_TYPE, Canvas, GPIO_BOARD_TYPE, type Placing, type Selection } from './Canvas';
 import { FilesPanel, type FilesAsk } from './FilesPanel';
 import { Inspector } from './Inspector';
-import { PartIcon } from './drawings';
+import { BreadboardIcon, PartIcon } from './drawings';
 import './workspace.css';
 
 /**
@@ -28,6 +30,8 @@ export interface Layout {
 
 export const DEFAULT_LAYOUT: Layout = { parts: 0.17, side: 0.34 };
 const LIMITS = { parts: [220, 360], side: [320, 0.5], canvas: 360 } as const;
+/** The rail the parts panel folds to (M6.8). */
+const RAIL = 56;
 
 export interface WorkspaceProps {
   api: MicrolabApi;
@@ -75,6 +79,13 @@ export function Workspace({
   // the files open in tabs (F-21): main.py, then each one opened, until it is closed
   const [tabs, setTabs] = useState<string[]>(() => [file]);
   const [files, setFiles] = useState<{ ask: FilesAsk | null } | null>(null);
+  const [libraries, setLibraries] = useState(false);
+  // M6.8 (screens 23, 23b): the parts panel is folded to a rail until it is wanted; it slides out over the canvas
+  const [partsOpen, setPartsOpen] = useState(false);
+  /** What the canvas says of an edit made in the inspector (M6.9: the micro:bit taken out of its GPIO board). */
+  const [notice, setNotice] = useState<{ text: string } | null>(null);
+  const [look, setLook] = useEditorLook(api);
+  const lookOf = lookAttrs(look);
   const shownTabs = [...tabs.filter((t) => t in doc.files), ...(tabs.includes(file) || !(file in doc.files) ? [] : [file])];
   const openFile = (p: string) => { setTabs((t) => (t.includes(p) ? t : [...t, p])); onFile?.(p); };
   const closeTab = (p: string) => {
@@ -102,14 +113,29 @@ export function Workspace({
     setDrag({});
     void api.settings.set('layout', next);
   };
-  const sideMax = Math.max(LIMITS.side[0], Math.min(LIMITS.side[1] * width, width - partsPx - LIMITS.canvas));
-  const partsMax = Math.max(LIMITS.parts[0], Math.min(LIMITS.parts[1], width - sidePx - LIMITS.canvas));
+  const sideMax = Math.max(LIMITS.side[0], Math.min(LIMITS.side[1] * width, width - RAIL - LIMITS.canvas));
+  const partsMax = Math.max(LIMITS.parts[0], Math.min(LIMITS.parts[1], width - sidePx - RAIL - 120));
 
   // a running program owns the circuit: nothing is placed, moved or selected until it stops
   useEffect(() => {
     if (!running) return;
     setPlacing(null);
     setSelection([]);
+    setPartsOpen(false);   // it folds away while a program runs (screen 23b)
+  }, [running]);
+
+  // P opens and folds the parts panel — not while typing (the editor, a field)
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'p' && e.key !== 'P') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.closest('input, textarea, [contenteditable="true"], .cm-editor') || t.isContentEditable)) return;
+      e.preventDefault();
+      setPartsOpen((o) => !o);
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
   }, [running]);
 
   const project = doc.project;
@@ -117,7 +143,8 @@ export function Workspace({
   // what was selected may be gone (an undo, a redo)
   useEffect(() => {
     setSelection((sel) => {
-      const kept = sel.filter((x) => (x.kind === 'part' ? project.parts : x.kind === 'wire' ? project.wires : project.breadboards).some((t) => t.id === x.id));
+      const kept = sel.filter((x) => (x.kind === 'board' ? onGpioBoard(project)
+        : (x.kind === 'part' ? project.parts : x.kind === 'wire' ? project.wires : project.breadboards).some((t) => t.id === x.id)));
       return kept.length === sel.length ? sel : kept;
     });
     if (project !== recorded.current) merging.current = { ...merging.current, key: '' };
@@ -139,53 +166,96 @@ export function Workspace({
     onChange({ ...doc, project: p });
   };
 
-  const board = project.board as BoardId;
+  /** Put down from the parts panel: dragged (press), or picked up with Enter (keys). */
+  const pick = (type: string) => ({
+    onMouseDown: (e: React.MouseEvent) => {
+      if (e.button !== 0 || running) return;
+      e.preventDefault();
+      setSelection([]);   // the inspector would cover the canvas
+      setPlacing({ type, how: 'press', start: { x: e.clientX, y: e.clientY } });
+    },
+    onClick: (e: React.MouseEvent) => { if (e.detail === 0 && !running) { setSelection([]); setPlacing({ type, how: 'keys' }); } },
+  });
   return (
     <div className="ws" ref={ref}>
-      <section className="parts" aria-label="Parts" style={{ flexBasis: partsPx }}>
+      <nav className="rail" aria-label="Board and parts">
+        <span className="rb static" title={boardName(project)}>
+          <span className="pic"><img src={boardPicture(project)} alt="" draggable={false} /></span>Board
+        </span>
+        <button type="button" className={partsOpen ? 'rb on' : 'rb'} aria-expanded={partsOpen} title="Parts (P)"
+          onClick={() => setPartsOpen((o) => !o)}>
+          <Icon name="grid" size={20} />Parts
+        </button>
+      </nav>
+      <section className={partsOpen ? 'canvas with-drawer' : 'canvas'} aria-label="Circuit" style={{ '--drawer': `${partsPx}px` } as React.CSSProperties}>
+        <Canvas project={project} onChange={(p) => setProject(p)} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection}
+          running={running} outputs={running || run.ended ? run : IDLE_RUN} onInput={onInput}
+          onUndo={onUndo} onRedo={onRedo} onOpenParts={() => setPartsOpen(true)} inset={partsOpen ? partsPx : 0} notice={notice} />
+        {partsOpen && (
+        <div className="drawer-wrap">
+      <section className="parts" aria-label="Parts" style={{ width: partsPx }} onKeyDown={(e) => { if (e.key === 'Escape' && !placing) { e.stopPropagation(); setPartsOpen(false); } }}>
         <div className="head">
-          <div className="boardrow">
-            <span className="pic"><img src={BOARD_ART[board]} alt="" draggable={false} /></span>
-            <div><span className="tiny muted">Board</span><b>{BOARD_NAMES[board] ?? board}</b></div>
+          <div className="ttl"><b>Parts</b><span className="tiny muted">drag onto the canvas</span><span className="spacer" />
+            <button type="button" className="btn ghost sm icon" aria-label="Fold the parts away" title="Fold away (P)" onClick={() => setPartsOpen(false)}><Icon name="chevl" size={14} /></button>
           </div>
         </div>
         <div className="list">
-          <div className="pgroup">
-            <div className="gh">Basics<span className="n">{PART_KINDS.length}</span></div>
-            {PART_KINDS.map((k) => (
-              <button key={k.type} type="button" className={placing?.type === k.type ? 'pitem drag' : 'pitem'}
-                title={`Drag ${k.name.toLowerCase()} onto the breadboard, or click it and then click where it goes`}
-                aria-disabled={running || undefined}
-                onMouseDown={(e) => {
-                  if (e.button !== 0 || running) return;
-                  e.preventDefault();
-                  setSelection([]);   // the inspector would cover the canvas
-                  setPlacing({ type: k.type, how: 'press', start: { x: e.clientX, y: e.clientY } });
-                }}
-                onClick={(e) => { if (e.detail === 0 && !running) { setSelection([]); setPlacing({ type: k.type, how: 'keys' }); } }}>
-                <span className="pic"><PartIcon type={k.type} /></span>
-                <span className="nm">{k.name}<small>{k.detail}</small></span>
+          {microbitAlone(project) && (
+            // M6.9 (screen 24): the micro:bit's own group first — its GPIO board, for the pins it has no ring for
+            <div className="pgroup" role="group" aria-label="micro:bit">
+              <div className="gh">micro:bit<span className="n">1</span></div>
+              <button type="button" className={placing?.type === GPIO_BOARD_TYPE ? 'pitem drag' : 'pitem'}
+                title="Click or drag it in: the micro:bit goes into its GPIO board — 30 pins, and 5V from its own micro-USB. The wires stay on the same pins."
+                aria-disabled={running || undefined} {...pick(GPIO_BOARD_TYPE)}>
+                <span className="pic"><PartIcon type={GPIO_BOARD_TYPE} /></span>
+                <span className="nm">GPIO board<small>30 pins · 5V from its USB</small></span>
               </button>
-            ))}
-          </div>
-          {running && <p className="small run-lock" role="note">Stop the program to change the circuit. While it runs, press a push button by holding the mouse on it.</p>}
+            </div>
+          )}
+          {(['Basics', 'Sensors', 'Modules', 'Chips'] as const).map((group) => {
+            const kinds = PART_KINDS.filter((k) => k.group === group);
+            return (
+              <div key={group} className="pgroup" role="group" aria-label={group}>
+                <div className="gh">{group}<span className="n">{kinds.length + (group === 'Basics' ? 3 : 0)}</span></div>
+                {group === 'Basics' && ([['mini', 'Mini breadboard', '170 holes · no rails'], ['half', 'Half breadboard', '400 holes · 30 columns'], ['full', 'Full breadboard', '830 holes · 63 columns']] as const).map(([size, name, detail]) => {
+                  const type = `${BREADBOARD_TYPE}${size}`;
+                  return (
+                    <button key={type} type="button" className={placing?.type === type ? 'pitem drag' : 'pitem'}
+                      title={`Drag the ${name.toLowerCase()} onto the canvas, or click it and then click where it goes`}
+                      aria-disabled={running || undefined} {...pick(type)}>
+                      <span className="pic"><BreadboardIcon size={size} /></span>
+                      <span className="nm">{name}<small>{detail}</small></span>
+                    </button>
+                  );
+                })}
+                {kinds.map((k) => (
+                  <button key={k.type} type="button" className={placing?.type === k.type ? 'pitem drag' : 'pitem'}
+                    title={`Drag the ${inText(k.name)} onto the breadboard, or click it and then click where it goes`}
+                    aria-disabled={running || undefined} {...pick(k.type)}>
+                    <span className="pic"><PartIcon type={k.type} /></span>
+                    <span className="nm">{k.name}<small>{k.detail}</small></span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+          {running && <p className="small run-lock" role="note">Stop the program to change the circuit. While it runs, press a push button by holding the mouse on it, click a slide switch to slide it, drag a knob up or down to turn it, hold the mouse on a PIR to move in front of it, click a line sensor to slide it over the line, and set the light, the soil's moisture and the temperature on the Inputs card.</p>}
           <p className="tiny muted howto">Drag a part onto the breadboard, or click it and click where it goes. For a wire, drag from a pin or hole to another — or click it, click for each bend, and click where it ends.</p>
         </div>
       </section>
       <Divider label="Parts panel width" value={partsPx} min={LIMITS.parts[0]} max={partsMax}
         onChange={(v) => setDrag({ parts: v })} onCommit={commit('parts')} />
-      <section className="canvas" aria-label="Circuit">
-        <Canvas project={project} onChange={(p) => setProject(p)} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection}
-          running={running} outputs={running || run.ended ? run : IDLE_RUN} onInput={onInput}
-          onUndo={onUndo} onRedo={onRedo} />
+        </div>
+        )}
         {banner && <div className="cbanner">{banner}</div>}
         {selection.length === 1 && (
-          <Inspector key={`${selection[0]!.kind}:${selection[0]!.id}`} project={project} selection={selection[0]!} onChange={setProject} onClose={() => setSelection([])} onSelect={setSelection} />
+          <Inspector key={`${selection[0]!.kind}:${selection[0]!.id}`} project={project} selection={selection[0]!} onChange={setProject} onClose={() => setSelection([])} onSelect={setSelection}
+            doc={doc} onDoc={onChange} onNotice={(text) => setNotice({ text })} />
         )}
       </section>
       <Divider label="Code panel width" value={sidePx} min={LIMITS.side[0]} max={sideMax} edge="right"
         onChange={(v) => setDrag({ side: v })} onCommit={commit('side')} />
-      <section className="side" aria-label="Code" style={{ flexBasis: sidePx }}>
+      <section className="side" aria-label="Code" data-theme={lookOf['data-theme']} style={{ flexBasis: sidePx, ...lookOf.style }}>
         <div className="ftabs">
           <div className="tabs" role="tablist" aria-label="Files">
             {shownTabs.map((p) => (
@@ -201,7 +271,11 @@ export function Workspace({
             ))}
           </div>
           <span className="r">
-            <button type="button" className="btn ghost sm icon" aria-label="Add a new file" title="New file" onClick={() => setFiles({ ask: { kind: 'new' } })}><Icon name="plus" size={14} /></button>
+            <EditorPrefs look={look} onLook={setLook} />
+            <MenuButton label="Add a file or a library" icon="plus" alignRight items={[
+              { label: 'New file…', icon: 'file', onSelect: () => setFiles({ ask: { kind: 'new' } }) },
+              { label: 'Add a library…', icon: 'book', onSelect: () => setLibraries(true) },
+            ]} />
             <button type="button" className="btn ghost sm icon" aria-label="Project files" title="Project files" aria-expanded={!!files}
               onClick={() => setFiles((f) => (f ? null : { ask: null }))}><Icon name="more" size={14} /></button>
           </span>
@@ -215,6 +289,7 @@ export function Workspace({
           : <p className="small muted not-text">{editing} isn't a text file, so it can't be shown here.</p>}
         {files && (
           <FilesPanel key={files.ask ? 'ask' : 'list'} doc={doc} ask={files.ask} onDoc={onChange} onOpen={openFile} onClose={() => setFiles(null)}
+            onAddLibrary={() => setLibraries(true)}
             onRenamed={(from, to) => {
               const move = (p: string) => (p === from ? to : p.startsWith(`${from}/`) ? `${to}/${p.slice(from.length + 1)}` : p);
               setTabs((t) => t.map(move));
@@ -226,10 +301,16 @@ export function Workspace({
               if (gone(editing)) onFile?.('main.py' in doc.files && !gone('main.py') ? 'main.py' : shownTabs.find((t) => !gone(t)) ?? 'main.py');
             }} />
         )}
+        {libraries && <AddLibrary doc={doc} onDoc={onChange} onCopy={(t) => void api.app.copy(t)} onClose={() => setLibraries(false)} />}
         <Console chunks={run.console} running={running} entry={runFile} onClear={onClearConsole} board={realBoard} tab={consoleTab} onTab={onConsoleTab} />
       </section>
     </div>
   );
+}
+
+/** A part's name inside a sentence: 'push button', but 'LED', 'RGB LED'. */
+function inText(name: string): string {
+  return /^[A-Z]{2}/.test(name) ? name : name[0]!.toLowerCase() + name.slice(1);
 }
 
 /** A file's text; a file that isn't text (bytes) is shown empty until the file tree can say so (M5). */

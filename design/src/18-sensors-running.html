@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>18 Sensors pack running</title>
+{{include:head}}
+<style>.inputs .slider { grid-template-columns: 1fr 70px; } .inputs .sec + .sec { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }</style>
+</head>
+<body>
+<!--@PROJECT: Greenhouse-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 00:08-->
+<!--@EDITOR: {{code:greenhouse:cur=11}}-->
+<!--@COUNTS: Pico W + 4 parts · 12 wires-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.29.0 on Raspberry Pi Pico W (simulated)</span>
+24 C dry - white
+24 C dry - line
+24 C dry motion line
+24 C dry motion line
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running main.py — Stop or <span class="kbd">Ctrl</span>+<span class="kbd">C</span> breaks in</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.06 ms</span>-->
+<p class="frame-label"><b>18 · Sensors pack, running</b> (M6 design) — the <b>PIR</b> is held with the mouse to move in front of it, and stays high 3 s after; the <b>line sensor</b> is clicked to slide it over the black line or white (its tip, on hover: <i>LINE1 · over the line — OUT 1. Click to slide it over white</i>); the <b>soil sensor</b>'s moisture and the <b>TMP36</b>'s temperature are set on the <b>Inputs</b> card — one card for every sensor that has a slider (the light sensor's too); each sensor stands in the breadboard, its legs in holes, drawn from them</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:greenhouse}}
+      <div class="tip" style="left:96px;top:22px;width:214px"><b>PIR1 · motion</b><div style="opacity:.85;margin-top:2px">OUT is high while you hold the mouse on it, and for 3 s after.</div><div style="opacity:.65;margin-top:3px;font-size:11px">Needs 5 V: on VBUS ✓</div></div>
+      <div class="float inputs" style="right:14px;bottom:14px;width:244px">
+        <div class="ih">{{i:sliders:s14}} Inputs <span class="spacer"></span><span class="tiny muted" style="font-weight:400">while it runs</span></div>
+        <div class="sec">
+          <div class="row small" style="gap:6px">{{i:therm:s12}} <b>TMP1</b> <span class="muted">· TMP36</span><span class="spacer"></span><span class="mono tiny muted">Vout 0.74 V</span></div>
+          <div class="slider"><span class="track"><i style="width:55%"></i><b style="left:55%"></b></span><span class="v">24 °C</span></div>
+          <div class="row tiny muted" style="justify-content:space-between;margin-top:4px"><span>−20 °C</span><span>20</span><span>60 °C</span></div>
+        </div>
+        <div class="sec">
+          <div class="row small" style="gap:6px">{{i:drop:s12}} <b>SOIL1</b> <span class="muted">· moisture</span><span class="spacer"></span><span class="mono tiny muted" style="white-space:nowrap">AOUT 1.88 V</span></div>
+          <div class="slider"><span class="track"><i style="width:35%"></i><b style="left:35%"></b></span><span class="v">35 %</span></div>
+          <div class="row tiny muted" style="justify-content:space-between;margin-top:4px"><span>dry</span><span>damp</span><span>in water</span></div>
+        </div>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

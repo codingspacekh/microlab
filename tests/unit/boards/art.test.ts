@@ -61,6 +61,21 @@ it('F-12 micro:bit GPIO board rows are 0.3 in apart, one above the other (it str
   for (let i = 27; i <= 30; i++) expect(pin(i)[0]).toBeGreaterThan(pin(13)[0]);   // the I²C header, to the right
 });
 
+it('M6.9 the micro:bit alone (screen 24): a picture, and its five rings — P0, P1, P2, 3.3V, GND — inside it', () => {
+  const board = parseBoard(read('boards/microbit-v2/board.json'));
+  const art: Art & { display?: [number, number][] } = read('boards/microbit-v2/alone.json');
+  expect(readFileSync(join(lib, 'boards/microbit-v2/alone.svg'), 'utf8')).toMatch(/^<svg [^>]*viewBox="[^"]+"/);
+  const number = (id: string) => String(board.pins.find((p) => p.id === id)!.number);
+  expect(Object.keys(art.pins!).sort()).toEqual(['P0', 'P1', 'P2', '3.3V', 'GND'].map(number).sort());
+  for (const [x, y] of Object.values(art.pins!)) {
+    expect(x).toBeGreaterThan(0);
+    expect(y).toBeGreaterThan(0);
+    expect(x).toBeLessThan(art.width);
+    expect(y).toBeLessThan(art.height);
+  }
+  expect(art.display).toHaveLength(25);   // the display lights as on the GPIO board
+});
+
 it('F-12 ESP32 extension board: each G-V-S triple is one column, a pitch apart, G outermost', () => {
   const art: Art = read('boards/esp32-devkit-v1-ext/art.json');
   const pin = (n: number) => art.pins![String(n)]!;

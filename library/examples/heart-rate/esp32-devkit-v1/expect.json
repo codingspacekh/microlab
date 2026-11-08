@@ -1,0 +1,18 @@
+{
+  "seconds": 8,
+  "inputs": [
+    {
+      "at": 0,
+      "part": "pulse1",
+      "bpm": 80,
+      "spo2": 96
+    }
+  ],
+  "console": {
+    "includes": [
+      "BPM: 80",
+      "SpO2: 96 %"
+    ]
+  },
+  "ended": "done"
+}

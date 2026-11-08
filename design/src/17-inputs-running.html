@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>17 Inputs pack running</title>
+{{include:head}}
+<style>.inputs .slider { grid-template-columns: 1fr 70px; }</style>
+</head>
+<body>
+<!--@PROJECT: Mood lamp-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 00:12-->
+<!--@EDITOR: {{code:moodlamp:cur=17}}-->
+<!--@COUNTS: Pico W + 6 parts · 13 wires-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.29.0 on Raspberry Pi Pico W (simulated)</span>
+57112
+57108
+19104
+19110
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running main.py — Stop or <span class="kbd">Ctrl</span>+<span class="kbd">C</span> breaks in</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.07 ms</span>-->
+<p class="frame-label"><b>17 · Inputs pack, running</b> (M6 design) — a <b>slide switch</b> is clicked to slide it (F-35); the <b>light sensor</b>'s card sets the light on it, from dark to daylight, and says its resistance (F-35); the <b>RGB LED</b> mixes the light of its three dies, each from its own current (F-36); hovering it shows the three currents</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:moodlamp}}
+      <div class="tip" style="left:296px;top:478px;width:168px"><b>SW1 · Slide switch</b><div style="opacity:.8">Click to slide it. Now at <b>3</b>: legs 2 and 3 joined.</div></div>
+      <div class="tip" style="left:150px;top:620px;width:236px">
+        <b>RGB1 · common cathode</b>
+        <div style="margin-top:4px;font-family:var(--mono);font-size:11.5px;line-height:1.55"><span style="color:#ff8a7a">R</span> 5.9 mA · <span style="color:#7fe0a8">G</span> 0 mA · <span style="color:#8db4ff">B</span> 1.4 mA</div>
+        <div style="opacity:.7;font-size:11px;margin-top:3px">Green and blue need about 3 V: on 3.3 V they are dim</div>
+      </div>
+      <div class="float inputs" style="left:420px;top:556px;width:262px">
+        <div class="ih">{{i:sun:s14}} Light on LDR1</div>
+        <div class="slider"><span class="track"><i style="width:24%"></i><b style="left:24%"></b></span><span class="v">5 lux</span></div>
+        <div class="row tiny muted" style="justify-content:space-between;margin-top:6px"><span>dark</span><span>room</span><span>daylight</span></div>
+        <div class="tiny muted" style="margin-top:8px">LDR1 is <b style="color:var(--tx-1)">24 kΩ</b> now · GP26 has 0.96 V</div>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

@@ -1,0 +1,51 @@
+{
+  "format": 1,
+  "title": "Clock (DS1302)",
+  "board": "esp32-devkit-v1",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "rtc1",
+      "type": "ds1302",
+      "legs": {
+        "vcc": "bb1.a10",
+        "gnd": "bb1.a11",
+        "clk": "bb1.a12",
+        "dat": "bb1.a13",
+        "rst": "bb1.a14"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "a": "board.3V3",
+      "b": "bb1.e10",
+      "id": "w1"
+    },
+    {
+      "a": "board.GND",
+      "b": "bb1.e11",
+      "id": "w2"
+    },
+    {
+      "a": "board.D18",
+      "b": "bb1.e12",
+      "id": "w3"
+    },
+    {
+      "a": "board.D19",
+      "b": "bb1.e13",
+      "id": "w4"
+    },
+    {
+      "a": "board.D5",
+      "b": "bb1.e14",
+      "id": "w5"
+    }
+  ]
+}

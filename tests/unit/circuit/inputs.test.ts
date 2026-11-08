@@ -122,3 +122,15 @@ describe("micro:bit's buttons A and B", () => {
     within1(run(mbit, { parts: { 'board.A': { pressed: true } } }).volts.P11!, 3.3);
   });
 });
+
+describe('M6.1 battery pack on its own (no board ground)', () => {
+  it('a 4×AA pack → 220 Ω → red LED lights by itself: (6 − 2.0) / 220', () => {
+    const r = run(onPico([
+      { id: 'bat1', type: 'battery', props: { kind: '4xAA' }, legs: { '+': 'bb1.T+3', '-': 'bb1.T-3' } },
+      { id: 'r1', type: 'resistor', props: { ohms: 220 }, legs: { a: 'bb1.b10', b: 'bb1.b13' } },
+      { id: 'led1', type: 'led', props: { color: 'red' }, legs: { a: 'bb1.c13', k: 'bb1.c15' } },
+    ], [{ id: 'w1', a: 'bb1.T+5', b: 'bb1.a10' }, { id: 'w2', a: 'bb1.a15', b: 'bb1.T-7' }]));
+    expect(r.converged).toBe(true);
+    expect(Math.abs(r.amps.led1! - 4 / 220)).toBeLessThan(4 / 220 * 0.02);
+  });
+});

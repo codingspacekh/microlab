@@ -99,6 +99,8 @@ export interface RunOptions {
   onPin?: (pin: string, level: number) => void;
   /** Each new frame of the micro:bit's display: 25 brightnesses 0–9, row by row. */
   onDisplay?: (pixels: string) => void;
+  /** Each change of the micro:bit speaker's pitch, Hz (0: silence) (M6.2). */
+  onSound?: (hz: number) => void;
 }
 
 /** The sim's own Python (src/python/common) and the boards' (src/python/<folder>), written to a folder the
@@ -111,7 +113,10 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const console = new Console(options.onOutput);
   const mp = await startMicroPython(load, console);
   const clock = options.clock ?? new RealClock();
-  const now = () => clock.nowUs();
+  // the time the pins and the circuit see: the clock's, or — inside time_pulse_us — the moment a scheduled change was
+  // due, so a late wake-up doesn't stretch a pulse (M6.4)
+  let asOf: number | undefined;
+  const now = () => asOf ?? clock.nowUs();
   const spec = options.board ? BOARDS[options.board] : undefined;
   const pins = new PinBank(options.inputs, now, spec?.reset, new Set<string>(spec?.pulledUp ?? []), options.control,
     new Set<string>(spec && 'noPull' in spec ? spec.noPull : []));
@@ -131,7 +136,10 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const sound: [number, number][] = [];
   const bus: [number, string][] = [];
   const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
-  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, { display, sound, motion, bus, stop, quiet }, options));
+  mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, {
+    display, sound, motion, bus, stop, quiet, circuit,
+    asOf: (t, read) => { asOf = t; try { return read(); } finally { asOf = undefined; } },
+  }, options));
   mp._module.microlabHook = () => {
     clock.poll();
     stop();
@@ -189,6 +197,10 @@ interface MicrobitParts {
   stop: () => boolean;
   /** A stop the runner reports without a traceback: a fault, or the run's time limit. */
   quiet: () => boolean;
+  /** The circuit, when there is one: the parts that answer a protocol (a DHT, M6.4). */
+  circuit?: CircuitHost;
+  /** Reads the pins as of `t` (µs) while `read` runs (time_pulse_us, M6.4). */
+  asOf: <T>(t: number, read: () => T) => T;
 }
 
 /** Stop (N-03): KeyboardInterrupt is scheduled when the window asks, and again every 50 ms while it still asks, in
@@ -207,8 +219,32 @@ function stopper(mp: MicroPython, control: Control | undefined, faulted: () => b
 }
 
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
-  const { display, sound, motion, bus, stop, quiet } = mb;
+  const { display, sound, motion, bus, stop, quiet, circuit, asOf } = mb;
   const log = (entry: string) => bus.push([clock.nowUs(), entry]);
+  // the micro:bit's own inputs from the window (M6.6, screen 06): 'board:…' slots, NaN until the window sets them
+  const slot = (name: string): number => {
+    const c = options.control;
+    const i = c ? c.names.indexOf(name) : -1;
+    return c && i >= 0 ? c.input(i) : NaN;
+  };
+  let tilt: [number, number] | undefined;
+  let shakes = 0;
+  /** The window's tilt (mg; z what is left of 1 g, face up) and its Shake count, into the accelerometer. */
+  const fromWindow = () => {
+    const x = slot('board:accelx');
+    const y = slot('board:accely');
+    if (!Number.isNaN(x) || !Number.isNaN(y)) {
+      const xx = Number.isNaN(x) ? 0 : x;
+      const yy = Number.isNaN(y) ? 0 : y;
+      if (!tilt || tilt[0] !== xx || tilt[1] !== yy) {
+        tilt = [xx, yy];
+        motion.live([xx, yy, -Math.round(Math.sqrt(Math.max(0, 1024 * 1024 - xx * xx - yy * yy)))]);
+      }
+    }
+    const s = slot('board:shake');
+    if (!Number.isNaN(s) && s > shakes) { shakes = s; motion.shake(); }
+  };
+  const or = (v: number, otherwise: number) => (Number.isNaN(v) ? otherwise : v);
   return {
     ticks_us: () => clock.ticksUs(),
     /** Sleeps; returns early, with the µs left, when an IRQ or timer callback is due (it is scheduled first, and
@@ -250,7 +286,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     /** µs now, for a board module that aligns a timer to its own tick. */
     now_us: (): number => clock.nowUs(),
     timer_stop: (id: number) => timers.stop(id),
-    temperature: (): number => options.temperatureC ?? 25,
+    temperature: (): number => or(slot('board:celsius'), options.temperatureC ?? 25),
     /** True when the run is being stopped by a fault: the runner prints no KeyboardInterrupt traceback then. */
     quiet_stop: (): boolean => quiet(),
     dac_out: (pin: string, volts: number) => pins.setAnalog(pin, volts),
@@ -262,7 +298,9 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
         options.onDisplay?.(pixels);
       }
     },
-    light: (): number => options.lightLevel ?? 128,
+    light: (): number => or(slot('board:light'), options.lightLevel ?? 128),
+    /** The microphone's sound level, 0–255 (M6.6): the window's slider; 0 in a silent room. */
+    sound_level: (): number => or(slot('board:sound'), 0),
     /** Several changes at one moment (a note switches on, then gets its pitch) are one change. */
     sound: (hz: number) => {
       const t = clock.nowUs();
@@ -273,23 +311,36 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
       } else if ((last?.[1] ?? 0) !== hz) {
         sound.push([t, hz]);
       }
+      options.onSound?.(hz);
     },
-    accel_values: (): string => { clock.ticksUs(); return motion.values().join(' '); },
-    accel_gesture: (): string => motion.gesture(),
-    accel_events: (): string => motion.takeEvents().join(','),
+    accel_values: (): string => { clock.ticksUs(); fromWindow(); return motion.values().join(' '); },
+    accel_gesture: (): string => { fromWindow(); return motion.gesture(); },
+    accel_events: (): string => { fromWindow(); return motion.takeEvents().join(','); },
 
-    // --- buses (M2.7): transaction level. Nothing answers until M3 puts parts on the nets. ---
+    // --- buses (M2.7): transaction level; the parts on the nets answer (M6.4b: an MPU6050) ---
     /** Addresses that answer on this bus, comma-separated hex. */
-    i2c_scan: (sda: string, scl: string): string => { log(`i2c sda=${sda} scl=${scl} scan`); return ''; },
+    i2c_scan: (sda: string, scl: string): string => {
+      const found = [...(circuit?.i2c(sda, scl).keys() ?? [])].sort((a, b) => a - b).map(hexByte).join(',');
+      log(`i2c sda=${sda} scl=${scl} scan${found ? ` ${found}` : ''}`);
+      return found;
+    },
     /** Bytes ACKed, or -1 when the address is not ACKed. */
     i2c_write: (sda: string, scl: string, addr: number, hex: string): number => {
-      log(`i2c sda=${sda} scl=${scl} write ${hexByte(addr)}${hex ? ' ' + spaced(hex) : ''} nack`);
-      return -1;
+      clock.sleepUs(I2C_BYTE_US * (1 + hex.length / 2));   // the address and the bytes, on the wire
+      const chip = circuit?.i2c(sda, scl).get(addr);
+      log(`i2c sda=${sda} scl=${scl} write ${hexByte(addr)}${hex ? ' ' + spaced(hex) : ''}${chip ? '' : ' nack'}`);
+      if (!chip) return -1;
+      chip.write((hex.match(/../g) ?? []).map((b) => parseInt(b, 16)));
+      return hex.length / 2;
     },
     /** The bytes read (hex), or -1 when the address is not ACKed. */
     i2c_read: (sda: string, scl: string, addr: number, n: number): string | number => {
-      log(`i2c sda=${sda} scl=${scl} read ${hexByte(addr)} ${n} nack`);
-      return -1;
+      clock.sleepUs(I2C_BYTE_US * (1 + n));
+      const chip = circuit?.i2c(sda, scl).get(addr);
+      if (!chip) { log(`i2c sda=${sda} scl=${scl} read ${hexByte(addr)} ${n} nack`); return -1; }
+      const data = chip.read(n).map(hexByte).join('');
+      log(`i2c sda=${sda} scl=${scl} read ${hexByte(addr)} ${n} ${spaced(data)}`);
+      return data;
     },
     /** Clocks `hex` out on MOSI; returns what MISO gave back (its idle level: 0x00 low, 0xff high). */
     spi_xfer: (sck: string, mosi: string, miso: string, hex: string, kind: string): string => {
@@ -301,28 +352,63 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     /** Bytes waiting on RX (hex): none until M3. */
     uart_read: (): string => '',
     bitstream: (pin: string, timing: string, hex: string) => { log(`bitstream pin=${pin} timing=${timing} ${hex}`); },
-    /** machine_time_pulse_us (extmod/machine_pulse.c, v1.29): two changes, -2 / -1 on a timeout; virtual time jumps to
-     *  the next input change. */
+    /** _onewire (drivers/onewire, M6.5b): a reset (≈ 960 µs; true with a presence pulse), a bit (≈ 70 µs; -1 reads it),
+     *  a byte (≈ 560 µs; -1 reads it), on the bus of the pin's net. */
+    ow_reset: (pin: string): boolean => {
+      clock.sleepUs(960);
+      return circuit?.oneWire(pin).reset() ?? false;
+    },
+    ow_bit: (pin: string, v: number): number => {
+      clock.sleepUs(70);
+      const bus = circuit?.oneWire(pin);
+      if (v < 0) return bus?.readBit() ?? 1;
+      bus?.writeBit(v);
+      return 0;
+    },
+    ow_byte: (pin: string, v: number): number => {
+      clock.sleepUs(560);
+      const bus = circuit?.oneWire(pin);
+      if (v < 0) return bus?.readByte() ?? 0xff;
+      bus?.writeByte(v);
+      return 0;
+    },
+    /** dht_readinto (drivers/dht/dht.c): the line high 250 ms, low 18 ms (the start), then ≈ 4 ms of bits — the 5
+     *  bytes of the DHT on the pin as hex, or -1 when none answers (the driver raises ETIMEDOUT). */
+    dht_read: (pin: string): string | number => {
+      clock.sleepUs(250_000 + 18_000);
+      const bytes = circuit?.dhtRead(pin);
+      clock.sleepUs(4_000);
+      log(`dht pin=${pin} ${bytes ?? 'timeout'}`);
+      return bytes ?? -1;
+    },
+    /** machine_time_pulse_us (extmod/machine_pulse.c, v1.29): two changes, -2 / -1 on a timeout. It steps from one
+     *  input change to the next: it sleeps until a change is due, then reads the pin as of then — a late wake-up
+     *  (a busy laptop) doesn't stretch the pulse, nor miss a short one (M6.4: an HC-SR04's echo). */
     pulse_us: (pin: string, level: number, timeoutUs: number): number => {
       let want = level ? 1 : 0;
       let left = 2;
-      let start = clock.ticksUs();
+      let t = clock.ticksUs();
+      let start = t;
       for (;;) {
-        const t = clock.ticksUs();
-        if (pins.level(pin) === want) {
+        if (asOf(t, () => pins.level(pin)) === want) {
           want = 1 - want;
           if (--left === 0) return t - start;
           start = t;
-        } else {
-          if (t - start >= timeoutUs || stop()) return -left;
-          const until = Math.min(pins.nextChangeUs(), start + timeoutUs);
-          const wait = until - clock.nowUs();
-          if (wait > 0) clock.sleepUs(wait);
+          continue;
         }
+        if (t - start >= timeoutUs || stop()) return -left;
+        const until = Math.min(asOf(t, () => pins.nextChangeUs()), start + timeoutUs);
+        const wait = until - clock.nowUs();
+        if (wait > 0) clock.sleepUs(wait);
+        // a change from outside (the window) isn't scheduled: it is seen as of now
+        t = until === Infinity ? clock.ticksUs() : Math.max(t + 1, Math.min(until, clock.ticksUs()));
       }
     },
   };
 }
+
+/** A byte on I²C at 400 kHz, with its acknowledge: 9 bits (M6.5b: a chip polled in a loop sees time pass). */
+const I2C_BYTE_US = 22.5;
 
 const hexByte = (n: number) => n.toString(16).padStart(2, '0');
 const spaced = (hex: string) => hex.match(/../g)?.join(' ') ?? '';

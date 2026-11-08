@@ -21,8 +21,8 @@ async function newProject(win: Page) {
 }
 
 const widths = (win: Page) => win.evaluate(() => {
-  const w = (name: string) => document.querySelector(`[aria-label="${name}"]`)!.getBoundingClientRect().width;
-  return { parts: w('Parts'), circuit: w('Circuit'), code: w('Code'), window: window.innerWidth, scroll: document.documentElement.scrollWidth };
+  const w = (name: string) => document.querySelector(`[aria-label="${name}"]`)?.getBoundingClientRect().width ?? 0;
+  return { rail: w('Board and parts'), parts: w('Parts'), circuit: w('Circuit'), code: w('Code'), window: window.innerWidth, scroll: document.documentElement.scrollWidth };
 });
 
 test.describe('the window fills its width', () => {
@@ -38,10 +38,16 @@ test.describe('the window fills its width', () => {
       await newProject(win);
       const m = await widths(win);
       expect(m.scroll).toBeLessThanOrEqual(m.window);
-      expect(Math.abs(m.parts + m.circuit + m.code + 2 /* dividers */ - m.window)).toBeLessThanOrEqual(4);
-      expect(m.parts / m.window).toBeGreaterThan(0.12);
+      // M6.8: the parts panel is folded to a rail; it slides out over the canvas
+      expect(Math.abs(m.rail + m.circuit + m.code + 1 /* the code's divider */ - m.window)).toBeLessThanOrEqual(4);
       expect(m.code / m.window).toBeGreaterThan(0.25);
       expect(m.circuit).toBeGreaterThan(360);
+      const parts = win.getByRole('button', { name: 'Parts', exact: true });
+      if ((await parts.getAttribute('aria-expanded')) !== 'true') await parts.click();
+      const open = await widths(win);
+      expect(open.parts / open.window).toBeGreaterThan(0.12);
+      expect(open.circuit).toBe(m.circuit);   // over it, not squeezing it
+      await parts.click();
     });
   }
 });
@@ -53,6 +59,7 @@ test('a divider dragged to a new width is still there after a restart', async ()
     let win = await app.firstWindow();
     await resize(app, win, 1440, 900);
     await newProject(win);
+    await win.getByRole('button', { name: 'Parts', exact: true }).click();
     const before = (await widths(win)).parts;
     const sep = win.getByRole('separator', { name: 'Parts panel width' });
     const box = (await sep.boundingBox())!;
@@ -68,6 +75,7 @@ test('a divider dragged to a new width is still there after a restart', async ()
     win = await app.firstWindow();
     await resize(app, win, 1440, 900);
     await newProject(win);
+    await win.getByRole('button', { name: 'Parts', exact: true }).click();
     await expect.poll(async () => Math.round((await widths(win)).parts)).toBe(Math.round(moved));
     await app.close();
   } finally {

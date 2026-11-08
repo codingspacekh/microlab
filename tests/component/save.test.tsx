@@ -57,8 +57,11 @@ const menu = (item: string) => {
   fireEvent.click(screen.getByRole('button', { name: 'Project menu' }));
   fireEvent.click(screen.getByRole('menuitem', { name: item }));
 };
-/** A change: a resistor dragged onto the breadboard. */
+/** A change: a breadboard put down (M6.8: a new project is the board alone), then a resistor dragged onto it. */
 function change() {
+  const add = screen.queryByRole('button', { name: 'Add a breadboard' });
+  if (add) { fireEvent.click(add); return; }
+  if (!screen.queryByRole('region', { name: 'Parts' })) fireEvent.click(screen.getByRole('button', { name: 'Parts' }));
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
   const hole = [...svg.querySelectorAll('[data-point^="bb1."]')].find((c) => !c.closest('[display="none"]'))!;

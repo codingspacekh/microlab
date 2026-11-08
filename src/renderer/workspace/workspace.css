@@ -113,7 +113,7 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .files-panel .fh { display: flex; align-items: baseline; gap: 8px; }
 .files-panel .fh b { font-size: 13px; }
 .files-panel .fh .spacer { flex: 1; }
-.files-panel .fbar { display: flex; gap: 6px; }
+.files-panel .fbar { display: flex; flex-wrap: wrap; gap: 6px; }   /* never wider than the panel (issues/layout-1.png) */
 .files-panel .tree { min-height: 80px; max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
 .files-panel .tree .r { grid-template-columns: 18px minmax(0, 1fr) auto; }
 .files-panel .tree .diff { display: none; }
@@ -123,3 +123,91 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .files-panel .fspace { margin: 0; color: var(--tx-2); }
 .files-panel .fspace.near { color: var(--warn-ink, #8a5a00); font-weight: 600; }
 .files-panel .fspace.over { color: var(--danger); font-weight: 600; }
+
+/* ---------- M6.1: the inputs while running (screen 17), the GPIO board's micro-USB (screen 17b) ---------- */
+.inputs { padding: 10px 12px; width: 252px; z-index: 3; max-height: calc(100% - 28px); overflow: auto; }
+.inputs .ih { display: flex; align-items: center; gap: 6px; font-size: 12.5px; margin-bottom: 8px; }
+.inputs .ih .spacer { flex: 1; }
+.inputs p { margin: 8px 0 0; }
+.inputs .slider { grid-template-columns: minmax(0, 1fr) 76px; position: relative; }
+.inputs .slider > span:first-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.inputs .slider .ticks { grid-column: 1; }
+.inputs .sec + .sec { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+.inputs .sh { display: flex; align-items: center; gap: 5px; }
+.inputs .sh .spacer { flex: 1; }
+.inputs .slider + .slider { margin-top: 8px; }
+.inputs p b { color: var(--tx-1); }
+.canvas .part-tip, .canvas .usb-tip { background: var(--inverse); color: var(--on-inverse); max-width: 240px; }
+.canvas .part-tip .dies { margin-top: 4px; font-family: var(--mono); font-size: 11.5px; line-height: 1.55; }
+.canvas .part-tip .dies .r { color: #ff8a7a; } .canvas .part-tip .dies .g { color: #7fe0a8; } .canvas .part-tip .dies .b { color: #8db4ff; }
+.canvas .part-tip .note { opacity: .7; font-size: 11px; margin-top: 3px; }
+.canvas .usb-tip div { opacity: .85; margin-top: 2px; }
+.scene .usb { cursor: pointer; }
+.scene.running .usb { cursor: default; }
+.scene.running .part.slide-switch, .scene.running .part.ldr { cursor: pointer; }
+.scene.running .part.potentiometer { cursor: ns-resize; }
+.prop.stack { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+
+/* ---------- M6.6: the micro:bit inputs card (screen 06) ---------- */
+.inputs.mbit { width: 236px; }
+.inputs.mbit .slider { grid-template-columns: 92px minmax(0, 1fr) 40px; }
+.inputs.mbit .slider > span:first-child { position: static; width: auto; height: auto; overflow: hidden; clip: auto; }
+.inputs.mbit .slider .v { text-align: right; font-variant-numeric: tabular-nums; }
+.mb-buttons { display: flex; flex-wrap: wrap; gap: 5px; }
+.mb-buttons .btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
+.mb-tilt { display: flex; gap: 8px; margin: 8px 0 4px; }
+.mb-tilt .pad { width: 62px; height: 62px; flex: none; border-radius: 9px; background: var(--bg-2); position: relative; cursor: grab;
+  background-image: linear-gradient(var(--line-strong), var(--line-strong)), linear-gradient(var(--line-strong), var(--line-strong));
+  background-size: 1px 100%, 100% 1px; background-position: center; background-repeat: no-repeat; }
+.mb-tilt .pad:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.mb-tilt .pad i { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; box-shadow: var(--shadow); pointer-events: none; }
+.mb-tilt .col { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+
+/* ---------- M6.7: Add a library (screen 22), the Library line (screen 22b) ---------- */
+.libs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 372px); gap: 16px; margin-top: 10px; max-height: min(62vh, 640px); }
+.liblist { overflow: auto; min-height: 0; padding: 2px 3px 2px 0; }
+.liblist ul { list-style: none; margin: 0 0 8px; padding: 0; }
+.liblist .tag { margin-top: 4px; }
+.lib { display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; align-items: center; padding: 7px 12px; border: 1px solid var(--line); border-radius: 10px; margin-top: 5px; }
+.lib.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.lib .pick { all: unset; cursor: pointer; font-size: 13px; min-width: 0; }
+.lib .pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.lib .for { font-size: 11.5px; font-weight: 600; color: var(--accent-ink); }
+.lib .act { grid-row: 1 / span 2; grid-column: 2; }
+.lib .meta { grid-column: 1; font-size: 11.5px; color: var(--tx-3); }
+.lib .meta .warn-ink { color: var(--warn-ink); }
+.libnote { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 9px; background: var(--bg); font-size: 12px; color: var(--tx-2); margin: 6px 0 8px; line-height: 1.45; }
+.libnone { padding: 10px 12px; border-radius: 9px; background: var(--bg); line-height: 1.5; }
+.libstart { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.libstart .ph { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.libstart .ph .spacer { flex: 1; }
+.libstart pre { margin: 0; padding: 10px 12px; font-size: 11.5px; line-height: 1.55; overflow: auto; flex: 1; white-space: pre; }
+.libstart p { margin: 0; padding: 8px 10px; border-top: 1px solid var(--line); line-height: 1.45; }
+
+/* ---------- M6.8: the board alone (screen 23), the parts drawer (screen 23b) ---------- */
+.start-card { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); width: min(400px, calc(100% - 32px)); padding: 14px 16px; text-align: center; z-index: 2;
+  animation: start-card-out .8s ease-in 5.2s forwards; }
+@keyframes start-card-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .start-card { animation: none; } }
+.start-card p { margin: 4px 0 10px; color: var(--tx-2); font-size: 12.5px; line-height: 1.45; }
+.start-card .row { justify-content: center; gap: 8px; align-items: center; }
+.rail { flex: 0 0 56px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; z-index: 4; }
+.rail .rb { all: unset; box-sizing: border-box; width: 46px; padding: 6px 0 5px; border-radius: 9px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; color: var(--tx-2); font-weight: 550; cursor: pointer; }
+.rail .rb:hover { background: var(--bg-2); }
+.rail .rb:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rail .rb.on { background: var(--accent-soft); color: var(--accent-ink); }
+.rail .rb.static { cursor: default; }
+.rail .rb.static:hover { background: none; }
+.rail .rb .pic { width: 32px; height: 26px; display: grid; place-items: center; }
+.rail .rb .pic img { max-width: 32px; max-height: 26px; }
+.drawer-wrap { position: absolute; left: 0; top: 0; bottom: 0; display: flex; z-index: 5; }
+.drawer-wrap > .parts { box-shadow: var(--shadow-l, 0 8px 24px rgba(16,24,40,.16)); }
+.parts .head .ttl { display: flex; align-items: center; gap: 8px; }
+.parts .head .ttl .spacer { flex: 1; }
+/* the open drawer covers the canvas's left: its tools and hints move out from under it */
+.canvas.with-drawer .ctools, .canvas.with-drawer .canvas-hint { left: calc(var(--drawer) + 20px); }
+.canvas.with-drawer .canvas-hint { max-width: calc(100% - var(--drawer) - 40px); }
+/* beside the inspector, not under it (M6.9: the GPIO board's inspector opens with what the canvas says) */
+.canvas:has(> .inspector) .canvas-hint { max-width: calc(100% - clamp(260px, 42%, 320px) - 42px); }
+.canvas.with-drawer:has(> .inspector) .canvas-hint { max-width: calc(100% - var(--drawer) - clamp(260px, 42%, 320px) - 54px); }
+.canvas.with-drawer .start-card { left: calc(var(--drawer) + (100% - var(--drawer)) / 2); width: min(400px, calc(100% - var(--drawer) - 32px)); }

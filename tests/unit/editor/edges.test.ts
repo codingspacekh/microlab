@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addPart, addWire, boardData, completeAt, duplicate, fitBox, moveParts, parseModule, pinCard, rotateParts, sceneOf, signatureAt,
 } from '@lib/editor';
-import { newProject } from '@lib/project';
+import { newProject } from './with-breadboard';
 
 /** M5.1–M5.5: the edges — what is not there, what can't be read, brackets and strings in the code. */
 const empty = () => newProject('pico-w').project;

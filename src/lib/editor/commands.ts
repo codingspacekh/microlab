@@ -1,6 +1,7 @@
-import { COLUMNS, type BreadboardSize } from '../circuit';
-import type { Project } from '../project';
-import { sceneOf, snapToGrid, type Point } from './geometry';
+import { COLUMNS, hasRails, type BreadboardSize } from '../circuit';
+import { microbitAlone, onGpioBoard, type Project } from '../project';
+import { artOf, boardData, MICROBIT_ALONE_ART } from './library';
+import { BREADBOARD, sceneOf, snapToGrid, type Point } from './geometry';
 import { partKind } from './parts';
 import { usedPoints, type Legs } from './place';
 
@@ -49,13 +50,41 @@ export function setPartProp(project: Project, id: string, key: string, value: nu
   return { ...project, parts: project.parts.map((p) => (p.id === id ? { ...p, props: { ...p.props, [key]: value } } : p)) };
 }
 
-/** Half or full; undefined when a smaller one would leave a leg or a wire end off its end. */
+/** Mini, half or full; undefined when a smaller one would leave a leg or a wire end off its end (or on a rail a
+ *  mini breadboard hasn't got). */
 export function setBreadboardSize(project: Project, id: string, size: BreadboardSize): Project | undefined {
   const prefix = `${id}.`;
   const ends = [...project.parts.flatMap((p) => Object.values(p.legs)), ...project.wires.flatMap((w) => [w.a, w.b])];
-  const tooFar = ends.some((e) => e.startsWith(prefix) && Number(/\d+$/.exec(e)?.[0] ?? 0) > COLUMNS[size]);
+  const tooFar = ends.some((e) => e.startsWith(prefix) && (Number(/\d+$/.exec(e)?.[0] ?? 0) > COLUMNS[size]
+    || (!hasRails(size) && /^[TB][+-]/.test(e.slice(prefix.length)))));
   if (tooFar) return undefined;
   return { ...project, breadboards: project.breadboards.map((b) => (b.id === id ? { ...b, size } : b)) };
+}
+
+const GAP = 40;
+
+/**
+ * M6.8 (screen 23b): a breadboard from the parts panel. The first goes under the board (where a new project used to
+ * have it: the board centred over it); another one at `at` (its middle), or under the last one.
+ */
+export function addBreadboard(project: Project, size: BreadboardSize, at?: Point): { project: Project; id: string } {
+  const id = nextId('bb', project.breadboards.map((b) => b.id));
+  const breadboards = [...project.breadboards, { id, size }];
+  if (!project.breadboards.length && !project.view) return { id, project: { ...project, breadboards } };   // laid out as a new project's
+  const view = sceneOf(project).view;
+  const s = BREADBOARD.size(size);
+  let corner: Point;
+  if (at) corner = { x: at.x - s.width / 2, y: at.y - s.top - s.height / 2 };
+  else if (!project.breadboards.length) {
+    const art = sceneOf(project).art;
+    corner = { x: view.board.x + (art.width - s.width) / 2, y: view.board.y + art.height + GAP - s.top };
+  } else {
+    const last = project.breadboards.at(-1)!;
+    const ls = BREADBOARD.size(last.size);
+    const l = view.breadboards[last.id]!;
+    corner = { x: l.x, y: l.y + ls.top + ls.height + GAP - s.top };
+  }
+  return { id, project: { ...project, breadboards, view: { ...view, breadboards: { ...view.breadboards, [id]: snapToGrid(corner) } } } };
 }
 
 /** Wires with both ends on `owner` ('board' or a breadboard) move their bends with it. */
@@ -111,4 +140,54 @@ export function deleteBend(project: Project, id: string, index: number): Project
 
 export function straighten(project: Project, id: string): Project {
   return setVia(project, id, () => []);
+}
+
+/** The micro:bit GPIO board's own micro-USB plugged in (not set, as a new project) or taken out (M6.1, screen 17b):
+ *  without it the board's 5V pins give nothing. The same project back when nothing changes. */
+export function setUsb(project: Project, plugged: boolean): Project {
+  if ((project.usb !== false) === plugged) return project;
+  if (!plugged) return { ...project, usb: false };
+  const next = { ...project };
+  delete next.usb;
+  return next;
+}
+
+/**
+ * M6.9 (screen 24b): the micro:bit into its GPIO board. The wires stay on the same pins — ring 0 and the header's P0
+ * are one pin — and the board keeps the middle of its bottom edge where it was: it grows upwards, clear of the
+ * breadboard under it. The same project back when it is in already.
+ */
+export function putInGpioBoard(project: Project): Project {
+  if (!microbitAlone(project)) return project;
+  const next = { ...project };
+  delete next.gpioBoard;
+  return reboard(project, next);
+}
+
+/** The micro:bit's pins it has a ring for (P0, P1, P2, 3.3V, GND), as 'board.P0'. */
+export function ringPins(): Set<string> {
+  return new Set(boardData('microbit-v2').pins.filter((p) => MICROBIT_ALONE_ART.pins[String(p.number)]).map((p) => `board.${p.id}`));
+}
+
+/** M6.9 (screen 24b): the micro:bit out of its GPIO board, alone again. The wires on pins it has no ring for (P3–P20,
+ *  5V, the I²C header) go with the GPIO board, and so do its plugs in a breadboard and its micro-USB; `removed` says
+ *  how many wires. One edit, so one undo brings them all back. */
+export function takeOutOfGpioBoard(project: Project): { project: Project; removed: number } {
+  if (!onGpioBoard(project)) return { project, removed: 0 };
+  const rings = ringPins();
+  const off = (ref: string) => ref.startsWith('board.') && !rings.has(ref);
+  const wires = project.wires.filter((w) => !off(w.a) && !off(w.b));
+  const next: Project = { ...project, gpioBoard: false, wires };
+  delete next.plugs;
+  delete next.usb;
+  return { project: reboard(project, next), removed: project.wires.length - wires.length };
+}
+
+/** `after` drawn with its board where `before`'s was: the middle of its bottom edge kept, the rest as it was. */
+function reboard(before: Project, after: Project): Project {
+  const view = sceneOf(before).view;
+  const from = artOf(before);
+  const to = artOf(after);
+  const board = snapToGrid({ x: view.board.x + (from.width - to.width) / 2, y: view.board.y + from.height - to.height });
+  return { ...after, view: { ...view, board } };
 }

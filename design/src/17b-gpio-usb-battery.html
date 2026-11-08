@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>17b GPIO board USB and batteries</title>
+{{include:head}}
+</head>
+<body>
+<!--@PROJECT: Two lights-->
+<!--@PROJECT_SUB: micro:bit V2 · not saved-->
+<!--@UNSAVED: <span class="unsaved" title="Not saved"></span>-->
+<!--@BOARD: BBC micro:bit V2-->
+<!--@BOARD_PIC: {{part:microbit:bp}}-->
+<!--@EDITOR: {{code:heart}}-->
+<!--@COUNTS: micro:bit + 5 parts · 8 wires-->
+<p class="frame-label"><b>17b · The GPIO board's USB and battery packs</b> (M6 design) — the micro:bit GPIO board's 5V pins work only while <b>its own micro-USB</b> is plugged in: click its socket to plug the cable in or take it out, the card says why; a <b>battery pack</b>'s red and black leads go into a rail pair, the pack beside the breadboard — 2×AA (3 V), 4×AA (6 V) or 9 V, chosen in its inspector</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:gpiobattery}}
+      <div class="tip" style="left:14px;top:196px;width:196px"><b>micro-USB · 5V in</b><div style="opacity:.85;margin-top:2px">The GPIO board's own cable is <b>plugged in</b>: its 5V pins give 5 V (from the laptop's USB, 500 mA at most).</div><div style="opacity:.7;margin-top:4px">Click to take it out.</div></div>
+      <div class="float inspector" style="left:400px;top:150px">
+        <div class="ih"><span class="pic" style="width:28px;height:28px;border-radius:6px;background:var(--bg);display:grid;place-items:center">{{part:battery:bp}}</span><div class="col" style="gap:0"><b>BAT1 · Battery pack</b><span class="tiny muted">its own circuit: not joined to the board</span></div><span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+        <div class="prop"><span>Pack</span><div class="seg"><span class="on">2×AA · 3 V</span><span>4×AA · 6 V</span><span>9 V</span></div></div>
+        <div class="prop"><span>Legs in</span><span class="small"><b style="color:#d94545">+</b> red <span class="mono">B+20</span> · <b>−</b> black <span class="mono">B-20</span></span></div>
+        <div class="prop"><span>Joins</span><span class="small">R2 ↔ LED2</span></div>
+        <div class="row" style="gap:6px;margin-top:12px"><button class="btn sm">{{i:rotate:s14}} Rotate</button><button class="btn sm">{{i:copy:s14}}</button><button class="btn sm danger">{{i:trash:s14}}</button></div>
+      </div>
+      <div class="float" style="left:14px;top:14px;padding:8px 10px"><div class="tiny muted" style="margin-bottom:4px">The three packs</div>{{scene:batterykinds}}</div>
+      </div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

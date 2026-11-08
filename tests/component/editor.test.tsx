@@ -8,6 +8,7 @@ import { App } from '../../src/renderer/app/App';
 import type { MicrolabApi } from '../../src/renderer/app/api';
 import { CodeEditor } from '../../src/renderer/editor/CodeEditor';
 import { fakeApi } from './fake-api';
+import { startBuilding } from './start-building';
 
 /** M4.4 F-20 (basic): main.py in a CodeMirror editor with Python — as on screens 02 and 03. */
 const viewOf = (el: HTMLElement) => EditorView.findFromDOM(el.closest('.cm-editor') as HTMLElement)!;
@@ -56,6 +57,7 @@ describe('M4.4 main.py in the workspace', () => {
   it('the code side has a main.py tab and the starter program in the editor', () => {
     render(<App api={api()} width={1440} />);
     fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+    startBuilding();
     const side = screen.getByRole('region', { name: 'Code' });
     expect(within(side).getByRole('tab', { name: 'main.py' })).toHaveAttribute('aria-selected', 'true');
     expect(within(side).getByRole('textbox', { name: 'main.py' }).textContent).toContain('led = Pin("LED", Pin.OUT)');
@@ -64,6 +66,7 @@ describe('M4.4 main.py in the workspace', () => {
   it('what is typed is kept in the project: it is still there after Learn and back', () => {
     render(<App api={api()} width={1440} />);
     fireEvent.click(screen.getByRole('button', { name: 'New micro:bit project' }));
+    startBuilding();
     type(viewOf(screen.getByRole('textbox', { name: 'main.py' })), '# my change\n', 0);
     fireEvent.click(screen.getByRole('tab', { name: 'Learn' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Workspace' }));
@@ -73,6 +76,7 @@ describe('M4.4 main.py in the workspace', () => {
   it('keys typed in the editor never reach the canvas: Backspace there deletes text, not the selected part', () => {
     render(<App api={api()} width={1440} />);
     fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+    startBuilding();
     const panel = screen.getByRole('region', { name: 'Parts' });
     fireEvent.mouseDown(within(panel).getByRole('button', { name: /^Resistor/ }), { clientX: 5, clientY: 5, button: 0 });
     const svg = screen.getByRole('application', { name: 'Circuit canvas' });
@@ -102,6 +106,38 @@ describe('M5.5 F-20 help while typing (screen 02b)', () => {
     type(view, 'machine.');
     act(() => { startCompletion(view); });
     await waitFor(() => expect(offered(view)).toContain('Pin(id, mode=-1, pull=-1, …)'));
+  });
+
+  it('Tab takes the chosen completion (as Enter does); with no list open, Tab indents', async () => {
+    const view = setup('pico-w', 'import machine\n');
+    type(view, 'machine.Pi');
+    act(() => { startCompletion(view); });
+    await waitFor(() => expect(offered(view).length).toBeGreaterThan(0));
+    await act(() => new Promise((r) => setTimeout(r, 100)));   // CodeMirror takes no key for 75 ms after the list opens
+    fireEvent.keyDown(view.contentDOM, { key: 'Tab', code: 'Tab', keyCode: 9 });
+    expect(view.state.doc.toString()).toMatch(/machine\.Pin\(\)$/);
+    expect(view.state.selection.main.head).toBe(view.state.doc.length - 1);   // inside the brackets: Pin takes arguments
+    const before = view.state.doc.length;
+    act(() => { view.dispatch({ changes: { from: before, insert: '\nx' }, selection: { anchor: before + 2 } }); });
+    fireEvent.keyDown(view.contentDOM, { key: 'Tab', code: 'Tab', keyCode: 9 });
+    expect(view.state.doc.toString().endsWith('\n    x')).toBe(true);
+  });
+
+  it('a call is taken with its brackets: the cursor after them when it takes nothing; a bracket already there stays one', async () => {
+    const view = setup('microbit-v2', 'from microbit import *\n');
+    const take = async () => {
+      act(() => { startCompletion(view); });
+      await waitFor(() => expect(offered(view).length).toBeGreaterThan(0));
+      await act(() => new Promise((r) => setTimeout(r, 100)));
+      fireEvent.keyDown(view.contentDOM, { key: 'Tab', code: 'Tab', keyCode: 9 });
+    };
+    type(view, 'button_a.is_pr');
+    await take();
+    expect(view.state.doc.toString()).toMatch(/button_a\.is_pressed\(\)$/);
+    expect(view.state.selection.main.head).toBe(view.state.doc.length);
+    act(() => { view.dispatch({ changes: { from: view.state.doc.length, insert: '\ndisplay.sc(1)' }, selection: { anchor: view.state.doc.length + '\ndisplay.sc'.length } }); });
+    await take();
+    expect(view.state.doc.toString()).toMatch(/display\.scroll\(1\)$/);
   });
 
   it('on the micro:bit, pin offers pin0, pin1, …; inside a string nothing is offered', async () => {

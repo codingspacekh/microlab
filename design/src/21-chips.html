@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>21 Kit chips running</title>
+{{include:head}}
+<style>.inputs .slider { grid-template-columns: 1fr 70px; } .inputs .sec + .sec { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; } .inputs .slider + .slider { margin-top: 6px; }</style>
+</head>
+<body>
+<!--@PROJECT: Kit chips-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 00:09-->
+<!--@EDITOR: {{code:chips:cur=10}}-->
+<!--@COUNTS: Pico W + 6 parts · 0 wires-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.29.0 on Raspberry Pi Pico W (simulated)</span>
+[41, 72, 87, 118]
+08:59:58 340 mm 1015.0 hPa
+08:59:59 340 mm 1015.0 hPa
+</div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.08 ms</span>-->
+<p class="frame-label"><b>21 · The kit's chips, running</b> (M6 design; requirements Rev 8) — the PCF8591, BMP280, DS18B20, DS1302, VL53L0X and MAX30102 stand in the breadboard like screen 20's modules, in a <b>Chips</b> group in the parts panel; wires left out. They answer their buses as the real chips do: the PCF8591's inputs read the circuit and its AOUT lights its LED; the DS1302 keeps the laptop's time (its coin cell) unless a program sets it — its tip says the time; the VL53L0X's laser shows while it measures. The <b>Inputs</b> card sets the air (temperature, pressure), the DS18B20's temperature, the distance before the VL53L0X, and the MAX30102's finger, heart rate and SpO2</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:chips}}
+      <div class="tip" style="left:300px;top:358px;width:230px"><b>RTC1 · 08:59:58</b><div style="opacity:.85;margin-top:2px">It keeps the laptop's time (its coin cell). A program can set it; then it counts on.</div></div>
+      <div class="float inputs" style="right:14px;bottom:14px;width:244px">
+        <div class="ih">{{i:sliders:s14}} Inputs <span class="spacer"></span><span class="tiny muted" style="font-weight:400">while it runs</span></div>
+        <div class="sec"><div class="row small" style="gap:6px">{{i:therm:s12}} <b>BARO1</b> <span class="muted">· air</span><span class="spacer"></span><span class="mono tiny muted">BMP280</span></div>
+          <div class="slider"><span class="track"><i style="width:52%"></i><b style="left:52%"></b></span><span class="v">22 °C</span></div>
+          <div class="slider"><span class="track"><i style="width:58%"></i><b style="left:58%"></b></span><span class="v">1015 hPa</span></div></div>
+        <div class="sec"><div class="row small" style="gap:6px">{{i:therm:s12}} <b>TEMP1</b> <span class="muted">· DS18B20</span></div>
+          <div class="slider"><span class="track"><i style="width:47%"></i><b style="left:47%"></b></span><span class="v">21.5 °C</span></div></div>
+        <div class="sec"><div class="row small" style="gap:6px">{{i:ruler:s12}} <b>TOF1</b> <span class="muted">· object</span><span class="spacer"></span><span class="mono tiny muted">340 mm</span></div>
+          <div class="slider"><span class="track"><i style="width:17%"></i><b style="left:17%"></b></span><span class="v">34 cm</span></div></div>
+        <div class="sec"><div class="row small" style="gap:6px">{{i:heart:s12}} <b>PULSE1</b> <span class="muted">· finger</span><span class="spacer"></span><span class="switch on" style="transform:scale(.8)"><i></i></span></div>
+          <div class="slider"><span class="track"><i style="width:50%"></i><b style="left:50%"></b></span><span class="v">80 bpm</span></div>
+          <div class="slider"><span class="track"><i style="width:80%"></i><b style="left:80%"></b></span><span class="v">96 %</span></div></div>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

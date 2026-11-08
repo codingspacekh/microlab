@@ -6,8 +6,12 @@ on the ESP32 and *Heart & knob* on the micro:bit. Every wire ends on a real pin 
 """
 import math
 
-from svgparts import (P, f, Breadboard, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
-                      microbit, oled, hcsr04, servo, HEART)
+from svgparts import (P, f, Breadboard, microbit_bare, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
+                      microbit, oled, hcsr04, servo, HEART, slide_switch, ldr, rgb_led, battery,
+                      pir, line_sensor, soil_sensor, temp_sensor, dht, mpu6050, hcsr04_in,
+                      kit_button, kit_touch, kit_vibration, kit_ir_obstacle, kit_hall, kit_flame, kit_raindrop, kit_water, kit_mq2,
+                      kit_ldr, kit_pot, kit_joystick, kit_encoder, kit_speed,
+                      chip_pcf8591, chip_bmp280, chip_ds18b20, chip_ds1302, chip_vl53l0x, chip_max30102)
 
 W, H = 692, 820
 
@@ -126,6 +130,218 @@ def heart() -> str:
     return _svg("".join(o))
 
 
+# ------------------------------------------------------------------ M6.1 · inputs pack (screens 17, 17b)
+def mood_lamp() -> str:
+    """Pico W running: a slide switch on GP16 (slid to 3, so it reads 0), a light sensor with 10 kΩ on GP26 in the
+    dark, an RGB LED through three 220 Ω on GP15 / GP14 / GP13 showing red + blue."""
+    bb = Breadboard(120, 300)
+    o = [bb.svg(rail_labels={"T-": ("GND", "#3a3d42"), "T+": ("3V3", "#de3b3b"), "B-": ("GND", "#3a3d42")})]
+    for col in (8, 10, 11):
+        o.append(resistor(bb.xy(col, "e"), bb.xy(col, "f"), "220"))
+    o.append(rgb_led(bb.xy(8, "h"), bb.xy(9, "h"), bb.xy(10, "h"), bb.xy(11, "h"), lit=(1, 0, .55)))
+    o.append(slide_switch(bb.xy(15, "e"), bb.xy(16, "e"), bb.xy(17, "e"), position=1))
+    o.append(ldr(bb.xy(21, "b"), bb.xy(23, "b")))
+    o.append(resistor(bb.xy(23, "e"), bb.xy(23, "f"), "10k"))
+    psvg, pins = pico(152, 200)
+    o.append(psvg)
+    o.append(wire([pins[20], (456, 236), (248, 236), bb.xy(8, "a")], "red"))        # GP15 → red
+    o.append(wire([pins[19], (440, 252), (280, 252), bb.xy(10, "a")], "green"))     # GP14 → green
+    o.append(wire([pins[17], (408, 268), (296, 268), bb.xy(11, "a")], "blue"))      # GP13 → blue
+    o.append(wire([pins[21], (472, 236), (472, 282), (376, 282), bb.xy(16, "a")], "yellow"))   # GP16 → the switch's common
+    o.append(wire([bb.xy(17, "a"), bb.xy(17, "T-")], "black"))
+    o.append(wire([pins[31], (328, 64), (640, 64), (640, 282), (488, 282), bb.xy(23, "a")], "purple"))   # GP26 (ADC0)
+    o.append(wire([pins[36], (248, 80), (104, 80), (104, 322), bb.xy(2, "T+")], "red"))   # 3V3 → the + rail
+    o.append(wire([bb.xy(21, "a"), bb.xy(21, "T+")], "red"))
+    o.append(wire([pins[3], bb.xy(5, "T-")], "black"))
+    o.append(wire([bb.xy(9, "j"), bb.xy(9, "B-")], "black"))
+    o.append(wire([bb.xy(23, "j"), bb.xy(23, "B-")], "black"))
+    o.append(wire([bb.xy(1, "T-"), bb.xy(1, "B-")], "black"))
+    o.append(cursor(376, 380, "hand"))
+    return _svg("".join(o))
+
+
+def kit() -> str:
+    """The SunFounder kit's 14 input modules (M6.5 design, Rev 8) side by side in row f of a full breadboard, running:
+    a magnet at the Hall sensor, something before the IR obstacle sensor, a flame, a wet plate, water, gas, the
+    joystick pushed (held by the hand), the encoder turning, the wheel spinning. The board above is left unwired."""
+    bb = Breadboard(84, 300, cols=63)
+    o = [bb.svg()]
+    psvg, _ = pico(380, 236)
+    o.append(psvg)
+    row = lambda c0, n: [bb.xy(c, "f") for c in range(c0, c0 + n)]
+    o.append(kit_button(row(1, 3)))
+    o.append(kit_touch(row(5, 3)))
+    o.append(kit_vibration(row(9, 3), shaking=True))
+    o.append(kit_ir_obstacle(row(13, 3), obstacle=True))
+    o.append(kit_hall(row(17, 3), magnet=True))
+    o.append(kit_flame(row(21, 4), flame=.7))
+    o.append(kit_raindrop(row(26, 4), wet=.6))
+    o.append(kit_water(row(31, 3), level=.5))
+    o.append(kit_mq2(row(35, 4), gas=.6))
+    o.append(kit_ldr(row(40, 3)))
+    o.append(kit_pot(row(44, 3), angle=40))
+    o.append(kit_joystick(row(48, 5), x=.8, y=.6))
+    o.append(kit_encoder(row(54, 5), turning=True))
+    o.append(kit_speed(row(60, 3), rpm=120))
+    jx, jy = bb.xy(50, "f")
+    o.append(cursor(jx + 4, jy - 58, "hand"))
+    return _svg("".join(o), w=692, h=410, vb="40 96 1110 658")
+
+
+def chips() -> str:
+    """The kit's six chips (M6.5b design) standing in row f: the PCF8591 (its AOUT LED lit), the BMP280, the DS18B20,
+    the DS1302 with its coin cell, the VL53L0X measuring (its laser on something), the MAX30102 with a finger on it."""
+    bb = Breadboard(84, 300, cols=63)
+    o = [bb.svg()]
+    psvg, _ = pico(250, 236)
+    o.append(psvg)
+    row = lambda c0, n: [bb.xy(c, "f") for c in range(c0, c0 + n)]
+    o.append(chip_pcf8591(row(1, 9), aout=.6))
+    o.append(chip_bmp280(row(11, 6)))
+    o.append(chip_ds18b20(row(18, 3)))
+    o.append(chip_ds1302(row(22, 5)))
+    o.append(chip_vl53l0x(row(28, 6), measuring=True))
+    o.append(chip_max30102(row(35, 5), finger=True))
+    return _svg("".join(o), w=692, h=420, vb="40 96 740 470")
+
+
+def kit_sheet() -> str:
+    """The kit's 14 modules close up (M6.5 design): each idle and as it is while sensing, side by side, named."""
+    cells = [
+        ("Button module", lambda p: kit_button(p), lambda p: kit_button(p, pressed=True), 3, "held: pressed"),
+        ("Touch (TTP223)", lambda p: kit_touch(p), lambda p: kit_touch(p, touched=True), 3, "held: touched"),
+        ("Vibration (SW-420)", lambda p: kit_vibration(p), lambda p: kit_vibration(p, shaking=True), 3, "held: shaken"),
+        ("IR obstacle", lambda p: kit_ir_obstacle(p), lambda p: kit_ir_obstacle(p, obstacle=True), 3, "clicked: something in front"),
+        ("Hall", lambda p: kit_hall(p), lambda p: kit_hall(p, magnet=True), 3, "clicked: a magnet near"),
+        ("Flame", lambda p: kit_flame(p), lambda p: kit_flame(p, flame=.8), 4, "Inputs: a flame"),
+        ("Raindrop", lambda p: kit_raindrop(p), lambda p: kit_raindrop(p, wet=.8), 4, "Inputs: rain"),
+        ("Water level", lambda p: kit_water(p), lambda p: kit_water(p, level=.6), 3, "Inputs: water"),
+        ("Gas / smoke (MQ-2)", lambda p: kit_mq2(p, hot=False), lambda p: kit_mq2(p, gas=.7), 4, "5 V: hot; Inputs: gas"),
+        ("Photoresistor module", lambda p: kit_ldr(p), None, 3, "Inputs: light"),
+        ("Potentiometer module", lambda p: kit_pot(p), lambda p: kit_pot(p, angle=90), 3, "dragged: turned"),
+        ("Joystick", lambda p: kit_joystick(p), lambda p: kit_joystick(p, x=.9, y=.2), 5, "dragged: pushed"),
+        ("Rotary encoder (KY-040)", lambda p: kit_encoder(p), lambda p: kit_encoder(p, turning=True), 5, "dragged round: turning"),
+        ("IR speed sensor", lambda p: kit_speed(p), lambda p: kit_speed(p, rpm=120), 3, "Inputs: the wheel's speed"),
+    ]
+    cw, ch, cols = 300, 230, 4
+    o = []
+    for i, (name, idle, on, n, how) in enumerate(cells):
+        x0, y0 = (i % cols) * cw + 20, (i // cols) * ch + 20
+        o.append(f'<rect x="{x0}" y="{y0}" width="{cw - 20}" height="{ch - 20}" rx="10" fill="#fbfbf9" stroke="#e3e0d8"/>')
+        for k, draw in enumerate((idle, on)):
+            if not draw:
+                continue
+            span = (n - 1) * P
+            bx = x0 + 20 + k * 130 + (110 - span) / 2
+            by = y0 + 146
+            pins = [(bx + j * P, by) for j in range(n)]
+            o.append("".join(f'<rect x="{f(x - 3)}" y="{f(by - 3)}" width="6" height="6" fill="#4a463e"/>' for x, _ in pins))
+            o.append(draw(pins))
+        o.append(f'<text x="{x0 + 14}" y="{y0 + ch - 50}" font-size="13" font-weight="700" fill="#1f2328" font-family="Inter">{name}</text>'
+                 f'<text x="{x0 + 14}" y="{y0 + ch - 33}" font-size="11" fill="#6b7280" font-family="Inter">idle · {how}</text>')
+    return _svg("".join(o), w=1220, h=4 * ch + 20, vb=f"0 0 1220 {4 * ch + 20}")
+
+
+def modules() -> str:
+    """Pico W running (M6.4 design): a DHT22 and a GY-521 (MPU6050) standing in row f; an HC-SR04 in row a turned to
+    face away from the breadboard, its Echo through a 1 k + 2 k divider; the Pico W below, as on screen 18."""
+    bb = Breadboard(120, 230)
+    o = [bb.svg(rail_labels={"B-": ("GND", "#3a3d42"), "B+": ("3V3", "#de3b3b")})]
+    o.append(dht(bb.xy(2, "f"), bb.xy(3, "f"), bb.xy(4, "f"), "DHT22"))
+    o.append(mpu6050([bb.xy(c, "f") for c in range(7, 15)], tilt=(30, 0)))
+    o.append(hcsr04_in(bb.xy(20, "a"), bb.xy(21, "a"), bb.xy(22, "a"), bb.xy(23, "a"), up=True, cm=34))
+    o.append(resistor(bb.xy(22, "d"), bb.xy(25, "d"), "1k"))
+    o.append(resistor(bb.xy(25, "c"), bb.xy(28, "c"), "2k"))
+    psvg, pins = pico(140, 720)
+    o.append(psvg)
+    up = lambda n, y, to: wire([pins[n], (pins[n][0], y), (to[0], y), to], COL[n])
+    COL = {36: "red", 38: "black", 26: "yellow", 32: "green", 31: "blue", 40: "orange", 29: "white", 27: "purple"}
+    o.append(up(36, 590, bb.xy(1, "B+")))
+    o.append(up(38, 582, bb.xy(2, "B-")))
+    o.append(wire([bb.xy(2, "j"), bb.xy(2, "B+")], "red"))
+    o.append(wire([bb.xy(4, "j"), bb.xy(4, "B-")], "black"))
+    o.append(up(26, 540, bb.xy(3, "i")))                       # GP20 → DATA
+    o.append(wire([bb.xy(7, "j"), bb.xy(7, "B+")], "red"))
+    o.append(wire([bb.xy(8, "j"), bb.xy(8, "B-")], "black"))
+    o.append(up(32, 566, bb.xy(9, "i")))                       # GP27 → SCL
+    o.append(up(31, 558, bb.xy(10, "i")))                      # GP26 → SDA
+    o.append(wire([pins[40], (pins[40][0], 600), (100, 600), (100, 220), (bb.xy(20, "e")[0] - 12, 220), (bb.xy(20, "e")[0] - 12, 352), bb.xy(20, "e")], "orange"))   # VBUS → VCC
+    o.append(up(29, 548, bb.xy(21, "e")))                      # GP22 → Trig
+    o.append(up(27, 574, bb.xy(25, "e")))                      # GP21 ← the divider
+    o.append(wire([bb.xy(23, "e"), bb.xy(23, "B-")], "black"))
+    o.append(wire([bb.xy(28, "e"), bb.xy(28, "B-")], "black"))
+    return _svg("".join(o))
+
+
+def greenhouse() -> str:
+    """Pico W running (M6.3 design): a TMP36, a PIR on VBUS seeing motion (held), an IR line sensor over the black
+    line and a capacitive soil sensor, each standing in row f, wired from the free holes below; the Pico W below the
+    breadboard so its top-row pins come straight up. B+ is 3V3, B− GND."""
+    bb = Breadboard(120, 150)
+    o = [bb.svg(rail_labels={"B-": ("GND", "#3a3d42"), "B+": ("3V3", "#de3b3b")})]
+    o.append(temp_sensor(bb.xy(2, "f"), bb.xy(3, "f"), bb.xy(4, "f")))
+    o.append(pir(bb.xy(7, "f"), bb.xy(8, "f"), bb.xy(9, "f"), motion=True))
+    o.append(line_sensor(bb.xy(12, "f"), bb.xy(13, "f"), bb.xy(14, "f"), over_line=True))
+    o.append(soil_sensor(bb.xy(19, "f"), bb.xy(20, "f"), bb.xy(21, "f"), moisture=0.35))
+    psvg, pins = pico(140, 640)
+    o.append(psvg)
+    # the rails: 3V3 and GND from the Pico W
+    o.append(wire([pins[36], (pins[36][0], 492), (bb.xy(1, "B+")[0], 492), bb.xy(1, "B+")], "red"))
+    o.append(wire([pins[38], (pins[38][0], 500), (bb.xy(2, "B-")[0], 500), bb.xy(2, "B-")], "black"))
+    # TMP36: +Vs, GND from the rails, Vout to GP26
+    o.append(wire([bb.xy(2, "j"), bb.xy(2, "B+")], "red"))
+    o.append(wire([bb.xy(4, "j"), bb.xy(4, "B-")], "black"))
+    o.append(wire([pins[31], (pins[31][0], 478), (bb.xy(3, "i")[0] - 0, 478), bb.xy(3, "i")], "yellow"))
+    # PIR: VCC from VBUS (5 V), OUT to GP22, GND
+    o.append(wire([pins[40], (pins[40][0], 470), (bb.xy(7, "j")[0], 470), bb.xy(7, "j")], "orange"))
+    o.append(wire([pins[29], (pins[29][0], 462), (bb.xy(8, "i")[0], 462), bb.xy(8, "i")], "green"))
+    o.append(wire([bb.xy(9, "j"), bb.xy(9, "B-")], "black"))
+    # line sensor: OUT to GP21, GND, VCC 3V3
+    o.append(wire([pins[27], (pins[27][0], 486), (bb.xy(12, "i")[0], 486), bb.xy(12, "i")], "blue"))
+    o.append(wire([bb.xy(13, "j"), bb.xy(13, "B-")], "black"))
+    o.append(wire([bb.xy(14, "j"), bb.xy(14, "B+")], "red"))
+    # soil: AOUT to GP27, VCC 3V3, GND
+    o.append(wire([pins[32], (pins[32][0], 454), (bb.xy(19, "i")[0], 454), bb.xy(19, "i")], "purple"))
+    o.append(wire([bb.xy(20, "j"), bb.xy(20, "B+")], "red"))
+    o.append(wire([bb.xy(21, "j"), bb.xy(21, "B-")], "black"))
+    o.append(cursor(bb.xy(8, "f")[0] + 4, bb.xy(8, "f")[1] - 64, "hand"))
+    return _svg("".join(o))
+
+
+def gpio_battery() -> str:
+    """micro:bit editing: the GPIO board's own micro-USB plugged in (its 5V pins live); a 2×AA pack on the bottom rails
+    lighting an LED by itself, selected; the 4×AA and 9 V packs drawn beside, for the design."""
+    bb = Breadboard(120, 448)
+    o = [bb.svg(rail_labels={"T-": ("GND", "#3a3d42"), "T+": ("5V", "#de3b3b")})]
+    msvg, mp = microbit(184, 340, usb=True)
+    o.append(msvg)
+    gx, _ = mp["GND@15"]
+    o.append(wire([mp["GND@15"], (gx, 434), (136, 434), bb.xy(2, "T-")], "black"))
+    o.append(wire([mp["5V"], (mp["5V"][0], 440), (152, 440), bb.xy(3, "T+")], "red"))   # the GPIO board's 5V
+    o.append(resistor(bb.xy(5, "a"), bb.xy(8, "a"), "220"))
+    o.append(led(bb.xy(8, "b"), bb.xy(10, "b"), "green", "on"))
+    o.append(wire([bb.xy(5, "e"), bb.xy(5, "T+")], "red"))
+    o.append(wire([bb.xy(10, "e"), bb.xy(10, "T-")], "black"))
+    # bottom rails: a 2×AA pack lights its own LED (B+ / B−), the pack below the breadboard
+    o.append(battery(bb.xy(20, "B+"), bb.xy(20, "B-"), "2xAA"))
+    o.append(wire([bb.xy(21, "B+"), bb.xy(21, "j")], "red"))
+    o.append(resistor(bb.xy(21, "h"), bb.xy(24, "h"), "220"))
+    o.append(led(bb.xy(24, "i"), bb.xy(26, "i"), "red", "on", lean=-22))
+    o.append(wire([bb.xy(26, "j"), bb.xy(26, "B-")], "black"))
+    x, y = bb.xy(20, "B+")
+    o.append(f'<rect x="{x - 56}" y="{y + 26}" width="112" height="70" rx="8" fill="none" stroke="#2563d9" stroke-width="1.6" stroke-dasharray="4 3"/>')
+    return _svg("".join(o))
+
+
+def battery_kinds() -> str:
+    """The three packs, as the parts panel offers them."""
+    o = []
+    for i, kind in enumerate(("2xAA", "4xAA", "9V")):
+        x = 70 + i * 130
+        o.append(battery((x - 0, 40), (x, 24), kind))
+    return _svg("".join(o), 190, 82, "0 -122 400 172")
+
+
 # ------------------------------------------------------------------ small pictures
 def board_art(kind: str) -> str:
     if kind == "pico":
@@ -134,8 +350,8 @@ def board_art(kind: str) -> str:
     if kind == "esp32":
         s, _ = esp32(60, 180)
         return _svg(s, 270, 135, "0 8 380 190")
-    s, _ = microbit(80, 330, image=HEART)
-    return _svg(s, 270, 135, "8 0 376 420")
+    s, _ = microbit_bare(20, 10, image=HEART)   # screen 24: the micro:bit alone, as a student first holds it
+    return _svg(s, 270, 135, "-60 0 480 276")
 
 
 def bootsel() -> str:
@@ -249,7 +465,53 @@ def led_states() -> str:
     return _svg("".join(o), 280, 96, "0 -10 280 106")
 
 
-SCENES = {"bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
+def bare() -> str:
+    """A new project (screen 23): the board alone; a breadboard comes from the parts panel."""
+    svg, _ = pico(250, 236)
+    return _svg(svg, w=692, h=420, vb="70 40 640 400")
+
+
+def place_breadboard() -> str:
+    """Screen 23b: a half breadboard being placed under the board, following the mouse (drawn faint)."""
+    bb = Breadboard(150, 300, cols=30)
+    svg, _ = pico(250, 236)
+    return _svg(svg + f'<g opacity=".55">{bb.svg()}</g>' + cursor(520, 470, "hand"), w=692, h=420, vb="-200 96 900 470")
+
+
+def mbit_alone() -> str:
+    """Screen 24: a new micro:bit project is the micro:bit alone; an LED wired to ring 0 and GND, as with crocodile clips."""
+    bb = Breadboard(60, 420, cols=30)
+    o = [bb.svg()]
+    msvg, mp = microbit_bare(130, 110, image=HEART)
+    o.append(msvg)
+    o.append(resistor(bb.xy(5, "a"), bb.xy(8, "a"), "220"))
+    o.append(led(bb.xy(8, "b"), bb.xy(10, "b"), "red", "on"))
+    x0, y0 = mp["P0"]
+    o.append(wire([mp["P0"], (x0, 396), bb.xy(5, "e")[:1] + (396,), bb.xy(5, "e")], "orange"))
+    xg, yg = mp["GND"]
+    o.append(wire([mp["GND"], (xg, 404), bb.xy(10, "e")[:1] + (404,), bb.xy(10, "e")], "black"))
+    for pid in ("P1", "P2", "3.3V"):
+        cx, cy = mp[pid]
+        o.append(f'<circle cx="{cx}" cy="{cy}" r="11" fill="none" stroke="#2563d9" stroke-width="1.4" stroke-dasharray="3 2"/>')
+    return _svg("".join(o), vb="-300 -60 870 1031")   # room on the left for the open parts panel
+
+
+def mbit_gpio() -> str:
+    """Screen 24b: the GPIO board added — the micro:bit in its slot; the wires that were on ring 0 and GND are on the
+    header's P0 and GND now (the same pins); the GPIO board selected."""
+    bb = Breadboard(60, 470, cols=30)
+    o = [bb.svg()]
+    msvg, mp = microbit(150, 330, image=HEART, usb=True)
+    o.append(msvg)
+    o.append(resistor(bb.xy(5, "a"), bb.xy(8, "a"), "220"))
+    o.append(led(bb.xy(8, "b"), bb.xy(10, "b"), "red", "on"))
+    o.append(wire([mp["P0"], (mp["P0"][0], 452), bb.xy(5, "e")[:1] + (452,), bb.xy(5, "e")], "orange"))
+    o.append(wire([mp["GND@15"], (mp["GND@15"][0], 458), bb.xy(10, "e")[:1] + (458,), bb.xy(10, "e")], "black"))
+    o.append(f'<rect x="{150 - 34}" y="{330 - 92}" width="{15 * P + 68}" height="{3 * P + 130}" rx="10" fill="none" stroke="#2563d9" stroke-width="1.6" stroke-dasharray="5 3"/>')
+    return _svg("".join(o), vb="-60 -40 900 1066")
+
+
+SCENES = {"mbitalone": mbit_alone, "mbitgpio": mbit_gpio, "bare": bare, "placebb": place_breadboard, "chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
           "servowiring": servo_wiring, "servopulses": servo_pulses, "plot": plot}
 
 

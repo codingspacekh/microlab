@@ -12,7 +12,8 @@ import { startRun as realStart, type RunEvents, type RunHandle } from '../sim-cl
 export type StartRun = (req: { doc: ProjectDoc; entry: string }, events: RunEvents) => RunHandle;
 export type ConsoleKind = 'out' | 'sys' | 'err';
 export interface ConsoleChunk { kind: ConsoleKind; text: string }
-export interface BoardOutputs { pins: Record<string, number>; display?: string }
+/** The board's own outputs while running: pin levels, the micro:bit's display, its speaker's pitch (Hz; M6.2). */
+export interface BoardOutputs { pins: Record<string, number>; display?: string; sound?: number }
 
 export interface RunState {
   status: 'idle' | 'running' | 'stopping';
@@ -41,7 +42,7 @@ export function useRun(start: StartRun = realStart) {
     handle.current = start({ doc, entry }, {
       onOutput: (text) => add({ kind: 'out', text }),
       onParts: (states) => setState((s) => ({ ...s, parts: { ...s.parts, ...states } })),
-      onBoard: (b) => setState((s) => ({ ...s, board: { pins: { ...s.board.pins, ...b.pins }, display: b.display ?? s.board.display } })),
+      onBoard: (b) => setState((s) => ({ ...s, board: { pins: { ...s.board.pins, ...b.pins }, display: b.display ?? s.board.display, sound: b.sound ?? s.board.sound } })),
       onEnd: (result) => {
         handle.current = null;
         setState((s) => ({

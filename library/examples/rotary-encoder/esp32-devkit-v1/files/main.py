@@ -1,0 +1,12 @@
+from machine import Pin
+import time
+
+clk, dt = Pin(4, Pin.IN), Pin(18, Pin.IN)   # pulled up on the module
+n, last = 0, 1
+while True:
+    now = clk.value()
+    if last and not now:            # CLK falls: DT already low means clockwise
+        n += 1 if not dt.value() else -1
+        print('steps', n)
+    last = now
+    time.sleep_ms(1)

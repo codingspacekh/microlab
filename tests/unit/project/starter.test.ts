@@ -17,10 +17,11 @@ describe('M4.2 F-01 a new project', () => {
     ['microbit-v2', 'from microbit import *'],
     ['pico-w', 'from machine import Pin'],
     ['esp32-devkit-v1', 'from machine import Pin'],
-  ] as const)('on %s: the board, one half breadboard, nothing else placed yet, and a main.py that starts with %j', (board, first) => {
+  ] as const)('on %s: the board alone (M6.8: breadboards come from the parts panel), and a main.py that starts with %j', (board, first) => {
     const d = newProject(board);
     expect(parseProject(d.project)).toEqual(d.project);
-    expect(d.project).toEqual({ format: 1, title: 'Untitled project', board, breadboards: [{ id: 'bb1', size: 'half' }], parts: [], wires: [] });
+    // M6.9 (screen 24): the micro:bit alone, out of its GPIO board
+    expect(d.project).toEqual({ format: 1, title: 'Untitled project', board, ...(board === 'microbit-v2' ? { gpioBoard: false } : {}), breadboards: [], parts: [], wires: [] });
     expect(Object.keys(d.files)).toEqual(['main.py']);
     expect(d.files['main.py']).toMatch(new RegExp(`^${first.replace('*', '\\*')}\n`));
   });

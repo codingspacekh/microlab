@@ -1,7 +1,7 @@
 import { isBoardId, type BoardId } from '../boards';
-import { COLUMNS, railHole, type BreadboardSize } from '../circuit';
+import { COLUMNS, hasRails, railHole, type BreadboardSize } from '../circuit';
 import type { Project } from '../project';
-import { boardArt, boardData } from './library';
+import { artOf, boardData, type Art } from './library';
 
 /**
  * Where everything is on the canvas (F-12, F-13), in the approved drawing's units: one pitch (0.1 in) = 16. A
@@ -22,7 +22,8 @@ const HOLE = /^(T-|T\+|B\+|B-|[a-j])(\d+)$/;
 export const BREADBOARD = {
   rows: ROWS,
   edge: EDGE,
-  size: (size: BreadboardSize) => ({ width: (COLUMNS[size] - 1) * PITCH + 2 * EDGE, height: 298 }),
+  /** Its body: a mini breadboard (no rails) is the rows a–j only, `top` below the corner its holes are measured from. */
+  size: (size: BreadboardSize) => ({ width: (COLUMNS[size] - 1) * PITCH + 2 * EDGE, ...(hasRails(size) ? { top: 0, height: 298 } : { top: 44, height: 212 }) }),
 };
 
 /** A hole's place from its breadboard's corner: a1, j30, T-1, B+5; undefined if there is no such hole. */
@@ -32,20 +33,22 @@ export function holeOffset(hole: string, size: BreadboardSize): Point | undefine
   const row = m[1]!;
   const col = Number(m[2]);
   if (col < 1 || col > COLUMNS[size]) return undefined;
-  if (row.length === 2 && !railHole(col)) return undefined;
+  if (row.length === 2 && (!railHole(col) || !hasRails(size))) return undefined;
   return { x: EDGE + (col - 1) * PITCH, y: ROWS[row]! };
 }
 
-/** What the canvas needs: the project, its board's data and picture, and where things are. */
+/** What the canvas needs: the project, its board's data and picture (the micro:bit's alone or in its GPIO board,
+ *  M6.9), and where things are. */
 export interface Scene {
   project: Project;
   boardId: BoardId;
+  art: Art;
   view: View;
 }
 
 export function sceneOf(project: Project): Scene {
   if (!isBoardId(project.board)) throw new Error(`there is no board "${project.board}"`);
-  return { project, boardId: project.board, view: project.view ?? defaultView(project) };
+  return { project, boardId: project.board, art: artOf(project), view: project.view ?? defaultView(project) };
 }
 
 const GAP = 40;
@@ -58,14 +61,15 @@ export function snapToGrid(p: Point): Point {
 
 /** The board above the breadboards, centred on the first; the breadboards one under another. */
 export function defaultView(project: Project): View {
-  const art = boardArt(project.board as BoardId);
+  const art = artOf(project);
   const first = project.breadboards[0];
   const bbWidth = first ? BREADBOARD.size(first.size).width : art.width;
   const breadboards: Record<string, Point> = {};
   let y = art.height + GAP;
   for (const bb of project.breadboards) {
     breadboards[bb.id] = snapToGrid({ x: 0, y });
-    y = breadboards[bb.id]!.y + BREADBOARD.size(bb.size).height + GAP;
+    const s = BREADBOARD.size(bb.size);
+    y = breadboards[bb.id]!.y + s.top + s.height + GAP;
   }
   return { board: snapToGrid({ x: (bbWidth - art.width) / 2, y: 0 }), breadboards };
 }
@@ -78,7 +82,7 @@ export function pointAt(scene: Scene, ref: string): Point | undefined {
   const name = ref.slice(dot + 1);
   if (owner === 'board') {
     const pin = boardData(scene.boardId).pins.find((p) => p.id === name);
-    const xy = pin && boardArt(scene.boardId).pins[String(pin.number)];
+    const xy = pin && scene.art.pins[String(pin.number)];
     return xy ? { x: scene.view.board.x + xy[0], y: scene.view.board.y + xy[1] } : undefined;
   }
   const bb = scene.project.breadboards.find((b) => b.id === owner);
@@ -96,7 +100,7 @@ export interface PlacedPoint extends Point {
 const HOLE_NAMES = (size: BreadboardSize): string[] => {
   const out: string[] = [];
   for (let c = 1; c <= COLUMNS[size]; c++) {
-    for (const r of Object.keys(ROWS)) if (r.length === 1 || railHole(c)) out.push(`${r}${c}`);
+    for (const r of Object.keys(ROWS)) if (r.length === 1 || (railHole(c) && hasRails(size))) out.push(`${r}${c}`);
   }
   return out;
 };
@@ -104,7 +108,7 @@ const HOLE_NAMES = (size: BreadboardSize): string[] => {
 /** Every hole and board pin, where it is. */
 export function allPoints(scene: Scene): PlacedPoint[] {
   const out: PlacedPoint[] = [];
-  const art = boardArt(scene.boardId);
+  const art = scene.art;
   for (const pin of boardData(scene.boardId).pins) {
     const xy = art.pins[String(pin.number)];
     if (xy) out.push({ ref: `board.${pin.id}`, on: 'board', x: scene.view.board.x + xy[0], y: scene.view.board.y + xy[1] });

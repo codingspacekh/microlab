@@ -547,6 +547,81 @@ class MicroBitAccelerometer:
 accelerometer = MicroBitAccelerometer()
 
 
+# --- microphone (M6.6; micropython-microbit-v2's microphone, SoundEvent) ----------------------------------------
+class SoundEvent:
+    def __init__(self, name):
+        self._name = name
+
+    def __repr__(self):
+        return "SoundEvent('%s')" % self._name
+
+
+SoundEvent.LOUD = SoundEvent('loud')
+SoundEvent.QUIET = SoundEvent('quiet')
+
+
+class MicroBitMicrophone:
+    """The sound level 0–255 (the window's slider), and its events: loud when it rises past the loud threshold, quiet
+    when it falls back under the quiet one. The default thresholds (150, 75) are our estimate of CODAL's, to confirm
+    on a board; heard each time the program asks."""
+
+    def __init__(self):
+        self._loud, self._quiet = 150, 75
+        self._is_loud = False
+        self._current = None
+        self._history = []
+
+    def __repr__(self):
+        return '<MicroBitMicrophone>'
+
+    def _hear(self, level):
+        event = None
+        if not self._is_loud and level >= self._loud:
+            self._is_loud, event = True, SoundEvent.LOUD
+        elif self._is_loud and level <= self._quiet:
+            self._is_loud, event = False, SoundEvent.QUIET
+        if event:
+            self._current = event
+            if len(self._history) < 16:
+                self._history.append(event)
+
+    def sound_level(self):
+        level = int(_ream.sound_level())
+        self._hear(level)
+        return level
+
+    def current_event(self):
+        self.sound_level()
+        return self._current
+
+    def is_event(self, event):
+        self.sound_level()
+        return self._current is event
+
+    def was_event(self, event):
+        self.sound_level()
+        heard = event in self._history
+        self._history = []
+        return heard
+
+    def get_events(self):
+        self.sound_level()
+        events = tuple(self._history)
+        self._history = []
+        return events
+
+    def set_threshold(self, event, value):
+        if event is SoundEvent.LOUD:
+            self._loud = _int(value)
+        elif event is SoundEvent.QUIET:
+            self._quiet = _int(value)
+        else:
+            raise ValueError('invalid sound event')
+
+
+microphone = MicroBitMicrophone()
+
+
 # --- i2c on P19 / P20 (microbit_i2c.c): a NACK is ENODEV --------------------------------------------------------
 import _bus
 

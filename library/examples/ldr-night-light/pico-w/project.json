@@ -1,0 +1,81 @@
+{
+  "format": 1,
+  "title": "Night light",
+  "board": "pico-w",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "r1",
+      "type": "resistor",
+      "props": {
+        "ohms": 220
+      },
+      "legs": {
+        "a": "bb1.a5",
+        "b": "bb1.a8"
+      }
+    },
+    {
+      "id": "led1",
+      "type": "led",
+      "props": {
+        "color": "red"
+      },
+      "legs": {
+        "a": "bb1.b8",
+        "k": "bb1.b10"
+      }
+    },
+    {
+      "id": "ldr1",
+      "type": "ldr",
+      "legs": {
+        "a": "bb1.a24",
+        "b": "bb1.a26"
+      }
+    },
+    {
+      "id": "r2",
+      "type": "resistor",
+      "props": {
+        "ohms": 10000
+      },
+      "legs": {
+        "a": "bb1.c26",
+        "b": "bb1.c29"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.GP15",
+      "b": "bb1.e5"
+    },
+    {
+      "id": "w2",
+      "a": "board.GND",
+      "b": "bb1.e10"
+    },
+    {
+      "a": "board.3V3",
+      "b": "bb1.e24",
+      "id": "w3"
+    },
+    {
+      "a": "board.GP26",
+      "b": "bb1.e26",
+      "id": "w4"
+    },
+    {
+      "a": "board.GND",
+      "b": "bb1.e29",
+      "id": "w5"
+    }
+  ]
+}
