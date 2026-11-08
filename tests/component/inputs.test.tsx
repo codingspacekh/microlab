@@ -56,7 +56,7 @@ function setup(board = 'New Pico W project') {
 describe('M6.1 the inputs pack in the parts panel (screen 17)', () => {
   it('lists the RGB LED, the slide switch, the light sensor and the battery pack with the basics', () => {
     const s = setup();
-    for (const name of [/^Resistor/, /^LED/, /^RGB LED/, /^Push button/, /^Slide switch/, /^Potentiometer(?! module)/, /^Light sensor \(LDR\)/, /^Battery pack/]) {
+    for (const name of [/^Resistor/, /^LED/, /^RGB LED(?! module)/, /^Push button/, /^Slide switch/, /^Potentiometer(?! module)/, /^Light sensor \(LDR\)/, /^Battery pack/]) {
       expect(s.item(name)).toBeInTheDocument();
     }
   });
@@ -65,7 +65,7 @@ describe('M6.1 the inputs pack in the parts panel (screen 17)', () => {
     const s = setup();
     s.place(/^Slide switch/, 'slide-switch', 'bb1.e21');
     s.place(/^Light sensor/, 'ldr', 'bb1.a26');
-    s.place(/^RGB LED/, 'rgb-led', 'bb1.h20');
+    s.place(/^RGB LED(?! module)/, 'rgb-led', 'bb1.h20');
     s.place(/^Battery pack/, 'battery', 'bb1.B+20');
     expect(s.part('sw1')).toHaveAttribute('data-legs', 'bb1.e21 bb1.e22 bb1.e23');
     expect(s.part('ldr1')).toHaveAttribute('data-legs', 'bb1.a26 bb1.a28');
@@ -79,7 +79,7 @@ describe('M6.1 the inputs pack in the parts panel (screen 17)', () => {
 describe('M6.1 the inspector (screens 17, 17b)', () => {
   it('an RGB LED: common cathode or anode; its legs R, −, G, B — + for a common anode', () => {
     const s = setup();
-    s.place(/^RGB LED/, 'rgb-led', 'bb1.h20');
+    s.place(/^RGB LED(?! module)/, 'rgb-led', 'bb1.h20');
     const common = within(s.inspector()).getByRole('radiogroup', { name: 'Common leg' });
     expect(within(common).getByRole('radio', { name: /cathode/ })).toHaveAttribute('aria-checked', 'true');
     expect(within(s.inspector()).getByText(/R h20/)).toBeInTheDocument();
@@ -163,7 +163,7 @@ describe('M6.1 while running (screen 17)', () => {
 
   it('an RGB LED mixes its three dies; hovering it shows each one\'s current', () => {
     const s = setup();
-    s.place(/^RGB LED/, 'rgb-led', 'bb1.h20');
+    s.place(/^RGB LED(?! module)/, 'rgb-led', 'bb1.h20');
     s.run();
     expect(s.part('rgb1')).toHaveAttribute('data-lit', '0');
     s.sim.say((e) => e.onParts({

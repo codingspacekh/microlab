@@ -2,6 +2,10 @@
 # ports/rp2/machine_pin.c and boards/RPI_PICO_W/pins.csv; the pin hardware is src/sim/pins.ts via _ream.
 import _ream
 import time as _time
+import _os
+
+# os.uname() as a real board answers it (M10's goldens: tests/unit/repl/greeting.test.ts)
+_os.set_uname(('rp2', 'rp2', '1.29.0', 'v1.29.0 on 2026-08-24 (GNU 16.1.0 MinSizeRel)', 'Raspberry Pi Pico W with RP2040'))
 
 _time.start_date(1609459200)   # 2021-01-01 00:00:00: ports/rp2/main.c sets the RTC to it at reset
 
@@ -491,6 +495,22 @@ class SoftI2C(_bus.I2CBus):
         self._scl, self._sda = Pin(scl)._key, Pin(sda)._key
 
 
+_PERI_HZ = 48000000   # MicroPython runs clk_peri from the USB PLL, 48 MHz (ports/rp2/main.c)
+
+
+def _spi_baud(want):
+    """pico-sdk spi_set_baudrate on clk_peri: a prescale and a divider; what it gives is what SPI() reports (1 MHz is
+    exactly 48 MHz / 48 — a real Pico W, golden 09_buses)."""
+    want = max(1, want)
+    prescale = 2
+    while prescale <= 254 and _PERI_HZ >= (prescale + 2) * 256 * want:
+        prescale += 2
+    postdiv = 256
+    while postdiv > 1 and _PERI_HZ // (prescale * (postdiv - 1)) <= want:
+        postdiv -= 1
+    return _PERI_HZ // (prescale * postdiv)
+
+
 class SPI(_bus.SPIBus):
     MSB = 1
     LSB = 0
@@ -500,12 +520,33 @@ class SPI(_bus.SPIBus):
         if id not in (0, 1):
             raise ValueError("SPI(%d) doesn't exist" % id)
         s, o, i = _SPI_PINS[id]
-        s = _gpio(sck) if sck is not None else s
-        o = _gpio(mosi) if mosi is not None else o
-        i = _gpio(miso) if miso is not None else i
-        self._id, self._baud, self._pol, self._pha, self._bits = id, _int(baudrate), polarity, phase, bits
+        if sck is not None:
+            s = _gpio(sck)
+            if not (s & 3 == 2 and (s & 8) >> 3 == id):
+                raise ValueError('bad SCK pin')
+        if mosi is not None:
+            o = _gpio(mosi)
+            if not (o & 3 == 3 and (o & 8) >> 3 == id):
+                raise ValueError('bad MOSI pin')
+        if miso is not None:
+            i = _gpio(miso)
+            if not (i & 3 == 0 and (i & 8) >> 3 == id):
+                raise ValueError('bad MISO pin')
+        self._id = id
         self._pins = (s, o, i)
         self._sck, self._mosi, self._miso = str(s), str(o), str(i)
+        self._set(_int(baudrate), _int(polarity), _int(phase), _int(bits), _int(firstbit))
+
+    def _set(self, baudrate, polarity, phase, bits, firstbit):
+        if firstbit == SPI.LSB:
+            raise NotImplementedError('LSB')
+        self._baud = self._spi_baud = _spi_baud(baudrate)
+        self._pol, self._pha, self._bits = polarity, phase, bits
+
+    def init(self, *, baudrate=-1, polarity=-1, phase=-1, bits=-1, firstbit=-1):
+        self._set(self._baud if baudrate == -1 else _int(baudrate), self._pol if polarity == -1 else _int(polarity),
+                  self._pha if phase == -1 else _int(phase), self._bits if bits == -1 else _int(bits),
+                  SPI.MSB if firstbit == -1 else _int(firstbit))
 
     def __repr__(self):
         s, o, i = self._pins
@@ -521,17 +562,74 @@ class SoftSPI(_bus.SPIBus):
         self._sck = Pin(sck)._key if sck is not None else ''
         self._mosi = Pin(mosi)._key if mosi is not None else ''
         self._miso = Pin(miso)._key if miso is not None else ''
+        self._spi_baud, self._pol, self._pha = _int(baudrate), _int(polarity), _int(phase)
+        self._lsb = _int(firstbit) == SoftSPI.LSB
+
+
+_KEEP = object()
+_PARITY_NAME = {None: 'None', 0: '0', 1: '1'}
+_INVERT_NAME = ('None', 'INV_TX', 'INV_RX', 'INV_TX|INV_RX')
 
 
 class UART(_bus.UARTBus):
-    def __init__(self, id, baudrate=115200, bits=8, parity=None, stop=1, *, tx=None, rx=None, **kwargs):
+    def __init__(self, id, baudrate=_KEEP, bits=_KEEP, parity=_KEEP, stop=_KEEP, **kw):
         id = _int(id)
         if id not in (0, 1):
             raise ValueError("UART(%d) doesn't exist" % id)
-        t, r = _UART_PINS[id]
-        self._tx = str(_gpio(tx) if tx is not None else t)
-        self._rx = str(_gpio(rx) if rx is not None else r)
-        self._baud = _int(baudrate)
+        self._id = id
+        self._tx_n, self._rx_n = _UART_PINS[id]
+        self._baud, self._bits, self._parity, self._stop = 0, 8, None, 1
+        self._timeout, self._timeout_char, self._invert = 0, 0, 0
+        self._rxbuf = self._txbuf = 256
+        self.init(baudrate, bits, parity, stop, **kw)
+
+    def init(self, baudrate=_KEEP, bits=_KEEP, parity=_KEEP, stop=_KEEP, *, tx=None, rx=None, cts=None, rts=None,
+             timeout=-1, timeout_char=-1, invert=-1, flow=-1, txbuf=-1, rxbuf=-1):
+        # ports/rp2/machine_uart.c mp_machine_uart_init_helper
+        if baudrate is not _KEEP and _int(baudrate) > 0:
+            self._baud = _int(baudrate)
+        if bits is not _KEEP and _int(bits) > 0:
+            self._bits = _int(bits)
+        if parity is not _KEEP:
+            self._parity = None if parity is None else _int(parity) & 1
+        if stop is not _KEEP and _int(stop) > 0:
+            self._stop = _int(stop)
+        if tx is not None:
+            t = _gpio(tx)
+            if not (t & 3 == 0 and ((t + 4) & 8) >> 3 == self._id):
+                raise ValueError('bad TX pin')
+            self._tx_n = t
+        if rx is not None:
+            r = _gpio(rx)
+            if not (r & 3 == 1 and ((r + 4) & 8) >> 3 == self._id):
+                raise ValueError('bad RX pin')
+            self._rx_n = r
+        if timeout >= 0:
+            self._timeout = _int(timeout)
+        if timeout_char >= 0:
+            self._timeout_char = _int(timeout_char)
+        if invert >= 0:
+            if invert & ~3:
+                raise ValueError('bad inversion mask')
+            self._invert = invert
+        for name, n in (('rxbuf', rxbuf), ('txbuf', txbuf)):
+            if n > 0:
+                if n > 32766:
+                    raise ValueError('%s too large' % name)
+                setattr(self, '_' + name, max(32, n))
+        if self._baud == 0:
+            self._baud = 115200
+            self._timeout_char = 0
+        # at least a whole character (13 bits, to be safe)
+        self._timeout_char = max(self._timeout_char, 13000 // self._baud + 1)
+        self._tx, self._rx = str(self._tx_n), str(self._rx_n)
+        self._start()
+
+    def __repr__(self):
+        return ('UART(%u, baudrate=%u, bits=%u, parity=%s, stop=%u, tx=%d, rx=%d, txbuf=%d, rxbuf=%d, timeout=%u, '
+                'timeout_char=%u, invert=%s, irq=%d)' % (self._id, self._baud, self._bits, _PARITY_NAME[self._parity], self._stop,
+                                                         self._tx_n, self._rx_n, self._txbuf, self._rxbuf, self._timeout,
+                                                         self._timeout_char, _INVERT_NAME[self._invert], 0))
 
 
 def time_pulse_us(pin, pulse_level, timeout_us=1000000):

@@ -1,0 +1,41 @@
+{
+  "format": 1,
+  "title": "16×2 LCD",
+  "board": "esp32-devkit-v1",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "lcd1",
+      "type": "lcd1602",
+      "props": {},
+      "legs": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "lcd1.gnd",
+      "b": "board.GND"
+    },
+    {
+      "id": "w2",
+      "a": "lcd1.vcc",
+      "b": "board.VIN"
+    },
+    {
+      "id": "w3",
+      "a": "lcd1.sda",
+      "b": "board.D21"
+    },
+    {
+      "id": "w4",
+      "a": "lcd1.scl",
+      "b": "board.D22"
+    }
+  ]
+}

@@ -6,10 +6,13 @@ export { MODELS } from './models';
 export type { PartModel, PartContext } from './models';
 export type { CircuitSpec, PartSpec, WireSpec, PointRef, Problem } from './spec';
 export { UnionFind } from './union-find';
-export { LED, LED_COLORS, RGB_DIES, BATTERIES, BUZZER, CONTACT_OHMS, WIPER_OHMS, SERVO_IDLE_OHMS, ldrOhms } from './devices';
+export {
+  LED, LED_COLORS, RGB_DIES, BATTERIES, BUZZER, CONTACT_OHMS, WIPER_OHMS, SERVO_IDLE_OHMS, ldrOhms,
+  BUZZER_MODULE, KIT_LED_OHMS, L298N, L9110S, MOTOR, POWER_SUPPLY, PUMP, RELAY, SERVO, STEPPER, ULN2003,
+} from './devices';
 export type { Device, Netlist, PinState, PartState, SimState } from './devices';
 export { toNetlist } from './netlist';
-export { solve } from './solve';
+export { logicPattern, solve } from './solve';
 export type { Solution } from './solve';
 export { analyse, findFaults } from './faults';
 export type { Analysis, Fault, FaultKind } from './faults';
@@ -22,3 +25,7 @@ export type { AdcInput, AirInput, I2CDevice, MotionInput, PulseInput } from './i
 export { dhtBytes, echoUs, ENCODER, isSensor, minVolts, moduleDrives, MODULES, sensorDrive, SENSORS, SENSOR_START, SPEED } from './sensors';
 export type { ModuleInput } from './sensors';
 export type { Drive, SensorInput, SensorType } from './sensors';
+export { DISPLAYS, digitsText, isDisplay, Lcd1602, Max7219, Ssd1306, Tm1637 } from './displays';
+export { NEOPIXEL, neopixelCount, neopixelShape, NeoPixels, ws2812Bits, type NeoPixelShape } from './neopixel';
+export type { DisplayType } from './displays';
+export { crcA, MifareTag, Mfrc522, RC522, RFID_TAGS } from './rfid';

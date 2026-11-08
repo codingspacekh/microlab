@@ -15,13 +15,15 @@ const sha = (f: string) => createHash('sha256').update(readFileSync(join(ROOT, f
 const lib = (id: string) => pack.libraries.find((l) => l.id === id)!;
 const LICENCE_TEXT = { MIT: /MIT License/, 'Apache-2.0': /Apache License\s+Version 2\.0/, 'BSD-3-Clause': /BSD 3-Clause License/ };
 
+const OWN_EVERYWHERE = new Set(['mfrc522']);
+
 describe('M6.7 the library pack, as shipped', () => {
-  it('has the drivers the M6 parts need', () => {
-    expect(pack.libraries.map((l) => l.id).sort()).toEqual(['bmp280', 'ds1302', 'hcsr04', 'max30102', 'mpu6050', 'rotary', 'vl53l0x']);
+  it('has the drivers the M6 and M7 parts need', () => {
+    expect(pack.libraries.map((l) => l.id).sort()).toEqual(['bmp280', 'ds1302', 'hcsr04', 'lcd', 'max30102', 'max7219', 'mfrc522', 'micropygps', 'mpu6050', 'rotary', 'ssd1306', 'tm1637', 'vl53l0x']);
   });
 
   it.each(pack.libraries.map((l) => [l.id, l] as const))('%s: upstream files unchanged with their licence; the micro:bit\'s own with its notice', (id, l) => {
-    const listed = new Set<string>(['LICENSE']);
+    const listed = new Set<string>(l.builds.some((b) => b.licenceFile) ? ['LICENSE'] : []);   // the RC522's is all MicroLab's
     for (const b of l.builds) {
       const mine = [...Object.keys(b.files), ...Object.values(b.boardFiles ?? {}).flatMap((f) => Object.keys(f))];
       mine.forEach((f) => listed.add(f));
@@ -45,12 +47,18 @@ describe('M6.7 the library pack, as shipped', () => {
 
   it('every library runs on every board: upstream on the Pico W and the ESP32, MicroLab\'s on the micro:bit, small', () => {
     for (const l of pack.libraries) {
-      expect(buildFor(l, 'pico-w')?.commit, l.id).toBeDefined();
-      expect(buildFor(l, 'esp32-devkit-v1')?.commit, l.id).toBeDefined();
+      // the RC522's: MicroLab's own everywhere — the driver people use builds its SPI bytes with b'%c' % v, two bytes
+      // from 0x80 on MicroPython 1.29, and calls SPI() with no id on the ESP32 (LICENCES.md)
+      if (OWN_EVERYWHERE.has(l.id)) expect(buildFor(l, 'pico-w')?.authors, l.id).toBe('MicroLab');
+      else {
+        expect(buildFor(l, 'pico-w')?.commit, l.id).toBeDefined();
+        expect(buildFor(l, 'esp32-devkit-v1')?.commit, l.id).toBeDefined();
+      }
       const mb = buildFor(l, 'microbit-v2')!;
       expect(mb.authors).toBe('MicroLab');
       const size = filesFor(l, 'microbit-v2').reduce((n, [from]) => n + read(from).length, 0);
-      expect(size, l.id).toBeLessThan(3 * 1024);   // of the micro:bit's ~20 KB
+      // of the micro:bit's ~20 KB; a display's drawing calls and 8×8 letters (768 bytes) take more (M7 slice 2)
+      expect(size, l.id).toBeLessThan((['ssd1306', 'max7219', 'mfrc522'].includes(l.id) ? 7 : 4) * 1024);   // the RC522's: a whole protocol
       for (const [, to] of filesFor(l, 'microbit-v2')) expect(to, 'no folders on the micro:bit').not.toContain('/');
     }
   });
@@ -90,7 +98,9 @@ describe('M6.7 what a part needs, and Add library', () => {
     expect(needsOf(pack, 'hc-sr04', 'microbit-v2')).toMatchObject({ kind: 'library', library: { id: 'hcsr04' } });
     expect(needsOf(pack, 'dht', 'microbit-v2')).toBeNull();
     expect(needsOf(pack, 'button', 'pico-w')).toBeNull();
-    expect(librariesFor(pack, 'microbit-v2')).toHaveLength(7);
+    expect(librariesFor(pack, 'microbit-v2')).toHaveLength(13);
+    expect(needsOf(pack, 'neopixel', 'microbit-v2')).toMatchObject({ kind: 'built-in', modules: ['neopixel'] });   // M7 slice 3
+    expect(needsOf(pack, 'gps', 'pico-w')).toMatchObject({ kind: 'library', library: { id: 'micropygps' } });   // M7 slice 5
     expect(filesFor(lib('max30102'), 'microbit-v2')).toEqual([['max30102/microbit/max30102.py', 'max30102.py']]);   // next to main.py, no licence file
   });
 

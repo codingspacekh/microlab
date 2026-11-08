@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { boardData, deletePart, deleteWire, duplicate, joinsOf, partKind, rotateParts, setBreadboardSize, setPartProp, setUsb, setWireColour, straighten, takeOutOfGpioBoard } from '@lib/editor';
+import { boardData, deleteMany, deleteWire, duplicate, joinsOf, partKind, rotateBoard, rotateParts, setBreadboardSize, setNeoPixel, setPartProp, setUsb, setWireColour, straighten, takeOutOfGpioBoard } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { BreadboardSize } from '@lib/circuit';
-import type { Project, ProjectDoc } from '@lib/project';
+import { NEOPIXEL, neopixelShape, type NeoPixelShape } from '@lib/circuit/neopixel';
+import { onGpioBoard, type Project, type ProjectDoc } from '@lib/project';
+import { boardName, boardPicture } from '../app/boards';
 import { formatValue } from '@lib/units';
 import { Chips, Icon, Segmented, Stepper, Swatches } from '../ui';
 import { GPIO_BOARD_TYPE, MESSAGES, wireColour, type Selection } from './Canvas';
@@ -30,11 +32,25 @@ const PRINTED: Record<string, [string, string][]> = {
   dht: [['vcc', 'VCC'], ['out', 'DATA'], ['gnd', 'GND']],
   'hc-sr04': [['vcc', 'VCC'], ['trig', 'Trig'], ['echo', 'Echo'], ['gnd', 'GND']],
   mpu6050: [['vcc', 'VCC'], ['gnd', 'GND'], ['scl', 'SCL'], ['sda', 'SDA'], ['xda', 'XDA'], ['xcl', 'XCL'], ['ad0', 'AD0'], ['int', 'INT']],
+  // M7: the servo's plug, the drivers' headers
+  servo: [['signal', 'S'], ['vcc', '+'], ['gnd', '−']],
+  ssd1306: [['gnd', 'GND'], ['vcc', 'VCC'], ['scl', 'SCL'], ['sda', 'SDA']],
+  rc522: [['sda', 'SDA'], ['sck', 'SCK'], ['mosi', 'MOSI'], ['miso', 'MISO'], ['irq', 'IRQ'], ['gnd', 'GND'], ['rst', 'RST'], ['vcc', '3.3V']],
+  'seven-segment': [['e', 'e'], ['d', 'd'], ['com2', 'COM'], ['c', 'c'], ['dp', 'dp'], ['g', 'g'], ['f', 'f'], ['com1', 'COM'], ['a', 'a'], ['b', 'b']],
+  l9110s: [['b-ia', 'B-IA'], ['b-ib', 'B-IB'], ['gnd', 'GND'], ['vcc', 'VCC'], ['a-ia', 'A-IA'], ['a-ib', 'A-IB']],
+  relay: [['s', 'S'], ['vcc', '+'], ['gnd', '−']],
+  uln2003: [['in1', 'IN1'], ['in2', 'IN2'], ['in3', 'IN3'], ['in4', 'IN4'], ['-', '−'], ['+', '+']],
   // the kit's modules (M6.5a): drawings.tsx KIT has their printed names
   ...Object.fromEntries(Object.entries(KIT).map(([type, k]) => [type, k.legs.map((l, i): [string, string] => [l, k.labels[i]!])])),
 };
 const BUZZERS = [{ value: 'active', label: 'Active' }, { value: 'passive', label: 'Passive' }];
+// M7 (screens 25, 25b)
+const TRIGGERS = [{ value: 'high', label: 'S high' }, { value: 'low', label: 'S low' }];
+const RAIL_VOLTS = [{ value: '5', label: '5 V' }, { value: '3.3', label: '3.3 V' }];
+const ON_OFF = [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }];
 const COMMONS = [{ value: 'cathode', label: '− cathode' }, { value: 'anode', label: '+ anode' }];
+// M7 slice 2 (screen 26): each display's I²C address, as its pads or its backpack set it
+const ADDRESSES: Record<string, number[]> = { ssd1306: [0x3c, 0x3d], lcd1602: [0x27, 0x3f] };
 /** A part's tip under its rows: what to know when it goes in. */
 const TIPS: Record<string, string> = {
   led: 'The long leg (+) goes towards the pin or 3.3 V, the short leg (−) by the flat edge towards GND. Turned round, an LED doesn\'t light.',
@@ -72,7 +88,37 @@ const TIPS: Record<string, string> = {
   vl53l0x: 'On I²C at 0x29 (XSHUT low: off). Its start-up is long: use a driver (the vl53l0x library, above). A range takes about 30 ms; nothing within 2 m reads 8190.',
   max30102: 'On I²C at 0x57. Set SpO2 mode (0x09 = 3), then read its FIFO: red and IR, 3 bytes each. A program finds the beats in IR, and the oxygen from red against IR.',
   battery: 'A supply of its own, not joined to the board. To use it with the board, join its − to the board\'s GND.',
+  // M7 (screens 25, 25b, 25c)
+  servo: 'S to a PWM pin at 50 Hz: a 0.5 ms pulse is 0°, 2.5 ms 180°. + needs 5 V (VBUS, VIN or 5V) — on 3.3 V it can\'t turn. It draws ≈ 200 mA while it turns.',
+  motor: 'Never straight on a pin: a motor needs far more current than a pin can give. Wire its tabs to a driver\'s screws (L9110S, L298N), the driver on 5 V.',
+  pump: 'Like a motor, it needs more than a pin can give: switch it with a relay module or a driver, on a supply of its own (a 4×AA pack).',
+  l9110s: 'A-IA high and A-IB low turns MOTOR A one way, the other way round the other way; both low stops it. PWM on one input sets the speed. VCC 2.5–12 V: VBUS, VIN or 5V.',
+  l298n: 'IN1 / IN2 turn motor A (OUT1, OUT2), IN3 / IN4 motor B. Its 12V screw takes the motors\' supply (5–12 V), GND joined to the board\'s. Its bridge loses about 2 V.',
+  relay: 'S high switches COM from NC to NO; its coil needs 5 V on + (VBUS, VIN or 5V) — on 3.3 V it doesn\'t pull in. What it switches is apart from the board.',
+  uln2003: 'IN1–IN4 to four pins, + to 5 V, − to GND. Turn on the coils in turn — A, AB, B, BC … — and the 28BYJ-48 steps: 4096 half steps a turn. Its LEDs show the coils.',
+  stepper: 'Its cable goes into the ULN2003\'s socket; it steps as the ULN2003\'s coils turn on in turn.',
+  'traffic-module': 'R, Y and G to three pins: each LED has its resistor on the board.',
+  'rgb-module': 'R, G and B to three pins (PWM mixes them), − to GND: each die has its resistor on the board.',
+  'buzzer-module': 'I/O to a PWM pin: PWM(Pin(15), freq=440) plays A4. VCC 3.3 V or 5 V.',
+  'power-supply': 'Up to 700 mA from its own jack or USB, apart from the board: join a GND to the board\'s. Each rail pair\'s jumper is 5 V or 3.3 V — click it on the canvas, or set it here.',
+  // M7 slice 2 (screens 26, 26b)
+  ssd1306: 'On I²C at 0x3C (0x3D with its pad moved); 3.3–5 V. Draw with the ssd1306 library, then show() sends the picture.',
+  lcd1602: 'Needs 5 V: on 3.3 V its letters are too faint to read. Its address must be the one in the code — i2c.scan() lists what answers.',
+  'seven-segment': 'Each segment is an LED: a pin to each, COM to GND through a resistor (common cathode). One resistor on COM is shared by the lit segments; one on each keeps them as bright.',
+  tm1637: 'Any two pins for CLK and DIO (the tm1637 library); 3.3–5 V.',
+  rc522: '3.3 V only — 5 V would damage a real one. SCK, MOSI and MISO to the board\'s SPI pins, SDA (its chip select) and RST to any two (the mfrc522 library). While it runs, hold the card or the key fob to it on the Inputs card.',
+  max7219: 'Needs 5 V (VBUS, VIN or 5V). DIN to SPI MOSI, CLK to SCK, CS to any pin; its right-hand header chains another.',
+  // M7 slice 5 (screens 28, 28b, 28c)
+  'usb-serial': 'Its terminal is what a serial monitor on the laptop shows. The board\'s TX to its RXD, its RX to TXD — they cross; GND to GND. The baud rate must be the board\'s.',
+  hc05: 'VCC on 5V; the board\'s TX to its RXD, its RX to TXD, 9600 baud. While the program runs, connect the phone on its card and send it messages.',
+  gps: 'Its TX to the board\'s RX (9600 baud): a sentence of where it is once a second. Set its place and fix on its card while the program runs.',
+  // M7 slice 3 (screen 27)
+  neopixel: 'Its 5V to VBUS, VIN or 5V (3.3 V works, a little dim). DIN to any pin — NeoPixel(Pin(0), 8); DOUT goes on to the next one\'s DIN. Each LED draws up to 60 mA at full white: keep them dim on USB.',
 };
+const SHAPES = [{ value: 'stick', label: 'Stick' }, { value: 'ring', label: 'Ring' }];
+const BAUD_RATES = [9600, 19200, 38400, 57600, 115200].map((b) => ({ value: String(b), label: String(b) }));
+const LINE_ENDINGS = [{ value: 'none', label: 'none' }, { value: 'lf', label: '\\n' }, { value: 'crlf', label: '\\r\\n' }];
+const BT_KINDS = [{ value: 'HC-05', label: 'HC-05' }, { value: 'JDY-31', label: 'JDY-31' }];
 const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({ value, name: value[0]!.toUpperCase() + value.slice(1), colour }));
 
 export interface InspectorProps {
@@ -111,10 +157,10 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
     const part = project.parts.find((p) => p.id === selection.id);
     if (!part) return null;
     const kind = partKind(part.type);
-    const set = (key: string, v: number | string) => onChange(setPartProp(project, part.id, key, v), `${part.id}.${key}`);
+    const set = (key: string, v: number | string | boolean) => onChange(setPartProp(project, part.id, key, v), `${part.id}.${key}`);
     icon = <PartIcon type={part.type} />;
     title = `${part.id.toUpperCase()} · ${kind.name}`;
-    remove = () => deletePart(project, part.id);
+    remove = () => deleteMany(project, { parts: [part.id], wires: [] });
     // screen 02b: Rotate · Duplicate · Delete
     partActions = (
       <div className="actions">
@@ -131,7 +177,7 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
           onChange(r.project);
           onSelect?.([{ kind: 'part', id: r.parts[0]! }]);
         }}><Icon name="copy" size={14} /></button>
-        <button type="button" className="btn sm icon danger" aria-label="Delete" title="Delete (Delete key)" onClick={() => { onChange(deletePart(project, part.id)); onClose(); }}>
+        <button type="button" className="btn sm icon danger" aria-label="Delete" title="Delete (Delete key)" onClick={() => { onChange(deleteMany(project, { parts: [part.id], wires: [] })); onClose(); }}>
           <Icon name="trash" size={14} />
         </button>
       </div>
@@ -178,6 +224,71 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
             <Segmented label="Battery pack" hideLabel full value={String(part.props?.kind ?? '2xAA')} onChange={(v) => set('kind', v)} options={PACKS} />
           </Row>
         )}
+        {ADDRESSES[part.type] && (
+          <Row name="Address">
+            <Segmented label="I²C address" hideLabel value={String(Number(part.props?.address ?? ADDRESSES[part.type]![0]))} onChange={(v) => set('address', Number(v))}
+              options={ADDRESSES[part.type]!.map((a) => ({ value: String(a), label: `0x${a.toString(16).toUpperCase()}` }))} />
+          </Row>
+        )}
+        {part.type === 'neopixel' && (() => {
+          const { shape, leds } = neopixelShape(part.props);
+          const size = (s: NeoPixelShape, n: number) => onChange(setNeoPixel(project, part.id, s, n));
+          return (
+            <>
+              <Row name="Shape">
+                <Segmented label="NeoPixel shape" hideLabel value={shape} onChange={(v) => size(v as NeoPixelShape, v === 'ring' ? 12 : 8)} options={SHAPES} />
+              </Row>
+              <Row name="LEDs">
+                <Segmented label="LEDs" hideLabel value={String(leds)} onChange={(v) => size(shape, Number(v))}
+                  options={NEOPIXEL.sizes[shape].map((n) => ({ value: String(n), label: String(n) }))} />
+              </Row>
+              <Row name="Full white"><span className="small">up to {leds * 60} mA — {leds} LEDs × 60 mA</span></Row>
+            </>
+          );
+        })()}
+        {part.type === 'usb-serial' && (
+          <>
+            <Row name="Baud" stack>
+              <Segmented label="Terminal baud rate" hideLabel full value={String(part.props?.baud ?? 9600)} onChange={(v) => set('baud', Number(v))} options={BAUD_RATES} />
+            </Row>
+            <Row name="Line ending">
+              <Segmented label="Line ending" hideLabel value={String(part.props?.ending ?? 'crlf')} onChange={(v) => set('ending', v)} options={LINE_ENDINGS} />
+            </Row>
+          </>
+        )}
+        {part.type === 'hc05' && (
+          <Row name="Kind">
+            <Segmented label="Bluetooth module" hideLabel value={String(part.props?.kind ?? 'HC-05')} onChange={(v) => set('kind', v)} options={BT_KINDS} />
+          </Row>
+        )}
+        {part.type === 'seven-segment' && (
+          <Row name="Common">
+            <Segmented label="Common pins" hideLabel value={String(part.props?.common ?? 'cathode')} onChange={(v) => set('common', v)} options={COMMONS} />
+          </Row>
+        )}
+        {part.type === 'relay' && (
+          <Row name="On with">
+            <Segmented label="Relay trigger" hideLabel value={String(part.props?.trigger ?? 'high')} onChange={(v) => set('trigger', v)} options={TRIGGERS} />
+          </Row>
+        )}
+        {part.type === 'l298n' && ([['ena', 'ENA jumper'], ['enb', 'ENB jumper'], ['regulator', '5V-EN jumper']] as const).map(([key, name]) => (
+          <Row key={key} name={name}>
+            <Segmented label={name} hideLabel value={part.props?.[key] === false ? 'off' : 'on'} onChange={(v) => set(key, v === 'on')} options={ON_OFF} />
+          </Row>
+        ))}
+        {part.type === 'power-supply' && (
+          <>
+            {(['top', 'bottom'] as const).map((pair) => (
+              <Row key={pair} name={pair === 'top' ? 'Top rails' : 'Bottom rails'}>
+                <Segmented label={pair === 'top' ? 'Top rails' : 'Bottom rails'} hideLabel value={String(part.props?.[pair] ?? (pair === 'top' ? 5 : 3.3))}
+                  onChange={(v) => set(pair, Number(v))} options={RAIL_VOLTS} />
+              </Row>
+            ))}
+            <Row name="Power">
+              <Segmented label="Power" hideLabel value={part.props?.on === false ? 'off' : 'on'} onChange={(v) => set('on', v === 'on')} options={ON_OFF} />
+            </Row>
+          </>
+        )}
         {part.type === 'potentiometer' && (
           <Row name="Value">
             <Segmented label="Potentiometer value" hideLabel value={String(ohms)} onChange={(v) => set('ohms', Number(v))}
@@ -205,6 +316,16 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
               <span><b className="minus">−</b> <span className="mono">{label(part.legs['-']!)}</span></span>
             </span>
           </Row>
+        ) : part.type === 'stepper' ? (
+          <Row name="Cable in">
+            <span className="small">{part.legs.red ? `${part.legs.red.slice(0, part.legs.red.indexOf('.')).toUpperCase()}'s socket` : 'nothing — plug it into a ULN2003'}</span>
+          </Row>
+        ) : kind.free ? (
+          <Row name="Lies">
+            <span className="small">beside the breadboard — wire its {part.type === 'l298n' ? 'screws and header pins' : ['lcd1602', 'tm1637', 'max7219'].includes(part.type) ? 'header pins' : part.type === 'neopixel' ? 'pads' : ['usb-serial', 'hc05', 'gps'].includes(part.type) ? 'header pins' : 'tabs'}</span>
+          </Row>
+        ) : part.type === 'power-supply' ? (
+          <Row name="Pins in"><span className="small mono">{label(part.legs['t-1']!).replace(/^T-/, 'columns ')}–{Number(label(part.legs['t-1']!).replace(/^T-/, '')) + 1}, both rail pairs</span></Row>
         ) : PRINTED[part.type] ? (
           <Row name="Legs in"><span className="small mono">{PRINTED[part.type]!.map(([leg, name]) => `${name} ${label(part.legs[leg]!)}`).join(', ')}</span></Row>
         ) : part.type === 'rgb-led' ? (
@@ -253,6 +374,18 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
         <p className="tiny muted led-tip">Drag a bend to move it, double-click it to take it away; drag a dot in the middle of a stretch to add one.</p>
       </>
     );
+  } else if (selection.kind === 'board' && !onGpioBoard(project)) {
+    // M7 (the teacher's request): the board itself, turned a quarter at a time; its wires stay on its pins
+    icon = <img src={boardPicture(project)} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;
+    title = boardName(project);
+    rows = (
+      <>
+        <p className="tiny muted board-sub">Its pins are where its picture has them; turned, the wires stay on them.</p>
+        <div className="actions">
+          <button type="button" className="btn sm" title="Rotate (R)" onClick={() => onChange(rotateBoard(project))}><Icon name="rotate" size={14} /> Rotate</button>
+        </div>
+      </>
+    );
   } else if (selection.kind === 'board') {
     // M6.9 (screen 24b): the micro:bit's GPIO board — its micro-USB, and the micro:bit taken out of it
     icon = <PartIcon type={GPIO_BOARD_TYPE} />;
@@ -267,6 +400,7 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
         </Row>
         <p className="tiny muted led-tip">Without the GPIO board the micro:bit has its five rings: 0, 1, 2, 3V and GND.</p>
         <div className="actions">
+          <button type="button" className="btn sm" title="Rotate (R)" onClick={() => onChange(rotateBoard(project))}><Icon name="rotate" size={14} /> Rotate</button>
           <button type="button" className="btn sm danger" onClick={() => {
             const r = takeOutOfGpioBoard(project);
             onChange(r.project);
@@ -283,8 +417,8 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
     title = `${bb.id.toUpperCase()} · Breadboard`;
     rows = (
       <>
-        <Row name="Size">
-          <Segmented<BreadboardSize> label="Breadboard size" hideLabel value={bb.size}
+        <Row name="Size" stack>
+          <Segmented<BreadboardSize> label="Breadboard size" hideLabel full value={bb.size}
             options={[{ value: 'mini', label: 'Mini · 17' }, { value: 'half', label: 'Half · 30' }, { value: 'full', label: 'Full · 63' }]}
             onChange={(size) => {
               const next = setBreadboardSize(project, bb.id, size);

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>27b NeoPixels on the micro:bit</title>
+{{include:head}}
+<style>
+.rail { flex: 0 0 56px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; z-index: 3; }
+.rail .rb { width: 44px; padding: 6px 0 5px; border-radius: 9px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; color: var(--tx-2); font-weight: 550; }
+.rail .rb .pic { width: 30px; height: 30px; display: grid; place-items: center; }
+.legend2 { padding: 10px 12px; } .legend2 .r { display: grid; grid-template-columns: 56px 1fr; gap: 6px; font-size: 11.5px; margin-top: 6px; line-height: 1.35; } .legend2 .r b { font-family: var(--mono); font-size: 11px; }
+.meter { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 4px; } .meter i { display: block; height: 100%; background: var(--run); }
+</style>
+</head>
+<body>
+<!--@PROJECT: Rainbow ring-->
+<!--@PROJECT_SUB: micro:bit V2 · saved just now-->
+<!--@BOARD: BBC micro:bit V2 on its GPIO board-->
+<!--@BOARD_PIC: {{part:microbit:bp}}-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 00:12-->
+<!--@EDITOR: {{code:rainbowring:cur=20}}-->
+<!--@COUNTS: micro:bit + GPIO board + 1 part · 3 wires-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">micro:bit v2.1.2 on BBC micro:bit V2 (simulated)</span>
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running main.py — Stop or <span class="kbd">Ctrl</span>+<span class="kbd">C</span> breaks in</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span><span>NeoPixels: 12 LEDs draw 37 mA of the GPIO board's USB</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.05 ms</span>-->
+<p class="frame-label"><b>27b · NeoPixels on the micro:bit</b> (M7 design, slice 3) — the "Rainbow ring" example: a ring of 12 lies beside the micro:bit's GPIO board, wired straight to its header (no breadboard): <b>DIN on P0</b>, its <b>5V</b> and <b>GND</b> — the GPIO board's 5V comes from its own USB. The micro:bit's <code>neopixel</code> is its own module: <code>NeoPixel(pin0, 12)</code>, <code>np[i] = (r, g, b)</code>, <code>fill()</code>, <code>clear()</code> and <b><code>show()</code></b> (MicroPython on the Pico W and ESP32 says <code>write()</code>; the micro:bit takes both), its errors as the micro:bit's — a colour above 255 is <code>ValueError: invalid colour</code>, an LED past the end <code>IndexError: index out of bounds</code>. On the micro:bit's own 3V a ring is a warning: what the micro:bit's 3V can give to its pins is a few hundred mA at most (the build takes the number from its datasheet), a ring of 12 asks up to 720 mA. The completions know both modules</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    <nav class="rail">
+      <span class="rb" title="BBC micro:bit V2 on its GPIO board — its pinout"><span class="pic">{{part:microbit:bp}}</span>Board</span>
+      <span class="rb">{{i:grid:s20}}Parts</span>
+    </nav>
+    <div class="canvas">
+      <div class="stage">{{scene:neopixelsmb}}
+      <div class="float legend2" style="right:14px;top:14px;width:208px">
+        <div class="row small" style="gap:6px">{{i:sliders:s14}} <b>RING1 · 12 LEDs</b></div>
+        <div class="r"><span class="muted">Colours</span><span>a rainbow, an eighth bright, turning</span></div>
+        <div class="r"><span class="muted">Current</span><span><b>37 mA</b> · up to 720 mA</span></div>
+        <div class="meter"><i style="width:5%"></i></div>
+        <div class="r"><span class="muted">From</span><span>the GPIO board's 5V (its USB)</span></div>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

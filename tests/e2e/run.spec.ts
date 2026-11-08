@@ -34,7 +34,11 @@ test.afterEach(async () => {
 });
 
 const centre = async (win: Page, selector: string) => {
-  if (selector.includes('.pitem')) await win.locator(selector).first().scrollIntoViewIfNeeded();   // the panel scrolls
+  if (selector.includes('.pitem')) {
+    // M7: the panel folds away once the canvas is used — open it again, as a student would
+    if (!(await win.locator('section.parts').isVisible())) await win.getByRole('button', { name: 'Parts', exact: true }).click();
+    await win.locator(selector).first().scrollIntoViewIfNeeded();   // the panel scrolls
+  }
   const b = (await win.locator(selector).first().boundingBox())!;
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 };
@@ -295,12 +299,10 @@ test('M6.5a (screen 20): a joystick dragged and an IR obstacle sensor clicked, r
   await startBuilding(win);
   // joystick in f2–f6: GND, VCC 3V3, VRx GP26; IR obstacle in f10–f12: OUT GP14, GND, VCC 3V3 (the Modules group is
   // far down the parts panel: each item is scrolled into view first)
-  await win.locator('.parts .pitem:has-text("Joystick")').scrollIntoViewIfNeeded();
   await drag(win, await centre(win, '.parts .pitem:has-text("Joystick")'), await centre(win, '[data-point="bb1.f4"]'));
   await drag(win, await centre(win, '[data-point="board.GND@38"]'), await centre(win, '[data-point="bb1.j2"]'));
   await drag(win, await centre(win, '[data-point="board.3V3"]'), await centre(win, '[data-point="bb1.j3"]'));
   await drag(win, await centre(win, '[data-point="board.GP26"]'), await centre(win, '[data-point="bb1.j4"]'));
-  await win.locator('.parts .pitem:has-text("IR obstacle")').scrollIntoViewIfNeeded();
   await drag(win, await centre(win, '.parts .pitem:has-text("IR obstacle")'), await centre(win, '[data-point="bb1.f11"]'));
   await drag(win, await centre(win, '[data-point="board.GP14"]'), await centre(win, '[data-point="bb1.j10"]'));
   await drag(win, await centre(win, '[data-point="board.GND@18"]'), await centre(win, '[data-point="bb1.j11"]'));
@@ -399,4 +401,167 @@ test('M6.7 (screen 22): Add a library from the + menu puts bmp280 in lib/ with i
     const box = (await b.boundingBox())!;
     expect(box.x + box.width).toBeLessThanOrEqual(panel.x + panel.width);
   }
+});
+
+test('M7.1 (screens 25, 25c): a TT motor dropped beside the breadboard, wired at its tabs — through an L9110S it turns; straight on GP15 the pin is damaged', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
+  // the L9110S in f8–f13: GND, VCC VBUS, A-IA GP17, A-IB GP16; the motor below the breadboard, on MOTOR A
+  await win.locator('.parts .pitem:has-text("L9110S")').scrollIntoViewIfNeeded();
+  await drag(win, await centre(win, '.parts .pitem:has-text("L9110S")'), await between(win, 'bb1.f10', 'bb1.f11'));
+  const below = await centre(win, '[data-point="bb1.B-20"]');
+  await win.locator('.parts .pitem:has-text("TT motor")').scrollIntoViewIfNeeded();
+  await drag(win, await centre(win, '.parts .pitem:has-text("TT motor")'), { x: below.x, y: below.y + 90 });
+  await drag(win, await centre(win, '[data-point="board.GND@38"]'), await centre(win, '[data-point="bb1.j10"]'));
+  await drag(win, await centre(win, '[data-point="board.VBUS"]'), await centre(win, '[data-point="bb1.j11"]'));
+  await drag(win, await centre(win, '[data-point="board.GP17"]'), await centre(win, '[data-point="bb1.j12"]'));
+  await drag(win, await centre(win, '[data-point="board.GP16"]'), await centre(win, '[data-point="bb1.j13"]'));
+  await drag(win, await centre(win, '[data-point="drv1.a1"]'), await centre(win, '[data-point="motor1.+"]'));
+  await drag(win, await centre(win, '[data-point="drv1.a2"]'), await centre(win, '[data-point="motor1.-"]'));
+  await win.keyboard.press('Escape');
+  await setCode(win, ['from machine import Pin', 'import time', 'Pin(16, Pin.OUT, value=0)', 'Pin(17, Pin.OUT, value=1)', 'time.sleep(10)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect.poll(async () => Number(await win.locator('[data-part="motor1"] .tt-motor').getAttribute('data-rpm')), { timeout: 5000 }).toBeGreaterThan(150);
+  await expect(win.locator('[data-part="motor1"] .tt-motor')).toHaveAttribute('data-direction', '1');
+  await win.getByRole('button', { name: 'Stop' }).click();
+  await expect(win.getByRole('button', { name: 'Run main.py' })).toBeEnabled({ timeout: 2000 });
+
+  // screen 25c: the motor's + straight on GP15 — the wire from MOTOR A taken off first
+  await win.locator('[data-wire="w5"]').dispatchEvent('mousedown', { button: 0 });
+  await expect(win.getByRole('complementary', { name: 'Inspector' })).toContainText('W5 · Wire');
+  await win.getByRole('complementary', { name: 'Inspector' }).getByRole('button', { name: 'Delete' }).click();
+  await drag(win, await centre(win, '[data-point="board.GP15"]'), await centre(win, '[data-point="motor1.+"]'));
+  await win.keyboard.press('Escape');
+  await setCode(win, ['from machine import Pin', 'import time', 'Pin(15, Pin.OUT).on()', 'time.sleep(10)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.getByRole('log', { name: 'Console' })).toContainText(/GP15: motor1 straight on the pin draws \d+ mA, a pin gives 12 mA at most/, { timeout: 5000 });
+  await expect(win.getByRole('status')).toContainText('Stopped: the circuit was damaged');
+});
+
+test('M7.2 (screens 26, 26c): a 16×2 LCD dropped beside the breadboard, wired at its backpack\'s pins, its library added from the inspector — it shows what putstr wrote; on 3V3 it is too faint', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
+  const below = await centre(win, '[data-point="bb1.B-20"]');
+  await drag(win, await centre(win, '.parts .pitem:has-text("LCD 16×2")'), { x: below.x, y: below.y + 110 });
+  for (const [pin, t] of [['board.GND@38', 'gnd'], ['board.VBUS', 'vcc'], ['board.GP21', 'scl'], ['board.GP20', 'sda']]) {
+    await drag(win, await centre(win, `[data-point="${pin}"]`), await centre(win, `[data-point="lcd1.${t}"]`));
+    await win.keyboard.press('Escape');   // the wire's inspector closed again, the canvas as it was
+    await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  }
+  await expect(win.locator('[data-wire]')).toHaveCount(4);
+  await win.keyboard.press('Escape');
+  const lcd = (await win.locator('[data-part="lcd1"] .lcd1602').boundingBox())!;
+  await win.mouse.click(lcd.x + lcd.width - 12, lcd.y + lcd.height - 12);   // its board's corner, away from the wires
+  await expect(win.getByRole('complementary', { name: 'Inspector' })).toContainText('LCD1');
+  await win.getByRole('complementary', { name: 'Inspector' }).getByRole('button', { name: 'Add the lcd library' }).click();
+  await setCode(win, ['from machine import Pin, I2C', 'from i2c_lcd import I2cLcd', 'import time',
+    'lcd = I2cLcd(I2C(0, sda=Pin(20), scl=Pin(21)), 0x27, 2, 16)', "lcd.putstr('Hello, MicroLab!')", 'time.sleep(10)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.locator('[data-part="lcd1"] .lcd1602')).toHaveAttribute('data-rows', /^Hello, MicroLab!\n/, { timeout: 5000 });
+  await expect(win.locator('[data-part="lcd1"] .lcd1602')).toHaveAttribute('data-faint', '0');
+  await win.getByRole('button', { name: 'Stop' }).click();
+  await expect(win.getByRole('button', { name: 'Run main.py' })).toBeEnabled({ timeout: 2000 });
+
+  // screen 26c: its VCC on 3V3 — the wire from VBUS taken off first
+  await win.locator('[data-wire="w2"]').dispatchEvent('mousedown', { button: 0 });
+  await win.getByRole('complementary', { name: 'Inspector' }).getByRole('button', { name: 'Delete' }).click();
+  await drag(win, await centre(win, '[data-point="board.3V3"]'), await centre(win, '[data-point="lcd1.vcc"]'));
+  await win.keyboard.press('Escape');
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.locator('[data-part="lcd1"] .lcd1602')).toHaveAttribute('data-faint', '1', { timeout: 5000 });
+  const box = (await win.locator('[data-part="lcd1"] .lcd1602').boundingBox())!;
+  await win.mouse.move(box.x + box.width / 2, box.y + 20);
+  await expect(win.getByRole('tooltip')).toContainText('too faint to read: a 16×2 LCD needs 5 V');
+});
+
+test('M7.3 (screens 27, 27c): a NeoPixel dropped beside the breadboard, made a ring of 12 in its inspector, wired at its pads — its LEDs show what write() sent; hovered, an LED says its colour; data on DOUT lights nothing', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
+  const below = await centre(win, '[data-point="bb1.B-20"]');
+  await drag(win, await centre(win, '.parts .pitem:has-text("NeoPixel")'), { x: below.x, y: below.y + 120 });
+  await expect(win.locator('[data-part="neo1"] .neopixel')).toHaveAttribute('data-shape', 'stick');
+  const stick = (await win.locator('[data-part="neo1"] .neopixel').boundingBox())!;
+  await win.mouse.click(stick.x + stick.width / 2, stick.y + 4);   // its strip, above the LEDs
+  const inspector = win.getByRole('complementary', { name: 'Inspector' });
+  await expect(inspector).toContainText('NEO1');
+  await inspector.getByRole('radio', { name: 'Ring' }).click();
+  await expect(win.locator('[data-part="neo1"] .neopixel')).toHaveAttribute('data-leds', '12');
+  await win.keyboard.press('Escape');
+  for (const [pin, t] of [['board.GND@38', 'gnd'], ['board.VBUS', 'vcc'], ['board.GP0', 'din']]) {
+    await drag(win, await centre(win, `[data-point="${pin}"]`), await centre(win, `[data-point="neo1.${t}"]`));
+    await win.keyboard.press('Escape');
+    await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  }
+  await expect(win.locator('[data-wire]')).toHaveCount(3);
+  await setCode(win, ['from machine import Pin', 'from neopixel import NeoPixel', 'import time', 'np = NeoPixel(Pin(0), 12)',
+    'np[0] = (40, 0, 0)', 'np[3] = (0, 0, 80)', 'np.write()', 'time.sleep(10)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.locator('[data-part="neo1"] .neopixel')).toHaveAttribute('data-lit', '2', { timeout: 5000 });
+  await expect(win.getByRole('status')).toContainText(/NeoPixels: 12 LEDs draw \d+ mA of USB's 500 mA/);
+  const led = (await win.locator('[data-part="neo1"] [data-led="3"] .np-body').boundingBox())!;
+  await win.mouse.move(led.x + led.width / 2, led.y + led.height / 2);
+  await expect(win.getByRole('tooltip')).toContainText('NEO1 · LED 3 of 12');
+  await expect(win.getByRole('tooltip')).toContainText('(0, 0, 80) — blue, 31 %');
+  await win.getByRole('button', { name: 'Stop' }).click();
+  await expect(win.getByRole('button', { name: 'Run main.py' })).toBeEnabled({ timeout: 2000 });
+
+  // screen 27c: GP0's wire on DOUT instead — nothing lights
+  await win.locator('[data-wire="w3"]').dispatchEvent('mousedown', { button: 0 });
+  await inspector.getByRole('button', { name: 'Delete' }).click();
+  await drag(win, await centre(win, '[data-point="board.GP0"]'), await centre(win, '[data-point="neo1.dout"]'));
+  await win.keyboard.press('Escape');
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.locator('[data-part="neo1"] .neopixel')).toHaveAttribute('data-lit', '0', { timeout: 5000 });
+  await expect(win.getByRole('status')).toContainText('NeoPixels: 12 LEDs draw');
+});
+
+test('M7.4 (screen 06): the micro:bit\'s speaker in the real worker — a built-in sound, a sine sound effect, and silence once the program turns the speaker off', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New micro:bit project' }).click();
+  await setCode(win, ['from microbit import *', 'import audio, music', 'audio.play(Sound.HELLO)',
+    'audio.play(audio.SoundEffect(freq_start=400, freq_end=400, duration=1500, waveform=audio.SoundEffect.WAVEFORM_SINE, shape=audio.SoundEffect.SHAPE_LINEAR))',
+    'speaker.off()', 'music.pitch(440, 5000)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const speaker = win.locator('.speaker');
+  await expect(speaker).not.toHaveAttribute('data-hz', '0', { timeout: 3000 });   // hello
+  await expect(speaker).toHaveAttribute('data-wave', 'sine', { timeout: 3000 });  // the sound effect
+  await expect(win.getByRole('button', { name: /Sound on/ })).toBeVisible();
+  await expect(speaker).toHaveAttribute('data-hz', '0', { timeout: 4000 });      // the speaker off: pin 0 plays alone
+  await win.getByRole('button', { name: 'Stop' }).click();
+});
+
+test('M7.5 (screens 28, 28d): a USB-serial adapter dropped below the Pico W, wired to UART0 — its terminal shows what the board sends and sends it a line; at the wrong baud rate, garbage and why', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
+  const gp0 = await centre(win, '[data-point="board.GP0"]');
+  await drag(win, await centre(win, '.parts .pitem:has-text("USB-serial adapter")'), { x: gp0.x + 40, y: gp0.y + 110 });
+  await expect(win.locator('[data-part="usb1"] .usb-serial')).toBeVisible();
+  await win.keyboard.press('Escape');
+  for (const [pin, t] of [['board.GP0', 'rxd'], ['board.GP1', 'txd'], ['board.GND@3', 'gnd']]) {
+    await drag(win, await centre(win, `[data-point="${pin}"]`), await centre(win, `[data-point="usb1.${t}"]`));
+    await win.keyboard.press('Escape');
+    await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  }
+  await expect(win.locator('[data-wire]')).toHaveCount(3);
+  await setCode(win, ['from machine import UART, Pin', 'import time', 'u = UART(0, 9600, tx=Pin(0), rx=Pin(1))', "u.write('Hello! Type on or off.\\r\\n')",
+    'while True:', '    if u.any():', "        u.write('got ' + u.readline().decode())", '    time.sleep_ms(20)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const term = win.getByRole('group', { name: 'USB1 serial terminal' });
+  await expect(term.getByLabel('What USB1 received')).toContainText('Hello! Type on or off.', { timeout: 5000 });
+  await term.getByRole('textbox', { name: 'Send from USB1' }).fill('on');
+  await term.getByRole('button', { name: 'Send' }).click();
+  await expect(term.getByLabel('What USB1 received')).toContainText('got on', { timeout: 5000 });
+  await expect(win.getByRole('status')).toContainText(/USB1 9600 baud: got \d+ bytes · sent 4/);
+  // screen 28d: the terminal at 115200 — what comes next is garbage, and the card says why
+  await term.getByRole('combobox', { name: 'USB1 baud rate' }).click();
+  await win.getByRole('option', { name: '115200 baud' }).click();
+  await term.getByRole('textbox', { name: 'Send from USB1' }).fill('off');
+  await term.getByRole('button', { name: 'Send' }).click();
+  await expect(term).toContainText('Garbled? The board sends at 9600 baud; this terminal reads 115200.', { timeout: 5000 });
+  // and the board read garbage of what the terminal sent at 115200: decode() fails, as on the real one
+  await expect(win.locator('.console')).toContainText('UnicodeError', { timeout: 5000 });
 });

@@ -45,3 +45,25 @@ os = _Os()
 for _name in ('listdir', 'ilistdir', 'mkdir', 'rmdir', 'remove', 'unlink', 'rename', 'stat', 'statvfs', 'chdir', 'getcwd'):
     setattr(os, _name, _wrap(getattr(_os, _name)))
 os.__name__ = 'os'
+
+
+class uname_result:
+    """os.uname()'s answer: five fields, by name or by place (uname()[0] is the sysname)."""
+
+    def __init__(self, values):
+        self.sysname, self.nodename, self.release, self.version, self.machine = values
+        self._values = values
+
+    def __getitem__(self, i):
+        return self._values[i]
+
+    def __len__(self):
+        return 5
+
+    def __repr__(self):
+        return "(sysname='%s', nodename='%s', release='%s', version='%s', machine='%s')" % self._values
+
+
+def set_uname(values):
+    """The board's os.uname() (M7: drivers that ask which board they run on — the RC522's mfrc522.py)."""
+    os.uname = lambda: uname_result(values)

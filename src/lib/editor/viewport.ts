@@ -1,7 +1,8 @@
 import { strips, connect } from '../circuit';
 import { toCircuit, type Project } from '../project';
-import { BREADBOARD, type Point, type Scene } from './geometry';
+import { BREADBOARD, boardBox, pointAt, type Point, type Scene } from './geometry';
 import { boardData } from './library';
+import { freeBox, kindTerminals, PART_KINDS } from './parts';
 
 /**
  * What the canvas shows (M5.2, F-17) and what lights up under the pointer (F-12). The canvas's viewBox is a box in
@@ -16,7 +17,7 @@ const PAD = 48;
  *  project is the board alone) it keeps room for a half one where the first goes, so the board isn't blown up. */
 export function fitBox(scene: Scene, pad = PAD): Box {
   const art = scene.art;
-  const boxes: Box[] = [{ x: scene.view.board.x, y: scene.view.board.y, w: art.width, h: art.height }];
+  const boxes: Box[] = [boardBox(scene)];   // turned (M7)
   if (!scene.project.breadboards.length) {
     const s = BREADBOARD.size('half');
     boxes.push({ x: scene.view.board.x + (art.width - s.width) / 2, y: scene.view.board.y + art.height + 40, w: s.width, h: s.height });
@@ -28,6 +29,15 @@ export function fitBox(scene: Scene, pad = PAD): Box {
     boxes.push({ x: at.x, y: at.y + s.top, w: s.width, h: s.height });
   }
   for (const w of scene.project.wires) for (const p of w.via ?? []) boxes.push({ x: p.x, y: p.y, w: 0, h: 0 });
+  // the parts that lie beside the breadboard (M7)
+  for (const part of scene.project.parts) {
+    const at = scene.view.parts?.[part.id];
+    const b = PART_KINDS.find((k) => k.type === part.type)?.free ? freeBox(part.type, at?.turns, part.props) : undefined;
+    if (at && b) boxes.push({ x: at.x + b[0], y: at.y + b[1], w: b[2] - b[0], h: b[3] - b[1] });
+    // the power supply's body reaches left of the breadboard's end
+    const first = part.type === 'power-supply' ? pointAt(scene, part.legs['t-1'] ?? '') : undefined;
+    if (first) boxes.push({ x: first.x - 102, y: first.y - 16, w: 102, h: 294 });
+  }
   const x0 = Math.min(...boxes.map((b) => b.x)) - pad;
   const y0 = Math.min(...boxes.map((b) => b.y)) - pad;
   const x1 = Math.max(...boxes.map((b) => b.x + b.w)) + pad;
@@ -51,11 +61,17 @@ export function panBy(box: Box, dx: number, dy: number, scale: number): Box {
 /** A breadboard strip that is lit, by its first and last hole (its holes run between them). */
 export interface LitStrip { from: string; to: string }
 
-/** Every hole and board pin joined to `ref` by the breadboard, wires and the board's own links — not through parts —
- *  and the strips among them (F-12). Part legs are left out: they are not points on the canvas. */
+/** Every hole, board pin and terminal joined to `ref` by the breadboard, wires and the board's own links — not
+ *  through parts — and the strips among them (F-12). Part legs are left out: they are not points on the canvas; a
+ *  part's terminals (M7: screws, tabs) are. */
 export function joined(project: Project, ref: string): { points: string[]; strips: LitStrip[] } {
   const net = connect(toCircuit(project, boardData(project.board as Scene['boardId'])));
-  const points = net.pointsInNet(ref).filter((p) => p.startsWith('board.') || project.breadboards.some((b) => p.startsWith(`${b.id}.`)));
+  const terminal = (p: string) => {
+    const part = project.parts.find((q) => q.id === p.slice(0, p.indexOf('.')));
+    const leg = p.slice(p.indexOf('.') + 1);
+    return !!part && !part.legs[leg] && !!PART_KINDS.find((k) => k.type === part.type) && !!kindTerminals(part.type, part.props)[leg];
+  };
+  const points = net.pointsInNet(ref).filter((p) => p.startsWith('board.') || project.breadboards.some((b) => p.startsWith(`${b.id}.`)) || terminal(p));
   const set = new Set(points);
   const lit: LitStrip[] = [];
   for (const bb of project.breadboards) {

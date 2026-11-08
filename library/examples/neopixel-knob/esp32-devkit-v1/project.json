@@ -1,0 +1,88 @@
+{
+  "format": 1,
+  "title": "NeoPixel rainbow and spinner",
+  "board": "esp32-devkit-v1",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "strip1",
+      "type": "neopixel",
+      "props": {
+        "shape": "stick",
+        "leds": 8
+      },
+      "legs": {}
+    },
+    {
+      "id": "ring1",
+      "type": "neopixel",
+      "props": {
+        "shape": "ring",
+        "leds": 12
+      },
+      "legs": {}
+    },
+    {
+      "id": "knob1",
+      "type": "potentiometer",
+      "props": {},
+      "legs": {
+        "1": "bb1.f5",
+        "2": "bb1.f6",
+        "3": "bb1.f7"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "strip1.vcc",
+      "b": "board.VIN"
+    },
+    {
+      "id": "w2",
+      "a": "strip1.gnd",
+      "b": "board.GND"
+    },
+    {
+      "id": "w3",
+      "a": "strip1.din",
+      "b": "board.D5"
+    },
+    {
+      "id": "w4",
+      "a": "ring1.vcc",
+      "b": "strip1.vcc2"
+    },
+    {
+      "id": "w5",
+      "a": "ring1.gnd",
+      "b": "strip1.gnd2"
+    },
+    {
+      "id": "w6",
+      "a": "ring1.din",
+      "b": "board.D18"
+    },
+    {
+      "id": "w7",
+      "a": "board.3V3",
+      "b": "bb1.j5"
+    },
+    {
+      "id": "w8",
+      "a": "board.D34",
+      "b": "bb1.j6"
+    },
+    {
+      "id": "w9",
+      "a": "bb1.j7",
+      "b": "board.GND"
+    }
+  ]
+}

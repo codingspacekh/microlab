@@ -1,0 +1,71 @@
+{
+  "format": 1,
+  "title": "Serial LED",
+  "board": "microbit-v2",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "usb1",
+      "type": "usb-serial",
+      "props": {
+        "baud": 9600,
+        "ending": "crlf"
+      },
+      "legs": {}
+    },
+    {
+      "id": "r1",
+      "type": "resistor",
+      "props": {
+        "ohms": 220
+      },
+      "legs": {
+        "a": "bb1.a5",
+        "b": "bb1.a8"
+      }
+    },
+    {
+      "id": "led1",
+      "type": "led",
+      "props": {
+        "color": "red"
+      },
+      "legs": {
+        "a": "bb1.b8",
+        "k": "bb1.b10"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.P1",
+      "b": "usb1.rxd"
+    },
+    {
+      "id": "w2",
+      "a": "board.P0",
+      "b": "usb1.txd"
+    },
+    {
+      "id": "w3",
+      "a": "board.GND",
+      "b": "usb1.gnd"
+    },
+    {
+      "id": "w4",
+      "a": "board.P2",
+      "b": "bb1.e5"
+    },
+    {
+      "id": "w5",
+      "a": "board.GND",
+      "b": "bb1.e10"
+    }
+  ]
+}

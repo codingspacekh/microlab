@@ -81,7 +81,7 @@ describe('M4.3 a free spot (a part clicked in the parts panel)', () => {
   it('a part is held by the middle of its legs: a resistor between a and b, a button in its centre', () => {
     expect(legsCentre('resistor')).toEqual([24, 0]);
     expect(legsCentre('button')).toEqual([16, 24]);
-    expect(() => partKind('servo')).toThrow(/no part "servo"/);
+    expect(() => partKind('flux-capacitor')).toThrow(/no part "flux-capacitor"/);
   });
 
   it('each part kind has a name, legs the circuit knows, and its first props', () => {
@@ -128,9 +128,12 @@ describe('M6.1 the inputs pack in the editor', () => {
     expect(Object.keys(partKind('battery').legs)).toEqual(['+', '-']);
   });
 
-  it('every part kind\'s legs are the ones its circuit model has', async () => {
+  it('every part kind\'s legs and terminals (M7) are the ones its circuit model has', async () => {
     const { MODELS } = await import('@lib/circuit');
-    for (const k of PART_KINDS) expect(Object.keys(k.legs).sort()).toEqual([...MODELS[k.type]!.legs].sort());
+    for (const k of PART_KINDS) {
+      expect([...Object.keys(k.legs), ...Object.keys(k.terminals ?? {})].sort()).toEqual([...MODELS[k.type]!.legs].sort());
+      expect(Object.keys(k.terminals ?? {}).sort()).toEqual([...MODELS[k.type]!.terminals ?? []].sort());
+    }
   });
 });
 
@@ -183,7 +186,7 @@ describe('M6.5a the kit\'s modules in the editor', () => {
   it('in the Modules group, each with the legs its model has, in row f first', () => {
     expect(PART_KINDS.filter((k) => k.group === 'Modules').map((k) => k.type)).toEqual([
       'button-module', 'touch', 'vibration', 'ir-obstacle', 'hall', 'flame', 'raindrop', 'water-level', 'mq2',
-      'ldr-module', 'pot-module', 'joystick', 'rotary-encoder', 'speed-sensor',
+      'ldr-module', 'pot-module', 'joystick', 'rotary-encoder', 'speed-sensor', 'rc522',   // M7: the RFID reader
     ]);
     expect(freeSpot(sceneOf(empty()), 'joystick')).toEqual({ gnd: 'bb1.f1', vcc: 'bb1.f2', vrx: 'bb1.f3', vry: 'bb1.f4', sw: 'bb1.f5' });
     expect(snapPart(sceneOf(empty()), 'flame', at(empty(), 'bb1.f21'))).toEqual({ ao: 'bb1.f21', gnd: 'bb1.f22', vcc: 'bb1.f23', out: 'bb1.f24' });

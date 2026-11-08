@@ -1105,6 +1105,625 @@ def servo(x: float, y: float, angle: float = 90, s: float = 1.0, wires: bool = T
     return "".join(o) + "</g>"
 
 
+# ------------------------------------------------------------------ M7 slice 1: actuators (screens 25, 25b, 25c)
+def screw_block(x, y, labels, pitch: float = 11, label_above: bool = True):
+    """A green screw terminal block, its screws left to right from (x, y) (the first screw's centre), one `pitch`
+    apart. A wire's end goes into a screw: each screw is a point to wire, like a board's pin (M7: terminals).
+    Returns (svg, {label: (x, y)})."""
+    n = len(labels)
+    w = (n - 1) * pitch + 10
+    o = [f'<rect x="{f(x - 5)}" y="{f(y - 6)}" width="{f(w)}" height="12" rx="1.5" fill="#2f9d57" stroke="#1d6b3a"/>']
+    pts = {}
+    for i, lab in enumerate(labels):
+        sx = x + i * pitch
+        pts[lab] = (sx, y)
+        o.append(f'<circle cx="{f(sx)}" cy="{f(y)}" r="3.8" fill="#c7ccd2" stroke="#7d848c" stroke-width=".7"/>'
+                 f'<line x1="{f(sx - 2.4)}" y1="{f(y - 1.2)}" x2="{f(sx + 2.4)}" y2="{f(y + 1.2)}" stroke="#5e656d" stroke-width="1"/>')
+        ty = y - 9 if label_above else y + 14
+        o.append(f'<text x="{f(sx)}" y="{f(ty)}" font-size="5.2" font-weight="700" fill="#e9edf2" stroke="#1b1d20" stroke-width="1.6" '
+                 f'paint-order="stroke" text-anchor="middle" font-family="Inter">{lab}</text>')
+    return "".join(o), pts
+
+
+def servo_in(pins, angle: float = 90, top: float | None = None, powered: bool = True) -> str:
+    """An SG90 servo by its cable: the 3-pin plug in three holes in a row — S (orange), + (red), − (brown) — and the
+    servo above the breadboard, its arm at `angle` (0–180°). `top`: where its shaft is."""
+    (sx, sy), (vx, _), (gx, _) = pins
+    cx = vx
+    top = top if top is not None else sy - 150
+    o = ['<g class="servo-in">']
+    for (px, py), dx, col in ((pins[0], -6, "#f08024"), (pins[1], 0, "#de3b3b"), (pins[2], 6, "#8b5a3a")):
+        o.append(f'<path d="M{f(cx + dx)},{f(top + 66)} C{f(cx + dx)},{f(top + 96)} {f(px)},{f(py - 46)} {f(px)},{f(py - 14)}" '
+                 f'stroke="{col}" stroke-width="3.4" fill="none" stroke-linecap="round"/>')
+    o.append(f'<rect x="{f(sx - 8)}" y="{f(sy - 16)}" width="{f(gx - sx + 16)}" height="11" rx="1.5" fill="#1d1e21"/>')
+    for (px, py), lab in zip(pins, ("S", "+", "−")):
+        o.append(f'<line x1="{f(px)}" y1="{f(py - 5)}" x2="{f(px)}" y2="{f(py)}" stroke="#c7ccd2" stroke-width="1.8"/>'
+                 f'<text x="{f(px)}" y="{f(sy - 8)}" font-size="6" font-weight="700" fill="#e9edf2" text-anchor="middle" font-family="Inter">{lab}</text>')
+    o.append(servo(cx, top, angle=angle, s=1.0, wires=False, rot=90, label=False))
+    o.append(f'<text x="{f(cx)}" y="{f(top + 40)}" font-size="8.5" font-weight="700" fill="#e8f1fc" text-anchor="middle" font-family="Inter">SG90</text>')
+    return "".join(o) + "</g>"
+
+
+def _soic8(cx, cy, label=""):
+    return (f'<rect x="{f(cx - 7)}" y="{f(cy - 5)}" width="14" height="10" rx="1" fill="#1c1e21"/>'
+            + "".join(f'<rect x="{f(cx - 6 + i * 3.6)}" y="{f(cy - 7)}" width="1.6" height="2" fill="#aab0b7"/>'
+                      f'<rect x="{f(cx - 6 + i * 3.6)}" y="{f(cy + 5)}" width="1.6" height="2" fill="#aab0b7"/>' for i in range(4))
+            + (f'<text x="{f(cx)}" y="{f(cy + 2)}" font-size="3.6" fill="#9aa1ab" text-anchor="middle" font-family="JetBrains Mono">{label}</text>' if label else ""))
+
+
+def l9110s(pins, a_dir: int = 1, b_dir: int = 0):
+    """An L9110S (HG7881) two-motor driver standing in the breadboard: its header B-IA B-IB GND VCC A-IA A-IB, its
+    two L9110 chips, and the motors' screw terminals on its far edge — MOTOR B left, MOTOR A right. Each motor's
+    direction LED lights while it turns. Returns (svg, {'B1','B2','A1','A2': screw})."""
+    xs = [x for x, _ in pins]
+    cx, y = (xs[0] + xs[-1]) / 2, pins[0][1]
+    w, h = xs[-1] - xs[0] + 14, 74
+    top = y - 16 - h
+    o = ['<g class="driver l9110s">',
+         f'<rect x="{f(cx - w / 2)}" y="{f(top)}" width="{f(w)}" height="{h}" rx="3" fill="{PCB_RED[0]}" stroke="{PCB_RED[1]}" filter="url(#lift)"/>']
+    o.append(_soic8(cx - 20, top + 36, "9110") + _soic8(cx + 20, top + 36, "9110"))
+    o.append(f'<text x="{f(cx)}" y="{f(top + 58)}" font-size="5.5" font-weight="700" fill="#ffd9d4" text-anchor="middle" font-family="Inter">L9110S</text>')
+    for lx, on in ((cx - 20, b_dir != 0), (cx + 20, a_dir != 0)):
+        o.append(f'<rect x="{f(lx - 3)}" y="{f(top + 47)}" width="6" height="3.5" rx="1" fill="{"#34d058" if on else "#4a2422"}"/>')
+        if on:
+            o.append(f'<circle cx="{f(lx)}" cy="{f(top + 49)}" r="6" fill="url(#glow-green)"/>')
+    pts = {}
+    for lx, names, title in ((cx - 26, ("B1", "B2"), "MOTOR B"), (cx + 15, ("A1", "A2"), "MOTOR A")):
+        sv, sp = screw_block(lx, top + 12, names, pitch=11)
+        o.append(sv)
+        pts.update(sp)
+        o.append(f'<text x="{f(lx + 5.5)}" y="{f(top + 25)}" font-size="4.6" font-weight="700" fill="#ffd9d4" text-anchor="middle" font-family="Inter">{title}</text>')
+    o.append(_header(pins, ("B-IA", "B-IB", "GND", "VCC", "A-IA", "A-IB"), top + h))
+    return "".join(o) + "</g>", pts
+
+
+def tt_motor(x, y, rpm: float = 0, direction: int = 1, label: str = "MOTOR1"):
+    """A TT gear motor seen from above, standing beside the breadboard (not in it): its yellow gearbox, the white
+    shaft at (x, y), its silver motor and the two tabs a wire goes to. Turning, the shaft's arrow says which way and
+    how fast. Returns (svg, {'+': tab, '−': tab})."""
+    o = ['<g class="tt-motor">',
+         f'<rect x="{f(x - 34)}" y="{f(y - 18)}" width="70" height="36" rx="4" fill="#f2c230" stroke="#b58c12" filter="url(#lift)"/>',
+         f'<rect x="{f(x + 36)}" y="{f(y - 15)}" width="34" height="30" rx="6" fill="#c7ccd2" stroke="#8f969f"/>',
+         f'<rect x="{f(x + 66)}" y="{f(y - 6)}" width="5" height="12" fill="#aab0b7"/>',
+         f'<circle cx="{f(x)}" cy="{f(y)}" r="9" fill="#f6f4ef" stroke="#c9c3b5"/>',
+         f'<rect x="{f(x - 2.5)}" y="{f(y - 6)}" width="5" height="12" rx="1" fill="#e3ddd0"/>']
+    tabs = {"+": (x + 78, y - 8), "−": (x + 78, y + 8)}
+    for (tx, ty), col in ((tabs["+"], "#de3b3b"), (tabs["−"], "#3a3d42")):
+        o.append(f'<rect x="{f(tx - 7)}" y="{f(ty - 2.5)}" width="9" height="5" rx="1" fill="#d6b24c" stroke="#a8862a" stroke-width=".6"/>'
+                 f'<circle cx="{f(tx)}" cy="{f(ty)}" r="2" fill="{col}"/>')
+    if rpm:
+        sweep = 1 if direction > 0 else 0
+        a0, a1 = (-150, 60) if direction > 0 else (60, -150)
+        p0 = (x + 20 * math.cos(math.radians(a0)), y + 20 * math.sin(math.radians(a0)))
+        p1 = (x + 20 * math.cos(math.radians(a1)), y + 20 * math.sin(math.radians(a1)))
+        o.append(f'<path d="M{f(p0[0])},{f(p0[1])} A20 20 0 1 {sweep} {f(p1[0])},{f(p1[1])}" stroke="#2563d9" stroke-width="2.2" fill="none"/>')
+        ang = a1 + (90 if direction > 0 else -90)
+        hx, hy = p1
+        o.append(f'<path d="M0,-4 L7,0 L0,4Z" fill="#2563d9" transform="translate({f(hx)},{f(hy)}) rotate({ang})"/>')
+        o.append(f'<text x="{f(x - 34)}" y="{f(y - 26)}" font-size="9" font-weight="700" fill="#2563d9" font-family="Inter">{rpm:.0f} rpm</text>')
+    o.append(f'<text x="{f(x + 4)}" y="{f(y + 32)}" font-size="8" font-weight="700" fill="#6b5a14" text-anchor="middle" font-family="Inter">{label}</text>')
+    return "".join(o) + "</g>", tabs
+
+
+def relay_module(pins, on: bool = False):
+    """A 5 V relay module (SRD-05VDC) standing in the breadboard on its header S + −; its blue relay, power and
+    signal LEDs, and the NO COM NC screws on its far edge — what it switches, apart from the board. On: the
+    contact moves from NC to NO (drawn in the window). Returns (svg, {'NO','COM','NC': screw})."""
+    xs = [x for x, _ in pins]
+    cx, y = (xs[0] + xs[-1]) / 2, pins[0][1]
+    w, h = 72, 92
+    top = y - 16 - h
+    o = ['<g class="relay-module">',
+         f'<rect x="{f(cx - w / 2)}" y="{f(top)}" width="{w}" height="{h}" rx="3" fill="{PCB_BLUE[0]}" stroke="{PCB_BLUE[1]}" filter="url(#lift)"/>',
+         f'<rect x="{f(cx - 26)}" y="{f(top + 30)}" width="52" height="36" rx="2" fill="#2f6fd6" stroke="#1d4f9e"/>',
+         f'<text x="{f(cx)}" y="{f(top + 44)}" font-size="5.6" font-weight="700" fill="#e8f1fc" text-anchor="middle" font-family="Inter">SRD-05VDC</text>',
+         f'<text x="{f(cx)}" y="{f(top + 52)}" font-size="4.6" fill="#cfe0f2" text-anchor="middle" font-family="Inter">10A 250VAC</text>']
+    # the contact, drawn as the window would: COM to NO when on, to NC when off
+    o.append(f'<path d="M{f(cx - 8)},{f(top + 58)} L{f(cx + (8 if on else -2))},{f(top + 54 if on else top + 61)}" stroke="#ffd34d" stroke-width="1.6" stroke-linecap="round"/>')
+    o.append(f'<rect x="{f(cx - 22)}" y="{f(top + 72)}" width="6" height="3.5" rx="1" fill="#ff5a4a"/>'
+             f'<rect x="{f(cx + 16)}" y="{f(top + 72)}" width="6" height="3.5" rx="1" fill="{"#34d058" if on else "#24313f"}"/>')
+    if on:
+        o.append(f'<circle cx="{f(cx + 19)}" cy="{f(top + 74)}" r="7" fill="url(#glow-green)"/>')
+    sv, pts = screw_block(cx - 13, top + 11, ("NO", "COM", "NC"), pitch=13, label_above=False)
+    o.append(sv)
+    o.append(_header(pins, ("S", "+", "−"), top + h))
+    return "".join(o) + "</g>", pts
+
+
+def pump(x, y, running: bool = False):
+    """A small 3–6 V submersible pump in a cup of water, beside the breadboard: its two leads end in tabs a wire goes
+    to (red +, black −); running, water comes out of its tube. Returns (svg, {'+': tab, '−': tab})."""
+    o = ['<g class="pump">',
+         f'<path d="M{f(x - 38)},{f(y - 30)} L{f(x - 32)},{f(y + 44)} Q{f(x)},{f(y + 52)} {f(x + 32)},{f(y + 44)} L{f(x + 38)},{f(y - 30)}Z" '
+         f'fill="#eef5fb" stroke="#b9c7d6" stroke-width="1.2"/>',
+         f'<path d="M{f(x - 36)},{f(y - 6)} L{f(x - 32)},{f(y + 44)} Q{f(x)},{f(y + 52)} {f(x + 32)},{f(y + 44)} L{f(x + 36)},{f(y - 6)}Z" fill="#9fd0f2" opacity=".75"/>',
+         f'<rect x="{f(x - 14)}" y="{f(y + 8)}" width="28" height="30" rx="7" fill="#26282c"/>',
+         f'<path d="M{f(x + 6)},{f(y + 10)} C{f(x + 6)},{f(y - 40)} {f(x + 50)},{f(y - 48)} {f(x + 60)},{f(y - 26)}" stroke="#d9e2ea" stroke-width="5" fill="none" stroke-linecap="round"/>']
+    if running:
+        o.append(f'<path d="M{f(x + 60)},{f(y - 24)} C{f(x + 64)},{f(y - 14)} {f(x + 50)},{f(y - 8)} {f(x + 34)},{f(y - 6)}" stroke="#3b8fd9" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-dasharray="5 3"/>')
+        o.append(f'<text x="{f(x - 44)}" y="{f(y - 36)}" font-size="8.5" font-weight="700" fill="#2563d9" text-anchor="end" font-family="Inter">pumping</text>')
+    tabs = {"+": (x - 8, y - 46), "−": (x + 8, y - 46)}
+    for (tx, ty), col in ((tabs["+"], ("#de3b3b", "#9e2626")), (tabs["−"], ("#3a3d42", "#15171a"))):
+        o.append(f'<path d="M{f(tx)},{f(y + 10)} C{f(tx)},{f(y - 10)} {f(tx)},{f(ty + 20)} {f(tx)},{f(ty + 4)}" stroke="{col[1]}" stroke-width="3.6" fill="none"/>'
+                 f'<path d="M{f(tx)},{f(y + 10)} C{f(tx)},{f(y - 10)} {f(tx)},{f(ty + 20)} {f(tx)},{f(ty + 4)}" stroke="{col[0]}" stroke-width="2" fill="none"/>'
+                 f'<rect x="{f(tx - 3)}" y="{f(ty - 4)}" width="6" height="8" rx="1" fill="#d6b24c" stroke="#a8862a" stroke-width=".6"/>')
+    o.append(f'<text x="{f(x)}" y="{f(y + 64)}" font-size="8" font-weight="700" fill="#4b5563" text-anchor="middle" font-family="Inter">PUMP1</text>')
+    return "".join(o) + "</g>", tabs
+
+
+def uln2003(pins, coils=(1, 1, 0, 0)):
+    """A ULN2003 stepper driver standing in the breadboard on IN1 IN2 IN3 IN4 − +; its chip, the four LEDs A–D that
+    light with the coils, and the white socket on its far edge the 28BYJ-48's cable plugs into. Returns (svg, the
+    socket's middle)."""
+    xs = [x for x, _ in pins]
+    cx, y = (xs[0] + xs[-1]) / 2, pins[0][1]
+    w, h = xs[-1] - xs[0] + 14, 92
+    top = y - 16 - h
+    o = ['<g class="uln2003">',
+         f'<rect x="{f(cx - w / 2)}" y="{f(top)}" width="{f(w)}" height="{h}" rx="3" fill="{PCB_GREEN[0]}" stroke="{PCB_GREEN[1]}" filter="url(#lift)"/>',
+         f'<rect x="{f(cx - 18)}" y="{f(top + 2)}" width="36" height="12" rx="1.5" fill="#f4f5f7" stroke="#c9cdd2"/>']
+    o.append("".join(f'<rect x="{f(cx - 14 + i * 7)}" y="{f(top + 5)}" width="3.5" height="5" fill="#c7ccd2"/>' for i in range(5)))
+    o.append(f'<rect x="{f(cx - 30)}" y="{f(top + 26)}" width="40" height="16" rx="1.5" fill="#1c1e21"/>'
+             f'<text x="{f(cx - 10)}" y="{f(top + 36)}" font-size="5" fill="#9aa1ab" text-anchor="middle" font-family="JetBrains Mono">ULN2003</text>')
+    for i, (lab, on) in enumerate(zip("ABCD", coils)):
+        lx = cx + 18 + (i % 2) * 12
+        ly = top + 24 + (i // 2) * 14
+        o.append(f'<rect x="{f(lx - 3)}" y="{f(ly)}" width="6" height="4" rx="1" fill="{"#ff4b3a" if on else "#4b2a2a"}"/>'
+                 f'<text x="{f(lx)}" y="{f(ly + 10)}" font-size="4.4" fill="#d7f0dc" text-anchor="middle" font-family="Inter">{lab}</text>')
+        if on:
+            o.append(f'<circle cx="{f(lx)}" cy="{f(ly + 2)}" r="7" fill="url(#glow-red)"/>')
+    o.append(f'<text x="{f(cx)}" y="{f(top + 60)}" font-size="5" font-weight="700" fill="#d7f0dc" text-anchor="middle" font-family="Inter">5–12V</text>')
+    o.append(_header(pins, ("IN1", "IN2", "IN3", "IN4", "−", "+"), top + h))
+    return "".join(o) + "</g>", (cx, top + 8)
+
+
+def stepper(x, y, socket, steps: int = 0, turning: bool = True):
+    """A 28BYJ-48 stepper beside the breadboard: its silver can, the blue cap and its shaft off centre, its cable of
+    five (blue, pink, yellow, orange, red) to the ULN2003's socket at `socket`. Turning: an arrow and its steps."""
+    sx, sy = socket
+    o = ['<g class="stepper">']
+    for i, col in enumerate(("#2f6fd6", "#f29bc0", "#efbd16", "#f08024", "#de3b3b")):
+        dx = (i - 2) * 3
+        o.append(f'<path d="M{f(x + dx)},{f(y + 40)} C{f(x + dx)},{f(y + 80)} {f(sx + dx * 2)},{f(sy - 60)} {f(sx + dx * 2)},{f(sy)}" '
+                 f'stroke="{col}" stroke-width="2.2" fill="none"/>')
+    o.append(f'<rect x="{f(sx - 9)}" y="{f(sy - 7)}" width="18" height="9" rx="1.5" fill="#f4f5f7" stroke="#c9cdd2"/>')
+    o.append(f'<rect x="{f(x - 62)}" y="{f(y - 8)}" width="124" height="16" rx="8" fill="#b9bfc7" stroke="#8f969f"/>'
+             f'<circle cx="{f(x - 54)}" cy="{f(y)}" r="3" fill="#7d848c"/><circle cx="{f(x + 54)}" cy="{f(y)}" r="3" fill="#7d848c"/>')
+    o.append(f'<circle cx="{f(x)}" cy="{f(y)}" r="44" fill="#c7ccd2" stroke="#8f969f" filter="url(#lift)"/>'
+             f'<circle cx="{f(x)}" cy="{f(y + 6)}" r="30" fill="#2f6fd6" stroke="#1d4f9e"/>'
+             f'<circle cx="{f(x)}" cy="{f(y - 14)}" r="9" fill="#d6b24c" stroke="#a8862a"/>'
+             f'<rect x="{f(x - 2)}" y="{f(y - 21)}" width="4" height="14" rx="1" fill="#f5e6b0"/>')
+    o.append(f'<text x="{f(x)}" y="{f(y + 22)}" font-size="7.5" font-weight="700" fill="#e8f1fc" text-anchor="middle" font-family="Inter">28BYJ-48</text>')
+    if turning:
+        o.append(f'<path d="M{f(x + 22)},{f(y - 40)} A46 46 0 0 1 {f(x + 46)},{f(y - 14)}" stroke="#2563d9" stroke-width="2.2" fill="none"/>'
+                 f'<path d="M0,-4 L7,0 L0,4Z" fill="#2563d9" transform="translate({f(x + 47)},{f(y - 12)}) rotate(100)"/>'
+                 f'<text x="{f(x + 52)}" y="{f(y - 34)}" font-size="9" font-weight="700" fill="#2563d9" font-family="Inter">step {steps}</text>')
+    return "".join(o) + "</g>"
+
+
+def l298n(x, y, out=(1, 0)):
+    """An L298N driver board, too big for the breadboard: it lies beside it and is wired with jumper wires. Its black
+    heat sink, OUT1/OUT2 (motor A) and OUT3/OUT4 (motor B) screws, the 12V GND 5V screws, and its header ENA IN1 IN2
+    IN3 IN4 ENB (the ENA and ENB jumpers on). Every screw and header pin is a point to wire. Returns (svg, points)."""
+    w, h = 150, 140
+    o = ['<g class="l298n">',
+         f'<rect x="{f(x)}" y="{f(y)}" width="{w}" height="{h}" rx="4" fill="#b8322a" stroke="#7d1f19" filter="url(#lift)"/>',
+         f'<rect x="{f(x + 45)}" y="{f(y + 6)}" width="60" height="48" rx="2" fill="#1f2227"/>']
+    o.append("".join(f'<rect x="{f(x + 49 + i * 7)}" y="{f(y + 6)}" width="3.5" height="48" fill="#3a3d42"/>' for i in range(8)))
+    o.append(f'<text x="{f(x + 75)}" y="{f(y + 68)}" font-size="7" font-weight="700" fill="#ffd9d4" text-anchor="middle" font-family="Inter">L298N</text>')
+    pts = {}
+    for sx, sy, names in ((x + 12, y + 20, ("OUT1", "OUT2")), (x + w - 27, y + 20, ("OUT3", "OUT4"))):
+        sv, sp = screw_block(sx, sy, names, pitch=15, label_above=False)
+        o.append(sv)
+        pts.update(sp)
+    sv, sp = screw_block(x + 16, y + h - 16, ("12V", "GND", "5V"), pitch=13, label_above=True)
+    o.append(sv)
+    pts.update(sp)
+    hx = x + 74
+    for i, name in enumerate(("ENA", "IN1", "IN2", "IN3", "IN4", "ENB")):
+        px, py = hx + i * 11, y + h - 16
+        pts[name] = (px, py)
+        o.append(f'<rect x="{f(px - 3.5)}" y="{f(py - 3.5)}" width="7" height="7" fill="#1c1e21"/><rect x="{f(px - 1.2)}" y="{f(py - 1.2)}" width="2.4" height="2.4" fill="#d6b24c"/>'
+                 f'<text x="{f(px)}" y="{f(py - 8)}" font-size="4.4" font-weight="700" fill="#ffd9d4" text-anchor="middle" font-family="Inter">{name}</text>')
+    for i in (0, 5):   # the ENA and ENB jumpers: full speed until a PWM pin is wired there instead
+        px = hx + i * 11
+        o.append(f'<rect x="{f(px - 4.5)}" y="{f(y + h - 34)}" width="9" height="12" rx="1.5" fill="#efbd16" stroke="#a68300"/>')
+    for i, on in enumerate(out):
+        lx = x + 22 + i * (w - 44)
+        o.append(f'<rect x="{f(lx - 3)}" y="{f(y + 38)}" width="6" height="3.5" rx="1" fill="{"#34d058" if on else "#4a2422"}"/>')
+        if on:
+            o.append(f'<circle cx="{f(lx)}" cy="{f(y + 40)}" r="6" fill="url(#glow-green)"/>')
+    return "".join(o) + "</g>", pts
+
+
+def kit_traffic(pins, lit=(1, 0, 0)):
+    """The kit's traffic light module: red, yellow and green LEDs (their resistors on the board), pins R Y G GND."""
+    def el(cx, top, w, h):
+        o = ""
+        for i, (on, col, glow) in enumerate(zip(lit, ("#ef3b2c", "#f5c400", "#22b14c"), ("red", "amber", "green"))):
+            lx = cx - 18 + i * 18
+            o += f'<circle cx="{f(lx)}" cy="{f(top + 22)}" r="6.5" fill="{col if on else "#3a3d42"}" stroke="#15171a"/>'
+            if on:
+                o += f'<circle cx="{f(lx)}" cy="{f(top + 22)}" r="16" fill="url(#glow-{glow})"/>'
+        return o
+    return kit_module(pins, ("R", "Y", "G", "GND"), PCB_BLACK, h=44, element=el)
+
+
+def kit_rgb(pins, rgb=(0, 0, 0)):
+    """The kit's RGB LED module: one common-cathode RGB LED with its resistors, pins R G B −."""
+    def el(cx, top, w, h):
+        r, g, b = rgb
+        mix = f"rgb({int(120 + 135 * r)},{int(120 + 135 * g)},{int(120 + 135 * b)})" if any(rgb) else "#e9edf2"
+        o = f'<circle cx="{f(cx)}" cy="{f(top + 22)}" r="9" fill="{mix}" stroke="#c9d0d8"/>'
+        for v, glow, dx in ((r, "red", -3), (g, "green", 0), (b, "blue", 3)):
+            if v:
+                o += f'<circle cx="{f(cx + dx)}" cy="{f(top + 22)}" r="{f(10 + 12 * v)}" fill="url(#glow-{glow})" opacity="{f(.4 + .6 * v)}"/>'
+        return o
+    return kit_module(pins, ("R", "G", "B", "−"), PCB_BLACK, h=44, element=el)
+
+
+def kit_passive_buzzer(pins, playing: bool = False, note: str = ""):
+    """The kit's passive buzzer module: it plays the note of the PWM on I/O; pins I/O VCC GND."""
+    def el(cx, top, w, h):
+        o = (f'<circle cx="{f(cx)}" cy="{f(top + 24)}" r="13" fill="#26282c"/><circle cx="{f(cx)}" cy="{f(top + 24)}" r="8" fill="none" stroke="#3b3e43"/>'
+             f'<circle cx="{f(cx)}" cy="{f(top + 24)}" r="2" fill="#0f1012"/>')
+        if playing:
+            for k in (1, 2):
+                o += f'<path d="M{f(cx + 14 + 5 * k)},{f(top + 14)} q{f(5 + 2 * k)},10 0,20" stroke="#2563d9" stroke-width="1.5" fill="none"/>'
+            if note:
+                o += f'<text x="{f(cx)}" y="{f(top - 6)}" font-size="9" font-weight="700" fill="#2563d9" text-anchor="middle" font-family="Inter">♪ {note}</text>'
+        return o
+    return kit_module(pins, ("I/O", "VCC", "GND"), PCB_BLACK, h=50, element=el)
+
+
+def power_supply(bb, top: str = "5V", bottom: str = "3.3V", on: bool = True) -> str:
+    """The breadboard power supply module (MB102) on the breadboard's left end: its pins go into both rail pairs at
+    columns 1–2, its jumpers set each pair to 5 V or 3.3 V (as printed), its own DC jack and USB give the power, its
+    switch and LED. The rails then give that, apart from the board (join a GND to the board's)."""
+    x0 = bb.bx - 24
+    y0 = bb.by
+    o = ['<g class="power-supply">',
+         f'<rect x="{f(x0 - 54)}" y="{f(y0 + 2)}" width="98" height="294" rx="4" fill="#26282c" stroke="#0f1012" filter="url(#lift)"/>',
+         f'<rect x="{f(x0 - 50)}" y="{f(y0 + 96)}" width="26" height="30" rx="3" fill="#15171a"/><circle cx="{f(x0 - 37)}" cy="{f(y0 + 111)}" r="6" fill="#3a3d42"/>',
+         f'<rect x="{f(x0 - 50)}" y="{f(y0 + 168)}" width="24" height="18" rx="1.5" fill="#c7ccd2" stroke="#8f969f"/><rect x="{f(x0 - 46)}" y="{f(y0 + 174)}" width="16" height="6" fill="#4b5563"/>',
+         f'<text x="{f(x0 - 37)}" y="{f(y0 + 140)}" font-size="5.5" fill="#cfd3d8" text-anchor="middle" font-family="Inter">6.5–12V</text>',
+         f'<text x="{f(x0 - 37)}" y="{f(y0 + 196)}" font-size="5.5" fill="#cfd3d8" text-anchor="middle" font-family="Inter">USB</text>',
+         f'<rect x="{f(x0 - 12)}" y="{f(y0 + 136)}" width="22" height="12" rx="2" fill="#f4f5f7"/><rect x="{f(x0 + (-1 if on else -10))}" y="{f(y0 + 138)}" width="9" height="8" rx="1" fill="#3a3d42"/>',
+         f'<text x="{f(x0)}" y="{f(y0 + 158)}" font-size="5.5" fill="#cfd3d8" text-anchor="middle" font-family="Inter">{"ON" if on else "OFF"}</text>',
+         f'<rect x="{f(x0 + 20)}" y="{f(y0 + 140)}" width="6" height="3.5" rx="1" fill="{"#34d058" if on else "#3a3d42"}"/>']
+    if on:
+        o.append(f'<circle cx="{f(x0 + 23)}" cy="{f(y0 + 142)}" r="7" fill="url(#glow-green)"/>')
+    for (ra, rb), volts, jy in ((("T-", "T+"), top, y0 + 66), (("B+", "B-"), bottom, y0 + 214)):
+        for r in (ra, rb):
+            for c in (1, 2):
+                hx, hy = bb.xy(c, r)
+                o.append(f'<rect x="{f(hx - 2.2)}" y="{f(hy - 2.2)}" width="4.4" height="4.4" fill="#d6b24c"/>')
+        o.append(f'<rect x="{f(x0 - 2)}" y="{f(jy)}" width="34" height="14" rx="2" fill="#15171a"/>'
+                 f'<rect x="{f(x0 + (0 if volts == "5V" else 15))}" y="{f(jy + 2)}" width="15" height="10" rx="1.5" fill="#efbd16" stroke="#a68300"/>'
+                 f'<text x="{f(x0 + 4)}" y="{f(jy + 22)}" font-size="5.2" fill="#cfd3d8" text-anchor="middle" font-family="Inter">5V</text>'
+                 f'<text x="{f(x0 + 24)}" y="{f(jy + 22)}" font-size="5.2" fill="#cfd3d8" text-anchor="middle" font-family="Inter">3.3V</text>')
+    return "".join(o) + "</g>"
+
+
+# ------------------------------------------------------------------ displays (M7 slice 2)
+SEG7 = {"0": "abcdef", "1": "bc", "2": "abdeg", "3": "abcdg", "4": "bcfg", "5": "acdfg", "6": "acdefg", "7": "abc",
+        "8": "abcdefg", "9": "abcdfg", " ": "", "-": "g"}
+
+
+def _digit7(x, y, w, h, lit: str, dp=None, bright: float = 1.0, on: str = "#ff3b2a", off: str = "#3a2624") -> str:
+    """One 7-segment digit in the box (x, y, w, h), leaning as the real ones do; `lit` = the segments on ('abc…'),
+    `dp` = None (no point), False (off) or True (lit); `bright` 0–1 dims the lit segments."""
+    t = max(2.0, w * .17)
+    L, R, T, M, B = x + t / 2, x + w - t / 2, y + t / 2, y + h / 2, y + h - t / 2
+    g = t * .75
+    segs = {"a": (L + g, T, R - g, T), "b": (R, T + g, R, M - g), "c": (R, M + g, R, B - g), "d": (L + g, B, R - g, B),
+            "e": (L, M + g, L, B - g), "f": (L, T + g, L, M - g), "g": (L + g, M, R - g, M)}
+    cx, cy = x + w / 2, y + h / 2
+    o = [f'<g transform="translate({f(cx)},{f(cy)}) skewX(-7) translate({f(-cx)},{f(-cy)})">']
+    for s, (x1, y1, x2, y2) in segs.items():
+        line = f'x1="{f(x1)}" y1="{f(y1)}" x2="{f(x2)}" y2="{f(y2)}" stroke-linecap="round"'
+        if s in lit:
+            o.append(f'<line {line} stroke="{on}" stroke-width="{f(t * 2.8)}" opacity="{f(.16 * bright)}"/>')
+            o.append(f'<line {line} stroke="{on}" stroke-width="{f(t)}" opacity="{f(.35 + .65 * bright)}"/>')
+        else:
+            o.append(f'<line {line} stroke="{off}" stroke-width="{f(t)}"/>')
+    if dp is not None:
+        o.append(f'<circle cx="{f(R + t * 1.4)}" cy="{f(B)}" r="{f(t * .6)}" fill="{on if dp else off}"/>')
+    return "".join(o) + "</g>"
+
+
+def seg7_digit(top, bottom, ch: str = "8", bright: float = 1.0, dp: bool = False) -> str:
+    """A 0.56" common-cathode 7-segment digit straddling the gap: its pins g f COM a b in `top` (left → right), e d
+    COM c dp in `bottom`, six rows apart; its body covers them — their names printed at its edges."""
+    xs = [x for x, _ in top]
+    cx, cy = (xs[0] + xs[-1]) / 2, (top[0][1] + bottom[0][1]) / 2
+    w, h = 80, 116
+    o = ['<g class="seg7">',
+         f'<rect x="{f(cx - w / 2)}" y="{f(cy - h / 2)}" width="{w}" height="{h}" rx="2" fill="#e9e7e1" stroke="#c9c5bb" filter="url(#lift)"/>',
+         f'<rect x="{f(cx - w / 2 + 5)}" y="{f(cy - h / 2 + 12)}" width="{w - 10}" height="{h - 24}" rx="1.5" fill="#1f2023"/>',
+         _digit7(cx - 21, cy - 36, 40, 72, SEG7[ch], dp=dp, bright=bright)]
+    for (x, _), lab in zip(top, ("g", "f", "COM", "a", "b")):
+        o.append(f'<text x="{f(x)}" y="{f(cy - h / 2 + 8.5)}" font-size="5.5" font-weight="700" fill="#6b665c" text-anchor="middle" font-family="Inter">{lab}</text>')
+    for (x, _), lab in zip(bottom, ("e", "d", "COM", "c", "dp")):
+        o.append(f'<text x="{f(x)}" y="{f(cy + h / 2 - 3.5)}" font-size="5.5" font-weight="700" fill="#6b665c" text-anchor="middle" font-family="Inter">{lab}</text>')
+    return "".join(o) + "</g>"
+
+
+def _side_header(x, ys, labels, right: bool = True, label_fill: str = "#e9edf2"):
+    """A module's header sticking out of its side: black strip, pins as pads to wire (points, like screws), names inside."""
+    d = 1 if right else -1
+    o = [f'<rect x="{f(x - 7 if right else x)}" y="{f(ys[0] - 9)}" width="7" height="{f(ys[-1] - ys[0] + 18)}" rx="1" fill="#26282c"/>']
+    pins = {}
+    for y, lab in zip(ys, labels):
+        px = x + d * 9
+        o.append(f'<line x1="{f(x)}" y1="{f(y)}" x2="{f(px)}" y2="{f(y)}" stroke="#c7ccd2" stroke-width="2"/>' + pad(px, y))
+        o.append(f'<text x="{f(x - d * 11)}" y="{f(y + 2)}" font-size="5.5" font-weight="700" fill="{label_fill}" text-anchor="{"end" if right else "start"}" font-family="Inter">{lab}</text>')
+        pins[lab] = (px, y)
+    return "".join(o), pins
+
+
+def oled_in(pins, lines=(), bar=None) -> str:
+    """The SSD1306 0.96" OLED standing in the breadboard by its header (GND VCC SCL SDA), its screen above — 128×64
+    pixels drawn 0.8 px each: `lines` = [(text, x, y)] as oled.text() put them (8×8 letters), `bar` = (x, y, w, h,
+    filled w) in pixels, as oled.rect() and fill_rect()."""
+    xs = [x for x, _ in pins]
+    cx, y = (xs[0] + xs[-1]) / 2, pins[0][1]
+    w, h = 132, 112
+    top = y - 16 - h
+    k = .8
+    sx, sy = cx - 64 * k, top + 26
+    o = ['<g class="oled">',
+         f'<rect x="{f(cx - w / 2)}" y="{f(top)}" width="{w}" height="{h}" rx="4" fill="#16314f" stroke="#0c1d30" filter="url(#lift)"/>']
+    for dx, dy in ((7, 7), (w - 7, 7), (7, h - 7), (w - 7, h - 7)):
+        o.append(f'<circle cx="{f(cx - w / 2 + dx)}" cy="{f(top + dy)}" r="3" fill="#f6f4ef" stroke="#0c1d30"/>')
+    o.append(f'<rect x="{f(sx - 5)}" y="{f(sy - 5)}" width="{f(128 * k + 10)}" height="{f(64 * k + 10)}" rx="1.5" fill="#05070a" stroke="#2a3a4e"/>')
+    for txt, px, py in lines:
+        o.append(f'<text x="{f(sx + px * k)}" y="{f(sy + (py + 7) * k)}" font-size="8.6" letter-spacing="1.25" fill="#9be7ff" '
+                 f'font-family="JetBrains Mono" font-weight="700">{txt}</text>')
+    if bar:
+        bx, by_, bw, bh, fill = bar
+        o.append(f'<rect x="{f(sx + bx * k + .4)}" y="{f(sy + by_ * k + .4)}" width="{f(bw * k - .8)}" height="{f(bh * k - .8)}" fill="none" stroke="#9be7ff" stroke-width=".8"/>'
+                 f'<rect x="{f(sx + bx * k)}" y="{f(sy + by_ * k)}" width="{f(fill * k)}" height="{f(bh * k)}" fill="#9be7ff"/>')
+    o.append(f'<text x="{f(cx)}" y="{f(top + 15)}" font-size="5.5" fill="#cfe0f2" text-anchor="middle" font-family="Inter" font-weight="600">128×64 · 0x3C</text>')
+    o.append(_header(pins, ("GND", "VCC", "SCL", "SDA"), top + h))
+    return "".join(o) + "</g>"
+
+
+def lcd1602(x, y, lines=("", ""), faint: bool = False):
+    """A 16×2 character LCD lying beside the breadboard, with its I²C backpack (PCF8574) behind it: the backpack's
+    header sticks out of its left end — GND VCC SDA SCL, top to bottom, points to wire — next to its blue contrast
+    knob. `faint`: on 3.3 V its letters can hardly be seen. Returns (svg, {pin: (x, y)})."""
+    w, h = 420, 150
+    o = ['<g class="lcd">',
+         f'<rect x="{x - 44}" y="{y + 30}" width="64" height="104" rx="3" fill="#1d1e21" stroke="#0f1012" filter="url(#lift)"/>',
+         _trimpot(x - 16, y + 122),
+         f'<text x="{x - 16}" y="{y + 40}" font-size="5" font-weight="700" fill="#9aa1ab" text-anchor="middle" font-family="Inter">PCF8574</text>']
+    hsvg, pins = _side_header(x - 26, [y + 54 + 16 * i for i in range(4)], ("GND", "VCC", "SDA", "SCL"), right=False)
+    o.append(hsvg)
+    o.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="5" fill="#2f7d3f" stroke="#1f5a2b" filter="url(#lift)"/>')
+    for dx, dy in ((9, 9), (w - 9, 9), (9, h - 9), (w - 9, h - 9)):
+        o.append(f'<circle cx="{x + dx}" cy="{y + dy}" r="4.5" fill="#f6f4ef" stroke="#1f5a2b"/>')
+    for i in range(16):
+        o.append(f'<circle cx="{x + 34 + i * 9}" cy="{y + 10}" r="2.4" fill="#d6b24c" stroke="#a8862a" stroke-width=".6"/>')
+    o.append(f'<rect x="{x + 20}" y="{y + 24}" width="{w - 40}" height="{h - 48}" rx="3" fill="#15171a"/>')
+    wx, wy, ww, wh = x + 30, y + 34, w - 60, h - 68
+    o.append(f'<rect x="{wx}" y="{wy}" width="{ww}" height="{wh}" rx="1.5" fill="{"#a9cf5c" if faint else "#9fd34a"}"/>')
+    cw, ch = (ww - 18) / 16, 32
+    for r, txt in enumerate(lines):
+        txt = txt.ljust(16)[:16]
+        for c, letter in enumerate(txt):
+            lx, ly = wx + 9 + c * cw, wy + 9 + r * (ch + 4)
+            o.append(f'<rect x="{f(lx + .8)}" y="{f(ly)}" width="{f(cw - 1.6)}" height="{ch}" fill="#7fae35" opacity="{.18 if faint else .32}"/>')
+            if letter != " ":
+                o.append(f'<text x="{f(lx + cw / 2)}" y="{f(ly + 24)}" font-size="24" fill="#1d3a0f" opacity="{.16 if faint else 1}" text-anchor="middle" '
+                         f'font-family="JetBrains Mono" font-weight="500">{letter}</text>')
+    o.append(f'<text x="{x + w - 24}" y="{y + h - 10}" font-size="6" font-weight="700" fill="#cfe7d4" text-anchor="end" font-family="Inter">1602 · I²C 0x27</text>')
+    return "".join(o) + "</g>", pins
+
+
+def tm1637(x, y, digits: str = "0127", colon: bool = True):
+    """The TM1637 4-digit display module lying beside the breadboard: four digits and a colon; its header sticks out of
+    its right edge — CLK DIO VCC GND, top to bottom, points to wire. Returns (svg, {pin: (x, y)})."""
+    w, h = 196, 84
+    o = ['<g class="tm1637">',
+         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="4" fill="{PCB_BLUE[0]}" stroke="{PCB_BLUE[1]}" filter="url(#lift)"/>']
+    for dx, dy in ((7, 7), (7, h - 7)):
+        o.append(f'<circle cx="{x + dx}" cy="{y + dy}" r="3" fill="#f6f4ef" stroke="{PCB_BLUE[1]}"/>')
+    o.append(f'<rect x="{x + 16}" y="{y + 10}" width="152" height="{h - 20}" rx="2" fill="#e9e7e1" stroke="#c9c5bb"/>'
+             f'<rect x="{x + 20}" y="{y + 14}" width="144" height="{h - 28}" rx="1.5" fill="#1f2023"/>')
+    for i, ch in enumerate(digits):
+        dx = x + 28 + i * 33 + (8 if i >= 2 else 0)
+        o.append(_digit7(dx, y + 22, 22, 40, SEG7[ch]))
+    for cy in (y + 34, y + 50):
+        o.append(f'<circle cx="{x + 94}" cy="{cy}" r="2.2" fill="{"#ff3b2a" if colon else "#3a2624"}"/>')
+    hsvg, pins = _side_header(x + w, [y + 18 + 16 * i for i in range(4)], ("CLK", "DIO", "VCC", "GND"))
+    o.append(hsvg)
+    return "".join(o) + "</g>", pins
+
+
+HEART8 = (0x00, 0x66, 0xFF, 0xFF, 0x7E, 0x3C, 0x18, 0x00)
+
+
+def max7219(x, y, rows=HEART8, bright: float = 1.0):
+    """The MAX7219 8×8 dot matrix module (1088AS) lying beside the breadboard: `rows` = 8 bytes, the left dot the top
+    bit; its input header out of its left edge — VCC GND DIN CS CLK, top to bottom, points to wire — and the output
+    header (to chain another) on its right. Returns (svg, {pin: (x, y)})."""
+    w, h, p = 186, 196, 19
+    mx, my = x + 21, y + 18
+    o = ['<g class="max7219">',
+         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="4" fill="{PCB_BLUE[0]}" stroke="{PCB_BLUE[1]}" filter="url(#lift)"/>',
+         f'<rect x="{mx}" y="{my}" width="{8 * p + 4}" height="{8 * p + 4}" rx="2" fill="#1d1e21" stroke="#0f1012"/>']
+    for r in range(8):
+        for c in range(8):
+            on = rows[r] >> (7 - c) & 1
+            cx, cy = mx + 2 + p / 2 + c * p, my + 2 + p / 2 + r * p
+            if on:
+                o.append(f'<circle cx="{f(cx)}" cy="{f(cy)}" r="12" fill="url(#glow-red)" opacity="{f(.6 * bright)}"/>')
+            o.append(f'<circle cx="{f(cx)}" cy="{f(cy)}" r="7" fill="{"#ff3b2a" if on else "#4a2c2a"}"/>')
+    o.append(f'<text x="{x + w / 2}" y="{y + h - 5}" font-size="5.5" font-weight="700" fill="#cfe0f2" text-anchor="middle" font-family="Inter">MAX7219 · 8×8</text>')
+    ys = [y + 66 + 16 * i for i in range(5)]
+    hsvg, pins = _side_header(x, ys, ("VCC", "GND", "DIN", "CS", "CLK"), right=False)
+    osvg, _ = _side_header(x + w, ys, ("VCC", "GND", "DOUT", "CS", "CLK"))
+    o += [hsvg, osvg]
+    return "".join(o) + "</g>", pins
+
+
+def _np_look(rgb):
+    """How a WS2812's colour looks: its hue at full strength (the eye sees a pixel at 1/8 as plainly lit), the glow
+    growing with how bright it is. Returns (fill, glow opacity) — (None, 0) when off."""
+    m = max(rgb)
+    if m == 0:
+        return None, 0
+    r, g, b = (round(c * 255 / m) for c in rgb)
+    return f"#{r:02x}{g:02x}{b:02x}", .35 + .65 * math.sqrt(m / 255)
+
+
+def _np_pixel(cx, cy, rgb=(0, 0, 0), s: float = 18, hl: bool = False) -> str:
+    """One WS2812B (a 5050 LED): its white body, the round window over its three dies; lit, its colour and a glow."""
+    fill, glow = _np_look(rgb)
+    o = []
+    if fill:
+        gid = "npg-" + fill[1:]
+        o.append(f'<radialGradient id="{gid}"><stop offset="0" stop-color="{fill}" stop-opacity=".85"/><stop offset=".45" stop-color="{fill}" stop-opacity=".35"/>'
+                 f'<stop offset="1" stop-color="{fill}" stop-opacity="0"/></radialGradient>'
+                 f'<circle cx="{f(cx)}" cy="{f(cy)}" r="{f(s * 1.15)}" fill="url(#{gid})" opacity="{f(glow)}"/>')
+    o.append(f'<rect x="{f(cx - s / 2)}" y="{f(cy - s / 2)}" width="{f(s)}" height="{f(s)}" rx="1.5" fill="#f4f2ec" stroke="{"#2563d9" if hl else "#c9c4b8"}" stroke-width="{1.6 if hl else .8}"/>'
+             f'<circle cx="{f(cx)}" cy="{f(cy)}" r="{f(s * .36)}" fill="{fill or "#e2ddd0"}" stroke="#d3cdbf" stroke-width=".6"/>')
+    if not fill:
+        o.append("".join(f'<rect x="{f(cx + dx - 1.2)}" y="{f(cy - 1.6)}" width="2.4" height="3.2" fill="#b9b2a2"/>' for dx in (-3.4, 0, 3.4)))
+    return "".join(o)
+
+
+def neopixel_strip(x, y, colours, hl: int = -1):
+    """A NeoPixel stick (WS2812B on a black strip) lying beside the breadboard: `colours` = [(r, g, b)] from LED 0, at
+    DIN's end; its input header out of its left end — DIN 5V GND, top to bottom, points to wire — the output (DOUT, to
+    chain more) out of its right end; the arrows printed on it show the way the data goes. Returns (svg, {pin: (x, y)})."""
+    n, p = len(colours), 26
+    w, h = n * p + 50, 56
+    o = ['<g class="neopixel strip">',
+         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="3" fill="#1d1e21" stroke="#0f1012" filter="url(#lift)"/>']
+    for i, rgb in enumerate(colours):
+        cx = x + 25 + p / 2 + i * p
+        o.append(_np_pixel(cx, y + 24, rgb, hl=i == hl))
+        o.append(f'<text x="{f(cx)}" y="{y + 46}" font-size="5.5" font-weight="700" fill="#8f969f" text-anchor="middle" font-family="Inter">{i}</text>')
+        if i < n - 1:
+            ax = cx + p / 2
+            o.append(f'<path d="M{f(ax - 1.6)},{y + 21} l3,3 l-3,3" fill="none" stroke="#c7ccd2" stroke-width="1"/>')
+    o.append(f'<text x="{x + w / 2}" y="{y + 8.5}" font-size="5" font-weight="700" fill="#8f969f" text-anchor="middle" font-family="Inter">WS2812B · {n}</text>')
+    ys = [y + 12 + 16 * i for i in range(3)]
+    hsvg, pins = _side_header(x, ys, ("DIN", "5V", "GND"), right=False)
+    osvg, opins = _side_header(x + w, ys, ("DOUT", "5V", "GND"))
+    pins["DOUT"] = opins["DOUT"]
+    o += [hsvg, osvg]
+    return "".join(o) + "</g>", pins
+
+
+def neopixel_ring(cx, cy, colours, hl: int = -1):
+    """A NeoPixel ring (WS2812B on a black ring) lying beside the breadboard: LED 0 at the top, the rest clockwise;
+    its four pads brought out on a header below it — DIN GND 5V DOUT, left to right, points to wire. Returns
+    (svg, {pin: (x, y)})."""
+    n = len(colours)
+    r = {8: 34, 12: 50, 16: 64, 24: 92}.get(n, n * 4.2)
+    ro, ri = r + 15, r - 15
+    hy = cy + ro - 4                       # the header tab, under the ring
+    xs = [cx - 24 + 16 * i for i in range(4)]
+    o = ['<g class="neopixel ring">',
+         f'<rect x="{f(xs[0] - 10)}" y="{f(hy)}" width="{f(xs[-1] - xs[0] + 20)}" height="22" rx="2" fill="#26282c" filter="url(#lift)"/>',
+         f'<path d="M{f(cx)},{f(cy - ro)} a{ro},{ro} 0 1 0 .01,0z M{f(cx)},{f(cy - ri)} a{ri},{ri} 0 1 1 -.01,0z" fill="#1d1e21" stroke="#0f1012" fill-rule="evenodd" filter="url(#lift)"/>']
+    pins = {}
+    for px, lab in zip(xs, ("DIN", "GND", "5V", "DOUT")):
+        o.append(f'<line x1="{f(px)}" y1="{f(hy + 22)}" x2="{f(px)}" y2="{f(hy + 31)}" stroke="#c7ccd2" stroke-width="2"/>' + pad(px, hy + 31)
+                 + f'<text x="{f(px)}" y="{f(hy + 16)}" font-size="5.5" font-weight="700" fill="#e9edf2" text-anchor="middle" font-family="Inter">{lab}</text>')
+        pins[lab] = (px, hy + 31)
+    for i, rgb in enumerate(colours):
+        a = math.radians(-90 + 360 * i / n)
+        px, py = cx + r * math.cos(a), cy + r * math.sin(a)
+        o.append(_np_pixel(px, py, rgb, s=16, hl=i == hl))
+        if n <= 16:
+            tx, ty = cx + (ri - 7) * math.cos(a), cy + (ri - 7) * math.sin(a)
+            o.append(f'<text x="{f(tx)}" y="{f(ty + 2)}" font-size="5.5" font-weight="700" fill="#8f969f" text-anchor="middle" font-family="Inter">{i}</text>')
+    o.append(f'<text x="{f(cx)}" y="{f(cy + 2)}" font-size="5.5" font-weight="700" fill="#8f969f" text-anchor="middle" font-family="Inter">WS2812B · {n}</text>')
+    return "".join(o) + "</g>", pins
+
+
+def _top_header(x0, y, labels, label_fill="#e9edf2"):
+    """A module's header along its top edge: its pins up out of it, a hole apart (points to wire), names under them."""
+    n = len(labels)
+    o = [f'<rect x="{f(x0 - 9)}" y="{f(y - 1)}" width="{f(16 * (n - 1) + 18)}" height="7" rx="1" fill="#26282c"/>']
+    pins = {}
+    for i, lab in enumerate(labels):
+        px = x0 + 16 * i
+        o.append(f'<line x1="{f(px)}" y1="{f(y)}" x2="{f(px)}" y2="{f(y - 10)}" stroke="#c7ccd2" stroke-width="2"/>' + pad(px, y - 10)
+                 + f'<text x="{f(px)}" y="{f(y + 14)}" font-size="5.5" font-weight="700" fill="{label_fill}" text-anchor="middle" font-family="Inter">{lab}</text>')
+        pins[lab] = (px, y - 10)
+    return "".join(o), pins
+
+
+def usb_serial(x, y, tx=False, rx=False):
+    """A USB-serial adapter (CP2102) lying beside the board: its header out of its top edge — RXD TXD GND 3V3 5V,
+    points to wire — its USB plug and cable to the laptop below; its TXD and RXD LEDs flash as bytes go. Returns
+    (svg, {pin: (x, y)})."""
+    w, h = 96, 64
+    o = ['<g class="usb-serial">',
+         f'<rect x="{x + 26}" y="{y + h - 2}" width="44" height="30" rx="2" fill="#c9cdd2" stroke="#8f969f"/>',
+         f'<rect x="{x + 32}" y="{y + h + 6}" width="32" height="12" rx="1" fill="#8f969f"/>',
+         f'<path d="M{x + 48},{y + h + 28} q0,22 -30,34" fill="none" stroke="#3a3d42" stroke-width="5" stroke-linecap="round"/>',
+         f'<text x="{x + 58}" y="{y + h + 48}" font-size="6" fill="#8f969f" font-family="Inter">to the laptop</text>',
+         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="3" fill="#b8322a" stroke="#7d1f19" filter="url(#lift)"/>',
+         f'<rect x="{x + 34}" y="{y + 24}" width="22" height="22" rx="1.5" fill="#1d1e21"/>',
+         f'<text x="{x + 45}" y="{y + 37}" font-size="4.5" fill="#8f969f" text-anchor="middle" font-family="Inter">CP2102</text>']
+    for i, (lab, on) in enumerate((("TXD", tx), ("RXD", rx), ("PWR", True))):
+        ly = y + 26 + 9 * i
+        o.append(f'<rect x="{x + 66}" y="{ly}" width="6" height="4" rx="1" fill="{("#ff3b2a" if lab != "PWR" else "#ff3b2a") if on else "#5a2420"}"/>'
+                 f'<text x="{x + 75}" y="{ly + 4}" font-size="4.5" font-weight="700" fill="#f6d9d6" font-family="Inter">{lab}</text>')
+        if on and lab != "PWR":
+            o.append(f'<circle cx="{x + 69}" cy="{ly + 2}" r="6" fill="url(#glow-red)"/>')
+    hsvg, pins = _top_header(x + 16, y, ("RXD", "TXD", "GND", "3V3", "5V"))
+    o.append(hsvg)
+    o.append(f'<text x="{x + 10}" y="{y + 56}" font-size="5.5" font-weight="700" fill="#f6d9d6" font-family="Inter">USB · serial</text>')
+    return "".join(o) + "</g>", pins
+
+
+def hc05(x, y, connected=True):
+    """An HC-05 Bluetooth module on its carrier board, lying beside the board, its header up — EN VCC GND TXD RXD
+    STATE, points to wire; the white radio board with its antenna; its LED blinks fast until a phone connects, then
+    twice every 2 s. Returns (svg, {pin: (x, y)})."""
+    w, h = 112, 96
+    o = ['<g class="hc05">',
+         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="3" fill="#2457a6" stroke="#173c78" filter="url(#lift)"/>',
+         f'<rect x="{x + 14}" y="{y + 22}" width="{w - 28}" height="{h - 28}" rx="1.5" fill="#f4f5f7" stroke="#c9cdd2"/>',
+         f'<path d="M{x + 22},{y + h - 14} h14 v-8 h10 v8 h10 v-8 h10 v8 h10 v-8 h8" fill="none" stroke="#d6b24c" stroke-width="1.6"/>',
+         f'<rect x="{x + 36}" y="{y + 32}" width="24" height="24" rx="1" fill="#26282c"/>',
+         f'<text x="{x + w / 2}" y="{y + 66}" font-size="7" font-weight="700" fill="#3a3d42" text-anchor="middle" font-family="Inter">HC-05</text>',
+         f'<circle cx="{x + w - 22}" cy="{y + 40}" r="3" fill="#ff3b2a"/>',
+         f'<circle cx="{x + w - 22}" cy="{y + 40}" r="8" fill="url(#glow-red)"/>' if connected else '']
+    hsvg, pins = _top_header(x + 16, y, ("EN", "VCC", "GND", "TXD", "RXD", "STATE"))
+    o.append(hsvg)
+    return "".join(o) + "</g>", pins
+
+
+def gps_neo6m(x, y, fix=True):
+    """A GPS module (GY-NEO6MV2: a u-blox NEO-6M) lying beside the board, its header up — GND TX RX VCC, points to
+    wire — its patch antenna on its cable beside it; its PPS LED blinks once a second with a fix. Returns
+    (svg, {pin: (x, y)})."""
+    w, h = 88, 88
+    o = ['<g class="gps">',
+         f'<path d="M{x + w - 10},{y + 60} q30,10 46,-6" fill="none" stroke="#3a3d42" stroke-width="2.5"/>',
+         f'<rect x="{x + w + 30}" y="{y + 10}" width="58" height="58" rx="4" fill="#d9c79a" stroke="#a58f5a" filter="url(#lift)"/>',
+         f'<rect x="{x + w + 42}" y="{y + 22}" width="34" height="34" rx="2" fill="#e7dcbc" stroke="#b9a676"/>',
+         f'<circle cx="{x + w + 59}" cy="{y + 39}" r="4" fill="#c7ccd2" stroke="#8f969f"/>',
+         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="3" fill="#2457a6" stroke="#173c78" filter="url(#lift)"/>',
+         f'<rect x="{x + 22}" y="{y + 28}" width="40" height="40" rx="1.5" fill="#c9cdd2" stroke="#8f969f"/>',
+         f'<text x="{x + 42}" y="{y + 46}" font-size="4.6" font-weight="700" fill="#3a3d42" text-anchor="middle" font-family="Inter">u-blox</text>',
+         f'<text x="{x + 42}" y="{y + 54}" font-size="4.6" font-weight="700" fill="#3a3d42" text-anchor="middle" font-family="Inter">NEO-6M</text>',
+         f'<circle cx="{x + 12}" cy="{y + 76}" r="2.6" fill="{"#3ddc6a" if fix else "#244a31"}"/>',
+         f'<circle cx="{x + 12}" cy="{y + 76}" r="7" fill="url(#glow-green)"/>' if fix else '',
+         f'<text x="{x + 18}" y="{y + 78}" font-size="4.5" font-weight="700" fill="#cfe0f2" font-family="Inter">PPS</text>']
+    hsvg, pins = _top_header(x + 20, y, ("GND", "TX", "RX", "VCC"))
+    o.append(hsvg)
+    return "".join(o) + "</g>", pins
+
+
 # ------------------------------------------------------------------ part icons (parts panel, examples)
 def icon_svg(kind: str, cls: str = "") -> str:
     body = ICON_PARTS[kind]
@@ -1160,7 +1779,19 @@ ICON_PARTS = {
     "oled": '<rect x="5" y="5" width="22" height="22" rx="2" fill="#16314f"/><rect x="7" y="9" width="18" height="11" fill="#05070a"/><path d="M9,13 h8 M9,16 h12" stroke="#9be7ff" stroke-width="1.4"/>',
     "lcd": '<rect x="2" y="8" width="28" height="16" rx="2" fill="#2f8f4f"/><rect x="5" y="11" width="22" height="10" fill="#a8d86a"/><path d="M7,14 h12 M7,18 h16" stroke="#3b5a1e" stroke-width="1.4"/>',
     "seg7": '<rect x="8" y="3" width="16" height="26" rx="2" fill="#2d3136"/><path d="M12,8 h8 M12,16 h8 M12,24 h8 M11,9 v6 M21,9 v6 M11,17 v6 M21,17 v6" stroke="#ef3b2c" stroke-width="1.8" stroke-linecap="round"/>',
+    "tm1637": '<rect x="2" y="9" width="28" height="15" rx="2" fill="#2457a6"/><rect x="4" y="11" width="22" height="11" fill="#1f2023"/>' + "".join(f'<path d="M{6 + i * 5},13 h3 v7 h-3z" fill="none" stroke="#ff3b2a" stroke-width="1"/>' for i in range(4)) + '<circle cx="15.5" cy="15" r=".6" fill="#ff3b2a"/><circle cx="15.5" cy="18" r=".6" fill="#ff3b2a"/>',
+    "matrix": '<rect x="4" y="4" width="24" height="24" rx="2" fill="#2457a6"/><rect x="6" y="6" width="20" height="20" fill="#1d1e21"/>' + "".join(f'<circle cx="{8.2 + c * 2.25}" cy="{8.2 + r * 2.25}" r=".8" fill="{"#ff3b2a" if (0x00, 0x66, 0xFF, 0xFF, 0x7E, 0x3C, 0x18, 0x00)[r] >> (7 - c) & 1 else "#4a2c2a"}"/>' for r in range(8) for c in range(8)),
+    "usbserial": '<rect x="3" y="11" width="20" height="12" rx="1.5" fill="#b8322a"/><rect x="23" y="13" width="7" height="8" rx="1" fill="#c9cdd2"/><path d="M5 9v2M9 9v2M13 9v2M17 9v2M21 9v2" stroke="#a5abb2" stroke-width="1.3"/><rect x="9" y="14" width="6" height="6" fill="#1d1e21"/>',
+    "hc05": '<rect x="6" y="7" width="20" height="21" rx="2" fill="#2457a6"/><rect x="9" y="12" width="14" height="13" rx="1" fill="#f4f5f7"/><path d="M8 5v2M12 5v2M16 5v2M20 5v2M24 5v2" stroke="#a5abb2" stroke-width="1.3"/><path d="M13 15l6 5-3 2.5V13l3 2.5-6 5" fill="none" stroke="#2457a6" stroke-width="1.1"/>',
+    "gps": '<rect x="3" y="9" width="15" height="17" rx="2" fill="#2457a6"/><rect x="17" y="6" width="12" height="12" rx="2" fill="#d9c79a" stroke="#a58f5a"/><circle cx="23" cy="12" r="1.6" fill="#c7ccd2"/><path d="M6 7v2M10 7v2M14 7v2" stroke="#a5abb2" stroke-width="1.3"/><rect x="7" y="14" width="7" height="7" fill="#c9cdd2"/>',
     "neopixel": "".join(f'<circle cx="{16 + 10 * math.cos(math.radians(a))}" cy="{16 + 10 * math.sin(math.radians(a))}" r="2.6" fill="{c}"/>' for a, c in zip(range(0, 360, 45), ("#ef3b2c", "#ff8a00", "#f5d000", "#22b14c", "#16b8c9", "#2f6fe0", "#8d5bd1", "#e0409a"))) + '<circle cx="16" cy="16" r="13" fill="none" stroke="#2d3136" stroke-width="2.4" opacity=".25"/>',
+    "stepper": '<circle cx="16" cy="17" r="11" fill="#c7ccd2" stroke="#8f969f"/><circle cx="16" cy="19" r="7.5" fill="#2f6fd6"/><circle cx="16" cy="13" r="2.6" fill="#d6b24c"/>',
+    "pump": '<path d="M7,8 L9,27 Q16,29 23,27 L25,8Z" fill="#9fd0f2" stroke="#7fa9c8"/><rect x="12" y="16" width="8" height="10" rx="2.5" fill="#26282c"/><path d="M17,16 C17,6 26,4 27,8" stroke="#d9e2ea" stroke-width="2" fill="none"/>',
+    "traffic": '<rect x="4" y="11" width="24" height="11" rx="2" fill="#26282c"/><circle cx="10" cy="16.5" r="3" fill="#ef3b2c"/><circle cx="16" cy="16.5" r="3" fill="#f5c400"/><circle cx="22" cy="16.5" r="3" fill="#22b14c"/>',
+    "krgb": '<rect x="6" y="9" width="20" height="15" rx="2" fill="#26282c"/><circle cx="16" cy="16.5" r="5" fill="#e9edf2"/><circle cx="14" cy="15" r="1.6" fill="#ef3b2c"/><circle cx="18" cy="15" r="1.6" fill="#22b14c"/><circle cx="16" cy="18.5" r="1.6" fill="#2f6fe0"/>',
+    "kbuzzer": '<rect x="6" y="9" width="20" height="15" rx="2" fill="#26282c"/><circle cx="16" cy="16.5" r="5.5" fill="#15171a" stroke="#3b3e43"/>',
+    "psu": '<rect x="5" y="4" width="22" height="24" rx="2" fill="#26282c"/><rect x="8" y="8" width="7" height="6" fill="#15171a"/><rect x="8" y="18" width="7" height="5" fill="#c7ccd2"/><rect x="18" y="9" width="6" height="4" fill="#efbd16"/><rect x="18" y="19" width="6" height="4" fill="#efbd16"/>',
+    "l298n": '<rect x="3" y="5" width="26" height="22" rx="2" fill="#b8322a"/><rect x="11" y="7" width="10" height="9" fill="#1f2227"/><rect x="5" y="9" width="5" height="4" fill="#2f9d57"/><rect x="22" y="9" width="5" height="4" fill="#2f9d57"/>',
     "gpioboard": '<rect x="3" y="12" width="26" height="15" rx="2" fill="#1d4f9e"/><rect x="7" y="4" width="18" height="11" rx="2" fill="#1d1e21"/><rect x="6" y="13" width="20" height="3" rx="1" fill="#121a24"/>' + "".join(f'<circle cx="{6 + i * 2.5}" cy="{y}" r=".8" fill="#d3d7dc"/>' for i in range(9) for y in (20, 24)),
     "microbit": '<rect x="3" y="6" width="26" height="20" rx="3" fill="#1d1e21"/>' + "".join(f'<rect x="{11 + c * 2.6}" y="{10 + r * 2.6}" width="1.2" height="1.8" fill="{"#ff3a22" if HEART[r][c] == "1" else "#3b2d2d"}"/>' for r in range(5) for c in range(5)) + '<circle cx="7" cy="14" r="2" fill="#c9cdd2"/><circle cx="25" cy="14" r="2" fill="#c9cdd2"/><rect x="5" y="22" width="22" height="3" fill="#d6b24c"/>',
     "pico": '<rect x="2" y="9" width="28" height="14" rx="2" fill="#2b7a4b"/><rect x="0" y="13" width="4" height="6" rx="1" fill="#c7ccd2"/><rect x="13" y="12" width="7" height="7" fill="#1c1e21"/><rect x="22" y="12" width="5" height="7" fill="#c3c8ce"/>' + "".join(f'<circle cx="{4 + i * 2.6}" cy="{c}" r=".8" fill="#d6b24c"/>' for i in range(10) for c in (10.5, 21.5)),

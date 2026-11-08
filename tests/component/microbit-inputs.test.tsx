@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ProjectDoc } from '@lib/project';
 import { App } from '../../src/renderer/app/App';
@@ -18,7 +18,7 @@ function setup(board = 'New micro:bit project') {
   render(<App api={fakeApi()} width={1440} startRun={start} audio={() => null} />);
   fireEvent.click(screen.getByRole('button', { name: board }));
   fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
-  return { input: () => runs[0]!.setInput };
+  return { input: () => runs[0]!.setInput, events: () => runs[0]!.events };
 }
 
 describe('M6.6 the micro:bit inputs card (screen 06)', () => {
@@ -77,5 +77,46 @@ describe('M6.6 the micro:bit inputs card (screen 06)', () => {
     expect(sound).toHaveAttribute('aria-valuetext', '0');
     fireEvent.keyDown(sound, { key: 'PageUp' });
     expect(s.input()).toHaveBeenLastCalledWith('board:sound', 10);
+  });
+});
+
+describe('M7 the micro:bit card\'s gestures and radio (the teacher\'s requests)', () => {
+  it('the gestures in a dropdown: a posture stays (Face down: z +1024); a moment lasts a second (Freefall, then back)', () => {
+    vi.useFakeTimers();
+    try {
+      const s = setup();
+      const card = within(screen.getByRole('group', { name: 'micro:bit inputs' }));
+      const choose = (name: string) => {
+        fireEvent.click(card.getByRole('combobox', { name: 'Gesture' }));
+        fireEvent.click(screen.getByRole('option', { name: new RegExp(`^${name}`) }));
+      };
+      expect(screen.getByRole('combobox', { name: 'Gesture' })).toHaveTextContent('Face up');
+      choose('Face down');
+      expect(s.input()).toHaveBeenLastCalledWith('board:accelz', 1024);
+      choose('Freefall');
+      expect(s.input()).toHaveBeenLastCalledWith('board:accelz', 0);
+      act(() => { vi.advanceTimersByTime(1000); });
+      expect(s.input()).toHaveBeenLastCalledWith('board:accelz', 1024);
+      expect(screen.getByRole('combobox', { name: 'Gesture' })).toHaveTextContent('Face down');
+      fireEvent.click(card.getByRole('combobox', { name: 'Gesture' }));
+      expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(
+        ['Face upstays', 'Face downstays', 'Upstays', 'Downstays', 'Leftstays', 'Rightstays', 'Freefall1 s', '3g1 s', '6g1 s', '8g1 s']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('the radio: what the program sent, a string in quotes, bytes as bytes; a message sent in as another micro:bit', () => {
+    const s = setup();
+    const radio = within(screen.getByRole('group', { name: 'Radio' }));
+    expect(radio.getByRole('list', { name: 'Radio messages sent' })).toHaveTextContent('nothing yet');
+    act(() => s.events().onBoard({ pins: {}, radio: ['01000168656c6c6f', '0541'] }));
+    expect(radio.getAllByRole('listitem').map((l) => l.textContent)).toEqual(['"hello"', "b'\\x05A'"]);
+    fireEvent.change(radio.getByRole('textbox', { name: 'A message from another micro:bit' }), { target: { value: 'hi' } });
+    fireEvent.click(radio.getByRole('button', { name: 'Send' }));
+    expect(s.input()).toHaveBeenCalledWith('radio:0', 104);
+    expect(s.input()).toHaveBeenCalledWith('radio:1', 105);
+    expect(s.input()).toHaveBeenCalledWith('radio:len', 2);
+    expect(s.input()).toHaveBeenLastCalledWith('radio:seq', 1);
   });
 });

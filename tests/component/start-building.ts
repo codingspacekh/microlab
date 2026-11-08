@@ -14,3 +14,10 @@ export function addGpioBoard(): void {
   if (!screen.queryByRole('region', { name: 'Parts' })) fireEvent.click(screen.getByRole('button', { name: 'Parts' }));
   fireEvent.click(within(screen.getByRole('group', { name: 'micro:bit' })).getByRole('button', { name: /^GPIO board/ }));
 }
+
+/** M7 (the teacher's request): the parts panel folds away once the student works elsewhere — open it again to take a
+ *  part, as a student would; the panel itself. */
+export function partsPanel(): HTMLElement {
+  if (!screen.queryByRole('region', { name: 'Parts' })) fireEvent.click(screen.getByRole('button', { name: 'Parts' }));
+  return screen.getByRole('region', { name: 'Parts' });
+}

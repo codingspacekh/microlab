@@ -92,7 +92,8 @@ describe('M4.5 starting a run', () => {
 
   it('M6.6: a micro:bit project has its own inputs too — A, B, the logo, the tilt, a shake, the temperature, the light, the sound', () => {
     expect(inputSlots(newProject('microbit-v2').project)).toEqual([
-      'pressed:board.A', 'pressed:board.B', 'touch:LOGO', 'board:accelx', 'board:accely', 'board:shake', 'board:celsius', 'board:light', 'board:sound',
+      'pressed:board.A', 'pressed:board.B', 'touch:LOGO', 'board:accelx', 'board:accely', 'board:accelz', 'board:shake', 'board:celsius', 'board:light', 'board:sound',
+      'radio:seq', 'radio:len', ...Array.from({ length: 32 }, (_, i) => `radio:${i}`),   // M7: z, and another micro:bit's message
     ]);
   });
 

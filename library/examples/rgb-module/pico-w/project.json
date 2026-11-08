@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "title": "RGB LED module",
+  "board": "pico-w",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "rgb1",
+      "type": "rgb-module",
+      "legs": {
+        "r": "bb1.f25",
+        "g": "bb1.f26",
+        "b": "bb1.f27",
+        "gnd": "bb1.f28"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.GP13",
+      "b": "bb1.j25"
+    },
+    {
+      "id": "w2",
+      "a": "board.GP14",
+      "b": "bb1.j26"
+    },
+    {
+      "id": "w3",
+      "a": "board.GP15",
+      "b": "bb1.j27"
+    },
+    {
+      "id": "w4",
+      "a": "board.GND",
+      "b": "bb1.j28"
+    }
+  ]
+}

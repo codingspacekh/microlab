@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>27c NeoPixel faults</title>
+{{include:head}}
+</head>
+<body>
+<!--@PROJECT: Lamp-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 00:02-->
+<!--@EDITOR: {{code:neopixelfaults:cur=10}}-->
+<!--@PARTS_LIST: {{parts::::Displays}}-->
+<!--@COUNTS: Pico W + 3 parts · 9 wires-->
+<!--@CTABS: <a>{{i:term:s14}} Console</a><a>{{i:plot:s14}} Plotter</a><a class="on">{{i:warn:s14}} Problems <span class="cnt">2</span></a>-->
+<!--@CONSOLE: <div class="cbody" style="font-family:var(--font);font-size:12.5px;line-height:1.45;padding:4px 0">
+<div class="row" style="padding:9px 12px;border-bottom:1px solid var(--line);align-items:flex-start"><span style="color:var(--warn)">{{i:warn}}</span><div class="col" style="gap:2px;flex:1"><b>STRIP1's data goes in at DOUT</b><span class="muted small">GP0's wire is on STRIP1's DOUT. A NeoPixel takes data only at DIN, so none of its LEDs light. Move the wire to DIN, at the end the arrows point away from.</span></div><button class="btn sm">Show</button></div>
+<div class="row" style="padding:9px 12px;border-bottom:1px solid var(--line);align-items:flex-start"><span style="color:var(--warn)">{{i:warn}}</span><div class="col" style="gap:2px;flex:1"><b>RING1 asks 1.46 A of USB</b><span class="muted small">24 LEDs at full white draw about 60 mA each; USB gives 500 mA. A real Pico W would reset, or the computer turn its port off. Make it dimmer, light fewer, or give the ring its own 5 V supply.</span></div><button class="btn sm">Show</button></div>
+</div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span><span style="color:var(--warn)">NeoPixels: 32 LEDs ask 1.46 A of USB's 500 mA</span>-->
+<!--@STATUS_R: <span class="row" style="gap:5px;color:var(--warn)">{{i:warn:s12}} 2 warnings</span>-->
+<p class="frame-label"><b>27c · NeoPixel mistakes</b> (M7 design, slice 3; milestone tests) — the stick's <b>data wire on DOUT</b>: the bitstream never reaches its first LED, so it stays dark — a warning, not a stop (nothing is hurt), on the pad, saying which end is DIN. A <b>ring of 24 at full white</b> on VBUS asks about 1.46 A where USB gives 500 mA: a warning with the numbers; the ring is drawn lit, but a real board would reset or lose its USB port. Both in Problems (F-25). The code runs on: these are the circuit's faults, not the program's</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:neopixelfaults}}
+      <div class="float fault" style="left:370px;top:430px;width:248px;padding:12px;border-color:var(--warn-line)">
+        <div class="fh" style="color:var(--warn)">{{i:warn:s18}} RING1 asks 1.46 A of USB</div>
+        <p>Every one of its 24 LEDs is full white: red, green and blue, 20 mA each.</p>
+        <div class="nums"><div><small>Ring asks</small><b class="bad">≈ 1.46 A</b></div><div><small>USB gives</small><b>0.5 A</b></div></div>
+        <p><b style="color:var(--tx-1)">Fix:</b> make it dimmer — (40, 40, 40) is about 0.25 A — light fewer, or give the ring its own 5 V supply (its GND joined to the board's).</p>
+        <div class="acts"><button class="btn sm primary">{{i:book:s14}} Show me how</button></div>
+      </div>
+      <div class="tip" style="left:150px;top:24px;width:226px;background:#fff;color:var(--tx-1);border:1px solid var(--warn-line)"><b style="color:var(--warn)">STRIP1's data goes in at DOUT</b><div style="margin-top:2px;color:var(--tx-2)">Its LEDs take data at DIN, on the left — the arrows point away from it. Move GP0's wire there.</div></div></div>
+      <div class="ctools" style="opacity:0"></div>
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

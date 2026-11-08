@@ -1,0 +1,38 @@
+{
+  "format": 1,
+  "title": "Bluetooth heart",
+  "board": "microbit-v2",
+  "breadboards": [],
+  "parts": [
+    {
+      "id": "bt1",
+      "type": "hc05",
+      "props": {
+        "kind": "HC-05"
+      },
+      "legs": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.3.3V",
+      "b": "bt1.vcc"
+    },
+    {
+      "id": "w2",
+      "a": "board.GND",
+      "b": "bt1.gnd"
+    },
+    {
+      "id": "w3",
+      "a": "board.P1",
+      "b": "bt1.rxd"
+    },
+    {
+      "id": "w4",
+      "a": "board.P0",
+      "b": "bt1.txd"
+    }
+  ]
+}

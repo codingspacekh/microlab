@@ -30,7 +30,7 @@ export default defineConfig({
           environment: 'jsdom',
           setupFiles: ['tests/setup/component.ts'],
           // a whole app rendered per test: under the full parallel run on a busy laptop some took over 5 s (M5.2)
-          testTimeout: 15_000,
+          testTimeout: 30_000,   // jsdom drawing the whole canvas, under coverage beside the other projects (M7: more parts)
         },
       },
     ],

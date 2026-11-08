@@ -5,7 +5,7 @@ import type { RunResult } from '../../../src/sim/run';
 
 const led = (b: number): PartView => ({ kind: 'led', amps: b * 0.02, brightness: b });
 const result = (over: Partial<RunResult> = {}): RunResult => ({
-  output: '', trace: [], pwm: [], analog: [], display: [], sound: [], bus: [], parts: [], faults: [], ended: 'stopped', ...over,
+  output: '', trace: [], pwm: [], analog: [], display: [], sound: [], bus: [], radio: [], parts: [], faults: [], ended: 'stopped', ...over,
 });
 /** An LED blinking at `hz` for `s` seconds, as the trace would show it. */
 const blinking = (hz: number, s: number, skew = 0) => {
@@ -73,5 +73,27 @@ describe('M6.2 a buzzer in expect.json', () => {
       'bz1: silent at 1.15 s, should be 440 Hz 1.15–1.2 s',
       'bz1: 440 Hz at 0.30 s, should be silent 0.3–0.4 s',
     ]);
+  });
+});
+
+describe('M7 any part\'s state in expect.json (values)', () => {
+  it('a servo\'s angle, a motor\'s rpm, a relay on: within their range at that time; true is 1', () => {
+    const parts: RunResult['parts'] = [
+      [0, 's1', { kind: 'servo', angle: 90, powered: true }], [500_000, 's1', { kind: 'servo', angle: 180, powered: true }],
+      [0, 'rel1', { kind: 'relay', on: true }],
+    ];
+    const e = expectSchema.parse({ seconds: 1, parts: { s1: { values: [[0.2, 'angle', 85, 95], [0.6, 'angle', 175, 180]] }, rel1: { values: [[0.5, 'on', 1, 1]] } } });
+    expect(check(result({ parts, ended: 'done' }), e)).toEqual([]);
+    const wrong = expectSchema.parse({ seconds: 1, parts: { s1: { values: [[0.6, 'angle', 0, 10], [0.6, 'rpm', 1, 2]] } } });
+    expect(check(result({ parts, ended: 'done' }), wrong)).toEqual(['s1: angle 180 at 0.6 s, should be 0–10', 's1: rpm none at 0.6 s, should be 1–2']);
+  });
+});
+
+describe('M7 slice 4: the micro:bit\'s speaker in expect.json', () => {
+  it('heard at some moment in each span; silent all through each other', () => {
+    const e = expectSchema.parse({ seconds: 2, ended: 'stopped', speaker: { heard: [[0, 0.5]], silent: [[1, 2]] } });
+    expect(check(result({ sound: [[100_000, 440], [400_000, 0]] }), e)).toEqual([]);
+    expect(check(result({ sound: [[100_000, 440], [400_000, 0], [1_500_000, 880, 0.5, 'sine']] }), e)).toEqual(['the speaker sounds at 1.50 s, should be silent 1–2 s']);
+    expect(check(result({ sound: [] }), e)).toEqual(['the speaker is silent 0–0.5 s, should be heard']);
   });
 });

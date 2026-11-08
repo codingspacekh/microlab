@@ -1,0 +1,62 @@
+{
+  "format": 1,
+  "title": "Motor and L9110S",
+  "board": "pico-w",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "drv1",
+      "type": "l9110s",
+      "legs": {
+        "b-ia": "bb1.f8",
+        "b-ib": "bb1.f9",
+        "gnd": "bb1.f10",
+        "vcc": "bb1.f11",
+        "a-ia": "bb1.f12",
+        "a-ib": "bb1.f13"
+      }
+    },
+    {
+      "id": "motor1",
+      "type": "motor",
+      "legs": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.GND",
+      "b": "bb1.j10"
+    },
+    {
+      "id": "w2",
+      "a": "board.VBUS",
+      "b": "bb1.j11"
+    },
+    {
+      "id": "w3",
+      "a": "board.GP17",
+      "b": "bb1.j12"
+    },
+    {
+      "id": "w4",
+      "a": "board.GP16",
+      "b": "bb1.j13"
+    },
+    {
+      "id": "w5",
+      "a": "drv1.a1",
+      "b": "motor1.+"
+    },
+    {
+      "id": "w6",
+      "a": "drv1.a2",
+      "b": "motor1.-"
+    }
+  ]
+}

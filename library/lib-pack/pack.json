@@ -329,6 +329,273 @@
           }
         }
       ]
+    },
+    {
+      "id": "ssd1306",
+      "title": "SSD1306 OLED",
+      "summary": "Text, lines and pixels on a 128×64 SSD1306 OLED on I²C: MicroPython's own driver, framebuf's drawing calls.",
+      "parts": [
+        "ssd1306"
+      ],
+      "builds": [
+        {
+          "boards": [
+            "pico-w",
+            "esp32-devkit-v1"
+          ],
+          "licence": "MIT",
+          "authors": "micropython-lib contributors (Damien P. George)",
+          "source": "https://github.com/micropython/micropython-lib",
+          "commit": "a08087249fda8a7994f7c54ccaad29fb9fcc448a",
+          "files": {
+            "ssd1306.py": "lib/ssd1306.py"
+          },
+          "use": {
+            "pico-w": "from machine import Pin, I2C\nfrom ssd1306 import SSD1306_I2C\n\ni2c = I2C(0, sda=Pin(20), scl=Pin(21))\noled = SSD1306_I2C(128, 64, i2c)   # 128×64 at 0x3C\noled.text('Hello,', 0, 0)\noled.text('MicroLab!', 0, 16)\noled.rect(0, 40, 128, 12, 1)\noled.show()\n",
+            "esp32-devkit-v1": "from machine import Pin, I2C\nfrom ssd1306 import SSD1306_I2C\n\ni2c = I2C(0, sda=Pin(21), scl=Pin(22))\noled = SSD1306_I2C(128, 64, i2c)   # 128×64 at 0x3C\noled.text('Hello,', 0, 0)\noled.text('MicroLab!', 0, 16)\noled.rect(0, 40, 128, 12, 1)\noled.show()\n"
+          },
+          "sha256": {
+            "ssd1306.py": "b9f5331c75297774bced61bdfd12c37d4363336d064d7cf58967c88d807efbe5"
+          },
+          "licenceFile": "LICENSE"
+        },
+        {
+          "boards": [
+            "microbit-v2"
+          ],
+          "licence": "MIT",
+          "authors": "MicroLab",
+          "licenceFile": null,
+          "files": {
+            "microbit/ssd1306.py": "ssd1306.py"
+          },
+          "use": {
+            "microbit-v2": "from microbit import *\nfrom ssd1306 import SSD1306_I2C\n\noled = SSD1306_I2C(128, 64, i2c)   # 128×64 at 0x3C, on P19 / P20\noled.text('Hello,', 0, 0)\noled.text('MicroLab!', 0, 16)\noled.rect(0, 40, 128, 12, 1)\noled.show()\n"
+          }
+        }
+      ]
+    },
+    {
+      "id": "lcd",
+      "title": "16×2 LCD (I²C)",
+      "summary": "Text on a 16×2 HD44780 LCD through its PCF8574 I²C backpack: putstr, move_to, clear, the backlight, custom characters.",
+      "parts": [
+        "lcd1602"
+      ],
+      "builds": [
+        {
+          "boards": [
+            "pico-w",
+            "esp32-devkit-v1"
+          ],
+          "licence": "MIT",
+          "authors": "Dave Hylands",
+          "source": "https://github.com/dhylands/python_lcd",
+          "commit": "4294eed8ce340b7b87343775617ce929ce1de124",
+          "files": {
+            "lcd_api.py": "lib/lcd_api.py",
+            "machine_i2c_lcd.py": "lib/i2c_lcd.py"
+          },
+          "use": {
+            "pico-w": "from machine import Pin, I2C\nfrom i2c_lcd import I2cLcd\n\ni2c = I2C(0, sda=Pin(20), scl=Pin(21))\nlcd = I2cLcd(i2c, 0x27, 2, 16)   # its backpack at 0x27: 2 rows of 16\nlcd.putstr('Hello, MicroLab!')\nlcd.move_to(0, 1)\nlcd.putstr('on a 16x2 LCD')\n",
+            "esp32-devkit-v1": "from machine import Pin, I2C\nfrom i2c_lcd import I2cLcd\n\ni2c = I2C(0, sda=Pin(21), scl=Pin(22))\nlcd = I2cLcd(i2c, 0x27, 2, 16)   # its backpack at 0x27: 2 rows of 16\nlcd.putstr('Hello, MicroLab!')\nlcd.move_to(0, 1)\nlcd.putstr('on a 16x2 LCD')\n"
+          },
+          "sha256": {
+            "lcd_api.py": "4668f59fef84405a4294bcb0ee7309a97e87e5fc5adaab6aef7f622e3d54b569",
+            "machine_i2c_lcd.py": "d07e045ff85c1351d9e99c0d9bda1f4cc1a7dc35ca67fdd928fadc9c14e50881"
+          },
+          "licenceFile": "LICENSE"
+        },
+        {
+          "boards": [
+            "microbit-v2"
+          ],
+          "licence": "MIT",
+          "authors": "MicroLab",
+          "licenceFile": null,
+          "files": {
+            "microbit/i2c_lcd.py": "i2c_lcd.py"
+          },
+          "use": {
+            "microbit-v2": "from microbit import *\nfrom i2c_lcd import I2cLcd\n\nlcd = I2cLcd(i2c, 0x27, 2, 16)   # its backpack at 0x27, on P19 / P20\nlcd.putstr('Hello, MicroLab!')\nlcd.move_to(0, 1)\nlcd.putstr('on a 16x2 LCD')\n"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tm1637",
+      "title": "TM1637 4-digit display",
+      "summary": "Numbers, a clock's mm:ss with its colon, letters and scrolling text on a TM1637 4-digit display, on any two pins.",
+      "parts": [
+        "tm1637"
+      ],
+      "builds": [
+        {
+          "boards": [
+            "pico-w",
+            "esp32-devkit-v1"
+          ],
+          "licence": "MIT",
+          "authors": "Mike Causer",
+          "source": "https://github.com/mcauser/micropython-tm1637",
+          "commit": "cc9ecc642787b0c8afcb318a52865b855b4f0e5f",
+          "files": {
+            "tm1637.py": "lib/tm1637.py"
+          },
+          "use": {
+            "pico-w": "from machine import Pin\nimport tm1637\n\nclock = tm1637.TM1637(clk=Pin(14), dio=Pin(15))\nclock.numbers(12, 34)   # 12:34, its colon on\n",
+            "esp32-devkit-v1": "from machine import Pin\nimport tm1637\n\nclock = tm1637.TM1637(clk=Pin(25), dio=Pin(26))\nclock.numbers(12, 34)   # 12:34, its colon on\n"
+          },
+          "sha256": {
+            "tm1637.py": "c02419e86e7ba301ac62947ab0b6e8ad1460c267a49ba4215300538a5f233e8c"
+          },
+          "licenceFile": "LICENSE"
+        },
+        {
+          "boards": [
+            "microbit-v2"
+          ],
+          "licence": "MIT",
+          "authors": "MicroLab",
+          "licenceFile": null,
+          "files": {
+            "microbit/tm1637.py": "tm1637.py"
+          },
+          "use": {
+            "microbit-v2": "from microbit import *\nimport tm1637\n\nclock = tm1637.TM1637(clk=pin1, dio=pin2)\nclock.numbers(12, 34)   # 12:34, its colon on\n"
+          }
+        }
+      ]
+    },
+    {
+      "id": "max7219",
+      "title": "MAX7219 8×8 dot matrix",
+      "summary": "Dots, lines and 8×8 letters on MAX7219 dot matrices on SPI, one or several chained.",
+      "parts": [
+        "max7219"
+      ],
+      "builds": [
+        {
+          "boards": [
+            "pico-w",
+            "esp32-devkit-v1"
+          ],
+          "licence": "MIT",
+          "authors": "Mike Causer",
+          "source": "https://github.com/mcauser/micropython-max7219",
+          "commit": "29c22edfb9e6d47a0fb996a3deb141ab092b77ae",
+          "files": {
+            "max7219.py": "lib/max7219.py"
+          },
+          "use": {
+            "pico-w": "from machine import Pin, SPI\nimport max7219\n\nspi = SPI(0, sck=Pin(18), mosi=Pin(19))\nmatrix = max7219.Matrix8x8(spi, Pin(17, Pin.OUT), 1)\nmatrix.text('A', 0, 0, 1)\nmatrix.show()\n",
+            "esp32-devkit-v1": "from machine import Pin, SPI\nimport max7219\n\nspi = SPI(2, sck=Pin(18), mosi=Pin(23))\nmatrix = max7219.Matrix8x8(spi, Pin(5, Pin.OUT), 1)\nmatrix.text('A', 0, 0, 1)\nmatrix.show()\n"
+          },
+          "sha256": {
+            "max7219.py": "a039c885f28dab40722aba931287a3c5bc2447ae08bc97fda3d541fa78d8b6bc"
+          },
+          "licenceFile": "LICENSE"
+        },
+        {
+          "boards": [
+            "microbit-v2"
+          ],
+          "licence": "MIT",
+          "authors": "MicroLab",
+          "licenceFile": null,
+          "files": {
+            "microbit/max7219.py": "max7219.py"
+          },
+          "use": {
+            "microbit-v2": "from microbit import *\nimport max7219\n\nspi.init(baudrate=1000000, sclk=pin13, mosi=pin15)\nmatrix = max7219.Matrix8x8(spi, pin16, 1)\nmatrix.text('A', 0, 0, 1)\nmatrix.show()\n"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mfrc522",
+      "title": "RC522 RFID reader",
+      "summary": "The UID of a card or key fob held to an RC522 (MFRC522) on SPI, and its blocks read and written (MIFARE Classic 1K).",
+      "parts": [
+        "rc522"
+      ],
+      "builds": [
+        {
+          "boards": [
+            "pico-w",
+            "esp32-devkit-v1"
+          ],
+          "licence": "MIT",
+          "authors": "MicroLab",
+          "licenceFile": null,
+          "files": {
+            "microlab/mfrc522.py": "lib/mfrc522.py"
+          },
+          "use": {
+            "pico-w": "from mfrc522 import MFRC522\nimport time\n\n# SPI0: SCK GP18, MOSI GP19, MISO GP16; its SDA (chip select) on GP17, RST on GP20; 3.3 V only\nreader = MFRC522(spi_id=0, sck=18, mosi=19, miso=16, cs=17, rst=20)\nprint('Hold a card to the reader')\nwhile True:\n    reader.init()\n    stat, _ = reader.request(reader.REQIDL)    # a tag in the field?\n    if stat == reader.OK:\n        stat, uid = reader.SelectTagSN()       # its UID\n        if stat == reader.OK:\n            print('Card', reader.tohexstring(uid))\n    time.sleep(0.5)\n",
+            "esp32-devkit-v1": "from mfrc522 import MFRC522\nimport time\n\n# SCK D18, MOSI D23, MISO D19; its SDA (chip select) on D5, RST on D22; 3.3 V only\nreader = MFRC522(sck=18, mosi=23, miso=19, cs=5, rst=22)\nprint('Hold a card to the reader')\nwhile True:\n    reader.init()\n    stat, _ = reader.request(reader.REQIDL)    # a tag in the field?\n    if stat == reader.OK:\n        stat, uid = reader.SelectTagSN()       # its UID\n        if stat == reader.OK:\n            print('Card', reader.tohexstring(uid))\n    time.sleep(0.5)\n"
+          }
+        },
+        {
+          "boards": [
+            "microbit-v2"
+          ],
+          "licence": "MIT",
+          "authors": "MicroLab",
+          "licenceFile": null,
+          "files": {
+            "microlab/mfrc522.py": "mfrc522.py"
+          },
+          "use": {
+            "microbit-v2": "from microbit import *\nfrom mfrc522 import MFRC522\n\n# SCK P13, MOSI P15, MISO P14; its SDA (chip select) on P16, RST on P8; 3.3 V only\nreader = MFRC522(sck=pin13, mosi=pin15, miso=pin14, cs=pin16, rst=pin8)\nprint('Hold a card to the reader')\nwhile True:\n    reader.init()\n    stat, _ = reader.request(reader.REQIDL)    # a tag in the field?\n    if stat == reader.OK:\n        stat, uid = reader.SelectTagSN()       # its UID\n        if stat == reader.OK:\n            print('Card', reader.tohexstring(uid))\n    sleep(500)\n"
+          }
+        }
+      ]
+    },
+    {
+      "id": "micropygps",
+      "title": "GPS (micropyGPS)",
+      "summary": "Reads a GPS module's NMEA sentences, a character at a time: where it is, the time, the speed, how many satellites.",
+      "parts": [
+        "gps"
+      ],
+      "builds": [
+        {
+          "boards": [
+            "pico-w",
+            "esp32-devkit-v1"
+          ],
+          "licence": "MIT",
+          "authors": "Calvin McCoy",
+          "source": "https://github.com/inmcm/micropyGPS",
+          "commit": "f6c2b76a3bedf7d85e77fc6d52e0346b68361ce2",
+          "files": {
+            "micropyGPS.py": "lib/micropyGPS.py"
+          },
+          "use": {
+            "pico-w": "from machine import UART, Pin\nfrom micropyGPS import MicropyGPS\nimport time\n\ngps = UART(0, baudrate=9600, tx=Pin(0), rx=Pin(1))   # the GPS's TX on GP1\nmy_gps = MicropyGPS(location_formatting='dd')\nn = 0\nwhile n < 2:\n    for c in gps.read() or b'':\n        if my_gps.update(chr(c)) == 'GPGGA':\n            print(my_gps.latitude[0], my_gps.longitude[0], my_gps.satellites_in_use)\n            n += 1\n    time.sleep_ms(50)\n",
+            "esp32-devkit-v1": "from machine import UART, Pin\nfrom micropyGPS import MicropyGPS\nimport time\n\ngps = UART(2, baudrate=9600)   # the GPS's TX on RX2 (GPIO 16)\nmy_gps = MicropyGPS(location_formatting='dd')\nn = 0\nwhile n < 2:\n    for c in gps.read() or b'':\n        if my_gps.update(chr(c)) == 'GPGGA':\n            print(my_gps.latitude[0], my_gps.longitude[0], my_gps.satellites_in_use)\n            n += 1\n    time.sleep_ms(50)\n"
+          },
+          "sha256": {
+            "micropyGPS.py": "ecbae3ad114ce4a9f786e8c6f02302d223973abe824061c7c2f0b76134bd4cd4"
+          },
+          "licenceFile": "LICENSE"
+        },
+        {
+          "boards": [
+            "microbit-v2"
+          ],
+          "licence": "MIT",
+          "authors": "MicroLab",
+          "licenceFile": null,
+          "files": {
+            "microbit/micropyGPS.py": "micropyGPS.py"
+          },
+          "use": {
+            "microbit-v2": "from microbit import *\nfrom micropyGPS import MicropyGPS\n\nmy_gps = MicropyGPS(location_formatting='dd')\nuart.init(baudrate=9600, tx=pin1, rx=pin0)   # the GPS's TX on P0; print() goes out of P1 now\nwhile my_gps.satellites_in_use == 0:\n    for c in uart.read() or b'':\n        my_gps.update(chr(c))\n    sleep(50)\nuart.init(115200)                            # the console back on USB\nprint(my_gps.latitude[0], my_gps.longitude[0], my_gps.satellites_in_use)\n"
+          }
+        }
+      ]
     }
   ],
   "builtIn": [
@@ -358,6 +625,20 @@
         "esp32-devkit-v1"
       ],
       "note": "Part of MicroPython on the Pico W and the ESP32: nothing to add."
+    },
+    {
+      "modules": [
+        "neopixel"
+      ],
+      "parts": [
+        "neopixel"
+      ],
+      "boards": [
+        "pico-w",
+        "esp32-devkit-v1",
+        "microbit-v2"
+      ],
+      "note": "Part of MicroPython on every board (the micro:bit's own neopixel): nothing to add."
     }
   ]
 }

@@ -1,0 +1,41 @@
+{
+  "format": 1,
+  "title": "4-digit clock (TM1637)",
+  "board": "pico-w",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "tm1",
+      "type": "tm1637",
+      "props": {},
+      "legs": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "tm1.clk",
+      "b": "board.GP14"
+    },
+    {
+      "id": "w2",
+      "a": "tm1.dio",
+      "b": "board.GP15"
+    },
+    {
+      "id": "w3",
+      "a": "tm1.vcc",
+      "b": "board.3V3"
+    },
+    {
+      "id": "w4",
+      "a": "tm1.gnd",
+      "b": "board.GND"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "format": 1,
+  "title": "8×8 dot matrix (MAX7219)",
+  "board": "microbit-v2",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "matrix1",
+      "type": "max7219",
+      "props": {},
+      "legs": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "matrix1.vcc",
+      "b": "board.5V"
+    },
+    {
+      "id": "w2",
+      "a": "matrix1.gnd",
+      "b": "board.GND"
+    },
+    {
+      "id": "w3",
+      "a": "matrix1.clk",
+      "b": "board.P13"
+    },
+    {
+      "id": "w4",
+      "a": "matrix1.din",
+      "b": "board.P15"
+    },
+    {
+      "id": "w5",
+      "a": "matrix1.cs",
+      "b": "board.P16"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>26b Digits and dots</title>
+{{include:head}}
+<style>.legend2 { padding: 10px 12px; } .legend2 .r { display: grid; grid-template-columns: 56px 1fr; gap: 6px; font-size: 11.5px; margin-top: 6px; line-height: 1.35; } .legend2 .r b { font-family: var(--mono); font-size: 11px; }</style>
+</head>
+<body>
+<!--@PROJECT: Stopwatch-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 01:27-->
+<!--@EDITOR: {{code:digits:cur=27}}-->
+<!--@FILES: <a class="on">{{i:file:s14}} main.py</a><a>{{i:file:s14}} tm1637.py <span class="tiny muted" style="font-family:var(--font)">library</span></a><a>{{i:file:s14}} max7219.py <span class="tiny muted" style="font-family:var(--font)">library</span></a>-->
+<!--@PARTS_LIST: {{parts::::Displays}}-->
+<!--@COUNTS: Pico W + 4 parts · 25 wires-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.29.0 on Raspberry Pi Pico W (simulated)</span>
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running main.py — Stop or <span class="kbd">Ctrl</span>+<span class="kbd">C</span> breaks in</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span><span>SPI0 1 MHz: MATRIX1 · TM1 on GP14 / GP15</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.12 ms</span>-->
+<p class="frame-label"><b>26b · Digits and dots, running</b> (M7 design, slice 2) — a <b>7-segment digit</b> (common cathode) straddles the gap, its body over its ten pins (their names printed at its edges): seven pins drive a–g, one <b>220 Ω on its COM</b> to GND — the lit segments share that resistor's current, so a 1 is brighter than an 8, as on the real one (one resistor a segment keeps them even); the kit's <b>4-digit display (TM1637)</b> shows <code>numbers()</code> with its colon, and an <b>8×8 dot matrix (MAX7219)</b> on SPI0 shows the dots <code>pixel()</code> set, when <code>show()</code> sends them, at its <code>brightness()</code>. Both modules' headers stick out of their sides, so they lie beside the breadboard and their pins are points to wire; the matrix's second header (DOUT) chains another. The matrix on VBUS (5 V), the TM1637 on 3V3. The drivers from the library pack (<code>tm1637.py</code>, <code>max7219.py</code>, both MIT)</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:digits}}
+      <div class="float legend2" style="left:378px;top:158px;width:188px">
+        <div class="row small" style="gap:6px">{{i:sliders:s14}} <b>What they show</b></div>
+        <div class="r"><span class="muted">DIGIT1</span><span><b>7</b> · a b c lit</span></div>
+        <div class="r"><span class="muted">TM1</span><span><b>01:27</b> · colon on</span></div>
+        <div class="r"><span class="muted">MATRIX1</span><span>a heart · bright <b>4</b>/15</span></div>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

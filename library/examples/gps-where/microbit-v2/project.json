@@ -1,0 +1,36 @@
+{
+  "format": 1,
+  "title": "Where am I (GPS)",
+  "board": "microbit-v2",
+  "breadboards": [],
+  "parts": [
+    {
+      "id": "gps1",
+      "type": "gps",
+      "props": {},
+      "legs": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.3.3V",
+      "b": "gps1.vcc"
+    },
+    {
+      "id": "w2",
+      "a": "board.GND",
+      "b": "gps1.gnd"
+    },
+    {
+      "id": "w3",
+      "a": "board.P0",
+      "b": "gps1.tx"
+    },
+    {
+      "id": "w4",
+      "a": "board.P1",
+      "b": "gps1.rx"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "title": "Relay and pump",
+  "board": "esp32-devkit-v1",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "relay1",
+      "type": "relay",
+      "legs": {
+        "s": "bb1.f19",
+        "vcc": "bb1.f20",
+        "gnd": "bb1.f21"
+      }
+    },
+    {
+      "id": "pump1",
+      "type": "pump",
+      "legs": {}
+    },
+    {
+      "id": "bat1",
+      "type": "battery",
+      "props": {
+        "kind": "4xAA"
+      },
+      "legs": {
+        "+": "bb1.B+28",
+        "-": "bb1.B-28"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.D27",
+      "b": "bb1.j19"
+    },
+    {
+      "id": "w2",
+      "a": "board.VIN",
+      "b": "bb1.j20"
+    },
+    {
+      "id": "w3",
+      "a": "board.GND",
+      "b": "bb1.j21"
+    },
+    {
+      "id": "w4",
+      "a": "relay1.com",
+      "b": "bb1.B+26"
+    },
+    {
+      "id": "w5",
+      "a": "relay1.no",
+      "b": "pump1.+"
+    },
+    {
+      "id": "w6",
+      "a": "pump1.-",
+      "b": "bb1.B-26"
+    }
+  ]
+}

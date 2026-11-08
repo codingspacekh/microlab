@@ -1,8 +1,8 @@
 import { COLUMNS, hasRails, type BreadboardSize } from '../circuit';
 import { microbitAlone, onGpioBoard, type Project } from '../project';
 import { artOf, boardData, MICROBIT_ALONE_ART } from './library';
-import { BREADBOARD, sceneOf, snapToGrid, type Point } from './geometry';
-import { partKind } from './parts';
+import { BREADBOARD, boardBox, sceneOf, snapToGrid, type Point } from './geometry';
+import { kindTerminals, legsCentre, partKind } from './parts';
 import { usedPoints, type Legs } from './place';
 
 /**
@@ -15,10 +15,28 @@ function nextId(prefix: string, taken: string[]): string {
   return `${prefix}${top + 1}`;
 }
 
-export function addPart(project: Project, type: string, legs: Legs): { project: Project; id: string } {
+/** A part with its legs in these holes — or, a part that lies beside the breadboard (M7), lying `at`. A part that
+ *  brings another (the ULN2003 its stepper) adds it too, plugged into it, in the same edit. */
+export function addPart(project: Project, type: string, legs: Legs, at?: Point, turns = 0): { project: Project; id: string } {
   const kind = partKind(type);
   const id = nextId(kind.prefix, project.parts.map((p) => p.id));
-  return { id, project: { ...project, parts: [...project.parts, { id, type, props: { ...kind.props }, legs: { ...legs } }] } };
+  let next: Project = { ...project, parts: [...project.parts, { id, type, props: { ...kind.props }, legs: { ...legs } }] };
+  if (kind.free) next = lay(next, id, at ?? { x: 0, y: 0 }, turns);
+  if (kind.brings) {
+    const b = partKind(kind.brings.type);
+    const bid = nextId(b.prefix, next.parts.map((p) => p.id));
+    const plug = Object.fromEntries(Object.entries(kind.brings.legs).map(([leg, t]) => [leg, `${id}.${t}`]));
+    next = { ...next, parts: [...next.parts, { id: bid, type: b.type, props: { ...b.props }, legs: plug }] };
+    next = { ...next, view: sceneOf(next).view };   // where it lies by default, kept
+  }
+  return { id, project: next };
+}
+
+/** A part that lies beside the breadboard put `at` (on the grid), turned `turns` quarters clockwise. */
+export function lay(project: Project, id: string, at: Point, turns = 0): Project {
+  const view = sceneOf(project).view;
+  const t = ((turns % 4) + 4) % 4;
+  return { ...project, view: { ...view, parts: { ...view.parts, [id]: { ...snapToGrid(at), ...(t ? { turns: t } : {}) } } } };
 }
 
 export function movePart(project: Project, id: string, legs: Legs): Project {
@@ -42,12 +60,49 @@ export function deletePart(project: Project, id: string): Project {
   return { ...project, parts: project.parts.filter((p) => p.id !== id) };
 }
 
+/** What goes with deleted parts (M7): the wires on their terminals, where the free ones lay; a part plugged into one
+ *  (a stepper's cable in its ULN2003) is unplugged and stays. */
+export function withoutParts(project: Project, ids: string[]): Project {
+  const gone = (ref: string) => ids.includes(ref.slice(0, ref.indexOf('.')));
+  const next: Project = {
+    ...project,
+    parts: project.parts.filter((p) => !ids.includes(p.id)).map((p) => (Object.values(p.legs).some(gone)
+      ? { ...p, legs: Object.fromEntries(Object.entries(p.legs).filter(([, ref]) => !gone(ref))) } : p)),
+    wires: project.wires.filter((w) => !gone(w.a) && !gone(w.b)),
+  };
+  const lying = project.view?.parts;
+  if (lying && ids.some((id) => id in lying)) {
+    next.view = { ...project.view!, parts: Object.fromEntries(Object.entries(lying).filter(([id]) => !ids.includes(id))) };
+  }
+  return next;
+}
+
 export function setWireColour(project: Project, id: string, color: string): Project {
   return { ...project, wires: project.wires.map((w) => (w.id === id ? { ...w, color } : w)) };
 }
 
 export function setPartProp(project: Project, id: string, key: string, value: number | string | boolean): Project {
   return { ...project, parts: project.parts.map((p) => (p.id === id ? { ...p, props: { ...p.props, [key]: value } } : p)) };
+}
+
+/** A NeoPixel made a stick or a ring of `leds` (M7 slice 3, screen 27's inspector): the middle of its body stays where it
+ *  was; the wires on pads it no longer has (a ring has no 5V and GND out) go with them. */
+export function setNeoPixel(project: Project, id: string, shape: 'stick' | 'ring', leds: number): Project {
+  const part = project.parts.find((p) => p.id === id);
+  if (!part) return project;
+  const props = { ...part.props, shape, leds };
+  const pads = kindTerminals(part.type, props);
+  const gone = (ref: string) => ref.startsWith(`${id}.`) && !(ref.slice(id.length + 1) in pads);
+  const next: Project = {
+    ...project,
+    parts: project.parts.map((p) => (p.id === id ? { ...p, props } : p)),
+    wires: project.wires.filter((w) => !gone(w.a) && !gone(w.b)),
+  };
+  const at = sceneOf(project).view.parts?.[id];
+  if (!at) return next;
+  const [ox, oy] = legsCentre(part.type, 0, part.props);
+  const [nx, ny] = legsCentre(part.type, 0, props);
+  return lay(next, id, { x: at.x + ox - nx, y: at.y + oy - ny }, at.turns ?? 0);
 }
 
 /** Mini, half or full; undefined when a smaller one would leave a leg or a wire end off its end (or on a rail a
@@ -97,6 +152,19 @@ export function moveBoard(project: Project, to: Point): Project {
   const view = sceneOf(project).view;
   const at = snapToGrid(to);
   return { ...project, wires: shiftBends(project, 'board', at.x - view.board.x, at.y - view.board.y), view: { ...view, board: at } };
+}
+
+/** The board a quarter turn more, clockwise (M7, the teacher's request): the wires stay on its pins; it keeps its
+ *  bottom-left corner where it was, so it grows up and right, away from the breadboard below it. */
+export function rotateBoard(project: Project): Project {
+  const scene = sceneOf(project);
+  const view = scene.view;
+  const turns = ((view.boardTurns ?? 0) + 1) % 4;
+  const rest = { board: view.board, breadboards: view.breadboards, ...(view.parts ? { parts: view.parts } : {}) };
+  const turned = { ...project, view: turns ? { ...rest, boardTurns: turns } : rest };
+  const before = boardBox(scene);
+  const after = boardBox(sceneOf(turned));
+  return moveBoard(turned, { x: view.board.x + before.x - after.x, y: view.board.y + before.y + before.h - (after.y + after.h) });
 }
 
 export function moveBreadboard(project: Project, id: string, to: Point): Project {

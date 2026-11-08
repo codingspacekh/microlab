@@ -1,0 +1,65 @@
+{
+  "format": 1,
+  "title": "RFID reader (RC522)",
+  "board": "pico-w",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "rfid1",
+      "type": "rc522",
+      "props": {},
+      "legs": {
+        "sda": "bb1.f3",
+        "sck": "bb1.f4",
+        "mosi": "bb1.f5",
+        "miso": "bb1.f6",
+        "irq": "bb1.f7",
+        "gnd": "bb1.f8",
+        "rst": "bb1.f9",
+        "vcc": "bb1.f10"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.GP17",
+      "b": "bb1.j3"
+    },
+    {
+      "id": "w2",
+      "a": "board.GP18",
+      "b": "bb1.j4"
+    },
+    {
+      "id": "w3",
+      "a": "board.GP19",
+      "b": "bb1.j5"
+    },
+    {
+      "id": "w4",
+      "a": "board.GP16",
+      "b": "bb1.j6"
+    },
+    {
+      "id": "w5",
+      "a": "board.GND",
+      "b": "bb1.j8"
+    },
+    {
+      "id": "w6",
+      "a": "board.GP20",
+      "b": "bb1.j9"
+    },
+    {
+      "id": "w7",
+      "a": "board.3V3",
+      "b": "bb1.j10"
+    }
+  ]
+}

@@ -49,6 +49,9 @@ ICONS = {
     "warn": '<path d="M12 3.5l9 16H3zM12 10v4M12 17h.01"/>',
     "alert": '<path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18M12 8v5M12 16h.01"/>',
     "check": '<path d="M5 12.5l4.5 4.5L19 7"/>',
+    "phone": '<path d="M8 2.5h8a1.5 1.5 0 0 1 1.5 1.5v16a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 20V4A1.5 1.5 0 0 1 8 2.5M11 18.5h2"/>',
+    "bt": '<path d="M7 7.5l10 9-5 4.5V3l5 4.5-10 9"/>',
+    "gps": '<path d="M12 21s6.5-6.2 6.5-11.2a6.5 6.5 0 0 0-13 0C5.5 14.8 12 21 12 21M12 7.5a2.3 2.3 0 1 0 0 4.6a2.3 2.3 0 0 0 0-4.6"/>',
     "chevr": '<path d="M9 6l6 6-6 6"/>', "chevd": '<path d="M6 9l6 6 6-6"/>', "chevl": '<path d="M15 6l-6 6 6 6"/>',
     "x": '<path d="M6 6l12 12M18 6L6 18"/>',
     "file": '<path d="M6 3h8l4 4v14H6zM14 3v4h4"/>',
@@ -203,6 +206,55 @@ while True:
     print('%.1f C %.0f %%  %d cm  x %.2f g' % (
         air.temperature(), air.humidity(), cm, x / 16384))
     time.sleep(2)''',
+    "actuators": '''from machine import Pin, PWM
+import time
+
+servo = PWM(Pin(28), freq=50)          # SG90: a pulse every 20 ms
+ia = PWM(Pin(27), freq=1000)           # L9110S A-IA: the speed
+ib = Pin(26, Pin.OUT)                  # A-IB: 0 forward, 1 back
+pump = Pin(22, Pin.OUT)                # the relay's S
+blue = PWM(Pin(19), freq=1000)         # the RGB module's B
+
+def angle(deg):                        # 0.5 ms … 2.5 ms
+    servo.duty_ns(500_000 + deg * 2_000_000 // 180)
+
+while True:
+    angle(135)
+    ib.value(0); ia.duty_u16(45_000)   # forward, 70 %
+    pump.value(1); blue.duty_u16(65_535)
+    time.sleep(3)
+    angle(45)
+    ia.duty_u16(0); pump.value(0); blue.duty_u16(0)
+    time.sleep(3)''',
+    "moreoutputs": '''from machine import Pin, PWM
+import time
+
+coils = [Pin(n, Pin.OUT) for n in (28, 27, 26, 22)]   # IN1–IN4
+red, amber, green = Pin(21, Pin.OUT), Pin(20, Pin.OUT), Pin(19, Pin.OUT)
+tone = PWM(Pin(18))                    # the passive buzzer's I/O
+in3, in4 = Pin(17, Pin.OUT), Pin(16, Pin.OUT)   # L298N motor B
+HALF = [(1,0,0,0), (1,1,0,0), (0,1,0,0), (0,1,1,0),
+        (0,0,1,0), (0,0,1,1), (0,0,0,1), (1,0,0,1)]
+
+green.on(); in3.off(); in4.on()        # MOTOR2 turns back
+tone.freq(440); tone.duty_u16(32_768)  # A4
+for step in range(4096):               # one turn of the 28BYJ-48
+    for pin, v in zip(coils, HALF[step % 8]):
+        pin.value(v)
+    time.sleep_ms(2)
+tone.duty_u16(0)''',
+    "outputfaults": '''from machine import Pin, PWM
+import time
+
+motor = Pin(15, Pin.OUT)               # MOTOR1 straight on the pin
+servo = PWM(Pin(16), freq=50)          # SG90 on 3V3
+
+motor.on()
+while True:
+    servo.duty_ns(2_000_000)
+    time.sleep(1)
+    servo.duty_ns(1_000_000)
+    time.sleep(1)''',
     "greenhouse": '''from machine import Pin, ADC
 import time
 
@@ -281,6 +333,198 @@ while True:
     elif accelerometer.was_gesture('shake'):
         display.show(Image.SURPRISED)
     sleep(100)''',
+    "displays": '''from machine import Pin, I2C, ADC
+from ssd1306 import SSD1306_I2C
+from i2c_lcd import I2cLcd
+import time
+
+i2c = I2C(0, sda=Pin(20), scl=Pin(21), freq=400000)
+print(i2c.scan())                  # [39, 60]
+oled = SSD1306_I2C(128, 64, i2c)   # at 0x3C
+lcd = I2cLcd(i2c, 0x27, 2, 16)     # its backpack at 0x27
+knob = ADC(26)
+
+while True:
+    raw = knob.read_u16()
+    pc = raw * 100 // 65535
+    oled.fill(0)
+    oled.text('Knob', 0, 0)
+    oled.text('%d %%' % pc, 0, 16)
+    oled.rect(0, 40, 128, 12, 1)
+    oled.fill_rect(0, 40, pc * 128 // 100, 12, 1)
+    oled.show()
+    lcd.move_to(0, 0)
+    lcd.putstr('Knob: %3d %%' % pc)
+    lcd.move_to(0, 1)
+    lcd.putstr('ADC %5d' % raw)
+    time.sleep(0.1)''',
+    "digits": '''from machine import Pin, SPI
+import tm1637
+import max7219
+import time
+
+# a … g on GP18 GP19 GP20 GP21 GP22 GP17 GP16
+segs = [Pin(n, Pin.OUT)
+        for n in (18, 19, 20, 21, 22, 17, 16)]
+FONT = (0x3F, 0x06, 0x5B, 0x4F, 0x66,
+        0x6D, 0x7D, 0x07, 0x7F, 0x6F)
+HEART = (0x00, 0x66, 0xFF, 0xFF,
+         0x7E, 0x3C, 0x18, 0x00)
+
+clock = tm1637.TM1637(clk=Pin(14), dio=Pin(15))
+spi = SPI(0, sck=Pin(2), mosi=Pin(7))
+matrix = max7219.Matrix8x8(spi, Pin(5, Pin.OUT), 1)
+matrix.brightness(4)
+
+def digit(n):                  # bit 0 is a
+    for i, s in enumerate(segs):
+        s.value(FONT[n] >> i & 1)
+
+start = time.time()
+while True:
+    t = time.time() - start
+    digit(t % 10)
+    clock.numbers(t // 60, t % 60)   # 01:27
+    matrix.fill(0)
+    if t % 2:                  # a heart that beats
+        for y, row in enumerate(HEART):
+            for x in range(8):
+                matrix.pixel(x, y, row >> 7 - x & 1)
+    matrix.show()
+    time.sleep(0.1)''',
+    "displayfaults": '''from machine import Pin, I2C
+from i2c_lcd import I2cLcd
+import time
+
+segs = [Pin(n, Pin.OUT)        # a … g
+        for n in (18, 19, 20, 21, 22, 17, 16)]
+FONT = (0x3F, 0x06, 0x5B, 0x4F, 0x66,
+        0x6D, 0x7D, 0x07, 0x7F, 0x6F)
+
+i2c = I2C(1, sda=Pin(26), scl=Pin(27))
+lcd = I2cLcd(i2c, 0x27, 2, 16)
+lcd.putstr('Counting down')
+
+for n in range(9, -1, -1):
+    for i, s in enumerate(segs):
+        s.value(FONT[n] >> i & 1)
+    time.sleep(1)''',
+    "neopixels": '''from machine import Pin, ADC
+from neopixel import NeoPixel
+import time
+
+strip = NeoPixel(Pin(0), 8)    # the stick, DIN on GP0
+ring = NeoPixel(Pin(17), 12)   # the ring, DIN on GP17
+knob = ADC(26)
+
+def wheel(h):                  # 0–255 round the colours
+    if h < 85:
+        return (255 - h * 3, h * 3, 0)
+    if h < 170:
+        h -= 85
+        return (0, 255 - h * 3, h * 3)
+    h -= 170
+    return (h * 3, 0, 255 - h * 3)
+
+t = 0
+while True:
+    k = 1 + knob.read_u16() // 4096    # how bright: 1–16
+    for i in range(8):
+        r, g, b = wheel((t * 4 + i * 32) % 256)
+        strip[i] = (r * k // 64, g * k // 64, b * k // 64)
+    strip.write()
+    ring.fill((0, 0, 0))
+    ring[t % 12] = (0, 0, 8 * k)       # a spinner
+    ring[(t - 1) % 12] = (0, 0, 2 * k)  # and its tail
+    ring.write()
+    t += 1
+    time.sleep(0.08)''',
+    "rainbowring": '''from microbit import *
+import neopixel
+
+ring = neopixel.NeoPixel(pin0, 12)
+
+def wheel(h):              # 0–255 round the colours
+    if h < 85:
+        return (255 - h * 3, h * 3, 0)
+    if h < 170:
+        h -= 85
+        return (0, 255 - h * 3, h * 3)
+    h -= 170
+    return (h * 3, 0, 255 - h * 3)
+
+hue = 0
+while True:
+    for i in range(12):
+        r, g, b = wheel((hue + i * 21) % 256)
+        ring[i] = (r // 8, g // 8, b // 8)
+    ring.show()
+    hue = (hue + 4) % 256
+    sleep(30)''',
+    "neopixelfaults": '''from machine import Pin
+from neopixel import NeoPixel
+
+strip = NeoPixel(Pin(0), 8)
+ring = NeoPixel(Pin(17), 24)
+
+strip.fill((0, 40, 0))       # green
+strip.write()
+
+ring.fill((255, 255, 255))   # full white
+ring.write()''',
+    "uartecho": '''from machine import Pin, UART
+import time
+
+uart = UART(0, baudrate=9600, tx=Pin(0), rx=Pin(1))
+led = Pin(16, Pin.OUT)
+uart.write('Hello! Type on or off.\\r\\n')
+
+while True:
+    if uart.any():
+        text = uart.readline().decode().strip()
+        if text == 'on':
+            led.on()
+        elif text == 'off':
+            led.off()
+        uart.write('LED %s\\r\\n' % ('on' if led.value() else 'off'))
+    time.sleep_ms(10)''',
+    "btphone": '''from microbit import *
+
+# the HC-05: P1 to its RXD, P0 from its TXD
+uart.init(baudrate=9600, tx=pin1, rx=pin0)
+
+while True:
+    if uart.any():
+        msg = uart.read().decode().strip()
+        if msg == 'on':
+            display.show(Image.HEART)
+            uart.write('Heart on\\n')
+        elif msg == 'off':
+            display.clear()
+            uart.write('Off\\n')
+    sleep(20)''',
+    "gpsread": '''from machine import UART
+import time
+
+gps = UART(2, baudrate=9600)   # RX2 = GPIO 16, TX2 = 17
+
+while True:
+    line = gps.readline()      # one NMEA sentence
+    if line and line.startswith(b'$GPGGA'):
+        f = line.decode().split(',')
+        print('fix', f[6], 'satellites', f[7],
+              f[2], f[3], f[4], f[5])
+    time.sleep_ms(100)''',
+    "uartfaults": '''from machine import Pin, UART
+import time
+
+usb1 = UART(0, baudrate=9600, tx=Pin(0), rx=Pin(1))
+usb2 = UART(1, baudrate=9600, tx=Pin(4), rx=Pin(5))
+
+while True:
+    usb1.write('Hello from UART0\\r\\n')
+    usb2.write('Hello from UART1\\r\\n')
+    time.sleep(1)''',
     "servo": '''from machine import Pin, PWM
 import time
 
@@ -363,9 +607,15 @@ PARTS = [
                  ("kspeed", "IR speed sensor", "20-slot wheel")]),
     ("Chips", [("pcf8591", "PCF8591", "ADC · DAC · I²C"), ("bmp280", "BMP280", "pressure · I²C"), ("ds18b20", "DS18B20", "temperature · 1-Wire"),
                ("ds1302", "DS1302 clock", "real-time clock"), ("vl53l0x", "VL53L0X", "laser distance · I²C"), ("max30102", "MAX30102", "pulse · SpO2 · I²C")]),
-    ("Actuators", [("servo", "Servo SG90", "0–180°"), ("motor", "DC motor", "TT gear motor"), ("driver", "Motor driver", "L298N · L9110S"),
-                   ("relay", "Relay module", "")]),
-    ("Displays", [("oled", "OLED SSD1306", "128×64 · I²C"), ("lcd", "LCD 16×2", "I²C"), ("seg7", "7-segment digit", ""),
+    ("Actuators", [("servo", "Servo SG90", "0–180°"), ("motor", "TT motor", "3–6 V gear motor"), ("driver", "L9110S driver", "two motors"),
+                   ("l298n", "L298N driver", "two motors · 5–12 V"), ("relay", "Relay module", "5 V · NO / NC"), ("pump", "Water pump", "3–6 V"),
+                   ("stepper", "Stepper 28BYJ-48", "with ULN2003")]),
+    ("Output modules", [("traffic", "Traffic light module", "R Y G"), ("krgb", "RGB LED module", "R G B"), ("kbuzzer", "Passive buzzer module", "plays notes"),
+                        ("psu", "Breadboard power supply", "5 V · 3.3 V")]),
+    ("Communication", [("usbserial", "USB-serial adapter", "a terminal on UART"), ("hc05", "Bluetooth HC-05", "UART · a phone"),
+                       ("gps", "GPS NEO-6M", "UART · NMEA")]),
+    ("Displays", [("oled", "OLED SSD1306", "128×64 · I²C"), ("lcd", "LCD 16×2", "I²C backpack"), ("seg7", "7-segment digit", "common cathode"),
+                  ("tm1637", "4-digit display", "TM1637 · with colon"), ("matrix", "8×8 dot matrix", "MAX7219"),
                   ("neopixel", "NeoPixel strip / ring", "WS2812")]),
 ]
 
@@ -373,11 +623,17 @@ PARTS = [
 MICROBIT_PARTS = [("micro:bit", [("gpioboard", "GPIO board", "30 pins · 5V from its USB")])]
 
 
-def parts(hover: str = "", drag: str = "", board: str = "") -> str:
-    """`board` = microbit: the micro:bit's own group first (screen 24: its GPIO board)."""
+def parts(hover: str = "", drag: str = "", board: str = "", opened: str = "") -> str:
+    """`board` = microbit: the micro:bit's own group first (screen 24: its GPIO board). `opened`: the groups shown
+    open, '+'-separated (the others folded to their heading, as the student left them); all open if not set."""
     out = []
+    keep = set(opened.split("+")) if opened else None
     for group, items in (MICROBIT_PARTS if board == "microbit" else []) + PARTS:
-        out.append(f'<div class="pgroup"><div class="gh">{icon("chevd", "s12")} {group}<span class="n">{len(items)}</span></div>')
+        folded = keep is not None and group not in keep
+        out.append(f'<div class="pgroup"><div class="gh">{icon("chevr" if folded else "chevd", "s12")} {group}<span class="n">{len(items)}</span></div>')
+        if folded:
+            out.append("</div>")
+            continue
         for kind, name, sub in items:
             cls = " hover" if kind == hover else " drag" if kind == drag else ""
             small = f"<small>{sub}</small>" if sub else ""

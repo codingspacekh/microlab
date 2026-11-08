@@ -38,7 +38,14 @@ export const projectSchema = z.object({
   gpioBoard: z.boolean().optional(),
   /** Where the board and each breadboard are on the canvas (M4.3), in drawing units (16 = 0.1 in); parts and wires
    *  are placed by their holes and pins. A project without it gets the default layout (lib/editor). */
-  view: z.object({ board: xy, breadboards: z.record(z.string(), xy) }).optional(),
+  view: z.object({
+    board: xy, breadboards: z.record(z.string(), xy),
+    /** The board's quarter turns clockwise about its middle (M7, the teacher's request); none: as drawn. */
+    boardTurns: z.number().int().min(1).max(3).optional(),
+    /** Where each part that lies beside the breadboard is (M7: a motor, a pump, an L298N, a stepper). */
+    // M7: where each part beside the breadboard lies, and its quarter turns clockwise (slice 2: a display turned)
+    parts: z.record(z.string(), z.object({ x: z.number(), y: z.number(), turns: z.number().int().min(1).max(3).optional() })).optional(),
+  }).optional(),
 });
 
 export type Project = z.infer<typeof projectSchema>;

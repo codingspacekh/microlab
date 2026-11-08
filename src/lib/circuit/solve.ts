@@ -45,8 +45,40 @@ function limitJunction(vNew: number, vOld: number, vcrit: number): number {
 type Source = { id: string; p: number; m: number; volts: number; ohms: number; limitA: number };
 type Led = { id: string; a: number; j: number; k: number; vf: number; vcrit: number };
 
-/** Nodal analysis with Newton iterations (architecture §2.5, Q14). Plain data in, plain data out. */
+type Logic = Extract<Device, { kind: 'logic' }>;
+/** A driver solves again at most this many times for its switches to agree with the voltages (inputs that don't
+ *  depend on its outputs agree on the second pass; a relay at the edge of pulling in may not, and stays as last). */
+const LOGIC_PASSES = 6;
+
+/** Which of a driver's switches its inputs close, from the voltages: '1' closed, '0' open, one a switch. */
+export function logicPattern(l: Logic, volts: Record<string, number>): string {
+  const v = (net: string) => (volts[net] ?? 0) - (volts[l.gnd] ?? 0);
+  const rest = l.rest ?? '0'.repeat(l.switches.length);
+  if (l.power.length && !l.power.some((p) => v(p.net) >= p.minVolts)) return rest;
+  return l.table[l.inputs.map((i) => (v(i) >= l.threshold ? '1' : '0')).join('')] ?? rest;
+}
+
+/** Nodal analysis with Newton iterations (architecture §2.5, Q14). Plain data in, plain data out. Drivers' logic
+ *  (M7): solved with its switches as the last answer had them, then again while its inputs say otherwise. */
 export function solve(netlist: Netlist, state: SimState = {}, previous?: Solution): Solution {
+  const logic = netlist.devices.filter((d): d is Logic => d.kind === 'logic');
+  if (!logic.length) return solveDevices(netlist, netlist.devices, state, previous);
+  const others = netlist.devices.filter((d) => d.kind !== 'logic');
+  const closedBy = (patterns: string[]): Device[] => logic.flatMap((l, i) => l.switches
+    .filter((_, k) => patterns[i]![k] === '1')
+    .map((sw): Device => ({ kind: 'resistor', id: `${l.id}:${sw.id}`, a: sw.a, b: sw.b, ohms: sw.ohms })));
+  let patterns = logic.map((l) => logicPattern(l, previous?.volts ?? {}));
+  let s = solveDevices(netlist, [...others, ...closedBy(patterns)], state, previous);
+  for (let pass = 1; pass < LOGIC_PASSES; pass++) {
+    const next = logic.map((l) => logicPattern(l, s.volts));
+    if (next.every((p, i) => p === patterns[i])) break;
+    patterns = next;
+    s = solveDevices(netlist, [...others, ...closedBy(patterns)], state, s);
+  }
+  return s;
+}
+
+function solveDevices(netlist: Netlist, devices: Device[], state: SimState, previous?: Solution): Solution {
   const index = new Map<string, number>();     // ground is -1
   const names: string[] = [];
   const node = (name: string): number => {
@@ -64,7 +96,7 @@ export function solve(netlist: Netlist, state: SimState = {}, previous?: Solutio
   const resistors: { id: string; a: number; b: number; g: number }[] = [];
   const sources: Source[] = [];
   const leds: Led[] = [];
-  for (const d of netlist.devices) addDevice(d, state, node, resistors, sources, leds);
+  for (const d of devices) addDevice(d, state, node, resistors, sources, leds);
 
   const n = names.length;
   const v = new Float64Array(n);
@@ -191,6 +223,11 @@ function addDevice(
       );
       return;
     }
+    case 'load':
+      resistors.push({ id: d.id, a: node(d.a), b: node(d.b), g: 1 / (state.parts?.[d.part]?.ohms ?? d.ohms) });
+      return;
+    case 'logic':   // its switches are resistors, added by solve()
+      return;
     case 'ldr':
       resistors.push({ id: d.id, a: node(d.a), b: node(d.b), g: 1 / ldrOhms(state.parts?.[d.part]?.lux ?? 300) });
       return;

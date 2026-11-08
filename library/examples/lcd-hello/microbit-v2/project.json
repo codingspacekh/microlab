@@ -1,0 +1,41 @@
+{
+  "format": 1,
+  "title": "16×2 LCD",
+  "board": "microbit-v2",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "lcd1",
+      "type": "lcd1602",
+      "props": {},
+      "legs": {}
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "lcd1.gnd",
+      "b": "board.GND"
+    },
+    {
+      "id": "w2",
+      "a": "lcd1.vcc",
+      "b": "board.5V"
+    },
+    {
+      "id": "w3",
+      "a": "lcd1.sda",
+      "b": "board.P20"
+    },
+    {
+      "id": "w4",
+      "a": "lcd1.scl",
+      "b": "board.P19"
+    }
+  ]
+}

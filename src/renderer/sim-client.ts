@@ -2,6 +2,7 @@ import type { BoardId } from '@lib/boards';
 import { boardData } from '@lib/editor';
 import { toCircuit, type Project, type ProjectDoc } from '@lib/project';
 import type { PartView } from '../sim/circuit';
+import type { Tone } from '../sim/worker-core';
 import { Control } from '../sim/control';
 import type { RunResult, SimBoard } from '../sim/run';
 import type { StartMessage, WorkerMessage } from '../sim/worker-core';
@@ -22,7 +23,7 @@ export interface WorkerLike {
 export interface RunEvents {
   onOutput: (text: string) => void;
   onParts: (states: Record<string, PartView>) => void;
-  onBoard: (outputs: { pins: Record<string, number>; display?: string; sound?: number }) => void;
+  onBoard: (outputs: { pins: Record<string, number>; display?: string; sound?: number; tone?: Tone; radio?: string[] }) => void;
   onEnd: (result: RunResult) => void;
 }
 
@@ -36,6 +37,7 @@ export const STOP_GRACE_MS = 300;
 /** The live input each kind of part takes: a push button is pressed or not, a knob has a position (0–1), a slide
  *  switch is at 0 or 1 (M6.1), a light sensor has the light on it in lux; a PIR sees motion or not, a line sensor is
  *  over white (0) or the line (1), a soil sensor's moisture is 0–1, a temperature sensor has °C (M6.3). */
+const TEXT_SLOTS = ['txseq', 'txlen', ...Array.from({ length: 64 }, (_, i) => `tx${i}`)];
 const SLOT: Record<string, string[]> = {
   button: ['pressed'], potentiometer: ['position'], 'slide-switch': ['position'], ldr: ['lux'],
   pir: ['pressed'], 'line-sensor': ['position'], 'soil-moisture': ['position'], 'temp-sensor': ['celsius'],
@@ -45,12 +47,17 @@ const SLOT: Record<string, string[]> = {
   'button-module': ['pressed'], 'ldr-module': ['lux'], 'pot-module': ['position'], touch: ['pressed'], vibration: ['pressed'],
   'ir-obstacle': ['position'], hall: ['position'], 'water-level': ['position'], flame: ['position'], raindrop: ['position'], mq2: ['position'],
   joystick: ['x', 'y', 'pressed'], 'rotary-encoder': ['steps', 'pressed'], 'speed-sensor': ['rpm'],
-  bmp280: ['celsius', 'hpa'], ds18b20: ['celsius'], vl53l0x: ['cm'], max30102: ['bpm', 'spo2', 'position'],                          // M6.5b: the air (the PCF8591 reads the circuit)
+  bmp280: ['celsius', 'hpa'], ds18b20: ['celsius'], vl53l0x: ['cm'], max30102: ['bpm', 'spo2', 'position'],
+  rc522: ['position'],
+  // M7 slice 5: what a terminal or a phone sends (a count, how many bytes, the bytes); a phone connected; a GPS's place
+  'usb-serial': [...TEXT_SLOTS, 'baud'], hc05: [...TEXT_SLOTS, 'connected'], gps: ['fix', 'lat', 'lon', 'sats', 'kmh'],   // M7: the tag held to the RFID reader (0 none, 1 the card, 2 the key fob)                          // M6.5b: the air (the PCF8591 reads the circuit)
 };
 
 /** The micro:bit's own inputs (M6.6, screen 06): buttons A and B, the touch logo, its tilt (mg), a shake (a count),
  *  its temperature, light level and sound level. */
-export const MICROBIT_SLOTS = ['pressed:board.A', 'pressed:board.B', 'touch:LOGO', 'board:accelx', 'board:accely', 'board:shake', 'board:celsius', 'board:light', 'board:sound'];
+export const MICROBIT_SLOTS = ['pressed:board.A', 'pressed:board.B', 'touch:LOGO', 'board:accelx', 'board:accely', 'board:accelz', 'board:shake', 'board:celsius', 'board:light', 'board:sound',
+  // M7: a message from another micro:bit — its bytes, how many, and a count of the messages sent
+  'radio:seq', 'radio:len', ...Array.from({ length: 32 }, (_, i) => `radio:${i}`)];
 
 export function inputSlots(project: Project): string[] {
   const own = project.board === 'microbit-v2' ? MICROBIT_SLOTS : [];
@@ -80,7 +87,7 @@ export function startRun(req: { doc: ProjectDoc; entry: string }, events: RunEve
     if (ended) return;
     if (m.type === 'output') events.onOutput(m.text);
     else if (m.type === 'parts') events.onParts(m.states);
-    else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}), ...(m.sound !== undefined ? { sound: m.sound } : {}) });
+    else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}), ...(m.sound !== undefined ? { sound: m.sound, ...(m.tone ? { tone: m.tone } : {}) } : {}), ...(m.radio ? { radio: m.radio } : {}) });
     else end(m.result);
   };
   worker.onerror = (e) => end({ ...emptyResult('error'), error: { type: 'Error', message: `The simulator couldn't start: ${e.message}` } });
@@ -108,5 +115,5 @@ export function startRun(req: { doc: ProjectDoc; entry: string }, events: RunEve
 }
 
 function emptyResult(ended: RunResult['ended']): RunResult {
-  return { output: '', trace: [], pwm: [], analog: [], display: [], sound: [], bus: [], parts: [], faults: [], ended };
+  return { output: '', trace: [], pwm: [], analog: [], display: [], sound: [], bus: [], radio: [], parts: [], faults: [], ended };
 }

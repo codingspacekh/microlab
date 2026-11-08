@@ -1,0 +1,34 @@
+{
+  "seconds": 1.5,
+  "inputs": [
+    {
+      "at": 0.1,
+      "part": "bt1",
+      "connected": true
+    },
+    {
+      "at": 0.5,
+      "part": "bt1",
+      "text": "on"
+    }
+  ],
+  "parts": {
+    "bt1": {
+      "values": [
+        [
+          0.3,
+          "connected",
+          1,
+          1
+        ],
+        [
+          1.2,
+          "received",
+          7,
+          9
+        ]
+      ]
+    }
+  },
+  "ended": "stopped"
+}

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>26 Displays on I2C</title>
+{{include:head}}
+</head>
+<body>
+<!--@PROJECT: Knob meter-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 00:09-->
+<!--@EDITOR: {{code:displays:cur=22}}-->
+<!--@FILES: <a class="on">{{i:file:s14}} main.py</a><a>{{i:file:s14}} ssd1306.py <span class="tiny muted" style="font-family:var(--font)">library</span></a><a>{{i:file:s14}} i2c_lcd.py <span class="tiny muted" style="font-family:var(--font)">library</span></a><a>{{i:file:s14}} lcd_api.py <span class="tiny muted" style="font-family:var(--font)">library</span></a>-->
+<!--@PARTS_LIST: {{parts::::Displays}}-->
+<!--@COUNTS: Pico W + 3 parts · 15 wires-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.29.0 on Raspberry Pi Pico W (simulated)</span>
+[39, 60]
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running main.py — Stop or <span class="kbd">Ctrl</span>+<span class="kbd">C</span> breaks in</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span><span>I²C0 400 kHz: LCD1 at 0x27 · OLED1 at 0x3C</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.08 ms</span>-->
+<p class="frame-label"><b>26 · Displays on I²C, running</b> (M7 design, slice 2) — an <b>SSD1306 OLED</b> stands in the breadboard by its four pins (GND VCC SCL SDA), its screen above them: it shows what <code>oled.text()</code>, <code>rect()</code> and <code>fill_rect()</code> drew, pixel for pixel, when <code>show()</code> sends it; a <b>16×2 LCD</b> with its <b>I²C backpack</b> lies above the breadboard — the backpack's header sticks out of its left end, so its pins are points to wire, like the L298N's: it shows the letters <code>putstr()</code> wrote, where <code>move_to()</code> put them. Both on one I²C bus (GP20 SDA, GP21 SCL, I2C0): <code>i2c.scan()</code> finds them at 39 (0x27) and 60 (0x3C), and a wrong address raises the board's own <code>OSError: [Errno 5] EIO</code>. Both on VBUS (5 V); the knob on 3V3 gives what they show. The drivers come from the library pack (<code>ssd1306.py</code>, <code>i2c_lcd.py</code> + <code>lcd_api.py</code>). The LCD's inspector: its address (the backpack's A0–A2 pads) and the contrast knob on its back — turned too far, the letters vanish or become boxes, as on the real one</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:displays}}
+      <div class="tip" style="left:296px;top:194px;width:268px"><b>LCD1 · 16×2 at 0x27 · backlight on</b><div style="opacity:.85;margin-top:2px">Row 0 "Knob:&nbsp;&nbsp;62 %", row 1 "ADC 40632". Its PCF8574 turns each I²C byte into the LCD's own 4-bit commands.</div></div>
+      <div class="float inspector" style="right:10px;bottom:10px;width:240px">
+        <div class="ih"><span class="pic" style="width:28px;height:28px;border-radius:6px;background:var(--bg);display:grid;place-items:center">{{part:lcd:bp}}</span><b>LCD1 · LCD 16×2</b><span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+        <div class="prop"><span>Address</span><div class="seg"><span class="on">0x27</span><span>0x3F</span></div></div>
+        <div class="prop"><span>Contrast</span><div class="slider" style="grid-template-columns:1fr 34px;margin:0"><span class="track"><i style="width:58%"></i><b style="left:58%"></b></span><span class="v">58 %</span></div></div>
+        <p class="tiny muted" style="margin:8px 0 0;line-height:1.45">Needs 5 V. The address must match the one in the code: the board finds what <code>i2c.scan()</code> lists.</p>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

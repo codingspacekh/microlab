@@ -1,0 +1,16 @@
+{
+  "seconds": 3,
+  "parts": {
+    "step1": {
+      "values": [
+        [
+          2.3,
+          "steps",
+          1024,
+          1024
+        ]
+      ]
+    }
+  },
+  "ended": "done"
+}

@@ -69,10 +69,12 @@ describe('M6.9 the micro:bit alone (screen 24)', () => {
     expect(microbitGroup()).toBeNull();
   });
 
-  it('clicked, the micro:bit alone shows no inspector: there is nothing to set', () => {
+  it('clicked, the micro:bit alone shows its inspector: only Rotate (M7, the teacher\'s request: the board turns)', () => {
     const s = setup();
     s.clickBoard();
-    expect(screen.queryByRole('complementary', { name: 'Inspector' })).toBeNull();
+    const inspector = screen.getByRole('complementary', { name: 'Inspector' });
+    expect(inspector).toHaveTextContent(/micro:bit/);
+    expect(within(inspector).getAllByRole('button').map((b) => b.textContent?.trim())).toEqual(['', 'Rotate']);   // its close, its Rotate
   });
 });
 

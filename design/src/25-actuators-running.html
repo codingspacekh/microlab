@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>25 Actuators running</title>
+{{include:head}}
+<style>.legend { padding: 10px 12px; width: 206px; } .legend .r { display: grid; grid-template-columns: 62px 1fr; gap: 6px; font-size: 12px; margin-top: 6px; } .legend .r b { font-family: var(--mono); font-size: 11.5px; }</style>
+</head>
+<body>
+<!--@PROJECT: Garden robot-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 00:07-->
+<!--@EDITOR: {{code:actuators:cur=17}}-->
+<!--@PARTS_LIST: {{parts::::Actuators+Output modules}}-->
+<!--@COUNTS: Pico W + 7 parts · 24 wires-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.29.0 on Raspberry Pi Pico W (simulated)</span>
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running main.py — Stop or <span class="kbd">Ctrl</span>+<span class="kbd">C</span> breaks in</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span><span>VBUS 5V: 412 mA of 500</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.09 ms</span>-->
+<p class="frame-label"><b>25 · Actuators, running</b> (M7 design, slice 1) — an <b>SG90 servo</b> by its plug in three holes (S, +, −; its body off the breadboard): its arm turns to the angle of its pulses (0.5–2.5 ms every 20 ms), at a servo's speed, not at once; an <b>L9110S</b> stands in the breadboard and turns a <b>TT motor</b> through its MOTOR A screws — the arrow says which way, the rpm how fast (PWM on A-IA); a <b>relay module</b> switches a <b>pump</b> on a 4×AA pack of its own (COM from the pack's +, NO to the pump): its contact clicks to NO, its LED lights, water flows; the kit's <b>RGB LED module</b>. New for M7: <b>screw terminals and a motor's or pump's tabs are points to wire</b>, like a board's pins — a motor, a pump and (screen 25b) a stepper or an L298N lie beside the breadboard, not in it. Hovering a part says what it is doing; the status bar what VBUS gives</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:actuators}}
+      <div class="tip" style="left:12px;top:8px;width:236px"><b>MOTOR1 · forward · 126 rpm</b><div style="opacity:.85;margin-top:2px">70 % from the L9110S's MOTOR A (PWM on A-IA, A-IB low). 160 mA from 5 V — a pin alone can't give that.</div></div>
+      <div class="float legend" style="right:14px;bottom:14px">
+        <div class="row small" style="gap:6px">{{i:sliders:s14}} <b>What they do</b></div>
+        <div class="r"><span class="muted">SERVO1</span><span><b>135°</b> · 2.0 ms pulses</span></div>
+        <div class="r"><span class="muted">RELAY1</span><span>on · COM to <b>NO</b></span></div>
+        <div class="r"><span class="muted">PUMP1</span><span>pumping · <b>180 mA</b></span></div>
+        <div class="r"><span class="muted">RGB1</span><span>blue <b>100 %</b></span></div>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

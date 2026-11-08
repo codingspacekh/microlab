@@ -6,7 +6,8 @@ on the ESP32 and *Heart & knob* on the micro:bit. Every wire ends on a real pin 
 """
 import math
 
-from svgparts import (P, f, Breadboard, microbit_bare, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
+from svgparts import (P, f, Breadboard, microbit_bare, servo_in, l9110s, tt_motor, relay_module, pump, uln2003, stepper, l298n,
+                      kit_traffic, kit_rgb, kit_passive_buzzer, power_supply, oled_in, lcd1602, seg7_digit, tm1637, max7219, neopixel_strip, neopixel_ring, usb_serial, hc05, gps_neo6m, defs, wire, led, resistor, button, buzzer, pot, pico, esp32,
                       microbit, oled, hcsr04, servo, HEART, slide_switch, ldr, rgb_led, battery,
                       pir, line_sensor, soil_sensor, temp_sensor, dht, mpu6050, hcsr04_in,
                       kit_button, kit_touch, kit_vibration, kit_ir_obstacle, kit_hall, kit_flame, kit_raindrop, kit_water, kit_mq2,
@@ -511,7 +512,384 @@ def mbit_gpio() -> str:
     return _svg("".join(o), vb="-60 -40 900 1066")
 
 
-SCENES = {"mbitalone": mbit_alone, "mbitgpio": mbit_gpio, "bare": bare, "placebb": place_breadboard, "chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
+def _bus(pins, jobs, y0: float, step: float = 8):
+    """Wires from the Pico W's top-row pins up to holes: `jobs` = [(pin, hole, colour)], given from the highest run to
+    the lowest — each wire goes up from its pin to its own height below the breadboard, across, and up to its hole."""
+    return "".join(wire([pins[n], (pins[n][0], y0 + i * step), (to[0], y0 + i * step), to], col) for i, (n, to, col) in enumerate(jobs))
+
+
+def actuators() -> str:
+    """Screen 25 (M7 design): a Pico W running — an SG90 by its plug in row a (S, +, −), an L9110S standing in row f
+    turning a TT motor through its MOTOR A screws, a relay module switching a pump on a 4×AA pack of its own (the top
+    rails: COM from +, NO to the pump), the kit's RGB LED module. B+ is VBUS (5 V), B− GND."""
+    bb = Breadboard(120, 270)
+    o = [bb.svg(rail_labels={"T-": ("6 V −", "#3a3d42"), "T+": ("6 V +", "#de3b3b"), "B+": ("5V", "#f08024"), "B-": ("GND", "#3a3d42")})]
+    o.append(battery(bb.xy(29, "T+"), bb.xy(29, "T-"), "4xAA"))
+    o.append(servo_in([bb.xy(2, "a"), bb.xy(3, "a"), bb.xy(4, "a")], angle=135))
+    dsvg, dp = l9110s([bb.xy(c, "f") for c in range(8, 14)], a_dir=1)
+    o.append(dsvg)
+    msvg, tabs = tt_motor(286, 168, rpm=126, direction=1)
+    o.append(msvg)
+    rsvg, rp = relay_module([bb.xy(c, "f") for c in (19, 20, 21)], on=True)
+    o.append(rsvg)
+    psvg_, pt = pump(430, 150, running=True)
+    o.append(psvg_)
+    o.append(kit_rgb([bb.xy(c, "f") for c in (25, 26, 27, 28)], rgb=(0, .2, 1)))
+    psvg, pins = pico(140, 770)
+    o.append(psvg)
+    # the Pico W's top row, VBUS on the left to GP16 on the right
+    o.append(_bus(pins, [(40, bb.xy(1, "B+"), "orange"), (38, bb.xy(2, "B-"), "black")], 600))
+    o.append(_bus(pins, [
+        (25, bb.xy(27, "i"), "blue"), (26, bb.xy(26, "i"), "green"), (27, bb.xy(25, "i"), "white"),   # the RGB module's B G R
+        (29, bb.xy(19, "i"), "purple"),                                                               # the relay's S
+        (31, bb.xy(13, "i"), "blue"), (32, bb.xy(12, "i"), "green"),                                  # L9110S A-IB, A-IA (PWM)
+    ][::-1], 582, 8))
+    o.append(_bus(pins, [(34, bb.xy(2, "e"), "yellow")], 574))                                        # the servo's S
+    # servo + 5 V, − GND
+    o.append(wire([bb.xy(3, "e"), (bb.xy(3, "e")[0] + 6, 430), bb.xy(3, "B+")], "red"))
+    o.append(wire([bb.xy(4, "e"), (bb.xy(4, "e")[0] + 6, 430), bb.xy(4, "B-")], "black"))
+    # L9110S: GND, VCC 5 V; MOTOR A to the motor's tabs
+    o.append(wire([bb.xy(10, "j"), bb.xy(10, "B-")], "black"))
+    o.append(wire([bb.xy(11, "j"), bb.xy(11, "B+")], "red"))
+    o.append(wire([dp["A1"], (dp["A1"][0], 248), (tabs["+"][0] + 14, 248), (tabs["+"][0] + 14, tabs["+"][1]), tabs["+"]], "red"))
+    o.append(wire([dp["A2"], (dp["A2"][0], 256), (tabs["−"][0] + 22, 256), (tabs["−"][0] + 22, tabs["−"][1]), tabs["−"]], "black"))
+    # relay: + 5 V, − GND; the pump on the pack: + → COM, NO → pump +, pump − → −
+    o.append(wire([bb.xy(20, "j"), bb.xy(20, "B+")], "red"))
+    o.append(wire([bb.xy(21, "j"), bb.xy(21, "B-")], "black"))
+    o.append(wire([rp["COM"], (rp["COM"][0], 318), (bb.xy(26, "T+")[0], 318), bb.xy(26, "T+")], "red"))
+    o.append(wire([rp["NO"], (rp["NO"][0], 96), (pt["+"][0], 96), pt["+"]], "red"))
+    o.append(wire([pt["−"], (pt["−"][0], 104), (bb.xy(25, "T-")[0], 104), bb.xy(25, "T-")], "black"))
+    o.append(wire([bb.xy(28, "j"), (bb.xy(28, "j")[0] + 8, 540), bb.xy(29, "B-")], "black"))
+    return _svg("".join(o), vb="20 40 660 800")
+
+
+def more_outputs() -> str:
+    """Screen 25b (M7 design): a Pico W running — the breadboard power supply on the left end (top rails 5 V, bottom
+    3.3 V), a ULN2003 on the supply's 5 V turning a 28BYJ-48 by its cable, the kit's traffic light and passive buzzer modules, and an L298N
+    beside the breadboard on the supply's 5 V turning a TT motor. The Pico W's GND joins the supply's."""
+    bb = Breadboard(150, 290)
+    o = [bb.svg(rail_labels={"T-": ("GND", "#3a3d42"), "T+": ("5V", "#de3b3b"), "B+": ("3.3V", "#de3b3b"), "B-": ("GND", "#3a3d42")})]
+    o.append(power_supply(bb, top="5V", bottom="3.3V"))
+    usvg, sock = uln2003([bb.xy(c, "f") for c in range(4, 10)], coils=(0, 1, 1, 0))
+    o.append(usvg)
+    o.append(stepper(200, 150, sock, steps=1024))
+    o.append(kit_traffic([bb.xy(c, "f") for c in (13, 14, 15, 16)], lit=(0, 0, 1)))
+    o.append(kit_passive_buzzer([bb.xy(c, "f") for c in (20, 21, 22)], playing=True, note="A4 · 440 Hz"))
+    lsvg, lp = l298n(330, 50, out=(0, 1))
+    o.append(lsvg)
+    msvg, tabs = tt_motor(560, 116, rpm=180, direction=-1, label="MOTOR2")
+    o.append(msvg)
+    psvg, pins = pico(170, 812)
+    o.append(psvg)
+    o.append(_bus(pins, [(38, bb.xy(3, "B-"), "black")], 598))                                    # the grounds joined
+    # ULN2003 + from the supply's 5 V (top rail), beside the module
+    o.append(wire([bb.xy(9, "j"), (bb.xy(10, "j")[0], bb.xy(9, "j")[1]), bb.xy(10, "T+")], "red"))
+    o.append(_bus(pins, [
+        (24, bb.xy(20, "i"), "white"),                                                                         # buzzer I/O (PWM)
+        (25, bb.xy(15, "i"), "green"), (26, bb.xy(14, "i"), "yellow"), (27, bb.xy(13, "i"), "red"),           # traffic G Y R
+        (29, bb.xy(7, "i"), "orange"), (31, bb.xy(6, "i"), "yellow"), (32, bb.xy(5, "i"), "purple"), (34, bb.xy(4, "i"), "blue"),   # IN4…IN1
+    ], 610, 8))
+    o.append(wire([bb.xy(8, "j"), bb.xy(8, "B-")], "black"))
+    o.append(wire([bb.xy(16, "j"), (bb.xy(16, "j")[0] + 8, 560), bb.xy(17, "B-")], "black"))
+    o.append(wire([bb.xy(21, "j"), bb.xy(21, "B+")], "red"))
+    o.append(wire([bb.xy(22, "j"), bb.xy(22, "B-")], "black"))
+    # L298N: 12V screw from the supply's 5 V rail, GND; IN3 ← GP17, IN4 ← GP16, round the right; OUT3/OUT4 to the motor
+    o.append(wire([lp["12V"], (lp["12V"][0], 262), (bb.xy(3, "T+")[0], 262), bb.xy(3, "T+")], "red"))
+    o.append(wire([lp["GND"], (lp["GND"][0], 270), (bb.xy(4, "T-")[0], 270), bb.xy(4, "T-")], "black"))
+    o.append(wire([lp["IN3"], (lp["IN3"][0], 214), (712, 214), (712, 682), (pins[22][0], 682), pins[22]], "green"))
+    o.append(wire([lp["IN4"], (lp["IN4"][0], 222), (704, 222), (704, 684), (pins[21][0], 684), pins[21]], "blue"))
+    o.append(wire([lp["OUT3"], (lp["OUT3"][0], 40), (tabs["+"][0] + 14, 40), (tabs["+"][0] + 14, tabs["+"][1]), tabs["+"]], "red"))
+    o.append(wire([lp["OUT4"], (lp["OUT4"][0], 32), (tabs["−"][0] + 22, 32), (tabs["−"][0] + 22, tabs["−"][1]), tabs["−"]], "black"))
+    return _svg("".join(o), vb="20 10 712 852")
+
+
+def output_faults() -> str:
+    """Screen 25c (M7 design): the two teaching faults of M7 — a TT motor straight on GP15 and GND (no driver: the pin
+    is damaged and the run stops) and an SG90 on 3V3 (a warning: it twitches, too weak to turn)."""
+    bb = Breadboard(120, 300)
+    o = [bb.svg(rail_labels={"B+": ("3V3", "#de3b3b"), "B-": ("GND", "#3a3d42")})]
+    o.append(servo_in([bb.xy(20, "a"), bb.xy(21, "a"), bb.xy(22, "a")], angle=70, powered=False))
+    msvg, tabs = tt_motor(250, 196, rpm=0, label="MOTOR1")
+    o.append(msvg)
+    psvg, pins = pico(140, 760)
+    o.append(psvg)
+    o.append(_bus(pins, [(21, bb.xy(20, "e"), "yellow")], 610))
+    o.append(_bus(pins, [(36, bb.xy(4, "B+"), "red"), (38, bb.xy(3, "B-"), "black")], 618))
+    # the motor straight on GP15 (the bottom row's right end) and GND: no driver
+    x15, y15 = pins[20]
+    o.append(wire([pins[20], (x15, y15 + 26), (676, y15 + 26), (676, 164), (tabs["+"][0] + 14, 164), (tabs["+"][0] + 14, tabs["+"][1]), tabs["+"]], "orange"))
+    o.append(wire([tabs["−"], (tabs["−"][0] + 24, tabs["−"][1]), (tabs["−"][0] + 24, 262), (bb.xy(8, "T-")[0], 262), bb.xy(8, "T-")], "black"))
+    o.append(wire([bb.xy(7, "T-"), (60, 318), (60, bb.xy(1, "B-")[1]), bb.xy(1, "B-")], "black"))
+    # the servo on 3V3: + 3V3, − GND
+    o.append(wire([bb.xy(21, "e"), (bb.xy(21, "e")[0] + 6, 460), bb.xy(21, "B+")], "red"))
+    o.append(wire([bb.xy(22, "e"), (bb.xy(22, "e")[0] + 6, 460), bb.xy(22, "B-")], "black"))
+    o.append(f'<circle cx="{x15}" cy="{y15}" r="10" fill="none" stroke="#d92d20" stroke-width="2"/><circle cx="{x15}" cy="{y15}" r="16" fill="#d92d20" opacity=".14"/>')
+    return _svg("".join(o), vb="20 60 670 800")
+
+
+# ------------------------------------------------------------------ M7 slice 2: displays
+def _lcd_wires(lp, bb, sda, scl):
+    """The LCD's backpack wired from its left end: down the left of the breadboard, nested (the top pin outermost and
+    deepest) — GND to B− and VCC to B+ at column 1, SDA and SCL into rows h and g of their columns."""
+    return "".join(wire([lp[n], (x, lp[n][1]), (x, to[1]), to], col) for n, x, to, col in (
+        ("GND", 48, bb.xy(1, "B-"), "black"), ("VCC", 56, bb.xy(1, "B+"), "red"),
+        ("SDA", 64, bb.xy(sda, "h"), "blue"), ("SCL", 72, bb.xy(scl, "g"), "yellow")))
+
+
+def displays() -> str:
+    """Screen 26 (M7 design, slice 2): a Pico W running — an SSD1306 OLED standing in the breadboard and a 16×2 LCD
+    lying above it (its I²C backpack's header out of its left end) on one I²C bus, I2C0 on GP20 (SDA) / GP21 (SCL);
+    a 10 k knob on GP26 gives what they show. B+ is VBUS (5 V) for both displays, B− GND; the knob on 3V3."""
+    bb = Breadboard(120, 290)
+    o = [bb.svg(rail_labels={"B+": ("5V", "#f08024"), "B-": ("GND", "#3a3d42")})]
+    lsvg, lp = lcd1602(150, 40, ("Knob:  62 %", "ADC 40632"))
+    o.append(lsvg)
+    o.append(pot(bb.xy(5, "f"), bb.xy(6, "f"), bb.xy(7, "f"), angle=32))
+    o.append(oled_in([bb.xy(c, "f") for c in (14, 15, 16, 17)], lines=[("Knob", 0, 0), ("62 %", 0, 16)], bar=(0, 40, 128, 12, 79)))
+    psvg, pins = pico(110, 772)
+    o.append(psvg)
+    yt = pins[40][1]
+    o.append(wire([pins[40], (pins[40][0], 616), (bb.xy(2, "B+")[0], 616), bb.xy(2, "B+")], "orange"))   # VBUS
+    o.append(wire([pins[38], (pins[38][0], 624), (bb.xy(3, "B-")[0], 624), bb.xy(3, "B-")], "black"))
+    o.append(wire([pins[36], (pins[36][0], 632), (bb.xy(5, "j")[0], 632), bb.xy(5, "j")], "red"))       # 3V3 → the knob
+    o.append(wire([pins[31], (pins[31][0], 608), (bb.xy(6, "j")[0], 608), bb.xy(6, "j")], "green"))     # GP26 ← its wiper
+    o.append(wire([bb.xy(7, "j"), bb.xy(7, "B-")], "black"))
+    o.append(wire([pins[27], (pins[27][0], 612), (bb.xy(16, "j")[0], 612), bb.xy(16, "j")], "yellow"))  # GP21 SCL
+    o.append(wire([pins[26], (pins[26][0], 620), (bb.xy(17, "j")[0], 620), bb.xy(17, "j")], "blue"))    # GP20 SDA
+    o.append(wire([bb.xy(14, "j"), bb.xy(14, "B-")], "black"))
+    o.append(wire([bb.xy(15, "j"), bb.xy(15, "B+")], "red"))
+    o.append(_lcd_wires(lp, bb, 17, 16))
+    assert yt == 660
+    return _svg("".join(o), vb="30 20 640 780")
+
+
+def _digit_wires(bb, pins):
+    """A 7-segment digit in columns 9–13 (top pins in row d, bottom pins in row h) wired straight from the Pico W's
+    GP16–GP22 (a GP18, b GP19, c GP20, d GP21, e GP22, f GP17, g GP16): e, d, c from below into row j; b, a, f, g up
+    lanes right of the digit and across rows c, b, a and over the top — nested, none crossing."""
+    o = []
+    for n, y, col, colour in ((29, 658, 9, "white"), (27, 650, 10, "purple"), (26, 642, 12, "green")):   # e d c
+        o.append(wire([pins[n], (pins[n][0], y), (bb.xy(col, "j")[0], y), bb.xy(col, "j")], colour))
+    for n, y, lane, row, col, colour in ((25, 634, 352, "c", 13, "blue"), (24, 626, 368, "b", 12, "orange"), (22, 618, 384, "a", 10, "yellow")):   # b a f
+        to = bb.xy(col, row)
+        o.append(wire([pins[n], (pins[n][0], y), (lane, y), (lane, to[1]), to], colour))
+    to = bb.xy(9, "a")                                                                                     # g, over the top
+    o.append(wire([pins[21], (pins[21][0], 610), (400, 610), (400, to[1] - 14), (to[0], to[1] - 14), to], "brown"))
+    return "".join(o)
+
+
+def _digit(bb, ch, bright=1.0):
+    return seg7_digit([bb.xy(c, "d") for c in range(9, 14)], [bb.xy(c, "h") for c in range(9, 14)], ch, bright=bright)
+
+
+def digits() -> str:
+    """Screen 26b (M7 design, slice 2): a Pico W running — a 7-segment digit (one 220 Ω on its common) on GP16–GP22,
+    a TM1637 4-digit module (CLK GP14, DIO GP15, on 3V3) and a MAX7219 8×8 dot matrix (SPI0: SCK GP2, MOSI GP7, CS GP5,
+    on VBUS) lying beside the breadboard, wired at their headers. T+ is VBUS (5 V), B+ 3V3, both − rails GND."""
+    bb = Breadboard(120, 300)
+    o = [bb.svg(rail_labels={"T-": ("GND", "#3a3d42"), "T+": ("5V", "#f08024"), "B+": ("3V3", "#de3b3b"), "B-": ("GND", "#3a3d42")})]
+    msvg, mp = max7219(140, 40)
+    o.append(msvg)
+    tsvg, tp = tm1637(392, 70, "0127")
+    o.append(tsvg)
+    o.append(_digit(bb, "7"))
+    o.append(resistor(bb.xy(11, "i"), bb.xy(14, "i"), "220"))
+    psvg, pins = pico(140, 802)
+    o.append(psvg)
+    o.append(_digit_wires(bb, pins))
+    o.append(wire([bb.xy(14, "j"), bb.xy(14, "B-")], "black"))
+    # power: VBUS round the left to T+; GND to B−, 3V3 to B+; the two − rails joined at column 2
+    o.append(wire([pins[40], (pins[40][0], 668), (72, 668), (72, bb.xy(1, "T+")[1]), bb.xy(1, "T+")], "orange"))
+    o.append(wire([pins[38], (pins[38][0], 620), (bb.xy(3, "B-")[0], 620), bb.xy(3, "B-")], "black"))
+    o.append(wire([pins[36], (pins[36][0], 612), (bb.xy(4, "B+")[0], 612), bb.xy(4, "B+")], "red"))
+    o.append(wire([bb.xy(2, "T-"), bb.xy(2, "B-")], "black"))
+    # the matrix: VCC and GND over its top to T+ / T−; DIN CS CLK from GP7 GP5 GP2 round the left, nested
+    o.append(wire([mp["VCC"], (112, mp["VCC"][1]), (112, 30), (bb.xy(15, "T+")[0], 30), bb.xy(15, "T+")], "red"))
+    o.append(wire([mp["GND"], (104, mp["GND"][1]), (104, 22), (bb.xy(16, "T-")[0], 22), bb.xy(16, "T-")], "black"))
+    for n, lane, y, pin, colour in ((10, 40, 842, "DIN", "green"), (7, 48, 834, "CS", "purple"), (4, 56, 826, "CLK", "yellow")):
+        o.append(wire([pins[n], (pins[n][0], y), (lane, y), (lane, mp[pin][1]), mp[pin]], colour))
+    # the TM1637: CLK DIO from GP14 GP15 round the right; GND into T− from above, VCC into B+ from below
+    o.append(wire([pins[19], (pins[19][0], 842), (688, 842), (688, tp["CLK"][1]), tp["CLK"]], "yellow"))
+    o.append(wire([pins[20], (pins[20][0], 834), (680, 834), (680, tp["DIO"][1]), tp["DIO"]], "blue"))
+    o.append(wire([tp["GND"], (606, tp["GND"][1]), (606, 290), (bb.xy(29, "T-")[0], 290), bb.xy(29, "T-")], "black"))
+    o.append(wire([tp["VCC"], (664, tp["VCC"][1]), (664, 610), (bb.xy(29, "B+")[0], 610), bb.xy(29, "B+")], "red"))
+    return _svg("".join(o), vb="20 10 684 850")
+
+
+def display_faults() -> str:
+    """Screen 26c (M7 design, slice 2): the displays' teaching faults — the 7-segment digit's common straight on GND
+    (no resistor: GP18 is damaged as segment a lights, the run stops) and the 16×2 LCD on 3V3 (a warning: its letters
+    too faint to read). The LCD on I2C1, GP26 (SDA) / GP27 (SCL)."""
+    bb = Breadboard(120, 300)
+    o = [bb.svg(rail_labels={"B+": ("3V3", "#de3b3b"), "B-": ("GND", "#3a3d42")})]
+    lsvg, lp = lcd1602(150, 40, ("Counting down", ""), faint=True)
+    o.append(lsvg)
+    o.append(_digit(bb, " "))
+    psvg, pins = pico(140, 802)
+    o.append(psvg)
+    o.append(_digit_wires(bb, pins))
+    o.append(wire([bb.xy(11, "j"), bb.xy(11, "B-")], "black"))                                       # COM straight to GND
+    o.append(wire([pins[38], (pins[38][0], 628), (bb.xy(3, "B-")[0], 628), bb.xy(3, "B-")], "black"))
+    o.append(wire([pins[36], (pins[36][0], 620), (bb.xy(4, "B+")[0], 620), bb.xy(4, "B+")], "red"))
+    o.append(wire([pins[32], (pins[32][0], 612), (bb.xy(6, "j")[0], 612), bb.xy(6, "j")], "yellow"))   # GP27 SCL
+    o.append(wire([pins[31], (pins[31][0], 604), (bb.xy(7, "j")[0], 604), bb.xy(7, "j")], "blue"))     # GP26 SDA
+    o.append(_lcd_wires(lp, bb, 7, 6))
+    x18, y18 = pins[24]
+    o.append(f'<circle cx="{x18}" cy="{y18}" r="10" fill="none" stroke="#d92d20" stroke-width="2"/><circle cx="{x18}" cy="{y18}" r="16" fill="#d92d20" opacity=".14"/>')
+    return _svg("".join(o), vb="20 10 684 850")
+
+
+def _wheel(h):
+    """The examples' colour wheel, 0–255 round red → green → blue."""
+    if h < 85:
+        return (255 - h * 3, h * 3, 0)
+    if h < 170:
+        h -= 85
+        return (0, 255 - h * 3, h * 3)
+    h -= 170
+    return (h * 3, 0, 255 - h * 3)
+
+
+def _strip_power(sp, bb):
+    """The stick's 5V and GND, left of it, down to T+ col 2 / T− col 3 — 5V the outer lane (it goes to the lower rail)."""
+    return (wire([sp["5V"], (124, sp["5V"][1]), (124, 316), (bb.xy(2, "T+")[0], 316), bb.xy(2, "T+")], "red")
+            + wire([sp["GND"], (132, sp["GND"][1]), (132, 300), (bb.xy(3, "T-")[0], 300), bb.xy(3, "T-")], "black"))
+
+
+def _np_rails(bb, pins):
+    """VBUS round the left to T+ col 1; GND to B− col 3; T− joined to B− at col 4."""
+    return (wire([pins[40], (pins[40][0], 668), (72, 668), (72, bb.xy(1, "T+")[1]), bb.xy(1, "T+")], "orange")
+            + wire([pins[38], (pins[38][0], 624), (bb.xy(3, "B-")[0], 624), bb.xy(3, "B-")], "black")
+            + wire([bb.xy(4, "T-"), bb.xy(4, "B-")], "black"))
+
+
+def neopixels() -> str:
+    """Screen 27 (M7 design, slice 3): a Pico W running — a NeoPixel stick of 8 (DIN on GP0) and a ring of 12 (DIN on
+    GP17) lying above the breadboard, both on VBUS (T+ 5 V, the − rails GND); a 10 k knob on GP26 sets how bright.
+    The stick shows a rainbow, the ring a blue spinner; the ring selected, its LED 3 hovered."""
+    bb = Breadboard(120, 290)
+    o = [bb.svg(rail_labels={"T-": ("GND", "#3a3d42"), "T+": ("5V", "#f08024"), "B-": ("GND", "#3a3d42")})]
+    t, k = 39, 10
+    strip = [tuple(c * k // 64 for c in _wheel((t * 4 + i * 32) % 256)) for i in range(8)]
+    ring = [(0, 0, 0)] * 12
+    ring[t % 12], ring[(t - 1) % 12] = (0, 0, 8 * k), (0, 0, 2 * k)
+    ssvg, sp = neopixel_strip(150, 100, strip)
+    rsvg, rp = neopixel_ring(544, 158, ring, hl=3)
+    o += [ssvg, rsvg]
+    o.append(f'<rect x="466" y="80" width="156" height="184" rx="12" fill="none" stroke="#2563d9" stroke-width="1.6" stroke-dasharray="5 3"/>')
+    o.append(pot(bb.xy(6, "f"), bb.xy(7, "f"), bb.xy(8, "f"), angle=32))
+    psvg, pins = pico(110, 772)
+    o.append(psvg)
+    o.append(_np_rails(bb, pins))
+    o.append(_strip_power(sp, bb))
+    o.append(wire([pins[1], (pins[1][0], 790), (56, 790), (56, sp["DIN"][1]), sp["DIN"]], "green"))                  # GP0 → the stick
+    o.append(wire([pins[22], (pins[22][0], 640), (430, 640), (430, 262), (rp["DIN"][0], 262), rp["DIN"]], "blue"))  # GP17 → the ring
+    o.append(wire([rp["GND"], bb.xy(27, "T-")], "black"))
+    o.append(wire([rp["5V"], bb.xy(28, "T+")], "red"))
+    o.append(wire([pins[36], (pins[36][0], 632), (bb.xy(6, "j")[0], 632), bb.xy(6, "j")], "red"))     # 3V3 → the knob
+    o.append(wire([pins[31], (pins[31][0], 608), (bb.xy(7, "j")[0], 608), bb.xy(7, "j")], "yellow"))  # GP26 ← its wiper
+    o.append(wire([bb.xy(8, "j"), bb.xy(8, "B-")], "black"))
+    return _svg("".join(o), vb="40 66 630 740")
+
+
+def neopixels_microbit() -> str:
+    """Screen 27b (M7 design, slice 3): a micro:bit in its GPIO board running — a ring of 12 lying beside it, DIN on P0,
+    on the GPIO board's 5V (from its USB) and GND, wired straight to its header: a rainbow going round."""
+    msvg, mp = microbit(150, 330, usb=True)
+    hue = 96
+    ring = [tuple(c // 8 for c in _wheel((hue + i * 21) % 256)) for i in range(12)]
+    rsvg, rp = neopixel_ring(560, 308, ring)
+    o = [msvg, rsvg]
+    for pin, to, y, colour in (("P0", "DIN", 428, "green"), ("GND@15", "GND", 436, "black"), ("5V", "5V", 444, "red")):
+        o.append(wire([mp[pin], (mp[pin][0], y), (rp[to][0], y), rp[to]], colour))
+    return _svg("".join(o), vb="70 -6 600 470")
+
+
+def neopixel_faults() -> str:
+    """Screen 27c (M7 design, slice 3): the NeoPixels' teaching faults — the stick's data wire on its DOUT (it takes data
+    only at DIN: nothing lights) and a ring of 24 at full white on VBUS (about 1.46 A asked of USB's 0.5 A)."""
+    bb = Breadboard(120, 290)
+    o = [bb.svg(rail_labels={"T-": ("GND", "#3a3d42"), "T+": ("5V", "#f08024"), "B-": ("GND", "#3a3d42")})]
+    ssvg, sp = neopixel_strip(150, 100, [(0, 0, 0)] * 8)
+    rsvg, rp = neopixel_ring(536, 116, [(255, 255, 255)] * 24)
+    o += [ssvg, rsvg]
+    psvg, pins = pico(110, 772)
+    o.append(psvg)
+    o.append(_np_rails(bb, pins))
+    o.append(_strip_power(sp, bb))
+    d = sp["DOUT"]
+    o.append(wire([pins[1], (pins[1][0], 790), (56, 790), (56, 86), (d[0] + 10, 86), (d[0] + 10, d[1]), d], "green"))   # GP0 → DOUT
+    o.append(wire([pins[22], (pins[22][0], 640), (414, 640), (414, 262), (rp["DIN"][0], 262), rp["DIN"]], "blue"))
+    o.append(wire([rp["GND"], bb.xy(26, "T-")], "black"))
+    o.append(wire([rp["5V"], bb.xy(27, "T+")], "red"))
+    o.append(f'<circle cx="{f(d[0])}" cy="{f(d[1])}" r="10" fill="none" stroke="#e8a317" stroke-width="2"/><circle cx="{f(d[0])}" cy="{f(d[1])}" r="16" fill="#e8a317" opacity=".16"/>')
+    return _svg("".join(o), vb="40 0 640 806")
+
+
+def uart() -> str:
+    """Screen 28 (M7 design, slice 5): a Pico W running — a USB-serial adapter lying below it, wired straight to UART0:
+    GP0 (TX) to its RXD, GP1 (RX) from its TXD, GND to GND; an LED on GP16 that "on" / "off" from the terminal switch."""
+    bb = Breadboard(120, 290)
+    o = [bb.svg(rail_labels={"B-": ("GND", "#3a3d42")})]
+    o.append(resistor(bb.xy(18, "i"), bb.xy(21, "i"), "220"))
+    o.append(led(bb.xy(21, "h"), bb.xy(23, "h"), "green", "on"))
+    psvg, pins = pico(110, 772)
+    o.append(psvg)
+    o.append(wire([pins[21], (pins[21][0], 640), (bb.xy(18, "j")[0], 640), bb.xy(18, "j")], "yellow"))   # GP16 → the LED
+    o.append(wire([bb.xy(23, "j"), bb.xy(23, "B-")], "black"))
+    o.append(wire([pins[38], (pins[38][0], 632), (bb.xy(3, "B-")[0], 632), bb.xy(3, "B-")], "black"))
+    usvg, up = usb_serial(94, 820, tx=True, rx=False)
+    o.append(usvg)
+    o.append(wire([pins[1], up["RXD"]], "green"))    # GP0 (TX) → RXD
+    o.append(wire([pins[2], up["TXD"]], "blue"))     # GP1 (RX) ← TXD
+    o.append(wire([pins[3], up["GND"]], "black"))
+    return _svg("".join(o), vb="40 270 640 700")
+
+
+def bluetooth() -> str:
+    """Screen 28b (M7 design, slice 5): a micro:bit in its GPIO board running — an HC-05 lying below it, wired straight
+    to its header: 5V → VCC, GND → GND, P0 (RX) ← TXD, P1 (TX) → RXD; a phone connected, its "on" shows a heart."""
+    msvg, mp = microbit(150, 330, image=HEART, usb=True)
+    hsvg, hp = hc05(118, 470, connected=True)
+    o = [msvg, hsvg]
+    for pin, to, colour in (("5V", "VCC", "red"), ("GND@15", "GND", "black"), ("P0", "TXD", "blue"), ("P1", "RXD", "green")):
+        o.append(wire([mp[pin], hp[to]], colour))
+    return _svg("".join(o), vb="70 -6 600 600")
+
+
+def gps() -> str:
+    """Screen 28c (M7 design, slice 5): an ESP32 running — a NEO-6M GPS lying below it (turned, its header up): its TX
+    to RX2 (GPIO 16), its RX from TX2 (GPIO 17), GND, and 3V3 round its left side to its VCC."""
+    esvg, ep = esp32(152, 200)
+    gsvg, gp = gps_neo6m(148, 300, fix=True)
+    o = [esvg, gsvg]
+    o.append(wire([ep["B:GND"], gp["GND"]], "black"))
+    o.append(wire([ep["B:RX2"], (ep["B:RX2"][0], 240), (gp["TX"][0], 240), gp["TX"]], "blue"))     # GPS TX → RX2
+    o.append(wire([ep["B:TX2"], (ep["B:TX2"][0], 256), (gp["RX"][0], 256), gp["RX"]], "green"))   # TX2 → GPS RX
+    o.append(wire([ep["B:3V3"], (ep["B:3V3"][0], 224), (128, 224), (128, 410), (346, 410), (346, 274), (gp["VCC"][0], 274), gp["VCC"]], "red"))
+    return _svg("".join(o), vb="80 -30 560 470")
+
+
+def uart_faults() -> str:
+    """Screen 28d (M7 design, slice 5): the UART mistakes — USB1 on UART0, wired right, but its terminal at 115200 baud
+    where the board sends at 9600 (garbled); USB2 on UART1 (GP4 / GP5) wired TX to TX and RX to RX (nothing arrives)."""
+    psvg, pins = pico(110, 772)
+    o = [psvg]
+    u1, p1 = usb_serial(94, 820, tx=False, rx=True)
+    u2, p2 = usb_serial(270, 820)
+    o += [u1, u2]
+    o.append(wire([pins[1], p1["RXD"]], "green"))
+    o.append(wire([pins[2], p1["TXD"]], "blue"))
+    o.append(wire([pins[3], p1["GND"]], "black"))
+    o.append(wire([pins[6], (pins[6][0], 790), (p2["TXD"][0], 790), p2["TXD"]], "green"))   # GP4 (TX) → TXD: wrong
+    o.append(wire([pins[7], (pins[7][0], 798), (p2["RXD"][0], 798), p2["RXD"]], "blue"))    # GP5 (RX) → RXD: wrong
+    o.append(wire([pins[8], (pins[8][0], 782), (p2["GND"][0], 782), p2["GND"]], "black"))
+    for x, y in (p2["TXD"], pins[6]):
+        o.append(f'<circle cx="{x}" cy="{y}" r="10" fill="none" stroke="#e8a317" stroke-width="2"/><circle cx="{x}" cy="{y}" r="16" fill="#e8a317" opacity=".16"/>')
+    return _svg("".join(o), vb="40 640 640 340")
+
+
+SCENES = {"uart": uart, "bluetooth": bluetooth, "gps": gps, "uartfaults": uart_faults, "neopixels": neopixels, "neopixelsmb": neopixels_microbit, "neopixelfaults": neopixel_faults, "displays": displays, "digits": digits, "displayfaults": display_faults, "actuators": actuators, "moreoutputs": more_outputs, "outputfaults": output_faults, "mbitalone": mbit_alone, "mbitgpio": mbit_gpio, "bare": bare, "placebb": place_breadboard, "chips": chips, "kit": kit, "kitsheet": kit_sheet, "modules": modules, "greenhouse": greenhouse, "moodlamp": mood_lamp, "gpiobattery": gpio_battery, "batterykinds": battery_kinds, "bootsel": bootsel, "ledstates": led_states, "traffic": traffic, "distance": distance, "heart": heart, "board": board_art, "servohero": servo_hero,
           "servowiring": servo_wiring, "servopulses": servo_pulses, "plot": plot}
 
 

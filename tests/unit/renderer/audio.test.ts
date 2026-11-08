@@ -109,3 +109,22 @@ describe('M6.2 the sound player', () => {
     expect(() => p.close()).not.toThrow();
   });
 });
+
+describe('M7 slice 4: the micro:bit speaker\'s volume and waveform', () => {
+  it('the speaker voice takes its volume and waveform; at volume 0 it isn\'t heard', () => {
+    expect(voicesOf({}, 440, { volume: 0.25, wave: 'sine' })).toEqual([{ id: 'speaker', hz: 440, volume: 0.25, wave: 'sine' }]);
+    expect(voicesOf({}, 440, { volume: 1, wave: 'square' })).toEqual([{ id: 'speaker', hz: 440, volume: 1 }]);
+    expect(voicesOf({}, 440, { volume: 0, wave: 'square' })).toEqual([]);
+  });
+
+  it('the oscillator plays its waveform; noise as a sawtooth', () => {
+    const a = fakeAudio();
+    const p = new SoundPlayer(a.make);
+    p.set([{ id: 'speaker', hz: 440, volume: 1, wave: 'triangle' }], false);
+    expect(a.ctx.oscillators[0]!.type).toBe('triangle');
+    p.set([{ id: 'speaker', hz: 300, volume: 0.5, wave: 'noise' }], false);
+    expect(a.ctx.oscillators[0]!.type).toBe('sawtooth');
+    p.set([{ id: 'speaker', hz: 300, volume: 0.5 }], false);
+    expect(a.ctx.oscillators[0]!.type).toBe('square');
+  });
+});

@@ -1,4 +1,5 @@
 import type { CircuitSpec } from '@lib/circuit';
+import type { Wave } from './soundfx';
 import type { PartView } from './circuit';
 import { RealClock } from './clock';
 import { Control } from './control';
@@ -26,10 +27,13 @@ export type WorkerMessage =
   /** The latest state of every part that changed since the last message. */
   | { type: 'parts'; states: Record<string, PartView> }
   /** The board's own outputs that changed (M4.5): pin levels ('LED' is the Pico W's own LED), the display, the
-   *  micro:bit speaker's pitch (Hz, 0: silence; M6.2). */
-  | { type: 'board'; pins: Record<string, number>; display?: string; sound?: number }
+   *  micro:bit speaker's pitch (Hz, 0: silence; M6.2), its volume (0–1) and waveform (M7 slice 4). */
+  | { type: 'board'; pins: Record<string, number>; display?: string; sound?: number; tone?: Tone; radio?: string[] }
   | { type: 'end'; result: RunResult };
 
+
+/** The speaker's volume (0–1, with set_volume) and waveform (M7 slice 4). */
+export interface Tone { volume: number; wave: Wave }
 const FRAME_MS = 1000 / 60;
 
 export async function handleStart(
@@ -44,18 +48,22 @@ export async function handleStart(
   let pins: Record<string, number> = {};
   let display: string | undefined;
   let sound: number | undefined;
+  let tone: Tone | undefined;
+  let radio: string[] = [];
   let last = -Infinity;
   const flush = () => {
     if (pending) post({ type: 'output', text: pending });
     if (Object.keys(parts).length) post({ type: 'parts', states: parts });
-    if (Object.keys(pins).length || display !== undefined || sound !== undefined) {
-      post({ type: 'board', pins, ...(display !== undefined ? { display } : {}), ...(sound !== undefined ? { sound } : {}) });
+    if (Object.keys(pins).length || display !== undefined || sound !== undefined || radio.length) {
+      post({ type: 'board', pins, ...(display !== undefined ? { display } : {}), ...(sound !== undefined ? { sound, ...(tone ? { tone } : {}) } : {}), ...(radio.length ? { radio } : {}) });
     }
     pending = '';
     parts = {};
     pins = {};
     display = undefined;
+    radio = [];
     sound = undefined;
+    tone = undefined;
     last = now();
   };
   const maybeFlush = () => {
@@ -86,8 +94,13 @@ export async function handleStart(
       display = pixels;
       maybeFlush();
     },
-    onSound: (hz) => {
+    onSound: (hz, volume, wave) => {
       sound = hz;
+      tone = { volume, wave };
+      maybeFlush();
+    },
+    onRadio: (hex) => {
+      radio.push(hex);
       maybeFlush();
     },
   });

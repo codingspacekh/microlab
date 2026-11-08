@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { echoUs, ldrOhms, SENSOR_START } from '@lib/circuit';
+import { echoUs, ldrOhms, NEOPIXEL, neopixelCount, SENSOR_START } from '@lib/circuit';
 import type { Point } from '@lib/editor';
 import type { PartView } from '../../sim/circuit';
 import { noteName } from '../audio';
-import { Icon, Slider, Switch } from '../ui';
+import { Icon, Segmented, Select, Slider, Switch } from '../ui';
+import { TextField } from '../ui/TextField';
+import { pixelsOf } from './displays';
 import { UsbPlug } from './drawings';
 
 /**
@@ -20,10 +22,12 @@ import { UsbPlug } from './drawings';
 export const START: Record<string, number> = {
   position: 0, lux: 300, celsius: SENSOR_START.celsius, humidity: SENSOR_START.humidity, cm: SENSOR_START.cm, tiltx: 0, tilty: 0,
   hpa: 1013, bpm: 72, spo2: 98,
+  // M7 slice 5: a GPS as it starts (serial.ts GPS_START); a terminal's baud rate is its part's own until set
+  fix: 1, lat: 11.5564, lon: 104.9282, sats: 9, kmh: 0, connected: 0, baud: NaN,
 };
 const KNOB_START = 0.5;
 /** A micro:bit's own inputs as the sim starts them (src/sim/run.ts): 25 °C, a light level of 128, silence. */
-const BOARD_START: Record<string, number> = { 'board:celsius': 25, 'board:light': 128, 'board:sound': 0, 'board:accelx': 0, 'board:accely': 0, 'board:shake': 0 };
+const BOARD_START: Record<string, number> = { 'board:celsius': 25, 'board:light': 128, 'board:sound': 0, 'board:accelx': 0, 'board:accely': 0, 'board:accelz': NaN, 'board:shake': 0, 'radio:seq': 0 };
 /** Pixels of drag from one end of a knob's turn to the other. */
 const KNOB_PX = 150;
 
@@ -139,7 +143,7 @@ const LOG = { min: -1, max: 5, step: 0.05 };
 const volts = (v: PartView | undefined, name: string) => (v?.kind !== 'sensor' ? '' : v.powered ? `${name} ${Number(v.volts.toFixed(2))} V` : 'not powered');
 
 /** The parts the Inputs card has a row for (screen 18): a light sensor, a soil moisture sensor, a temperature sensor. */
-export const SLIDER_PARTS = new Set(['ldr', 'soil-moisture', 'temp-sensor', 'dht', 'hc-sr04', 'mpu6050',
+export const SLIDER_PARTS = new Set(['ldr', 'soil-moisture', 'temp-sensor', 'dht', 'hc-sr04', 'mpu6050', 'rc522',
   'ldr-module', 'flame', 'raindrop', 'water-level', 'mq2', 'speed-sensor', 'bmp280', 'ds18b20', 'vl53l0x', 'max30102']);
 
 /** The kit's modules set with a 0–1 slider (M6.5a): its name on the card, the slider's label, its ends, its output's name. */
@@ -175,6 +179,16 @@ export function InputsCard({ parts, live, views, onClose, style }: {
             <Row key={p.id} icon={l.icon} name={name} kind={l.kind} reading={volts(views[p.id], l.out)}>
               <Slider label={`${l.label} ${name}`} value={Math.round(live.value(`position:${p.id}`) * 100)} min={0} max={100} step={1}
                 format={(v) => `${v} %`} ticks={l.ticks} onChange={(v) => live.set(`position:${p.id}`, v / 100)} />
+            </Row>
+          );
+        }
+        if (p.type === 'rc522') {   // M7: the tag held to the RFID reader
+          const n = Math.round(live.value(`position:${p.id}`));
+          const v = views[p.id];
+          return (
+            <Row key={p.id} icon="wire" name={name} kind="RFID" reading={v?.kind === 'rfid' && v.uid ? v.uid : ''}>
+              <Segmented label={`Tag held to ${name}`} hideLabel value={String(n)} onChange={(x) => live.set(`position:${p.id}`, Number(x))}
+                options={[{ value: '0', label: 'No tag' }, { value: '1', label: 'Card' }, { value: '2', label: 'Key fob' }]} />
             </Row>
           );
         }
@@ -289,7 +303,42 @@ const TILT_STEP = 64;
  * go), a shake, the light level and the sound level (0–255) and the temperature. Each is a live slot of the run
  * ('pressed:board.A', 'touch:LOGO', 'board:accelx' …), read by the sim's `microbit` module.
  */
-export function MicrobitCard({ live, onClose, style }: { live: Live; onClose: () => void; style: CSSProperties }) {
+/** The micro:bit's postures and moments (M7, the teacher's request): the accelerometer's vector for each, in mg —
+ *  CODAL's gestures (src/sim/motion.ts posture). A posture stays; a moment lasts while its button is held. */
+const POSES: [string, [number, number, number]][] = [['Face up', [0, 0, -1024]], ['Face down', [0, 0, 1024]], ['Up', [0, 1024, 0]], ['Down', [0, -1024, 0]], ['Left', [-1024, 0, 0]], ['Right', [1024, 0, 0]]];
+const MOMENTS: [string, [number, number, number]][] = [['Freefall', [0, 0, 0]], ['3g', [0, 0, -3500]], ['6g', [0, 0, -7000]], ['8g', [0, 0, -9000]]];
+
+/** A radio message as the program sent it (hex): a string (after modradio.c's 3-byte header) in quotes, else its bytes. */
+export function radioText(hex: string): string {
+  const bytes = (hex.match(/../g) ?? []).map((b) => parseInt(b, 16));
+  if (hex.startsWith('010001')) return `"${new TextDecoder().decode(new Uint8Array(bytes.slice(3)))}"`;
+  return `b'${bytes.map((b) => (b >= 32 && b < 127 ? String.fromCharCode(b) : `\\x${b.toString(16).padStart(2, '0')}`)).join('')}'`;
+}
+
+export function MicrobitCard({ live, onClose, style, radio = [] }: { live: Live; onClose: () => void; style: CSSProperties; radio?: string[] }) {
+  const [message, setMessage] = useState('');
+  // the accelerometer's gesture from the dropdown (the teacher's request): a posture stays; a moment (freefall, 3g …)
+  // lasts a second, then it is back as it was
+  const [gesture, setGesture] = useState('Face up');
+  const moment = useRef<{ before: number[]; posture: string; timer: ReturnType<typeof setTimeout> } | null>(null);
+  useEffect(() => () => { if (moment.current) clearTimeout(moment.current.timer); }, []);
+  const setVector = (v: readonly number[]) => { live.set('board:accelx', v[0]!); live.set('board:accely', v[1]!); live.set('board:accelz', v[2]!); };
+  const pick = (name: string) => {
+    const pose = POSES.find(([n]) => n === name);
+    if (pose) {
+      if (moment.current) { clearTimeout(moment.current.timer); moment.current = null; }
+      setVector([pose[1][0], pose[1][1], name === 'Face up' ? NaN : pose[1][2]]);
+      setGesture(name);
+      return;
+    }
+    const m = MOMENTS.find(([n]) => n === name)!;
+    const before = moment.current?.before ?? [x, y, live.value('board:accelz')];
+    const posture = moment.current?.posture ?? gesture;
+    if (moment.current) clearTimeout(moment.current.timer);
+    setVector(m[1]);
+    setGesture(name);
+    moment.current = { before, posture, timer: setTimeout(() => { setVector(before); setGesture(posture); moment.current = null; }, 1000) };
+  };
   const [held, setHeld] = useState<string[]>([]);
   const pad = useRef<{ left: number; top: number } | null>(null);
   const heldRef = useRef(held);
@@ -302,6 +351,8 @@ export function MicrobitCard({ live, onClose, style }: { live: Live; onClose: ()
     const p = pad.current;
     if (!p) return;
     const half = PAD / 2;
+    liveRef.current.set('board:accelz', NaN);   // tilted from face up again
+    setGesture('Face up');
     liveRef.current.set('board:accelx', clampMg(((clientX - p.left - half) / half) * G_MG));
     liveRef.current.set('board:accely', clampMg(((clientY - p.top - half) / half) * G_MG));
   };
@@ -379,6 +430,27 @@ export function MicrobitCard({ live, onClose, style }: { live: Live; onClose: ()
           <button type="button" className="btn sm" onClick={() => live.set('board:shake', live.value('board:shake') + 1)}><Icon name="shake" size={12} /> Shake</button>
         </span>
       </div>
+      <div className="mb-gestures">
+        <Select<string> label="Gesture" value={gesture} onChange={pick}
+          options={[...POSES.map(([name]) => ({ value: name, label: name, hint: 'stays' })), ...MOMENTS.map(([name]) => ({ value: name, label: name, hint: '1 s' }))]} />
+      </div>
+      <div className="mb-radio" role="group" aria-label="Radio">
+        <div className="small"><Icon name="wire" size={12} /> <b>Radio</b> <span className="tiny muted">· sent by this micro:bit</span></div>
+        <ul className="tiny mono sent" aria-label="Radio messages sent">
+          {radio.length ? radio.map((h, i) => <li key={i}>{radioText(h)}</li>) : <li className="muted">nothing yet</li>}
+        </ul>
+        <form className="row" onSubmit={(e) => {
+          e.preventDefault();
+          const bytes = [...new TextEncoder().encode(message)].slice(0, 29);
+          bytes.forEach((b, i) => live.set(`radio:${i}`, b));
+          live.set('radio:len', bytes.length);
+          live.set('radio:seq', live.value('radio:seq') + 1);
+          setMessage('');
+        }}>
+          <TextField label="A message from another micro:bit" hideLabel value={message} onChange={setMessage} placeholder="From another micro:bit…" />
+          <button type="submit" className="btn sm" disabled={!message}>Send</button>
+        </form>
+      </div>
       <Slider label="Light level" icon="sun" value={live.value('board:light')} min={0} max={255} step={1} onChange={(v) => live.set('board:light', v)} />
       <Slider label="Temperature" icon="therm" value={live.value('board:celsius')} min={-10} max={50} step={1} format={(v) => `${v} °C`} onChange={(v) => live.set('board:celsius', v)} />
       <Slider label="Sound level" icon="mic" value={live.value('board:sound')} min={0} max={255} step={1} onChange={(v) => live.set('board:sound', v)} />
@@ -398,9 +470,12 @@ function Row({ icon, name, kind, reading, children }: { icon: string; name: stri
 const mA = (amps: number) => `${Number((amps * 1000).toFixed(1))} mA`;
 
 /** What an LED or an RGB LED says on hover while running: its current, each die's for an RGB LED. */
-export function PartTip({ id, type, common, views, overLine = false, values = {}, style }: {
-  id: string; type: string; common?: string; views: Record<string, PartView>; overLine?: boolean; values?: Record<string, number>; style: CSSProperties;
+export function PartTip({ id, type, common, views, overLine = false, values = {}, props = {}, style }: {
+  id: string; type: string; common?: string; views: Record<string, PartView>; overLine?: boolean; values?: Record<string, number>;
+  props?: Record<string, unknown>; style: CSSProperties;
 }) {
+  const m7 = actTip(id, type, views, props, values.led);
+  if (m7) return <div className="tip part-tip" role="tooltip" style={style}><b>{m7.title}</b>{m7.line && <div>{m7.line}</div>}{m7.note && <div className="note">{m7.note}</div>}</div>;
   if (type === 'ds1302') {
     const v = views[id];
     return (
@@ -492,4 +567,153 @@ export function UsbTip({ plugged, style }: { plugged: boolean; style: CSSPropert
         : <div>The GPIO board's own cable is <b>not plugged in</b>: its 5V pins give nothing. Click to plug it in.</div>}
     </div>
   );
+}
+
+const WAY = (d: number) => (d > 0 ? 'forward' : d < 0 ? 'backward' : 'stopped');
+const supplyMa = (a: number) => `${Math.round(a * 1000)} mA`;
+
+/** What M7's actuators and output modules say while running (screens 25, 25b: hovered, what each is doing). */
+/** A colour in words, for an LED's tip: its hue (or white), and how bright, as a part of 255. */
+export function colourName(rgb: number[]): string {
+  const [r, g, b] = rgb as [number, number, number];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (!max) return 'off';
+  const part = max >= 250 ? 'full' : `${Math.round((max / 255) * 100)} %`;
+  if (max - min <= max * 0.15) return `white, ${part}`;
+  const d = max - min;
+  const h = ((max === r ? (g - b) / d + 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60) % 360;
+  const hue = h < 15 ? 'red' : h < 45 ? 'orange' : h < 70 ? 'yellow' : h < 160 ? 'green' : h < 200 ? 'cyan' : h < 255 ? 'blue' : h < 290 ? 'purple' : h < 345 ? 'pink' : 'red';
+  return `${hue}, ${part}`;
+}
+
+function actTip(id: string, type: string, views: Record<string, PartView>, props: Record<string, unknown>, led?: number): { title: string; line?: string; note?: string } | undefined {
+  const v = views[id];
+  const name = id.toUpperCase();
+  switch (type) {
+    case 'servo': {
+      const s = v?.kind === 'servo' ? v : undefined;
+      return {
+        title: `${name} · ${s?.angle ?? 90}°${s?.pulseUs ? ` · ${(s.pulseUs / 1000).toFixed(1)} ms pulses` : ''}`,
+        line: 'It turns to the angle of its pulses — 0.5 ms is 0°, 2.5 ms is 180°, one every 20 ms — at a servo\'s speed.',
+        ...(s && !s.powered ? { note: 'An SG90 needs 4.8–6 V: on 3V3 it twitches and can\'t turn. Give its + VBUS (5 V).' } : {}),
+      };
+    }
+    case 'motor': {
+      const m = v?.kind === 'motor' ? v : undefined;
+      return { title: `${name} · ${WAY(m?.direction ?? 0)}${m?.rpm ? ` · ${m.rpm} rpm` : ''}`, line: `${supplyMa(m?.amps ?? 0)} through it — a pin alone can't give that: a driver can.` };
+    }
+    case 'pump': {
+      const p = v?.kind === 'pump' ? v : undefined;
+      return { title: `${name} · ${p?.running ? 'pumping' : 'not pumping'}${p?.amps ? ` · ${supplyMa(p.amps)}` : ''}`, line: 'It pumps with 2.5 V or more across it.' };
+    }
+    case 'relay': {
+      const on = v?.kind === 'relay' && v.on;
+      return { title: `${name} · ${on ? 'on · COM to NO' : 'off · COM to NC'}`, line: 'S high switches it (its coil needs 5 V on +); what it switches is apart from the board.' };
+    }
+    case 'l9110s': case 'l298n': {
+      const d = v?.kind === 'driver' ? v : { a: 0, b: 0 };
+      return { title: `${name} · motor A ${WAY(d.a)} · motor B ${WAY(d.b)}` };
+    }
+    case 'stepper': case 'uln2003': {
+      const stepper = type === 'stepper' ? v : undefined;
+      const coils = ['A', 'B', 'C', 'D'].filter((c) => {
+        const led = views[`${id}:${c}`];
+        return type === 'uln2003' ? led?.kind === 'led' && led.brightness > 0.01 : stepper?.kind === 'stepper' && stepper.coils.includes(c);
+      });
+      const on = coils.length ? `Coil${coils.length > 1 ? 's' : ''} ${coils.join(' and ')} on` : 'No coil on';
+      if (stepper?.kind === 'stepper') return { title: `${name} · 28BYJ-48 · step ${stepper.steps}`, line: `4096 half steps make a turn. ${on}.` };
+      return { title: `${name} · ULN2003`, line: `${on} — its LEDs show them.` };
+    }
+    case 'buzzer-module': {
+      const hz = v?.kind === 'buzzer' && v.volume > 0 ? v.hz : 0;
+      const note = noteName(hz);
+      return { title: `${name} · ${hz ? `${hz} Hz${note ? ` · ${note}` : ''}` : 'silent'}`, line: 'It plays the note of the PWM on I/O.' };
+    }
+    case 'traffic-module': case 'rgb-module': {
+      const legs = type === 'traffic-module' ? [['r', 'R'], ['y', 'Y'], ['g', 'G']] : [['r', 'R'], ['g', 'G'], ['b', 'B']];
+      const led = (k: string) => { const x = views[`${id}:${k}`]; return x?.kind === 'led' ? x.amps : 0; };
+      return { title: name, line: legs.map(([k, t]) => `${t} ${mA(led(k!))}`).join(' · ') };
+    }
+    // M7 slice 2 (screens 26, 26b): what each display shows, and what it needs
+    case 'ssd1306': {
+      const o = v?.kind === 'oled' ? v : undefined;
+      return {
+        title: `${name} · ${o?.on ? `${o.lit} pixels lit` : 'off'}`,
+        line: `128×64 at 0x${Number(props.address ?? 0x3c).toString(16).toUpperCase()} — it shows what the program drew when show() sends it.`,
+      };
+    }
+    case 'lcd1602': {
+      const l = v?.kind === 'lcd' ? v : undefined;
+      const rows = l?.on ? l.rows.map((r) => `"${r.trimEnd()}"`).join(', ') : '';
+      return {
+        title: `${name} · 16×2 at 0x${Number(props.address ?? 0x27).toString(16).toUpperCase()} · ${l?.backlight ? 'backlight on' : 'backlight off'}`,
+        line: l?.on ? `Rows ${rows}. Its PCF8574 turns each I²C byte into the LCD's own 4-bit commands.` : 'Its display is off: the program hasn\'t started it.',
+        ...(l?.faint ? { note: 'Its letters are too faint to read: a 16×2 LCD needs 5 V. Give its VCC VBUS (5 V).' } : {}),
+      };
+    }
+    case 'seven-segment': {
+      const lit = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'dp'].filter((sg) => { const x = views[`${id}:${sg}`]; return x?.kind === 'led' && x.brightness > 0.01; });
+      const each = lit.length ? views[`${id}:${lit[0]}`] : undefined;
+      return {
+        title: `${name} · ${lit.length ? `${lit.join(' ')} lit` : 'dark'}`,
+        line: lit.length && each?.kind === 'led' ? `${mA(each.amps)} a segment. With one resistor on COM the lit segments share it: an 8 is dimmer than a 1.` : 'Each segment is an LED: a pin to a segment, COM to GND through a resistor.',
+      };
+    }
+    case 'tm1637': {
+      const d = v?.kind === 'digits' ? v : undefined;
+      return { title: `${name} · ${d?.on ? `${d.text.trim() ? d.text : 'blank'} · brightness ${d.brightness}` : 'off'}`, line: 'It reads CLK and DIO as the program toggles them (the tm1637 library).' };
+    }
+    case 'rc522': {
+      const r = v?.kind === 'rfid' ? v : undefined;
+      const tag = r?.tag === 1 ? 'the card' : r?.tag === 2 ? 'the key fob' : '';
+      return {
+        title: `${name} · ${!r?.antenna ? 'antenna off' : tag ? `${tag} ${r!.uid}` : 'no tag'}`,
+        line: r?.last ? `Last: ${r.last}.` : 'It reads a tag held to it, 13.56 MHz, within a few cm — set one on the Inputs card.',
+      };
+    }
+    case 'max7219': {
+      const m = v?.kind === 'matrix' ? v : undefined;
+      return {
+        title: `${name} · ${m?.on ? `${m.lit} dots · brightness ${m.intensity} of 15` : 'off'}`,
+        line: `${supplyMa(m?.amps ?? 0)} from its VCC — the more dots and the brighter, the more.`,
+      };
+    }
+    case 'usb-serial': {   // M7 slice 5: what has gone each way
+      const s = v?.kind === 'serial' ? v : undefined;
+      return { title: `${name} · ${s?.baud ?? Number(props.baud ?? 9600)} baud`, line: `Got ${s?.received ?? 0} bytes from the board, sent it ${s?.sent ?? 0}. Its terminal is on the canvas.` };
+    }
+    case 'hc05': {
+      const b = v?.kind === 'bluetooth' ? v : undefined;
+      return { title: `${name} · ${!b?.on ? 'no power' : b.connected ? 'a phone connected' : 'waiting for a phone'}`, line: 'Connect the phone on its card; what it sends arrives on the board\'s RX at 9600 baud.' };
+    }
+    case 'gps': {
+      const g = v?.kind === 'gps' ? v : undefined;
+      return { title: `${name} · ${!g?.on ? 'no power' : g.fix ? `a fix, ${g.sats} satellites` : 'searching'}`, line: g?.on ? `${g.lat.toFixed(4)}, ${g.lon.toFixed(4)} · ${g.sent} bytes sent, once a second at 9600 baud` : 'Its VCC needs 3.3–5 V.' };
+    }
+    case 'neopixel': {   // M7 slice 3 (screen 27): the LED under the mouse, or the whole stick or ring
+      const n = neopixelCount(props);
+      const px = v?.kind === 'pixels' ? v : undefined;
+      if (!px?.on) return { title: `${name} · no power`, line: 'Its 5V needs 3–5 V: VBUS, VIN or 5V (3.3 V works, a little dim).' };
+      if (led !== undefined && led < n) {
+        const rgb = pixelsOf(px, n)[led]!;
+        const amps = NEOPIXEL.idleA + ((rgb[0]! + rgb[1]! + rgb[2]!) / 255) * NEOPIXEL.channelA;
+        return { title: `${name} · LED ${led} of ${n}`, line: `(${rgb.join(', ')}) — ${colourName(rgb)} · about ${Math.round(amps * 1000)} mA` };
+      }
+      return {
+        title: `${name} · ${px.lit ? `${px.lit} of ${n} lit` : 'dark'} · ${supplyMa(px.amps)}`,
+        line: `${px.from ? `From ${px.from}, which gives ${supplyMa(px.limitA ?? 0)}. ` : ''}Each LED draws up to 60 mA at full white: ${n} of them up to ${n * 60} mA.`,
+      };
+    }
+    case 'power-supply': {
+      const s = v?.kind === 'supply' ? v : undefined;
+      const top = Number(props.top ?? 5);
+      const bottom = Number(props.bottom ?? 3.3);
+      return {
+        title: `${name} · ${s && !s.on ? 'off' : `top ${top} V · bottom ${bottom} V`}`,
+        line: s?.on === false ? 'Switched off: its rails give nothing.' : `Top rails ${supplyMa(s?.top ?? 0)} · bottom ${supplyMa(s?.bottom ?? 0)} of its 700 mA — join a GND to the board's.`,
+      };
+    }
+  }
+  return undefined;
 }

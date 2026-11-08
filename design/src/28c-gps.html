@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>28c GPS</title>
+{{include:head}}
+<style>
+.rail { flex: 0 0 56px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; z-index: 3; }
+.rail .rb { width: 44px; padding: 6px 0 5px; border-radius: 9px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; color: var(--tx-2); font-weight: 550; }
+.rail .rb .pic { width: 30px; height: 30px; display: grid; place-items: center; }
+.card2 { padding: 10px 12px; } .card2 .ih { display: flex; align-items: center; gap: 6px; font-weight: 650; font-size: 12.5px; }
+.card2 .row2 { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 11.5px; } .card2 .row2 .muted { min-width: 54px; }
+.term { margin-top: 8px; background: #14171c; color: #d7dde5; border-radius: 7px; padding: 8px 9px; font-family: var(--mono); font-size: 11px; line-height: 1.5; min-height: 92px; white-space: pre-wrap; }
+.term .me { color: #7fb4ff; } .term .bad { color: #f0a35a; }
+.sendrow { display: flex; gap: 6px; margin-top: 8px; } .sendrow .field { flex: 1; border: 1px solid var(--line-strong); border-radius: 7px; padding: 5px 8px; font-size: 11.5px; color: var(--tx-3); background: var(--panel); }
+.bubbles { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; font-size: 11.5px; } .bubbles span { padding: 5px 9px; border-radius: 11px; max-width: 75%; }
+.bubbles .out { align-self: flex-end; background: var(--accent); color: #fff; } .bubbles .in { align-self: flex-start; background: var(--bg-2); }
+.hint { margin-top: 8px; font-size: 11px; line-height: 1.4; color: var(--warn); }
+.field2 { border: 1px solid var(--line-strong); border-radius: 7px; padding: 4px 7px; font-family: var(--mono); font-size: 11px; width: 78px; }
+</style>
+</head>
+<body>
+<!--@PROJECT: Where am I-->
+<!--@PROJECT_SUB: ESP32 · saved just now-->
+<!--@BOARD: ESP32 DevKit V1 (30-pin)-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 00:18-->
+<!--@EDITOR: {{code:gpsread:cur=7}}-->
+<!--@COUNTS: ESP32 + 1 part · 4 wires-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.29.0 on ESP32 DevKit V1 (simulated)</span>
+fix 1 satellites 08 1133.3840 N 10455.6920 E
+fix 1 satellites 08 1133.3840 N 10455.6920 E
+fix 1 satellites 09 1133.3841 N 10455.6921 E
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running main.py — Stop or <span class="kbd">Ctrl</span>+<span class="kbd">C</span> breaks in</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span><span>UART2 9600 baud: received 8.3 kB · GPS1 fix, 9 satellites</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.05 ms</span>-->
+<p class="frame-label"><b>28c · A GPS module</b> (M7 design, slice 5) — a <b>NEO-6M GPS</b> (GY-NEO6MV2) lies below the ESP32, turned so its header is up: <b>GND TX RX VCC</b>, points to wire — its TX to the ESP32's RX2 (GPIO 16), its RX from TX2 (GPIO 17): <code>UART(2, baudrate=9600)</code>; VCC from 3V3 (3.3–5 V). Once a second at 9600 baud it sends what a real one does: <code>$GPRMC</code>, <code>$GPVTG</code>, <code>$GPGGA</code>, <code>$GPGSA</code>, <code>$GPGSV</code>, <code>$GPGLL</code>, each with its checksum. The <b>GPS card</b> sets where it is (Phnom Penh to start), whether it has a fix (searching: the sentences' position fields empty, as from a real one indoors), how many satellites, and a speed; its PPS LED blinks with a fix. <code>micropyGPS</code> (MIT) comes with the library pack to read the sentences</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    <nav class="rail">
+      <span class="rb" title="ESP32 DevKit V1 — its pinout"><span class="pic">{{part:esp32:bp}}</span>Board</span>
+      <span class="rb">{{i:grid:s20}}Parts</span>
+    </nav>
+    <div class="canvas">
+      <div class="stage">{{scene:gps}}
+      <div class="float card2" style="right:14px;top:14px;width:236px">
+        <div class="ih">{{i:gps:s14}} GPS1 · NEO-6M <span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+        <div class="row2"><span class="muted">Fix</span><div class="seg"><span class="on">Fix</span><span>Searching</span></div></div>
+        <div class="row2"><span class="muted">Latitude</span><span class="field2">11.5564</span><span class="muted" style="min-width:0">N</span></div>
+        <div class="row2"><span class="muted">Longitude</span><span class="field2">104.9282</span><span class="muted" style="min-width:0">E</span></div>
+        <div class="row2"><span class="muted">Satellites</span><div class="seg"><span>4</span><span class="on">9</span><span>12</span></div></div>
+        <div class="row2"><span class="muted">Speed</span><span class="field2">0 km/h</span></div>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

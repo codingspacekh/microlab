@@ -78,8 +78,8 @@ export function connect(spec: CircuitSpec): Connectivity {
     }
     for (const leg of model.legs) {
       const at = part.legs[leg];
-      if (at === undefined) problems.push({ kind: 'leg-not-placed', part: part.id, leg });
-      else join(`${part.id}.${leg}`, at, part.id);
+      if (at !== undefined) join(`${part.id}.${leg}`, at, part.id);
+      else if (!model.terminals?.includes(leg)) problems.push({ kind: 'leg-not-placed', part: part.id, leg });   // a terminal is wired to
     }
     for (const [a, b] of model.internal ?? []) uf.union(`${part.id}.${a}`, `${part.id}.${b}`);
   }

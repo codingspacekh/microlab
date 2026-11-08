@@ -100,6 +100,7 @@ SPI.readinto(buf, write=0x00) — Reads into buf, sending write each time.
 SPI.write(buf) — Sends the bytes in buf.
 SPI.write_readinto(write_buf, read_buf) — Sends write_buf and reads into read_buf at the same time.
 SPI.deinit() — Stops the bus.
+SPI.init(baudrate, *, polarity, phase, bits, firstbit) — Sets the bus up again: its speed and its mode (polarity, phase).
 SPI.MSB — firstbit: the highest bit first (the usual way).
 SPI.LSB — firstbit: the lowest bit first.
 SoftSPI(baudrate=500000, *, polarity=0, phase=0, bits=8, firstbit=SoftSPI.MSB, sck, mosi, miso) — An SPI bus on any pins, run by the processor.
@@ -119,6 +120,8 @@ UART.write(buf) — Sends the bytes in buf.
 UART.flush() — Waits until everything written has been sent.
 UART.txdone() — True when everything written has been sent.
 UART.deinit() — Stops the UART.
+UART.init(baudrate, bits=8, parity=None, stop=1, *, tx, rx, timeout, timeout_char) — Sets the UART up again: its speed, its framing, its pins, how long read() waits.
+UART.sendbreak() — Holds TX low for longer than a byte: a break.
 @esp32 DAC(pin) — A true analog output on GPIO25 or GPIO26: DAC(Pin(25)).
 @esp32 DAC.write(value) — Sets the voltage: 0 (0 V) to 255 (3.3 V).
 @esp32 TouchPad(pin) — Feels a finger on a touch pin: TouchPad(Pin(4)).
@@ -373,6 +376,12 @@ I2CBus.init(freq=100000, sda=pin20, scl=pin19) — Sets the bus up.
 I2CBus.scan() — The addresses of every device that answers.
 I2CBus.read(addr, n, repeat=False) — Reads n bytes from the device.
 I2CBus.write(addr, buf, repeat=False) — Writes the bytes in buf to the device.
+spi: SPIBus — The SPI bus: SCK on pin 13, MOSI on 15, MISO on 14.
+~SPIBus — The SPI bus.
+SPIBus.init(baudrate=1000000, bits=8, mode=0, sclk=pin13, mosi=pin15, miso=pin14) — Sets the bus up: its speed and pins.
+SPIBus.write(buf) — Clocks the bytes in buf out on MOSI.
+SPIBus.read(nbytes, out=0) — Clocks nbytes in from MISO, sending out each time.
+SPIBus.write_readinto(out, in_) — Sends out's bytes and reads as many into in_.
 Image(string) — A picture for the display: Image("09090:99999:99999:09990:00900"), each digit a brightness 0–9.
 Image.width() — How many columns: 5 for the display.
 Image.height() — How many rows.
@@ -394,6 +403,39 @@ running_time() — Milliseconds since the micro:bit was switched on.
 temperature() — The temperature in °C, from the chip.
 set_volume(volume) — How loud the speaker is: 0 to 255.
 scale(value, from_, to) — value moved from one range to another: scale(accelerometer.get_x(), (-1024, 1024), (0, 9)).
+ws2812_write(pin, buffer) — Sends bytes to NeoPixels on a pin, as the neopixel module's show() does.
+uart: UART — The serial port: the USB console, or two pins after uart.init(tx=…, rx=…) — print() goes there too.
+~UART — The micro:bit's serial port.
+UART.init(baudrate=9600, bits=8, parity=None, stop=1, *, tx=None, rx=None) — Its speed and framing; tx and rx move it to two pins (with no pins: back to USB).
+UART.any() — True if bytes are waiting to be read.
+UART.read(nbytes=None) — The bytes waiting (or nbytes of them); None if there are none.
+UART.readline() — The bytes up to the end of a line; None if there are none.
+UART.readinto(buf, nbytes=None) — Reads into buf: how many, or None.
+UART.write(buf) — Sends the bytes (or a string).
+UART.ODD — parity: odd.
+UART.EVEN — parity: even.
+speaker: Speaker — The speaker on the back (V2): music, pitch and audio play on it, and on pin 0.
+~Speaker — The micro:bit's speaker.
+Speaker.on() — Turns the speaker on again (it starts on).
+Speaker.off() — Turns the speaker off: sounds still go to pin 0, to a buzzer or headphones there.
+Sound — The built-in sounds, played with audio.play(Sound.HAPPY).
+Sound.GIGGLE — The built-in giggle sound.
+Sound.HAPPY — The built-in happy sound.
+Sound.HELLO — The built-in hello sound.
+Sound.MYSTERIOUS — The built-in mysterious sound.
+Sound.SAD — The built-in sad sound.
+Sound.SLIDE — The built-in slide sound.
+Sound.SOARING — The built-in soaring sound.
+Sound.SPRING — The built-in spring sound.
+Sound.TWINKLE — The built-in twinkle sound.
+Sound.YAWN — The built-in yawn sound.
+audio: Audio — Plays the built-in sounds and sound effects you make: audio.play(Sound.GIGGLE).
+~Audio — The audio module (also import audio).
+Audio.play(source, wait=True, pin=pin0, return_pin=None) — Plays a Sound, a SoundEffect (or a list of them) or AudioFrames, on the speaker and pin 0; pin=None: the speaker alone.
+Audio.is_playing() — True while something plays.
+Audio.stop() — Stops what audio is playing.
+Audio.SoundEffect(freq_start=500, freq_end=2500, duration=500, vol_start=255, vol_end=0, waveform=SoundEffect.WAVEFORM_SQUARE, fx=SoundEffect.FX_NONE, shape=SoundEffect.SHAPE_LOG) — A sound effect: a sweep from one pitch to another, getting louder or quieter.
+Audio.AudioFrame() — 32 samples of sound, 0–255 (128 is silence), played one frame after another.
 `;
 
 const IMAGES = `HEART HEART_SMALL HAPPY SMILE SAD CONFUSED ANGRY ASLEEP SURPRISED SILLY FABULOUS MEH YES NO
@@ -409,6 +451,59 @@ stop(pin=pin0) — Stops the music.
 set_tempo(ticks=4, bpm=120) — How fast tunes play.
 get_tempo() — The tempo as (ticks, bpm).
 reset() — Sets the tempo back to its start.
+`;
+
+const RADIO = `
+on() — Turns the radio on, to send and receive; it is off when the program starts.
+off() — Turns the radio off.
+config(length=32, queue=3, channel=7, power=6, data_rate=RATE_1MBIT, address=0x75626974, group=0) — Its settings: micro:bits on the same channel and group hear each other.
+reset() — Its settings back to how they start.
+send(message) — Sends a string to the micro:bits on its channel and group.
+send_bytes(message) — Sends bytes as they are.
+receive() — The oldest message waiting, as a string; None when there is none.
+receive_bytes() — The oldest message waiting, as bytes; None when there is none.
+receive_bytes_into(buffer) — The oldest message copied into buffer: how many bytes, or None.
+receive_full() — The oldest message, its signal strength and when it came: (bytes, rssi, µs).
+RATE_1MBIT — Sends at 1 Mbit/s, the usual speed.
+RATE_2MBIT — Sends at 2 Mbit/s.
+`;
+
+const NEOPIXEL = `
+NeoPixel(pin, n, bpp=3, timing=1) — A NeoPixel stick or ring of n LEDs, its DIN on pin: NeoPixel(Pin(0), 8).
+NeoPixel.fill(colour) — Sets every LED to one colour, (red, green, blue) each 0–255; shown at write().
+NeoPixel.write() — Sends the colours to the LEDs: nothing changes on them until then.
+NeoPixel.ORDER — Which byte is which colour (green, red, blue, white).
+`;
+
+const MICROBIT_NEOPIXEL = `
+NeoPixel(pin, n, bpp=3) — A NeoPixel stick or ring of n LEDs, its DIN on pin: neopixel.NeoPixel(pin0, 12).
+NeoPixel.fill(colour) — Sets every LED to one colour, (red, green, blue) each 0–255; shown at show().
+NeoPixel.show() — Sends the colours to the LEDs: nothing changes on them until then.
+NeoPixel.write() — Sends the colours to the LEDs, as show().
+NeoPixel.clear() — Turns every LED off, at once.
+NeoPixel.ORDER — Which byte is which colour (green, red, blue, white).
+`;
+
+const AUDIO = `
+play(source, wait=True, pin=pin0, return_pin=None) — Plays a Sound, a SoundEffect (or a list of them) or AudioFrames, on the speaker and pin 0; pin=None: the speaker alone.
+is_playing() — True while something plays.
+stop() — Stops what audio is playing.
+SoundEffect(freq_start=500, freq_end=2500, duration=500, vol_start=255, vol_end=0, waveform=SoundEffect.WAVEFORM_SQUARE, fx=SoundEffect.FX_NONE, shape=SoundEffect.SHAPE_LOG) — A sound effect: a sweep from one pitch to another (Hz), over duration ms, from one volume (0–255) to another.
+SoundEffect.copy() — A copy of it, to change.
+SoundEffect.WAVEFORM_SINE — waveform: smooth, like a whistle.
+SoundEffect.WAVEFORM_SAWTOOTH — waveform: buzzy.
+SoundEffect.WAVEFORM_TRIANGLE — waveform: soft, like a flute.
+SoundEffect.WAVEFORM_SQUARE — waveform: bright, like a beep.
+SoundEffect.WAVEFORM_NOISE — waveform: a hiss.
+SoundEffect.SHAPE_LINEAR — shape: the pitch moves evenly.
+SoundEffect.SHAPE_CURVE — shape: the pitch moves along a curve.
+SoundEffect.SHAPE_LOG — shape: the pitch moves fast, then slowly.
+SoundEffect.FX_NONE — fx: no effect.
+SoundEffect.FX_TREMOLO — fx: the volume wobbles.
+SoundEffect.FX_VIBRATO — fx: the pitch wobbles.
+SoundEffect.FX_WARBLE — fx: the pitch warbles.
+AudioFrame() — 32 samples of sound, 0–255 (128 is silence): play a list of them with play().
+AudioFrame.copyfrom(other) — Copies the samples from another frame or from bytes.
 `;
 
 const TUNES = `DADADADUM ENTERTAINER PRELUDE ODE NYAN RINGTONE FUNK BLUES BIRTHDAY WEDDING FUNERAL PUNCHLINE PYTHON BADDY
@@ -436,6 +531,10 @@ export const MODULES: Record<string, { boards: ApiBoard[]; doc: string; text: st
     doc: 'Everything on the micro:bit: display, buttons, pins, accelerometer. from microbit import *',
     text: MICROBIT + words(IMAGES).map((n) => `Image.${n} — The built-in ${picture(n)} picture.`).join('\n'),
   },
+  neopixel: { boards: ['pico', 'esp32'], doc: 'NeoPixels (WS2812B): sticks and rings of LEDs in any colour, on one pin.', text: NEOPIXEL },
+  microbitNeopixel: { boards: ['microbit'], doc: 'NeoPixels (WS2812B): sticks and rings of LEDs in any colour, on one pin.', text: MICROBIT_NEOPIXEL },
+  audio: { boards: ['microbit'], doc: 'The micro:bit\'s sounds: the built-in Sounds and your own sound effects.', text: AUDIO },
+  radio: { boards: ['microbit'], doc: 'The micro:bit\'s own radio, between micro:bits: send and receive messages.', text: RADIO },
   music: {
     boards: ['microbit'],
     doc: 'Tunes and notes on the speaker (or a buzzer on pin 0).',
@@ -444,4 +543,4 @@ export const MODULES: Record<string, { boards: ApiBoard[]; doc: string; text: st
 };
 
 /** A module's name as imported: the micro:bit's own versions share the usual name. */
-export const IMPORT_NAME: Record<string, string> = { microbitMachine: 'machine', microbitTime: 'time', microbitOs: 'os' };
+export const IMPORT_NAME: Record<string, string> = { microbitMachine: 'machine', microbitTime: 'time', microbitOs: 'os', microbitNeopixel: 'neopixel' };

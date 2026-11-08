@@ -4,6 +4,7 @@ import { RealClock, type Clock } from './clock';
 import type { Control } from './control';
 import { PinBank, RP2040_RESET, type AnalogEntry, type InputChange, type Level, type PinMode, type PinState, type Pull, type PwmEntry, type TraceEntry } from './pins';
 import { Motion, type MotionChange } from './motion';
+import { soundSteps, type Wave } from './soundfx';
 import { TimerBank } from './timers';
 import { Console, lineBeingRun, startMicroPython, type LoadMicroPython, type MicroPython, type Where } from './vm';
 
@@ -36,8 +37,11 @@ export interface RunResult {
   analog: AnalogEntry[];
   /** Every change of the micro:bit's 5×5 display: [µs, 25 brightnesses 0–9, row by row] (M2.6). */
   display: [number, string][];
-  /** Every change of the micro:bit's sound (music, pitch): [µs, Hz], 0 for silence (M2.6c). */
-  sound: [number, number][];
+  /** Every message the micro:bit's radio sent (M7): [µs, its bytes as hex]. */
+  radio: [number, string][];
+  /** Every change of the micro:bit's speaker (music, pitch, audio): [µs, Hz], 0 for silence (M2.6c); with its volume
+   *  (0–1) and waveform when not full and square (M7 slice 4: set_volume, a sound effect). */
+  sound: SoundEntry[];
   /** Bus traffic (I²C, SPI, UART, bitstream) as it reaches the bridge: [µs, 'i2c sda=4 scl=5 write 3c 00 nack'] (M2.7). */
   bus: [number, string][];
   /** Every change of a part in the circuit (M3.4); [] without a circuit. The Pico W's LED is in `trace` ('LED'). */
@@ -100,7 +104,13 @@ export interface RunOptions {
   /** Each new frame of the micro:bit's display: 25 brightnesses 0–9, row by row. */
   onDisplay?: (pixels: string) => void;
   /** Each change of the micro:bit speaker's pitch, Hz (0: silence) (M6.2). */
-  onSound?: (hz: number) => void;
+  onSound?: (hz: number, volume: number, wave: Wave) => void;
+  /** Seeds the sound effects' randomness (M7 slice 4: tests); otherwise each run differs, as on the real one. */
+  seed?: number;
+  /** Each message the micro:bit's radio sends (M7): its bytes as hex. */
+  onRadio?: (hex: string) => void;
+  /** Messages another micro:bit sends to this one (M7, tests and examples): [µs, the text], on its group and channel. */
+  radioIn?: [number, string][];
 }
 
 /** The sim's own Python (src/python/common) and the boards' (src/python/<folder>), written to a folder the
@@ -133,11 +143,12 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const timers = new TimerBank(now);
   const events = new Events(mp, pins, timers);
   const display: [number, string][] = [];
-  const sound: [number, number][] = [];
+  const sound: SoundEntry[] = [];
   const bus: [number, string][] = [];
+  const radio: [number, string][] = [];
   const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
   mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, {
-    display, sound, motion, bus, stop, quiet, circuit,
+    console, display, sound, motion, bus, radio, stop, quiet, circuit,
     asOf: (t, read) => { asOf = t; try { return read(); } finally { asOf = undefined; } },
   }, options));
   mp._module.microlabHook = () => {
@@ -176,7 +187,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const ended = damage ? 'fault' : (last.slice(0, nl) as RunResult['ended']);
   const traceback = last.slice(nl + 1);
   const withText = (f: Fault) => ({ ...f, message: describeFault(f) });
-  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, bus, parts: circuit?.partTrace ?? [],
+  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, bus, radio, parts: circuit?.partTrace ?? [],
     faults: [...(circuit?.seen.values() ?? [])].map(withText), ...(damage ? { fault: withText(damage) } : {}), ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
 }
 
@@ -187,10 +198,27 @@ function startFiles(options: RunOptions): string[] {
   return options.board === 'microbit-v2' ? [entry] : ['boot.py', entry];
 }
 
+/** [µs, Hz] — or [µs, Hz, volume 0–1, waveform] when not full and square. */
+export type SoundEntry = [number, number] | [number, number, number, Wave];
+
+/** A small seeded generator (mulberry32): random(n) is 0 … n − 1. */
+function seeded(seed: number): (n: number) => number {
+  let a = seed >>> 0;
+  return (n: number) => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * n);
+  };
+}
+
 /** The `_ream` bridge (architecture §2.4): the board-neutral calls the board modules make into the sim. */
 interface MicrobitParts {
+  console: Console;
   display: [number, string][];
-  sound: [number, number][];
+  radio: [number, string][];
+  sound: SoundEntry[];
   motion: Motion;
   bus: [number, string][];
   /** True once Stop is asked for (and KeyboardInterrupt is on its way). */
@@ -219,7 +247,8 @@ function stopper(mp: MicroPython, control: Control | undefined, faulted: () => b
 }
 
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
-  const { display, sound, motion, bus, stop, quiet, circuit, asOf } = mb;
+  const { console, display, sound, motion, bus, radio, stop, quiet, circuit, asOf } = mb;
+  const random = seeded(options.seed ?? Date.now());
   const log = (entry: string) => bus.push([clock.nowUs(), entry]);
   // the micro:bit's own inputs from the window (M6.6, screen 06): 'board:…' slots, NaN until the window sets them
   const slot = (name: string): number => {
@@ -227,24 +256,50 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     const i = c ? c.names.indexOf(name) : -1;
     return c && i >= 0 ? c.input(i) : NaN;
   };
-  let tilt: [number, number] | undefined;
+  let tilt: [number, number, number] | undefined;
   let shakes = 0;
-  /** The window's tilt (mg; z what is left of 1 g, face up) and its Shake count, into the accelerometer. */
+  /** The window's tilt (mg; z what is left of 1 g, face up — or set: face down, freefall, 3g … M7) and its Shake
+   *  count, into the accelerometer. */
   const fromWindow = () => {
     const x = slot('board:accelx');
     const y = slot('board:accely');
-    if (!Number.isNaN(x) || !Number.isNaN(y)) {
+    const z = slot('board:accelz');
+    if (!Number.isNaN(x) || !Number.isNaN(y) || !Number.isNaN(z)) {
       const xx = Number.isNaN(x) ? 0 : x;
       const yy = Number.isNaN(y) ? 0 : y;
-      if (!tilt || tilt[0] !== xx || tilt[1] !== yy) {
-        tilt = [xx, yy];
-        motion.live([xx, yy, -Math.round(Math.sqrt(Math.max(0, 1024 * 1024 - xx * xx - yy * yy)))]);
+      const zz = Number.isNaN(z) ? -Math.round(Math.sqrt(Math.max(0, 1024 * 1024 - xx * xx - yy * yy))) : z;
+      if (!tilt || tilt[0] !== xx || tilt[1] !== yy || tilt[2] !== zz) {
+        tilt = [xx, yy, zz];
+        motion.live([xx, yy, zz]);
       }
     }
     const s = slot('board:shake');
     if (!Number.isNaN(s) && s > shakes) { shakes = s; motion.shake(); }
   };
   const or = (v: number, otherwise: number) => (Number.isNaN(v) ? otherwise : v);
+  // the radio: its settings, the messages waiting (a queue of `queue`, the newest dropped when full, as modradio.c),
+  // the script's messages still to come, and the window's last ('radio:seq' counts them; 'radio:len', 'radio:0' …)
+  const air = { on: false, channel: 7, group: 0, queue: 3, length: 32, waiting: [] as { hex: string; at: number }[] };
+  const script = [...(options.radioIn ?? [])].sort((a, b) => a[0] - b[0]);
+  let heardSeq = 0;
+  const STRING = '010001';
+  const arrive = (bytes: number[], at: number) => {
+    if (!air.on || air.waiting.length >= air.queue) return;
+    air.waiting.push({ hex: STRING + bytes.slice(0, air.length - 3).map(hexByte).join(''), at });
+  };
+  const hearRadio = () => {
+    const t = clock.nowUs();
+    while (script.length && script[0]![0] <= t) {
+      const [at, text] = script.shift()!;
+      arrive([...new TextEncoder().encode(text)], at);
+    }
+    const seq = slot('radio:seq');
+    if (!Number.isNaN(seq) && seq > heardSeq) {
+      heardSeq = seq;
+      const n = Math.max(0, Math.min(32, slot('radio:len') || 0));
+      arrive(Array.from({ length: n }, (_, i) => slot(`radio:${i}`) & 0xff), t);
+    }
+  };
   return {
     ticks_us: () => clock.ticksUs(),
     /** Sleeps; returns early, with the µs left, when an IRQ or timer callback is due (it is scheduled first, and
@@ -301,21 +356,46 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     light: (): number => or(slot('board:light'), options.lightLevel ?? 128),
     /** The microphone's sound level, 0–255 (M6.6): the window's slider; 0 in a silent room. */
     sound_level: (): number => or(slot('board:sound'), 0),
-    /** Several changes at one moment (a note switches on, then gets its pitch) are one change. */
-    sound: (hz: number) => {
+    /** The speaker's sound now: its pitch, volume (0–1) and waveform. Several changes at one moment (a note switches on,
+     *  then gets its pitch) are one change. */
+    sound: (hz: number, volume = 1, wave: Wave = 'square') => {
       const t = clock.nowUs();
+      const v = Math.round(volume * 1000) / 1000;
+      const h = Math.round(hz * 100) / 100;
+      const entry: SoundEntry = !h || (v === 1 && wave === 'square') ? [t, h] : [t, h, v, wave];   // silence is silence, at any volume
+      const same = (a?: SoundEntry, b?: SoundEntry) => (a?.[1] ?? 0) === (b?.[1] ?? 0) && (a?.[2] ?? 1) === (b?.[2] ?? 1) && (a?.[3] ?? 'square') === (b?.[3] ?? 'square');
       const last = sound.at(-1);
       if (last && last[0] === t) {
-        last[1] = hz;
-        if ((sound.at(-2)?.[1] ?? 0) === hz) sound.pop();
-      } else if ((last?.[1] ?? 0) !== hz) {
-        sound.push([t, hz]);
+        sound[sound.length - 1] = entry;
+        if (same(sound.at(-2), entry) || (sound.length === 1 && !h)) sound.pop();
+      } else if (!same(last, entry)) {
+        sound.push(entry);
       }
-      options.onSound?.(hz);
+      options.onSound?.(h, v, wave);
     },
+    /** A sound expression's steps (M7 slice 4: audio.play of a Sound or a SoundEffect), as CODAL synthesizes it:
+     *  'µs,Hz,volume,wave;…', '' when it isn't one. */
+    sound_steps: (expression: string): string =>
+      soundSteps(expression, random)?.map((x) => `${x.us},${Math.round(x.hz * 100) / 100},${Math.round(x.volume * 1000) / 1000},${x.wave}`).join(';') ?? '',
     accel_values: (): string => { clock.ticksUs(); fromWindow(); return motion.values().join(' '); },
     accel_gesture: (): string => { fromWindow(); return motion.gesture(); },
     accel_events: (): string => { fromWindow(); return motion.takeEvents().join(','); },
+
+    // --- the micro:bit's radio (M7): what it sends goes to the window; what another micro:bit sends waits in its queue
+    // what came before a change is heard under the settings it came under
+    radio_config: (channel: number, group: number, queue: number, length: number) => { hearRadio(); Object.assign(air, { channel, group, queue, length }); },
+    radio_on: (on: number) => { hearRadio(); air.on = !!on; if (!on) air.waiting = []; },
+    radio_send: (hex: string) => {
+      log(`radio channel=${air.channel} group=${air.group} send ${spaced(hex)}`);
+      radio.push([clock.nowUs(), hex]);
+      options.onRadio?.(hex);
+    },
+    /** The oldest message waiting: 'hex rssi µs', or '' when none is. */
+    radio_receive: (): string => {
+      hearRadio();
+      const m = air.waiting.shift();
+      return m ? `${m.hex} -45 ${m.at}` : '';
+    },
 
     // --- buses (M2.7): transaction level; the parts on the nets answer (M6.4b: an MPU6050) ---
     /** Addresses that answer on this bus, comma-separated hex. */
@@ -331,6 +411,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
       log(`i2c sda=${sda} scl=${scl} write ${hexByte(addr)}${hex ? ' ' + spaced(hex) : ''}${chip ? '' : ' nack'}`);
       if (!chip) return -1;
       chip.write((hex.match(/../g) ?? []).map((b) => parseInt(b, 16)));
+      circuit?.traceDisplays();
       return hex.length / 2;
     },
     /** The bytes read (hex), or -1 when the address is not ACKed. */
@@ -343,15 +424,48 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
       return data;
     },
     /** Clocks `hex` out on MOSI; returns what MISO gave back (its idle level: 0x00 low, 0xff high). */
-    spi_xfer: (sck: string, mosi: string, miso: string, hex: string, kind: string): string => {
+    spi_xfer: (sck: string, mosi: string, miso: string, hex: string, kind: string, mode = 0, lsb = 0, baud = 0): string => {
       log(`spi sck=${sck} mosi=${mosi} miso=${miso} ${kind}${kind === 'read' ? ' ' + hex.length / 2 : ' ' + spaced(hex)}`);
+      const sent = (hex.match(/../g) ?? []).map((b) => parseInt(b, 16));
+      if (baud > 0) clock.sleepUs(Math.round((sent.length * 8 * 1e6) / baud));   // each byte's 8 clocks (M7 slice 5)
+      const got = circuit?.spi(sck, mosi, miso, spiAsSeen(sent, mode, !!lsb));
+      if (got) return spiAsRead(got, mode, !!lsb).map(hexByte).join('');   // a part on MISO answered (M7: an RC522)
       const idle = miso && pins.level(miso) ? 'ff' : '00';
       return idle.repeat(hex.length / 2);
     },
-    uart_write: (tx: string, rx: string, baud: number, hex: string) => { log(`uart tx=${tx} rx=${rx} ${baud} write ${hex}`); },
-    /** Bytes waiting on RX (hex): none until M3. */
-    uart_read: (): string => '',
-    bitstream: (pin: string, timing: string, hex: string) => { log(`bitstream pin=${pin} timing=${timing} ${hex}`); },
+    /** A board UART on its pins (M7 slice 5): its handle (0 with no circuit: nothing to send to). */
+    uart_open: (tx: string, rx: string, baud: number, bits: number, parity: number, stop: number, rxbuf: number): number =>
+      circuit?.uartOpen(tx, rx, { baud, bits, parity, stop }, rxbuf) ?? 0,
+    uart_close: (h: number) => { circuit?.serial.close(h); },
+    /** Sends `hex` from the port; returns how long until its last byte has gone (µs). */
+    uart_write: (h: number, tx: string, rx: string, baud: number, hex: string): number => {
+      log(`uart tx=${tx} rx=${rx} ${baud} write ${hex}`);
+      const t = clock.nowUs();
+      const done = circuit?.serial.send(h, (hex.match(/../g) ?? []).map((b) => parseInt(b, 16)), t) ?? t;
+      return Math.max(0, Math.round(done - t));
+    },
+    /** How long until the port's last byte has gone (µs). */
+    uart_busy: (h: number): number => Math.max(0, Math.round((circuit?.serial.busyUntil(h) ?? 0) - clock.nowUs())),
+    uart_any: (h: number): number => { circuit?.update(); return circuit?.serial.available(h, clock.nowUs()) ?? 0; },
+    uart_take: (h: number, n: number): string => (circuit?.serial.take(h, n, clock.nowUs()) ?? []).map(hexByte).join(''),
+    /** How long until the next byte reaches the port (µs); -1 when none is on its way. */
+    uart_next: (h: number): number => circuit?.serial.nextUs(h, clock.nowUs()) ?? -1,
+    /** The micro:bit's stdout (M7 slice 5): on a port's pins after uart.init(tx=…), back on USB with 0. */
+    console_uart: (h: number) => {
+      console.flush();
+      console.divert = h && circuit ? (bytes: Uint8Array) => { circuit.serial.send(h, [...bytes], clock.nowUs()); } : h ? () => {} : undefined;
+    },
+    /** The bytes out on the pin with `timing` (ns: high and low of a 0, of a 1), each bit taking its time — into the
+     *  NeoPixels on the pin's net (M7 slice 3). */
+    bitstream: (pin: string, timing: string, hex: string) => {
+      log(`bitstream pin=${pin} timing=${timing} ${hex}`);
+      const t = timing.split(',').map(Number);
+      const bytes = (hex.match(/../g) ?? []).map((b) => parseInt(b, 16));
+      const ones = bytes.reduce((n, b) => { let k = 0; for (let v = b; v; v &= v - 1) k++; return n + k; }, 0);
+      const ns = ones * ((t[2] ?? 0) + (t[3] ?? 0)) + (bytes.length * 8 - ones) * ((t[0] ?? 0) + (t[1] ?? 0));
+      circuit?.bitstream(pin, t, bytes);
+      clock.sleepUs(Math.round(ns / 1000));
+    },
     /** _onewire (drivers/onewire, M6.5b): a reset (≈ 960 µs; true with a presence pulse), a bit (≈ 70 µs; -1 reads it),
      *  a byte (≈ 560 µs; -1 reads it), on the bus of the pin's net. */
     ow_reset: (pin: string): boolean => {
@@ -411,6 +525,24 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
 const I2C_BYTE_US = 22.5;
 
 const hexByte = (n: number) => n.toString(16).padStart(2, '0');
+
+/** A byte's bits the other way round. */
+const reversed = (b: number) => { let r = 0; for (let i = 0; i < 8; i++) r |= ((b >> i) & 1) << (7 - i); return r; };
+/** Modes 1 and 2 put a bit out on the edge modes 0 and 3 read it on (M7 slice 5). */
+const otherEdge = (mode: number) => (((mode >> 1) ^ mode) & 1) === 1;
+/** What a part (mode 0, the highest bit first, as the MAX7219 and the RC522) reads of bytes sent in `mode`: LSB first
+ *  reverses each; the other edge shifts every bit one place (each byte takes the next one's first bit). */
+export function spiAsSeen(bytes: number[], mode: number, lsb: boolean): number[] {
+  let out = lsb ? bytes.map(reversed) : [...bytes];
+  if (otherEdge(mode)) out = out.map((b, i) => ((b << 1) | ((out[i + 1] ?? 0) >> 7)) & 0xff);
+  return out;
+}
+/** And what the board reads of a part's answer, the same way back. */
+export function spiAsRead(bytes: number[], mode: number, lsb: boolean): number[] {
+  let out = [...bytes];
+  if (otherEdge(mode)) out = out.map((b, i) => ((b >> 1) | ((out[i - 1] ?? 0) << 7)) & 0xff);
+  return lsb ? out.map(reversed) : out;
+}
 const spaced = (hex: string) => hex.match(/../g)?.join(' ') ?? '';
 
 /** Pin IRQs and timer callbacks that are due, handed to micropython.schedule: they run at the VM's next pending

@@ -1,6 +1,6 @@
 import type { Fault } from './faults';
 
-const DIES: Record<string, string> = { r: 'red', g: 'green', b: 'blue' };
+const DIES: Record<string, string> = { r: 'red', y: 'yellow', g: 'green', b: 'blue' };
 
 /**
  * A fault in one plain line with its numbers (M3.5). The friendly wording, the picture and the fix are M9's fault
@@ -9,8 +9,11 @@ const DIES: Record<string, string> = { r: 'red', g: 'green', b: 'blue' };
 export function describeFault(f: Fault): string {
   const mA = (a?: number) => `${Math.round((a ?? 0) * 1000)} mA`;
   const V = (v?: number) => `${(v ?? 0).toFixed(1)} V`;
-  const die = /^(.+):([rgb])$/.exec(f.on);   // an RGB LED's red, green or blue (M6.1)
-  const on = die ? `${die[1]} (${DIES[die[2]!]})` : f.on;
+  const die = /^(.+):([a-z]+)$/.exec(f.on);
+  // an RGB LED's red, green or blue (M6.1), a traffic light's (M7); a 7-segment digit's segment (M7 slice 2)
+  const on = !die ? f.on
+    : f.partType === 'seven-segment' ? `${die[1]} (segment ${die[2]})`
+    : die[2]! in DIES ? `${die[1]} (${DIES[die[2]!]})` : f.on;
   switch (f.kind) {
     case 'short': return `${f.on}: a short circuit — ${mA(f.amps)}, as much as it can give`;
     case 'led-burnt': return `${on}: the LED burnt out — ${mA(f.amps)} through it, it takes ${mA(f.limitA)} at most`;
@@ -21,6 +24,11 @@ export function describeFault(f: Fault): string {
     case 'over-voltage': return `${f.on}: ${V(f.volts)} on a pin that takes ${V(f.limitV)} at most`;
     case 'floating': return `${f.on}: an input connected to nothing — what it reads is chance`;
     case 'servo-underpowered': return `${f.on}: the servo has ${V(f.volts)}, it needs 4.8–6 V`;
+    case 'motor-on-pin': return `${f.on}: ${f.part} straight on the pin draws ${mA(f.amps)}, a pin gives ${mA(f.limitA)} at most — drive it through a driver (L9110S, L298N)`;
     case 'sensor-underpowered': return `${f.on}: the sensor has ${V(f.volts)}, it needs ${V(f.limitV)} at least`;
+    case 'neopixel-backwards': return `${f.on}: ${f.part}'s wire is on its DOUT — a NeoPixel takes data at DIN, so none of its LEDs light`;
+    case 'neopixel-over-current': return `${f.on}: the NeoPixels on ${f.part} ask ${(f.amps ?? 0) >= 1 ? `${(f.amps ?? 0).toFixed(2)} A` : mA(f.amps)}, it gives ${mA(f.limitA)} — make them dimmer, light fewer, or give them their own 5 V supply`;
+    case 'uart-tx-to-tx': return `${f.on} (TX) is wired to ${f.part}: two outputs on one wire — neither hears the other. A TX goes to the other side's RX`;
+    case 'display-underpowered': return `${f.on}: the display has ${V(f.volts)}, it needs ${V(f.limitV)} at least${f.partType === 'lcd1602' ? ' — its letters are too faint to read' : f.partType === 'max7219' ? ' — its dots may stay dark' : ''}`;
   }
 }

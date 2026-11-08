@@ -7,9 +7,14 @@ import type { RunResult } from './run';
  * every example on its board with the VirtualClock and checks it (M3.6); M10 runs the same files on real boards.
  *
  *   seconds   how long the run lasts (then it is stopped, quietly)
- *   inputs    [{ at: s, part, pressed | position | lux | celsius | humidity | cm }]
+ *   inputs    [{ at: s, part, pressed | position | lux | celsius | humidity | cm | text | connected | fix | lat | lon … }]
  *   parts     { id: { blinks: Hz } | { lit: [[from, to], …], dark: […] } | { brightness: [[at, min, max], …] }
- *                   | { sounds: [[from, to, Hz], …], silent: [[from, to], …] } }   (a buzzer, M6.2)
+ *                   | { sounds: [[from, to, Hz], …], silent: [[from, to], …] }   (a buzzer, M6.2)
+ *                   | { values: [[at, field, min, max], …] } }   (any part's state: a servo's angle, a motor's rpm, M7;
+ *                     true is 1, false 0)
+ *                   | { text: [[at, field, 'what it shows'], …] }   (a display's text: an LCD's rows joined by a
+ *                     line break, a 4-digit display's '01:27', M7 slice 2)
+ *   speaker   { heard: [[from, to], …], silent: [[from, to], …] }   (the micro:bit's own speaker, M7 slice 4)
  *   console   { includes: ['line', …] }
  *   ended     'stopped' (a program that loops for ever) or 'done'
  *   faults    [] — no damage faults is the default
@@ -23,6 +28,9 @@ export const expectSchema = z.object({
     humidity: z.number().optional(), cm: z.number().optional(), tiltx: z.number().optional(), tilty: z.number().optional(),
     x: z.number().optional(), y: z.number().optional(), steps: z.number().optional(), rpm: z.number().optional(), hpa: z.number().optional(),
     bpm: z.number().optional(), spo2: z.number().optional(),
+    // M7 slice 5: what a terminal or a phone sends, a phone connected, a GPS's fix and place
+    text: z.string().optional(), connected: z.boolean().optional(), fix: z.boolean().optional(),
+    lat: z.number().optional(), lon: z.number().optional(), sats: z.number().optional(), kmh: z.number().optional(),
   })).optional(),
   parts: z.record(z.string(), z.object({
     blinks: z.number().positive().optional(),
@@ -31,7 +39,10 @@ export const expectSchema = z.object({
     brightness: z.array(z.tuple([z.number(), z.number(), z.number()])).optional(),
     sounds: z.array(z.tuple([z.number(), z.number(), z.number().positive()])).optional(),
     silent: z.array(span).optional(),
+    values: z.array(z.tuple([z.number(), z.string(), z.number(), z.number()])).optional(),
+    text: z.array(z.tuple([z.number(), z.string(), z.string()])).optional(),
   })).optional(),
+  speaker: z.object({ heard: z.array(span).optional(), silent: z.array(span).optional() }).optional(),
   console: z.object({ includes: z.array(z.string()) }).optional(),
   ended: z.enum(['done', 'stopped', 'error', 'fault']).optional(),
   faults: z.array(z.string()).optional(),
@@ -59,6 +70,16 @@ export function check(result: RunResult, e: Expectation): string[] {
   const wanted = e.faults ?? [];
   for (const d of damage) if (!wanted.includes(d)) out.push(`a fault: ${d}`);
   for (const line of e.console?.includes ?? []) if (!result.output.includes(line)) out.push(`the console has no "${line}"`);
+  // the micro:bit's speaker (M7 slice 4): heard at some moment in each span, silent all through each other
+  const speaker = (s: number) => { let hz = 0; for (const [t, h] of result.sound) if (t / 1e6 <= s) hz = h; return hz; };
+  const spans = (from: number, to: number) => { const at: number[] = []; for (let s = from; s <= to + 1e-9; s += 0.01) at.push(s); return at; };
+  for (const [from, to] of e.speaker?.heard ?? []) {
+    if (!spans(from, to).some((s) => speaker(s) > 0)) out.push(`the speaker is silent ${from}–${to} s, should be heard`);
+  }
+  for (const [from, to] of e.speaker?.silent ?? []) {
+    const s = spans(from, to).find((x) => speaker(x) > 0);
+    if (s !== undefined) out.push(`the speaker sounds at ${s.toFixed(2)} s, should be silent ${from}–${to} s`);
+  }
 
   for (const [id, want] of Object.entries(e.parts ?? {})) {
     const trace = result.parts.filter(([, pid]) => pid === id).map(([t, , v]) => [t / 1e6, v] as [number, PartView]);
@@ -90,6 +111,16 @@ export function check(result: RunResult, e: Expectation): string[] {
         const h = hz(s);
         if (Math.abs(h - note) > note * PITCH) { out.push(`${id}: ${h ? `${h} Hz` : 'silent'} at ${s.toFixed(2)} s, should be ${note} Hz ${from}–${to} s`); break; }
       }
+    }
+    for (const [s, field, min, max] of want.values ?? []) {
+      const raw = (at(s) as Record<string, unknown> | undefined)?.[field];
+      const v = typeof raw === 'boolean' ? Number(raw) : typeof raw === 'number' ? raw : NaN;
+      if (!(v >= min && v <= max)) out.push(`${id}: ${field} ${Number.isNaN(v) ? 'none' : v} at ${s} s, should be ${min}–${max}`);
+    }
+    for (const [s, field, text] of want.text ?? []) {
+      const raw = (at(s) as Record<string, unknown> | undefined)?.[field];
+      const got = Array.isArray(raw) ? raw.join('\n') : raw === undefined ? undefined : String(raw);
+      if (got !== text) out.push(`${id}: ${field} ${got === undefined ? 'none' : JSON.stringify(got)} at ${s} s, should be ${JSON.stringify(text)}`);
     }
     for (const [from, to] of want.silent ?? []) {
       for (let s = from; s <= to + 1e-9; s += 0.05) {

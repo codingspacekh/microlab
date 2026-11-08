@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>25b More outputs</title>
+{{include:head}}
+</head>
+<body>
+<!--@PROJECT: Turntable-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 00:04-->
+<!--@EDITOR: {{code:moreoutputs:cur=17}}-->
+<!--@PARTS_LIST: {{parts::::Actuators+Output modules}}-->
+<!--@COUNTS: Pico W + 8 parts · 27 wires-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.29.0 on Raspberry Pi Pico W (simulated)</span>
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running main.py — Stop or <span class="kbd">Ctrl</span>+<span class="kbd">C</span> breaks in</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span><span>Power supply: 5V 290 mA · 3.3V 22 mA</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.10 ms</span>-->
+<p class="frame-label"><b>25b · More outputs</b> (M7 design, slice 1) — the <b>breadboard power supply</b> (MB102) on the breadboard's left end: its pins in both rail pairs, its jumpers set each pair to <b>5 V or 3.3 V</b> (clicked, as on the real one; set in the inspector too), its own DC jack or USB gives the power — the Pico W's GND joins it; a <b>ULN2003</b> on the supply's 5 V turns a <b>28BYJ-48 stepper</b> by its cable — its LEDs A–D light with the coils, the stepper counts its steps (4096 a turn in half steps); the kit's <b>traffic light</b> and <b>passive buzzer</b> modules (the note it plays over it); an <b>L298N</b> too big for the breadboard lies beside it on the supply's 5 V, its ENA / ENB jumpers on (full speed: take one off and wire a PWM pin there), its OUT3 / OUT4 screws turning <b>MOTOR2</b> backwards. Every screw and the L298N's header pins are points to wire</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:moreoutputs}}
+      <div class="tip" style="left:12px;top:8px;width:224px"><b>STEP1 · 28BYJ-48 · step 1024</b><div style="opacity:.85;margin-top:2px">A quarter turn: 4096 half steps make one. Coils B and C on — the ULN2003's LEDs show them.</div></div>
+      <div class="float inspector" style="right:14px;bottom:14px;width:270px">
+        <div class="ih"><span class="pic" style="width:28px;height:28px;border-radius:6px;background:var(--bg);display:grid;place-items:center">{{part:psu:bp}}</span><b>PSU1 · Breadboard power supply</b><span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+        <div class="prop"><span>Top rails</span><div class="seg"><span class="on">5 V</span><span>3.3 V</span></div></div>
+        <div class="prop"><span>Bottom rails</span><div class="seg"><span>5 V</span><span class="on">3.3 V</span></div></div>
+        <div class="prop"><span>Power</span><div class="seg"><span class="on">On</span><span>Off</span></div></div>
+        <p class="tiny muted" style="margin:8px 0 0;line-height:1.45">Up to 700 mA from its own jack or USB, apart from the board — join a GND to the board's.</p>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

@@ -1,0 +1,88 @@
+{
+  "format": 1,
+  "title": "7-segment digit",
+  "board": "pico-w",
+  "breadboards": [
+    {
+      "id": "bb1",
+      "size": "half"
+    }
+  ],
+  "parts": [
+    {
+      "id": "digit1",
+      "type": "seven-segment",
+      "props": {},
+      "legs": {
+        "e": "bb1.h9",
+        "d": "bb1.h10",
+        "com2": "bb1.h11",
+        "c": "bb1.h12",
+        "dp": "bb1.h13",
+        "b": "bb1.d13",
+        "a": "bb1.d12",
+        "com1": "bb1.d11",
+        "f": "bb1.d10",
+        "g": "bb1.d9"
+      }
+    },
+    {
+      "id": "r1",
+      "type": "resistor",
+      "props": {
+        "ohms": 220
+      },
+      "legs": {
+        "a": "bb1.i11",
+        "b": "bb1.i14"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "a": "board.GP18",
+      "b": "bb1.b12"
+    },
+    {
+      "id": "w2",
+      "a": "board.GP19",
+      "b": "bb1.c13"
+    },
+    {
+      "id": "w3",
+      "a": "board.GP20",
+      "b": "bb1.j12"
+    },
+    {
+      "id": "w4",
+      "a": "board.GP21",
+      "b": "bb1.j10"
+    },
+    {
+      "id": "w5",
+      "a": "board.GP22",
+      "b": "bb1.j9"
+    },
+    {
+      "id": "w6",
+      "a": "board.GP17",
+      "b": "bb1.a10"
+    },
+    {
+      "id": "w7",
+      "a": "board.GP16",
+      "b": "bb1.a9"
+    },
+    {
+      "id": "w8",
+      "a": "bb1.j14",
+      "b": "bb1.B-14"
+    },
+    {
+      "id": "w9",
+      "a": "board.GND",
+      "b": "bb1.B-1"
+    }
+  ]
+}

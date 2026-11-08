@@ -50,13 +50,13 @@
 .aa-wrap { position: relative; display: inline-flex; }
 .btn.aa { font-weight: 700; font-size: 12px; width: auto; padding: 0 7px; }
 .btn.aa.on { background: var(--bg-2); }
-.aa-pop { position: absolute; right: 0; top: calc(100% + 6px); width: 300px; padding: 12px 14px; z-index: 20; }
+.aa-pop { position: absolute; right: 0; top: calc(100% + 6px); width: 324px; padding: 12px 14px; z-index: 20; }
 .aa-pop .lbl { font-size: 11px; font-weight: 600; color: var(--tx-3); text-transform: uppercase; letter-spacing: .05em; margin: 2px 0 6px; }
 .aa-pop .lbl + .row, .aa-pop .row + .lbl { margin-top: 0; }
 .aa-pop .aa-size { gap: 8px; align-items: center; margin-bottom: 12px; }
 .aa-pop .aa-size > :first-child { flex: 0 0 128px; min-width: 0; }
 .aa-themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.aa-themes .th { all: unset; box-sizing: border-box; cursor: pointer; border: 1px solid var(--line); border-radius: 9px; padding: 6px; font-size: 11.5px; text-align: center; color: var(--tx-2); }
+.aa-themes .th { all: unset; box-sizing: border-box; cursor: pointer; border: 1px solid var(--line); border-radius: 9px; padding: 6px; font-size: 11.5px; text-align: center; color: var(--tx-2); white-space: nowrap; }   /* 'High contrast' on one line (the teacher, M7) */
 .aa-themes .th:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .aa-themes .th.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
 .aa-themes .th i { display: block; height: 34px; border-radius: 5px; margin-bottom: 5px; font-style: normal; font-family: var(--mono); font-size: 9px; text-align: left; padding: 4px 6px; line-height: 12px; }

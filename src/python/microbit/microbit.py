@@ -235,6 +235,72 @@ _volume = [255]
 def set_volume(v):
     v = _int(v)
     _volume[0] = 0 if v < 0 else 255 if v > 255 else v
+    _tone(_spk['hz'], _spk['vol'], _spk['wave'])   # the mixer's volume: what plays now changes with it
+
+
+# --- the speaker and the audio pin (M7 slice 4: microbit_speaker.c, microbit_pinaudio.c, microbithal_audio.cpp) ----
+# music and audio play through one mixer: to the speaker (unless it is off) and to one routed pin — pin0 by default,
+# none when the program says pin=None. What the speaker plays is the sound at set_volume's share.
+_spk = {'on': True, 'hz': 0, 'vol': 1.0, 'wave': 'square'}
+_routed = [None]
+
+
+def _tone(hz, vol=1.0, wave='square'):
+    _spk['hz'], _spk['vol'], _spk['wave'] = hz, vol, wave
+    _ream.sound(hz if _spk['on'] else 0, vol * _volume[0] / 255, wave)
+
+
+def _audio_select(pin, mode):
+    # microbit_pin_audio_select: None routes to no pin; the speaker's own pin is not allowed
+    if pin is None:
+        chosen = None
+    elif pin is pin_speaker:
+        raise ValueError('pin_speaker not allowed')
+    elif isinstance(pin, MicroBitDigitalPin):
+        chosen = pin
+    else:
+        raise TypeError('expecting a pin')
+    if chosen is not _routed[0]:
+        old = _routed[0]
+        if old is not None:   # microbit_obj_pin_free
+            _ream.pwm_out(old._key, 0, -1.0)
+            _modes[old._number] = 'unused'
+        _routed[0] = chosen
+        if chosen is not None:
+            _acquire(chosen, mode)
+    elif chosen is not None:
+        _modes[chosen._number] = mode
+    return chosen
+
+
+class MicroBitSpeaker:
+    def __repr__(self):
+        return '<MicroBitSpeaker>'
+
+    def on(self):
+        _spk['on'] = True
+        _tone(_spk['hz'], _spk['vol'], _spk['wave'])
+
+    def off(self):
+        _spk['on'] = False
+        _tone(_spk['hz'], _spk['vol'], _spk['wave'])
+
+
+speaker = MicroBitSpeaker()
+
+
+class MicroBitSound:
+    # microbit_sound.c: the built-in sounds, played by name (CODAL's sound expressions)
+    def __init__(self, name):
+        self._name = name
+
+    def __repr__(self):
+        return "Sound('%s')" % self._name
+
+
+for _n in ('giggle', 'happy', 'hello', 'mysterious', 'sad', 'slide', 'soaring', 'spring', 'twinkle', 'yawn'):
+    setattr(MicroBitSound, _n.upper(), MicroBitSound(_n))
+Sound = MicroBitSound
 
 
 def scale(value, from_, to):
@@ -401,6 +467,17 @@ class MicroBitDisplay:
     def read_light_level(self):
         return int(_ream.light())
 
+
+
+def ws2812_write(pin, buf):
+    # modmicrobit.c's microbit_ws2812_write (the neopixel module's write()): the bytes out on the pin at 800 kHz,
+    # microbithal.cpp's neopixel_send
+    if not isinstance(pin, MicroBitDigitalPin):
+        raise TypeError('expecting a pin')
+    data = bytes(buf)
+    _ream.pwm_out(pin._key, 0, -1.0)
+    _ream.pin_config(pin._key, 'out', '', 0)
+    _ream.bitstream(pin._key, '400,850,800,450', data.hex())
 
 def _display_tick(d):
     if d._iter is not None:
@@ -657,3 +734,106 @@ class MicroBitI2C:
 
 
 i2c = MicroBitI2C()
+
+
+# --- spi on P13 / P15 / P14 by default (microbit_spi.c, M7 slice 2) ----------------------------------------------
+class MicroBitSPI:
+    def __init__(self):
+        self._sck, self._mosi, self._miso = '13', '15', '14'
+        self._baud = 1000000
+
+    def __repr__(self):
+        return '<MicroBitSPI>'
+
+    def init(self, baudrate=1000000, bits=8, mode=0, sclk=None, mosi=None, miso=None):
+        self._baud = _int(baudrate)
+        if sclk is not None:
+            self._sck = sclk._key
+        if mosi is not None:
+            self._mosi = mosi._key
+        if miso is not None:
+            self._miso = miso._key
+
+    def _xfer(self, data, kind):
+        return bytes.fromhex(str(_ream.spi_xfer(self._sck, self._mosi, self._miso, bytes(data).hex(), kind)))
+
+    def write(self, buf):
+        self._xfer(buf, 'write')
+
+    def read(self, nbytes, out=0):
+        return self._xfer(bytes([out]) * _int(nbytes), 'read')
+
+    def write_readinto(self, out, in_):
+        data = self._xfer(out, 'transfer')
+        for i in range(len(in_)):
+            in_[i] = data[i]
+
+
+spi = MicroBitSPI()
+
+
+# --- uart (M7 slice 5: microbit_uart.c): the micro:bit's one UART is its console's (USB); init() with pins moves it —
+# and print() with it, mp_hal_stdout — to them. any() is True or False; read() doesn't wait for a first byte, then
+# reads on while bytes come within a character's time (13 bits).
+import _bus
+
+
+class _UARTPort(_bus.UARTBus):
+    def __init__(self, tx, rx, baudrate, bits, parity, stop, timeout_char):
+        self._tx, self._rx = tx, rx
+        self._baud, self._bits, self._parity, self._stop = baudrate, bits, parity, stop
+        self._rxbuf = self._txbuf = 64
+        self._timeout, self._timeout_char = -1, timeout_char
+        self._start()
+
+
+class MicroBitUART:
+    ODD = 1
+    EVEN = 0
+
+    def __init__(self):
+        self._port = None
+
+    def init(self, baudrate=9600, bits=8, parity=None, stop=1, *, pins=None, tx=None, rx=None):
+        if pins is not None:
+            tx, rx = pins
+        for pin in (tx, rx):
+            if pin is not None and not isinstance(pin, MicroBitDigitalPin):
+                raise TypeError('expecting a pin')
+        baudrate = _int(baudrate)
+        if self._port is not None:
+            self._port.deinit()
+            self._port = None
+        _ream.console_uart(0)
+        if tx is not None or rx is not None:
+            self._port = _UARTPort(tx._key if tx is not None else '', rx._key if rx is not None else '', baudrate, _int(bits),
+                                   None if parity is None else _int(parity), _int(stop), 13000 // baudrate + 1)
+            if tx is not None:   # the console's output goes out of TX now
+                _ream.console_uart(self._port._h)
+
+    def any(self):
+        return self._port is not None and self._port.any() > 0
+
+    def read(self, nbytes=None):
+        return None if self._port is None else self._port.read(nbytes)
+
+    def readline(self):
+        return None if self._port is None else self._port.readline()
+
+    def readinto(self, buf, nbytes=None):
+        return None if self._port is None else self._port.readinto(buf, nbytes)
+
+    def write(self, buf):
+        data = buf.encode() if isinstance(buf, str) else bytes(buf)
+        if self._port is not None and self._port._tx:
+            self._port.write(data)
+        else:
+            print(data.decode(), end='')
+        return len(data)
+
+
+uart = MicroBitUART()
+
+
+# the audio module is the microbit module's too (modmicrobit.c: microbit.audio), M7 slice 4
+import audio  # noqa: E402
