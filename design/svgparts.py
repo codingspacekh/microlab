@@ -1405,6 +1405,169 @@ def power_supply(bb, top: str = "5V", bottom: str = "3.3V", on: bool = True) -> 
     return "".join(o) + "</g>"
 
 
+# ------------------------------------------------------------------ displays (M7 slice 2)
+SEG7 = {"0": "abcdef", "1": "bc", "2": "abdeg", "3": "abcdg", "4": "bcfg", "5": "acdfg", "6": "acdefg", "7": "abc",
+        "8": "abcdefg", "9": "abcdfg", " ": "", "-": "g"}
+
+
+def _digit7(x, y, w, h, lit: str, dp=None, bright: float = 1.0, on: str = "#ff3b2a", off: str = "#3a2624") -> str:
+    """One 7-segment digit in the box (x, y, w, h), leaning as the real ones do; `lit` = the segments on ('abc…'),
+    `dp` = None (no point), False (off) or True (lit); `bright` 0–1 dims the lit segments."""
+    t = max(2.0, w * .17)
+    L, R, T, M, B = x + t / 2, x + w - t / 2, y + t / 2, y + h / 2, y + h - t / 2
+    g = t * .75
+    segs = {"a": (L + g, T, R - g, T), "b": (R, T + g, R, M - g), "c": (R, M + g, R, B - g), "d": (L + g, B, R - g, B),
+            "e": (L, M + g, L, B - g), "f": (L, T + g, L, M - g), "g": (L + g, M, R - g, M)}
+    cx, cy = x + w / 2, y + h / 2
+    o = [f'<g transform="translate({f(cx)},{f(cy)}) skewX(-7) translate({f(-cx)},{f(-cy)})">']
+    for s, (x1, y1, x2, y2) in segs.items():
+        line = f'x1="{f(x1)}" y1="{f(y1)}" x2="{f(x2)}" y2="{f(y2)}" stroke-linecap="round"'
+        if s in lit:
+            o.append(f'<line {line} stroke="{on}" stroke-width="{f(t * 2.8)}" opacity="{f(.16 * bright)}"/>')
+            o.append(f'<line {line} stroke="{on}" stroke-width="{f(t)}" opacity="{f(.35 + .65 * bright)}"/>')
+        else:
+            o.append(f'<line {line} stroke="{off}" stroke-width="{f(t)}"/>')
+    if dp is not None:
+        o.append(f'<circle cx="{f(R + t * 1.4)}" cy="{f(B)}" r="{f(t * .6)}" fill="{on if dp else off}"/>')
+    return "".join(o) + "</g>"
+
+
+def seg7_digit(top, bottom, ch: str = "8", bright: float = 1.0, dp: bool = False) -> str:
+    """A 0.56" common-cathode 7-segment digit straddling the gap: its pins g f COM a b in `top` (left → right), e d
+    COM c dp in `bottom`, six rows apart; its body covers them — their names printed at its edges."""
+    xs = [x for x, _ in top]
+    cx, cy = (xs[0] + xs[-1]) / 2, (top[0][1] + bottom[0][1]) / 2
+    w, h = 80, 116
+    o = ['<g class="seg7">',
+         f'<rect x="{f(cx - w / 2)}" y="{f(cy - h / 2)}" width="{w}" height="{h}" rx="2" fill="#e9e7e1" stroke="#c9c5bb" filter="url(#lift)"/>',
+         f'<rect x="{f(cx - w / 2 + 5)}" y="{f(cy - h / 2 + 12)}" width="{w - 10}" height="{h - 24}" rx="1.5" fill="#1f2023"/>',
+         _digit7(cx - 21, cy - 36, 40, 72, SEG7[ch], dp=dp, bright=bright)]
+    for (x, _), lab in zip(top, ("g", "f", "COM", "a", "b")):
+        o.append(f'<text x="{f(x)}" y="{f(cy - h / 2 + 8.5)}" font-size="5.5" font-weight="700" fill="#6b665c" text-anchor="middle" font-family="Inter">{lab}</text>')
+    for (x, _), lab in zip(bottom, ("e", "d", "COM", "c", "dp")):
+        o.append(f'<text x="{f(x)}" y="{f(cy + h / 2 - 3.5)}" font-size="5.5" font-weight="700" fill="#6b665c" text-anchor="middle" font-family="Inter">{lab}</text>')
+    return "".join(o) + "</g>"
+
+
+def _side_header(x, ys, labels, right: bool = True, label_fill: str = "#e9edf2"):
+    """A module's header sticking out of its side: black strip, pins as pads to wire (points, like screws), names inside."""
+    d = 1 if right else -1
+    o = [f'<rect x="{f(x - 7 if right else x)}" y="{f(ys[0] - 9)}" width="7" height="{f(ys[-1] - ys[0] + 18)}" rx="1" fill="#26282c"/>']
+    pins = {}
+    for y, lab in zip(ys, labels):
+        px = x + d * 9
+        o.append(f'<line x1="{f(x)}" y1="{f(y)}" x2="{f(px)}" y2="{f(y)}" stroke="#c7ccd2" stroke-width="2"/>' + pad(px, y))
+        o.append(f'<text x="{f(x - d * 11)}" y="{f(y + 2)}" font-size="5.5" font-weight="700" fill="{label_fill}" text-anchor="{"end" if right else "start"}" font-family="Inter">{lab}</text>')
+        pins[lab] = (px, y)
+    return "".join(o), pins
+
+
+def oled_in(pins, lines=(), bar=None) -> str:
+    """The SSD1306 0.96" OLED standing in the breadboard by its header (GND VCC SCL SDA), its screen above — 128×64
+    pixels drawn 0.8 px each: `lines` = [(text, x, y)] as oled.text() put them (8×8 letters), `bar` = (x, y, w, h,
+    filled w) in pixels, as oled.rect() and fill_rect()."""
+    xs = [x for x, _ in pins]
+    cx, y = (xs[0] + xs[-1]) / 2, pins[0][1]
+    w, h = 132, 112
+    top = y - 16 - h
+    k = .8
+    sx, sy = cx - 64 * k, top + 26
+    o = ['<g class="oled">',
+         f'<rect x="{f(cx - w / 2)}" y="{f(top)}" width="{w}" height="{h}" rx="4" fill="#16314f" stroke="#0c1d30" filter="url(#lift)"/>']
+    for dx, dy in ((7, 7), (w - 7, 7), (7, h - 7), (w - 7, h - 7)):
+        o.append(f'<circle cx="{f(cx - w / 2 + dx)}" cy="{f(top + dy)}" r="3" fill="#f6f4ef" stroke="#0c1d30"/>')
+    o.append(f'<rect x="{f(sx - 5)}" y="{f(sy - 5)}" width="{f(128 * k + 10)}" height="{f(64 * k + 10)}" rx="1.5" fill="#05070a" stroke="#2a3a4e"/>')
+    for txt, px, py in lines:
+        o.append(f'<text x="{f(sx + px * k)}" y="{f(sy + (py + 7) * k)}" font-size="8.6" letter-spacing="1.25" fill="#9be7ff" '
+                 f'font-family="JetBrains Mono" font-weight="700">{txt}</text>')
+    if bar:
+        bx, by_, bw, bh, fill = bar
+        o.append(f'<rect x="{f(sx + bx * k + .4)}" y="{f(sy + by_ * k + .4)}" width="{f(bw * k - .8)}" height="{f(bh * k - .8)}" fill="none" stroke="#9be7ff" stroke-width=".8"/>'
+                 f'<rect x="{f(sx + bx * k)}" y="{f(sy + by_ * k)}" width="{f(fill * k)}" height="{f(bh * k)}" fill="#9be7ff"/>')
+    o.append(f'<text x="{f(cx)}" y="{f(top + 15)}" font-size="5.5" fill="#cfe0f2" text-anchor="middle" font-family="Inter" font-weight="600">128×64 · 0x3C</text>')
+    o.append(_header(pins, ("GND", "VCC", "SCL", "SDA"), top + h))
+    return "".join(o) + "</g>"
+
+
+def lcd1602(x, y, lines=("", ""), faint: bool = False):
+    """A 16×2 character LCD lying beside the breadboard, with its I²C backpack (PCF8574) behind it: the backpack's
+    header sticks out of its left end — GND VCC SDA SCL, top to bottom, points to wire — next to its blue contrast
+    knob. `faint`: on 3.3 V its letters can hardly be seen. Returns (svg, {pin: (x, y)})."""
+    w, h = 420, 150
+    o = ['<g class="lcd">',
+         f'<rect x="{x - 44}" y="{y + 30}" width="64" height="104" rx="3" fill="#1d1e21" stroke="#0f1012" filter="url(#lift)"/>',
+         _trimpot(x - 16, y + 122),
+         f'<text x="{x - 16}" y="{y + 40}" font-size="5" font-weight="700" fill="#9aa1ab" text-anchor="middle" font-family="Inter">PCF8574</text>']
+    hsvg, pins = _side_header(x - 26, [y + 54 + 16 * i for i in range(4)], ("GND", "VCC", "SDA", "SCL"), right=False)
+    o.append(hsvg)
+    o.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="5" fill="#2f7d3f" stroke="#1f5a2b" filter="url(#lift)"/>')
+    for dx, dy in ((9, 9), (w - 9, 9), (9, h - 9), (w - 9, h - 9)):
+        o.append(f'<circle cx="{x + dx}" cy="{y + dy}" r="4.5" fill="#f6f4ef" stroke="#1f5a2b"/>')
+    for i in range(16):
+        o.append(f'<circle cx="{x + 34 + i * 9}" cy="{y + 10}" r="2.4" fill="#d6b24c" stroke="#a8862a" stroke-width=".6"/>')
+    o.append(f'<rect x="{x + 20}" y="{y + 24}" width="{w - 40}" height="{h - 48}" rx="3" fill="#15171a"/>')
+    wx, wy, ww, wh = x + 30, y + 34, w - 60, h - 68
+    o.append(f'<rect x="{wx}" y="{wy}" width="{ww}" height="{wh}" rx="1.5" fill="{"#a9cf5c" if faint else "#9fd34a"}"/>')
+    cw, ch = (ww - 18) / 16, 32
+    for r, txt in enumerate(lines):
+        txt = txt.ljust(16)[:16]
+        for c, letter in enumerate(txt):
+            lx, ly = wx + 9 + c * cw, wy + 9 + r * (ch + 4)
+            o.append(f'<rect x="{f(lx + .8)}" y="{f(ly)}" width="{f(cw - 1.6)}" height="{ch}" fill="#7fae35" opacity="{.18 if faint else .32}"/>')
+            if letter != " ":
+                o.append(f'<text x="{f(lx + cw / 2)}" y="{f(ly + 24)}" font-size="24" fill="#1d3a0f" opacity="{.16 if faint else 1}" text-anchor="middle" '
+                         f'font-family="JetBrains Mono" font-weight="500">{letter}</text>')
+    o.append(f'<text x="{x + w - 24}" y="{y + h - 10}" font-size="6" font-weight="700" fill="#cfe7d4" text-anchor="end" font-family="Inter">1602 · I²C 0x27</text>')
+    return "".join(o) + "</g>", pins
+
+
+def tm1637(x, y, digits: str = "0127", colon: bool = True):
+    """The TM1637 4-digit display module lying beside the breadboard: four digits and a colon; its header sticks out of
+    its right edge — CLK DIO VCC GND, top to bottom, points to wire. Returns (svg, {pin: (x, y)})."""
+    w, h = 196, 84
+    o = ['<g class="tm1637">',
+         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="4" fill="{PCB_BLUE[0]}" stroke="{PCB_BLUE[1]}" filter="url(#lift)"/>']
+    for dx, dy in ((7, 7), (7, h - 7)):
+        o.append(f'<circle cx="{x + dx}" cy="{y + dy}" r="3" fill="#f6f4ef" stroke="{PCB_BLUE[1]}"/>')
+    o.append(f'<rect x="{x + 16}" y="{y + 10}" width="152" height="{h - 20}" rx="2" fill="#e9e7e1" stroke="#c9c5bb"/>'
+             f'<rect x="{x + 20}" y="{y + 14}" width="144" height="{h - 28}" rx="1.5" fill="#1f2023"/>')
+    for i, ch in enumerate(digits):
+        dx = x + 28 + i * 33 + (8 if i >= 2 else 0)
+        o.append(_digit7(dx, y + 22, 22, 40, SEG7[ch]))
+    for cy in (y + 34, y + 50):
+        o.append(f'<circle cx="{x + 94}" cy="{cy}" r="2.2" fill="{"#ff3b2a" if colon else "#3a2624"}"/>')
+    hsvg, pins = _side_header(x + w, [y + 18 + 16 * i for i in range(4)], ("CLK", "DIO", "VCC", "GND"))
+    o.append(hsvg)
+    return "".join(o) + "</g>", pins
+
+
+HEART8 = (0x00, 0x66, 0xFF, 0xFF, 0x7E, 0x3C, 0x18, 0x00)
+
+
+def max7219(x, y, rows=HEART8, bright: float = 1.0):
+    """The MAX7219 8×8 dot matrix module (1088AS) lying beside the breadboard: `rows` = 8 bytes, the left dot the top
+    bit; its input header out of its left edge — VCC GND DIN CS CLK, top to bottom, points to wire — and the output
+    header (to chain another) on its right. Returns (svg, {pin: (x, y)})."""
+    w, h, p = 186, 196, 19
+    mx, my = x + 21, y + 18
+    o = ['<g class="max7219">',
+         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="4" fill="{PCB_BLUE[0]}" stroke="{PCB_BLUE[1]}" filter="url(#lift)"/>',
+         f'<rect x="{mx}" y="{my}" width="{8 * p + 4}" height="{8 * p + 4}" rx="2" fill="#1d1e21" stroke="#0f1012"/>']
+    for r in range(8):
+        for c in range(8):
+            on = rows[r] >> (7 - c) & 1
+            cx, cy = mx + 2 + p / 2 + c * p, my + 2 + p / 2 + r * p
+            if on:
+                o.append(f'<circle cx="{f(cx)}" cy="{f(cy)}" r="12" fill="url(#glow-red)" opacity="{f(.6 * bright)}"/>')
+            o.append(f'<circle cx="{f(cx)}" cy="{f(cy)}" r="7" fill="{"#ff3b2a" if on else "#4a2c2a"}"/>')
+    o.append(f'<text x="{x + w / 2}" y="{y + h - 5}" font-size="5.5" font-weight="700" fill="#cfe0f2" text-anchor="middle" font-family="Inter">MAX7219 · 8×8</text>')
+    ys = [y + 66 + 16 * i for i in range(5)]
+    hsvg, pins = _side_header(x, ys, ("VCC", "GND", "DIN", "CS", "CLK"), right=False)
+    osvg, _ = _side_header(x + w, ys, ("VCC", "GND", "DOUT", "CS", "CLK"))
+    o += [hsvg, osvg]
+    return "".join(o) + "</g>", pins
+
+
 # ------------------------------------------------------------------ part icons (parts panel, examples)
 def icon_svg(kind: str, cls: str = "") -> str:
     body = ICON_PARTS[kind]
@@ -1460,6 +1623,8 @@ ICON_PARTS = {
     "oled": '<rect x="5" y="5" width="22" height="22" rx="2" fill="#16314f"/><rect x="7" y="9" width="18" height="11" fill="#05070a"/><path d="M9,13 h8 M9,16 h12" stroke="#9be7ff" stroke-width="1.4"/>',
     "lcd": '<rect x="2" y="8" width="28" height="16" rx="2" fill="#2f8f4f"/><rect x="5" y="11" width="22" height="10" fill="#a8d86a"/><path d="M7,14 h12 M7,18 h16" stroke="#3b5a1e" stroke-width="1.4"/>',
     "seg7": '<rect x="8" y="3" width="16" height="26" rx="2" fill="#2d3136"/><path d="M12,8 h8 M12,16 h8 M12,24 h8 M11,9 v6 M21,9 v6 M11,17 v6 M21,17 v6" stroke="#ef3b2c" stroke-width="1.8" stroke-linecap="round"/>',
+    "tm1637": '<rect x="2" y="9" width="28" height="15" rx="2" fill="#2457a6"/><rect x="4" y="11" width="22" height="11" fill="#1f2023"/>' + "".join(f'<path d="M{6 + i * 5},13 h3 v7 h-3z" fill="none" stroke="#ff3b2a" stroke-width="1"/>' for i in range(4)) + '<circle cx="15.5" cy="15" r=".6" fill="#ff3b2a"/><circle cx="15.5" cy="18" r=".6" fill="#ff3b2a"/>',
+    "matrix": '<rect x="4" y="4" width="24" height="24" rx="2" fill="#2457a6"/><rect x="6" y="6" width="20" height="20" fill="#1d1e21"/>' + "".join(f'<circle cx="{8.2 + c * 2.25}" cy="{8.2 + r * 2.25}" r=".8" fill="{"#ff3b2a" if (0x00, 0x66, 0xFF, 0xFF, 0x7E, 0x3C, 0x18, 0x00)[r] >> (7 - c) & 1 else "#4a2c2a"}"/>' for r in range(8) for c in range(8)),
     "neopixel": "".join(f'<circle cx="{16 + 10 * math.cos(math.radians(a))}" cy="{16 + 10 * math.sin(math.radians(a))}" r="2.6" fill="{c}"/>' for a, c in zip(range(0, 360, 45), ("#ef3b2c", "#ff8a00", "#f5d000", "#22b14c", "#16b8c9", "#2f6fe0", "#8d5bd1", "#e0409a"))) + '<circle cx="16" cy="16" r="13" fill="none" stroke="#2d3136" stroke-width="2.4" opacity=".25"/>',
     "stepper": '<circle cx="16" cy="17" r="11" fill="#c7ccd2" stroke="#8f969f"/><circle cx="16" cy="19" r="7.5" fill="#2f6fd6"/><circle cx="16" cy="13" r="2.6" fill="#d6b24c"/>',
     "pump": '<path d="M7,8 L9,27 Q16,29 23,27 L25,8Z" fill="#9fd0f2" stroke="#7fa9c8"/><rect x="12" y="16" width="8" height="10" rx="2.5" fill="#26282c"/><path d="M17,16 C17,6 26,4 27,8" stroke="#d9e2ea" stroke-width="2" fill="none"/>',

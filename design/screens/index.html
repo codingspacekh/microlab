@@ -60,6 +60,9 @@
   <a href="25-actuators-running.html"><b>25 · Actuators, running</b><span>M7: a servo by its plug, a TT motor through an L9110S, a relay switching a pump on its own pack, the RGB LED module; screws and tabs are points to wire</span></a>
   <a href="25b-more-outputs.html"><b>25b · More outputs</b><span>M7: the breadboard power supply (5 V / 3.3 V), a 28BYJ-48 on a ULN2003, the traffic light and passive buzzer modules, an L298N beside the breadboard</span></a>
   <a href="25c-output-faults.html"><b>25c · Motors need a driver</b><span>M7: a motor straight on a pin damages it and stops the run; a servo on 3V3 is a warning</span></a>
+  <a href="26-displays-running.html"><b>26 · Displays on I²C, running</b><span>M7: an SSD1306 OLED standing in the breadboard and a 16×2 LCD with its I²C backpack lying beside it, on one bus; the LCD's address and contrast</span></a>
+  <a href="26b-digits-and-dots.html"><b>26b · Digits and dots</b><span>M7: a 7-segment digit, the TM1637 4-digit display and a MAX7219 8×8 dot matrix, the modules wired at their headers</span></a>
+  <a href="26c-display-faults.html"><b>26c · A digit needs its resistor</b><span>M7: a 7-segment digit with no resistor damages a pin and stops the run; an LCD on 3V3 is a warning</span></a>
 </div>
 <h2>Rebuild</h2>
 <ol><li>Edit <code>design/src/*.html</code>, the drawings in <code>design/svgparts.py</code> or the circuits in <code>design/scenes.py</code>.</li><li>Run <code>python3 design/build.py</code> — it writes <code>design/screens/</code>.</li></ol>

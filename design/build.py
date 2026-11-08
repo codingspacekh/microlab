@@ -330,6 +330,82 @@ while True:
     elif accelerometer.was_gesture('shake'):
         display.show(Image.SURPRISED)
     sleep(100)''',
+    "displays": '''from machine import Pin, I2C, ADC
+from ssd1306 import SSD1306_I2C
+from i2c_lcd import I2cLcd
+import time
+
+i2c = I2C(0, sda=Pin(20), scl=Pin(21), freq=400000)
+print(i2c.scan())                  # [39, 60]
+oled = SSD1306_I2C(128, 64, i2c)   # at 0x3C
+lcd = I2cLcd(i2c, 0x27, 2, 16)     # its backpack at 0x27
+knob = ADC(26)
+
+while True:
+    raw = knob.read_u16()
+    pc = raw * 100 // 65535
+    oled.fill(0)
+    oled.text('Knob', 0, 0)
+    oled.text('%d %%' % pc, 0, 16)
+    oled.rect(0, 40, 128, 12, 1)
+    oled.fill_rect(0, 40, pc * 128 // 100, 12, 1)
+    oled.show()
+    lcd.move_to(0, 0)
+    lcd.putstr('Knob: %3d %%' % pc)
+    lcd.move_to(0, 1)
+    lcd.putstr('ADC %5d' % raw)
+    time.sleep(0.1)''',
+    "digits": '''from machine import Pin, SPI
+import tm1637
+import max7219
+import time
+
+# a … g on GP18 GP19 GP20 GP21 GP22 GP17 GP16
+segs = [Pin(n, Pin.OUT)
+        for n in (18, 19, 20, 21, 22, 17, 16)]
+FONT = (0x3F, 0x06, 0x5B, 0x4F, 0x66,
+        0x6D, 0x7D, 0x07, 0x7F, 0x6F)
+HEART = (0x00, 0x66, 0xFF, 0xFF,
+         0x7E, 0x3C, 0x18, 0x00)
+
+clock = tm1637.TM1637(clk=Pin(14), dio=Pin(15))
+spi = SPI(0, sck=Pin(2), mosi=Pin(7))
+matrix = max7219.Matrix8x8(spi, Pin(5, Pin.OUT), 1)
+matrix.brightness(4)
+
+def digit(n):                  # bit 0 is a
+    for i, s in enumerate(segs):
+        s.value(FONT[n] >> i & 1)
+
+start = time.time()
+while True:
+    t = time.time() - start
+    digit(t % 10)
+    clock.numbers(t // 60, t % 60)   # 01:27
+    matrix.fill(0)
+    if t % 2:                  # a heart that beats
+        for y, row in enumerate(HEART):
+            for x in range(8):
+                matrix.pixel(x, y, row >> 7 - x & 1)
+    matrix.show()
+    time.sleep(0.1)''',
+    "displayfaults": '''from machine import Pin, I2C
+from i2c_lcd import I2cLcd
+import time
+
+segs = [Pin(n, Pin.OUT)        # a … g
+        for n in (18, 19, 20, 21, 22, 17, 16)]
+FONT = (0x3F, 0x06, 0x5B, 0x4F, 0x66,
+        0x6D, 0x7D, 0x07, 0x7F, 0x6F)
+
+i2c = I2C(1, sda=Pin(26), scl=Pin(27))
+lcd = I2cLcd(i2c, 0x27, 2, 16)
+lcd.putstr('Counting down')
+
+for n in range(9, -1, -1):
+    for i, s in enumerate(segs):
+        s.value(FONT[n] >> i & 1)
+    time.sleep(1)''',
     "servo": '''from machine import Pin, PWM
 import time
 
@@ -417,7 +493,8 @@ PARTS = [
                    ("stepper", "Stepper 28BYJ-48", "with ULN2003")]),
     ("Output modules", [("traffic", "Traffic light module", "R Y G"), ("krgb", "RGB LED module", "R G B"), ("kbuzzer", "Passive buzzer module", "plays notes"),
                         ("psu", "Breadboard power supply", "5 V · 3.3 V")]),
-    ("Displays", [("oled", "OLED SSD1306", "128×64 · I²C"), ("lcd", "LCD 16×2", "I²C"), ("seg7", "7-segment digit", ""),
+    ("Displays", [("oled", "OLED SSD1306", "128×64 · I²C"), ("lcd", "LCD 16×2", "I²C backpack"), ("seg7", "7-segment digit", "common cathode"),
+                  ("tm1637", "4-digit display", "TM1637 · with colon"), ("matrix", "8×8 dot matrix", "MAX7219"),
                   ("neopixel", "NeoPixel strip / ring", "WS2812")]),
 ]
 

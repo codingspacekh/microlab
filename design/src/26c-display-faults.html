@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>26c Display faults</title>
+{{include:head}}
+</head>
+<body>
+<!--@PROJECT: Countdown-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@EDITOR: {{code:displayfaults:cur=16}}-->
+<!--@PARTS_LIST: {{parts::::Displays}}-->
+<!--@COUNTS: Pico W + 2 parts · 15 wires-->
+<!--@CTABS: <a>{{i:term:s14}} Console</a><a>{{i:plot:s14}} Plotter</a><a class="on">{{i:warn:s14}} Problems <span class="cnt">2</span></a>-->
+<!--@CONSOLE: <div class="cbody" style="font-family:var(--font);font-size:12.5px;line-height:1.45;padding:4px 0">
+<div class="row" style="padding:9px 12px;border-bottom:1px solid var(--line);align-items:flex-start"><span style="color:var(--danger)">{{i:alert}}</span><div class="col" style="gap:2px;flex:1"><b>GP18 was damaged</b><span class="muted small">DIGIT1's segment a with no resistor drew about 30 mA; a Pico W pin should give at most 12 mA. The simulation stopped at 00:00.1.</span></div><button class="btn sm">Show</button></div>
+<div class="row" style="padding:9px 12px;border-bottom:1px solid var(--line);align-items:flex-start"><span style="color:var(--warn)">{{i:warn}}</span><div class="col" style="gap:2px;flex:1"><b>LCD1 gets 3.3 V</b><span class="muted small">A 16×2 LCD needs 5 V: on 3V3 its letters are too faint to read. Give its VCC VBUS (5 V).</span></div><button class="btn sm">Show</button></div>
+</div>-->
+<!--@STATUS: <span class="st" style="color:var(--danger)"><span class="dot" style="background:var(--danger)"></span>Stopped: a pin was damaged</span>-->
+<!--@STATUS_R: <span class="row" style="gap:5px;color:var(--danger)">{{i:alert:s12}} 1 pin damaged · 1 warning</span>-->
+<p class="frame-label"><b>26c · A digit needs its resistor</b> (M7 design, slice 2; milestone tests) — a <b>7-segment digit with its COM straight on GND</b>: each segment is an LED, so with no resistor the first one lit (a, on GP18) draws far more than a pin can give — the pin is damaged and the run stops, as screen 04's LED; the card says why, with the numbers, and the fix — a 220 Ω on COM, or one on each segment. A <b>16×2 LCD on 3V3</b> is a warning, not a stop: the code runs, but its letters are too faint to read (an LCD needs 5 V). Both are in Problems (F-24)</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas">
+      <div class="stage">{{scene:displayfaults}}
+      <div class="float fault" style="left:458px;top:562px;width:238px;padding:12px">
+        <div class="fh">{{i:alert:s18}} GP18 was damaged</div>
+        <p>DIGIT1's COM goes straight to GND: nothing holds back segment a's current — a real GP18 would now be dead.</p>
+        <div class="nums"><div><small>Segment draws</small><b class="bad">≈ 30 mA</b></div><div><small>Pin can give</small><b>12 mA</b></div></div>
+        <p><b style="color:var(--tx-1)">Fix:</b> a 220 Ω from COM to GND, or one on each segment.</p>
+        <div class="acts"><button class="btn sm primary">{{i:book:s14}} Show me how</button><button class="btn sm ghost">{{i:undo:s14}} Undo</button></div>
+      </div>
+      <div class="tip" style="left:300px;top:186px;width:236px;background:#fff;color:var(--tx-1);border:1px solid var(--warn-line)"><b style="color:var(--warn)">LCD1 gets 3.3 V</b><div style="margin-top:2px;color:var(--tx-2)">"Counting down" is written, but too faint to read: a 16×2 LCD needs 5 V. Give its VCC VBUS.</div></div></div>
+      <div class="ctools" style="opacity:0"></div>
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>
