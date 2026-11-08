@@ -1,5 +1,6 @@
 import { BREADBOARD, holeOffset, turnsOf, type Point } from '@lib/editor';
 import { COLUMNS, hasRails, railHole, type BreadboardSize } from '@lib/circuit';
+import { L298nBoard, L9110sDriver, PowerSupply, Pump, RelayModule, ServoPlug, Stepper, TtMotor, Uln2003, type ActLook } from './actuators';
 
 /**
  * The circuit's pictures, as in the approved prototype (design/svgparts.py): the breadboard, wires, resistors, LEDs,
@@ -623,6 +624,10 @@ export const KIT: Record<string, { legs: string[]; labels: string[]; pcb: string
   ds1302: { legs: ['vcc', 'gnd', 'clk', 'dat', 'rst'], labels: ['VCC', 'GND', 'CLK', 'DAT', 'RST'], pcb: 'green', h: 64 },
   vl53l0x: { legs: ['vcc', 'gnd', 'scl', 'sda', 'gpio1', 'xshut'], labels: ['VIN', 'GND', 'SCL', 'SDA', 'GPIO1', 'XSHUT'], pcb: 'purple', h: 58 },
   max30102: { legs: ['vcc', 'scl', 'sda', 'int', 'gnd'], labels: ['VIN', 'SCL', 'SDA', 'INT', 'GND'], pcb: 'purple', h: 58 },
+  // the kit's output modules (M7, screens 25, 25b)
+  'traffic-module': { legs: ['r', 'y', 'g', 'gnd'], labels: ['R', 'Y', 'G', 'GND'], pcb: 'black', h: 44 },
+  'rgb-module': { legs: ['r', 'g', 'b', 'gnd'], labels: ['R', 'G', 'B', '−'], pcb: 'black', h: 44 },
+  'buzzer-module': { legs: ['io', 'vcc', 'gnd'], labels: ['I/O', 'VCC', 'GND'], pcb: 'black', h: 50 },
 };
 
 /** A small chip in an SOIC package, its pins on two sides. */
@@ -666,6 +671,8 @@ export interface KitLook {
   pressed?: boolean; level?: number; x?: number; y?: number; turning?: boolean; rpm?: number; knob?: number; hot?: boolean; powered?: boolean;
   /** A PCF8591's AOUT 0–1 of VCC, a VL53L0X measuring, a finger on a MAX30102 (M6.5b). */
   aout?: number; measuring?: boolean; finger?: boolean;
+  /** The kit's output modules (M7): the traffic light's R Y G and the RGB module's dies 0–1, the buzzer module's note. */
+  lit?: [number, number, number]; note?: string;
 }
 
 /** One of the kit's modules (M6.5a, screen 20b): its board standing over its pins, 7 px beyond them each side, its
@@ -790,6 +797,26 @@ export function KitModule({ type, pins, look = {}, upright = 0 }: { type: string
           <ellipse cx={cx} cy={top + 12} rx={8} ry={4} fill="#f4d3bd" opacity={0.9} />
           {look.powered && <circle cx={cx} cy={top + 22} r={14} fill="url(#glow-red)" opacity={0.6} />}</g>)}</>);
       break;
+    case 'traffic-module':
+      el = <>{(['#ef3b2c', '#f5c400', '#22b14c'] as const).map((col, i) => {
+        const on = (look.lit?.[i] ?? 0) > 0.01;
+        const lx = cx - 18 + i * 18;
+        return <g key={col} data-light={'ryg'[i]} data-on={on ? '1' : '0'}><circle cx={lx} cy={top + 22} r={6.5} fill={on ? col : '#3a3d42'} stroke="#15171a" />
+          {on && <circle cx={lx} cy={top + 22} r={16} fill={`url(#glow-${['red', 'amber', 'green'][i]})`} opacity={f(0.4 + 0.6 * (look.lit?.[i] ?? 0))} />}</g>;
+      })}</>;
+      break;
+    case 'rgb-module': {
+      const [r, g, b] = look.lit ?? [0, 0, 0];
+      const mix = r || g || b ? `rgb(${Math.round(120 + 135 * r)},${Math.round(120 + 135 * g)},${Math.round(120 + 135 * b)})` : '#e9edf2';
+      el = <><circle cx={cx} cy={top + 22} r={9} fill={mix} stroke="#c9d0d8" />
+        {([[r, 'red', -3], [g, 'green', 0], [b, 'blue', 3]] as const).map(([v, glow, dx]) => v > 0.01 && <circle key={glow} cx={cx + dx} cy={top + 22} r={f(10 + 12 * v)} fill={`url(#glow-${glow})`} opacity={f(0.4 + 0.6 * v)} />)}</>;
+      break;
+    }
+    case 'buzzer-module':
+      el = <><circle cx={cx} cy={top + 24} r={13} fill="#26282c" /><circle cx={cx} cy={top + 24} r={8} fill="none" stroke="#3b3e43" /><circle cx={cx} cy={top + 24} r={2} fill="#0f1012" />
+        {look.note && <g className="waves">{[1, 2].map((k) => <path key={k} d={`M${cx + 14 + 5 * k},${top + 14} q${5 + 2 * k},10 0,20`} stroke="#2563d9" strokeWidth={1.5} fill="none" />)}</g>}</>;
+      if (look.note) above = <text x={cx} y={top - 6} fontSize={9} fontWeight={700} fill="#2563d9" textAnchor="middle" pointerEvents="none">♪ {look.note}</text>;
+      break;
     case 'speed-sensor':
       el = <><rect x={cx - 14} y={top + 4} width={9} height={22} rx={1} fill="#1c1e21" /><rect x={cx + 5} y={top + 4} width={9} height={22} rx={1} fill="#1c1e21" /><ModuleLeds x={cx} y={top + 48} powered={look.powered ?? true} on={(look.rpm ?? 0) > 0} /></>;
       above = (<g className="wheel"><circle cx={cx} cy={top - 12} r={26} fill="#e8b10f" stroke="#a87e08" />
@@ -827,10 +854,37 @@ export interface PartLook {
   tilt?: [number, number];
   /** A kit module's state while running (M6.5a). */
   kit?: KitLook;
+  /** An actuator's state while running (M7). */
+  act?: ActLook;
 }
 
-export function PartDrawing({ type, legs, props, look = {} }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown>; look?: PartLook }) {
+/** `legs`: where its legs are — and its terminals (M7: screws, a socket), and for a part beside the breadboard, '@'
+ *  where it lies. */
+export function PartDrawing({ type, legs, props, look = {}, label = '' }: { type: string; legs: Record<string, Point>; props?: Record<string, unknown>; look?: PartLook; label?: string }) {
+  const act = look.act ?? {};
   switch (type) {
+    // M7: the parts that lie beside the breadboard, drawn where they lie
+    case 'motor': return legs['@'] ? <TtMotor at={legs['@']} rpm={act.rpm} direction={act.direction} label={label} /> : null;
+    case 'pump': return legs['@'] ? <Pump at={legs['@']} running={act.running} label={label} /> : null;
+    case 'l298n': return legs['@'] ? <L298nBoard at={legs['@']} dirs={act.dirs} ena={props?.ena !== false} enb={props?.enb !== false} /> : null;
+    case 'stepper': {
+      const plug = ['blue', 'pink', 'yellow', 'orange', 'red'].map((l) => legs[l]);
+      return legs['@'] && plug.every(Boolean) ? <Stepper at={legs['@']} plug={plug as Point[]} steps={act.steps} turning={act.running} /> : null;
+    }
+    case 'power-supply':
+      return <PowerSupply first={legs['t-1']!} pins={['t-1', 't-2', 't+1', 't+2', 'b+1', 'b+2', 'b-1', 'b-2'].map((l) => legs[l]!)} top={Number(props?.top ?? 5)} bottom={Number(props?.bottom ?? 3.3)} on={props?.on !== false} />;
+    case 'servo': case 'l9110s': case 'relay': case 'uln2003': {
+      const t = partTurns(type, legs);
+      const { local, transform } = unturned(legs, t);
+      const up = -90 * t;
+      const at = (names: string[]) => names.map((n) => local[n]!);
+      const pick = (names: string[]) => Object.fromEntries(names.map((n) => [n, local[n]!]));
+      const body = type === 'servo' ? <ServoPlug s={local.signal!} v={local.vcc!} g={local.gnd!} angle={act.angle} upright={up} />
+        : type === 'l9110s' ? <L9110sDriver pins={at(['b-ia', 'b-ib', 'gnd', 'vcc', 'a-ia', 'a-ib'])} screws={pick(['a1', 'a2', 'b1', 'b2'])} dirs={act.dirs} upright={up} />
+        : type === 'relay' ? <RelayModule pins={at(['s', 'vcc', 'gnd'])} screws={pick(['no', 'com', 'nc'])} on={act.on} upright={up} />
+        : <Uln2003 pins={at(['in1', 'in2', 'in3', 'in4', '-', '+'])} socket={at(['a', 'b', 'c', 'd', 'm'])} coils={act.coils} upright={up} />;
+      return t ? <g transform={transform}>{body}</g> : body;
+    }
     case 'resistor': return <Resistor a={legs.a!} b={legs.b!} ohms={Number(props?.ohms ?? 220)} />;
     case 'button': return <PushButton legs={[legs['1a']!, legs['2a']!, legs['1b']!, legs['2b']!]} pressed={look.pressed} />;
     case 'battery': return <Battery plus={legs['+']!} minus={legs['-']!} kind={String(props?.kind ?? '2xAA')} />;
@@ -838,7 +892,8 @@ export function PartDrawing({ type, legs, props, look = {} }: { type: string; le
     case 'pir': case 'line-sensor': case 'soil-moisture': case 'temp-sensor': case 'dht': case 'hc-sr04': case 'mpu6050':
     case 'button-module': case 'touch': case 'vibration': case 'ir-obstacle': case 'hall': case 'flame': case 'raindrop': case 'water-level':
     case 'mq2': case 'ldr-module': case 'pot-module': case 'joystick': case 'rotary-encoder': case 'speed-sensor':
-    case 'pcf8591': case 'bmp280': case 'ds18b20': case 'ds1302': case 'vl53l0x': case 'max30102': {
+    case 'pcf8591': case 'bmp280': case 'ds18b20': case 'ds1302': case 'vl53l0x': case 'max30102':
+    case 'traffic-module': case 'rgb-module': case 'buzzer-module': {
       // drawn as if not turned, then turned about the legs' middle (M5.1); the letters and signs stay upright
       const t = partTurns(type, legs);
       const { local, transform } = unturned(legs, t);
@@ -940,6 +995,22 @@ const KIT_ICONS: Record<string, string> = {
   "max30102": "<rect x=\"6\" y=\"9\" width=\"20\" height=\"15\" rx=\"2\" fill=\"#5b3fa0\"/><rect x=\"12\" y=\"12\" width=\"8\" height=\"6\" rx=\"1\" fill=\"#1c1e21\"/><rect x=\"13\" y=\"13\" width=\"3\" height=\"4\" fill=\"#8a1d1d\"/>"
 };
 
+/** M7's actuators and output modules, as the prototype draws them (design/svgparts.py ICON_PARTS). */
+const M7_ICONS: Record<string, string> = {
+  "servo": "<rect x=\"4\" y=\"11\" width=\"22\" height=\"12\" rx=\"2\" fill=\"#3a8ae0\"/><rect x=\"1\" y=\"14\" width=\"4\" height=\"6\" rx=\"1\" fill=\"#2f76c9\"/><rect x=\"25\" y=\"14\" width=\"4\" height=\"6\" rx=\"1\" fill=\"#2f76c9\"/><path d=\"M8,17 L10,5 L12,17Z\" fill=\"#f4f4f4\" stroke=\"#b9bec5\" stroke-width=\".8\"/><circle cx=\"10\" cy=\"17\" r=\"2\" fill=\"#fff\" stroke=\"#b9bec5\" stroke-width=\".8\"/>",
+  "motor": "<rect x=\"4\" y=\"9\" width=\"18\" height=\"14\" rx=\"3\" fill=\"#f1c232\"/><rect x=\"22\" y=\"12\" width=\"5\" height=\"8\" rx=\"1\" fill=\"#c9cdd2\"/><circle cx=\"12\" cy=\"16\" r=\"3\" fill=\"#d4a417\"/>",
+  "l9110s": "<rect x=\"4\" y=\"5\" width=\"24\" height=\"22\" rx=\"2\" fill=\"#c2312f\"/><rect x=\"11\" y=\"3\" width=\"10\" height=\"10\" rx=\"1\" fill=\"#2d3136\"/><rect x=\"7\" y=\"20\" width=\"18\" height=\"4\" fill=\"#2f8f4f\"/>",
+  "l298n": "<rect x=\"3\" y=\"5\" width=\"26\" height=\"22\" rx=\"2\" fill=\"#b8322a\"/><rect x=\"11\" y=\"7\" width=\"10\" height=\"9\" fill=\"#1f2227\"/><rect x=\"5\" y=\"9\" width=\"5\" height=\"4\" fill=\"#2f9d57\"/><rect x=\"22\" y=\"9\" width=\"5\" height=\"4\" fill=\"#2f9d57\"/>",
+  "relay": "<rect x=\"5\" y=\"6\" width=\"22\" height=\"20\" rx=\"2\" fill=\"#2f6fd6\"/><rect x=\"8\" y=\"9\" width=\"16\" height=\"9\" rx=\"1\" fill=\"#1f4c96\"/><rect x=\"8\" y=\"21\" width=\"16\" height=\"3\" fill=\"#2f8f4f\"/>",
+  "pump": "<path d=\"M7,8 L9,27 Q16,29 23,27 L25,8Z\" fill=\"#9fd0f2\" stroke=\"#7fa9c8\"/><rect x=\"12\" y=\"16\" width=\"8\" height=\"10\" rx=\"2.5\" fill=\"#26282c\"/><path d=\"M17,16 C17,6 26,4 27,8\" stroke=\"#d9e2ea\" stroke-width=\"2\" fill=\"none\"/>",
+  "uln2003": "<circle cx=\"16\" cy=\"17\" r=\"11\" fill=\"#c7ccd2\" stroke=\"#8f969f\"/><circle cx=\"16\" cy=\"19\" r=\"7.5\" fill=\"#2f6fd6\"/><circle cx=\"16\" cy=\"13\" r=\"2.6\" fill=\"#d6b24c\"/>",
+  "stepper": "<circle cx=\"16\" cy=\"17\" r=\"11\" fill=\"#c7ccd2\" stroke=\"#8f969f\"/><circle cx=\"16\" cy=\"19\" r=\"7.5\" fill=\"#2f6fd6\"/><circle cx=\"16\" cy=\"13\" r=\"2.6\" fill=\"#d6b24c\"/>",
+  "traffic-module": "<rect x=\"4\" y=\"11\" width=\"24\" height=\"11\" rx=\"2\" fill=\"#26282c\"/><circle cx=\"10\" cy=\"16.5\" r=\"3\" fill=\"#ef3b2c\"/><circle cx=\"16\" cy=\"16.5\" r=\"3\" fill=\"#f5c400\"/><circle cx=\"22\" cy=\"16.5\" r=\"3\" fill=\"#22b14c\"/>",
+  "rgb-module": "<rect x=\"6\" y=\"9\" width=\"20\" height=\"15\" rx=\"2\" fill=\"#26282c\"/><circle cx=\"16\" cy=\"16.5\" r=\"5\" fill=\"#e9edf2\"/><circle cx=\"14\" cy=\"15\" r=\"1.6\" fill=\"#ef3b2c\"/><circle cx=\"18\" cy=\"15\" r=\"1.6\" fill=\"#22b14c\"/><circle cx=\"16\" cy=\"18.5\" r=\"1.6\" fill=\"#2f6fe0\"/>",
+  "buzzer-module": "<rect x=\"6\" y=\"9\" width=\"20\" height=\"15\" rx=\"2\" fill=\"#26282c\"/><circle cx=\"16\" cy=\"16.5\" r=\"5.5\" fill=\"#15171a\" stroke=\"#3b3e43\"/>",
+  "power-supply": "<rect x=\"5\" y=\"4\" width=\"22\" height=\"24\" rx=\"2\" fill=\"#26282c\"/><rect x=\"8\" y=\"8\" width=\"7\" height=\"6\" fill=\"#15171a\"/><rect x=\"8\" y=\"18\" width=\"7\" height=\"5\" fill=\"#c7ccd2\"/><rect x=\"18\" y=\"9\" width=\"6\" height=\"4\" fill=\"#efbd16\"/><rect x=\"18\" y=\"19\" width=\"6\" height=\"4\" fill=\"#efbd16\"/>",
+};
+
 /** A breadboard in the parts panel (M6.8): mini (no rails), half, full — wider as it grows. */
 export function BreadboardIcon({ size }: { size: 'mini' | 'half' | 'full' }) {
   const w = { mini: 16, half: 24, full: 30 }[size];
@@ -957,7 +1028,8 @@ export function BreadboardIcon({ size }: { size: 'mini' | 'half' | 'full' }) {
 }
 
 export function PartIcon({ type }: { type: string }) {
-  if (KIT_ICONS[type]) return <svg viewBox="0 0 32 32" aria-hidden="true" dangerouslySetInnerHTML={{ __html: KIT_ICONS[type]! }} />;
+  const markup = KIT_ICONS[type] ?? M7_ICONS[type];
+  if (markup) return <svg viewBox="0 0 32 32" aria-hidden="true" dangerouslySetInnerHTML={{ __html: markup }} />;
   const body = {
     resistor: (
       <>

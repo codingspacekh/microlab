@@ -15,10 +15,27 @@ function nextId(prefix: string, taken: string[]): string {
   return `${prefix}${top + 1}`;
 }
 
-export function addPart(project: Project, type: string, legs: Legs): { project: Project; id: string } {
+/** A part with its legs in these holes — or, a part that lies beside the breadboard (M7), lying `at`. A part that
+ *  brings another (the ULN2003 its stepper) adds it too, plugged into it, in the same edit. */
+export function addPart(project: Project, type: string, legs: Legs, at?: Point): { project: Project; id: string } {
   const kind = partKind(type);
   const id = nextId(kind.prefix, project.parts.map((p) => p.id));
-  return { id, project: { ...project, parts: [...project.parts, { id, type, props: { ...kind.props }, legs: { ...legs } }] } };
+  let next: Project = { ...project, parts: [...project.parts, { id, type, props: { ...kind.props }, legs: { ...legs } }] };
+  if (kind.free) next = lay(next, id, at ?? { x: 0, y: 0 });
+  if (kind.brings) {
+    const b = partKind(kind.brings.type);
+    const bid = nextId(b.prefix, next.parts.map((p) => p.id));
+    const plug = Object.fromEntries(Object.entries(kind.brings.legs).map(([leg, t]) => [leg, `${id}.${t}`]));
+    next = { ...next, parts: [...next.parts, { id: bid, type: b.type, props: { ...b.props }, legs: plug }] };
+    next = { ...next, view: sceneOf(next).view };   // where it lies by default, kept
+  }
+  return { id, project: next };
+}
+
+/** A part that lies beside the breadboard put `at` (on the grid). */
+export function lay(project: Project, id: string, at: Point): Project {
+  const view = sceneOf(project).view;
+  return { ...project, view: { ...view, parts: { ...view.parts, [id]: snapToGrid(at) } } };
 }
 
 export function movePart(project: Project, id: string, legs: Legs): Project {
@@ -40,6 +57,23 @@ export function deleteWire(project: Project, id: string): Project {
 
 export function deletePart(project: Project, id: string): Project {
   return { ...project, parts: project.parts.filter((p) => p.id !== id) };
+}
+
+/** What goes with deleted parts (M7): the wires on their terminals, where the free ones lay; a part plugged into one
+ *  (a stepper's cable in its ULN2003) is unplugged and stays. */
+export function withoutParts(project: Project, ids: string[]): Project {
+  const gone = (ref: string) => ids.includes(ref.slice(0, ref.indexOf('.')));
+  const next: Project = {
+    ...project,
+    parts: project.parts.filter((p) => !ids.includes(p.id)).map((p) => (Object.values(p.legs).some(gone)
+      ? { ...p, legs: Object.fromEntries(Object.entries(p.legs).filter(([, ref]) => !gone(ref))) } : p)),
+    wires: project.wires.filter((w) => !gone(w.a) && !gone(w.b)),
+  };
+  const lying = project.view?.parts;
+  if (lying && ids.some((id) => id in lying)) {
+    next.view = { ...project.view!, parts: Object.fromEntries(Object.entries(lying).filter(([id]) => !ids.includes(id))) };
+  }
+  return next;
 }
 
 export function setWireColour(project: Project, id: string, color: string): Project {

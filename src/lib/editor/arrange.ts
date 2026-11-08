@@ -1,7 +1,8 @@
 import { strips } from '../circuit';
 import type { Project } from '../project';
-import { allPoints, pointAt, PITCH, sceneOf, type Point, type Scene } from './geometry';
-import { partKind } from './parts';
+import { withoutParts } from './commands';
+import { allPoints, pointAt, PITCH, sceneOf, snapToGrid, type Point, type Scene } from './geometry';
+import { isFree, partKind } from './parts';
 import { holeIndex, holeKey, usedPoints, type HoleIndex } from './place';
 
 /**
@@ -160,6 +161,36 @@ function settle(project: Project, scene: Scene, pins: Pin[], from: Point[], hole
  *  if any leg would land on a used hole or off the breadboard, or a following wire end finds no room. */
 export function moveParts(project: Project, ids: string[], delta: Point): Project | undefined {
   const scene = sceneOf(project);
+  // M7: the parts that lie beside the breadboard go by the same step as the rest (on the grid when alone)
+  const free = ids.filter((id) => isFree(partType(project, id)));
+  const held = ids.filter((id) => !free.includes(id));
+  if (!held.length) return free.length ? shiftFree(project, free, snapToGrid(delta)) : undefined;
+  const moved = moveHeld(project, scene, held, delta);
+  if (!moved || !free.length) return moved;
+  const before = pointAt(scene, project.parts.find((p) => p.id === held[0])!.legs[Object.keys(partKind(partType(project, held[0]!)).legs)[0]!]!)!;
+  const after = pointAt(sceneOf(moved), moved.parts.find((p) => p.id === held[0])!.legs[Object.keys(partKind(partType(project, held[0]!)).legs)[0]!]!)!;
+  return shiftFree(moved, free, { x: after.x - before.x, y: after.y - before.y });
+}
+
+const partType = (project: Project, id: string) => project.parts.find((p) => p.id === id)?.type ?? '';
+
+/** Free parts moved by `d` — and the bends of the wires between their terminals and each other's. */
+function shiftFree(project: Project, ids: string[], d: Point): Project {
+  const view = sceneOf(project).view;
+  const parts = { ...view.parts };
+  for (const id of ids) {
+    const at = parts[id];
+    if (at) parts[id] = { x: at.x + d.x, y: at.y + d.y };
+  }
+  const on = (ref: string) => ids.includes(ref.slice(0, ref.indexOf('.')));
+  return {
+    ...project,
+    view: { ...view, parts },
+    wires: project.wires.map((w) => (w.via && on(w.a) && on(w.b) ? { ...w, via: w.via.map((q) => ({ x: q.x + d.x, y: q.y + d.y })) } : w)),
+  };
+}
+
+function moveHeld(project: Project, scene: Scene, ids: string[], delta: Point): Project | undefined {
   const pins = partPins(scene, ids);
   if (!pins?.length) return undefined;
   const map = stripMap(project);
@@ -175,6 +206,8 @@ export function moveParts(project: Project, ids: string[], delta: Point): Projec
  *  where the turned shape fits, the wires into their strips with them; undefined if there is no room near. */
 export function rotateParts(project: Project, ids: string[]): Project | undefined {
   const scene = sceneOf(project);
+  ids = ids.filter((id) => !isFree(partType(project, id)));   // a part beside the breadboard isn't turned (M7)
+  if (!ids.length) return project;
   const pins = partPins(scene, ids);
   if (!pins?.length) return undefined;
   const map = stripMap(project);
@@ -198,8 +231,10 @@ function nextIds(prefix: string, taken: string[], n: number): string[] {
  *  place to the right of them; the copies' ids, to select them. Undefined if there is no room anywhere. */
 export function duplicate(project: Project, chosen: Chosen): { project: Project; parts: string[]; wires: string[] } | undefined {
   const scene = sceneOf(project);
-  const pins = partPins(scene, chosen.parts);
+  const free = chosen.parts.filter((id) => isFree(partType(project, id)));
+  const pins = partPins(scene, chosen.parts.filter((id) => !free.includes(id)));
   if (!pins) return undefined;
+  if (!pins.length && free.length && !chosen.wires.length) return duplicateFree(project, free);
   const wires = project.wires.filter((w) => chosen.wires.includes(w.id) && !w.a.startsWith('board.') && !w.b.startsWith('board.'));
   for (const w of wires) {
     const a = pointAt(scene, w.a);
@@ -221,12 +256,18 @@ export function duplicate(project: Project, chosen: Chosen): { project: Project;
   const sources = chosen.parts.map((id) => project.parts.find((p) => p.id === id)!);
   const partIds: string[] = [];
   const parts = [...project.parts];
+  const lying = { ...scene.view.parts };
+  const renamed = new Map<string, string>();
   for (const src of sources) {
     const [id] = nextIds(partKind(src.type).prefix, parts.map((p) => p.id), 1);
     partIds.push(id!);
-    const legs = Object.fromEntries(Object.keys(src.legs).map((leg) => [leg, where.get(`part:${src.id}:${leg}`)!]));
+    renamed.set(src.id, id!);
+    // a free part (M7) is copied the same way along; its plug, into a copied part's terminals
+    const legs = free.includes(src.id) ? { ...src.legs } : Object.fromEntries(Object.keys(src.legs).map((leg) => [leg, where.get(`part:${src.id}:${leg}`)!]));
+    if (free.includes(src.id) && lying[src.id]) lying[id!] = { x: lying[src.id]!.x + dx, y: lying[src.id]!.y + dy };
     parts.push({ ...structuredClone(src), id: id!, legs });
   }
+  replug(parts, partIds, renamed);
   const wireIds = nextIds('w', project.wires.map((w) => w.id), wires.length);
   const copies = wires.map((w, i) => ({
     ...structuredClone(w),
@@ -235,14 +276,50 @@ export function duplicate(project: Project, chosen: Chosen): { project: Project;
     b: where.get(`wire:${w.id}:b`)!,
     ...(w.via ? { via: w.via.map((p) => ({ x: p.x + dx, y: p.y + dy })) } : {}),
   }));
-  return { project: { ...project, parts, wires: [...project.wires, ...copies] }, parts: partIds, wires: wireIds };
+  return { project: { ...project, parts, wires: [...project.wires, ...copies], view: { ...scene.view, parts: lying } }, parts: partIds, wires: wireIds };
 }
 
-/** The chosen parts and wires removed. */
+/** Copies' plugs (M7: a stepper's cable) go into the copy of what they were in; into a part not copied, nowhere. */
+function replug(parts: Project['parts'], copies: string[], renamed: Map<string, string>): void {
+  for (const id of copies) {
+    const i = parts.findIndex((p) => p.id === id);
+    const p = parts[i]!;
+    const legs: Record<string, string> = {};
+    for (const [leg, ref] of Object.entries(p.legs)) {
+      const owner = ref.slice(0, ref.indexOf('.'));
+      if (!parts.some((q) => q.id === owner)) { legs[leg] = ref; continue; }   // a hole
+      if (renamed.has(owner)) legs[leg] = `${renamed.get(owner)}${ref.slice(owner.length)}`;
+    }
+    parts[i] = { ...p, legs };
+  }
+}
+
+/** Copies of parts that lie beside the breadboard (M7), to the right of them. */
+function duplicateFree(project: Project, ids: string[]): { project: Project; parts: string[]; wires: string[] } {
+  const scene = sceneOf(project);
+  const lying = { ...scene.view.parts };
+  const boxes = ids.map((id) => {
+    const at = lying[id] ?? { x: 0, y: 0 };
+    const b = partKind(partType(project, id)).free!.box;
+    return { x0: at.x + b[0], x1: at.x + b[2] };
+  });
+  const dx = snapToGrid({ x: Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0)) + 2 * PITCH, y: 0 }).x;
+  const parts = [...project.parts];
+  const partIds: string[] = [];
+  const renamed = new Map<string, string>();
+  for (const src of ids.map((id) => project.parts.find((p) => p.id === id)!)) {
+    const [id] = nextIds(partKind(src.type).prefix, parts.map((p) => p.id), 1);
+    partIds.push(id!);
+    renamed.set(src.id, id!);
+    lying[id!] = { x: (lying[src.id]?.x ?? 0) + dx, y: lying[src.id]?.y ?? 0 };
+    parts.push({ ...structuredClone(src), id: id! });
+  }
+  replug(parts, partIds, renamed);
+  return { project: { ...project, parts, view: { ...scene.view, parts: lying } }, parts: partIds, wires: [] };
+}
+
+/** The chosen parts and wires removed — and what goes with the parts (the wires on their terminals, M7). */
 export function deleteMany(project: Project, chosen: Chosen): Project {
-  return {
-    ...project,
-    parts: project.parts.filter((p) => !chosen.parts.includes(p.id)),
-    wires: project.wires.filter((w) => !chosen.wires.includes(w.id)),
-  };
+  const next = withoutParts(project, chosen.parts);
+  return { ...next, wires: next.wires.filter((w) => !chosen.wires.includes(w.id)) };
 }

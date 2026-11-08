@@ -10,12 +10,14 @@ export type PartType = 'resistor' | 'led' | 'rgb-led' | 'button' | 'slide-switch
   | 'hc-sr04' | 'dht' | 'mpu6050' | 'pir' | 'line-sensor' | 'soil-moisture' | 'temp-sensor'
   | 'button-module' | 'touch' | 'vibration' | 'ir-obstacle' | 'hall' | 'flame' | 'raindrop' | 'water-level' | 'mq2'
   | 'ldr-module' | 'pot-module' | 'joystick' | 'rotary-encoder' | 'speed-sensor'
-  | 'pcf8591' | 'bmp280' | 'ds18b20' | 'ds1302' | 'vl53l0x' | 'max30102';
+  | 'pcf8591' | 'bmp280' | 'ds18b20' | 'ds1302' | 'vl53l0x' | 'max30102'
+  | 'servo' | 'motor' | 'l9110s' | 'l298n' | 'relay' | 'pump' | 'uln2003' | 'stepper'
+  | 'traffic-module' | 'rgb-module' | 'buzzer-module' | 'power-supply';
 
 export interface PartKind {
   type: PartType;
   /** Its group in the parts panel (screen 02, design/build.py PARTS). */
-  group: 'Basics' | 'Sensors' | 'Modules' | 'Chips';
+  group: 'Basics' | 'Sensors' | 'Modules' | 'Chips' | 'Actuators' | 'Output modules';
   name: string;
   detail: string;
   prefix: string;
@@ -24,6 +26,17 @@ export interface PartKind {
   props: Record<string, number | string | boolean>;
   /** Rows the first leg tries, in order, when the part is put in a free spot. */
   rows: readonly string[];
+  /** Points on the part that wires go to (M7, screens 25, 25b): screws, a motor's tabs, a socket — offsets from its
+   *  first leg (turned with it), or, for a part that lies beside the breadboard, from where it lies. */
+  terminals?: Record<string, [number, number]>;
+  /** It lies beside the breadboard, on no hole (M7: a motor, a pump, an L298N, a stepper): its place is
+   *  view.parts[id]; `box` is its body [x0, y0, x1, y1] from there. Its `legs` are none. */
+  free?: { box: [number, number, number, number] };
+  /** Not in the parts panel: it comes with another part (a stepper with its ULN2003). */
+  hidden?: boolean;
+  /** Added with this part, its legs in this part's terminals (the ULN2003's stepper, by its cable in the socket); it
+   *  lies right of the board and breadboards, as any part beside them with no place yet. */
+  brings?: { type: PartType; legs: Record<string, string> };
 }
 
 function fromArt(type: keyof typeof PART_ART): Record<string, [number, number]> {
@@ -92,7 +105,44 @@ export const PART_KINDS: PartKind[] = [
     type, group: 'Chips', name, detail, prefix, props: {}, rows: MODULE_ROWS,
     legs: Object.fromEntries(legs.map((l, i) => [l, [16 * i, 0] as [number, number]])),
   })),
+  // M7 slice 1 (screens 25, 25b): actuators — the servo by its plug (S + −), its body above; the drivers stand in
+  // the breadboard, their screws on the far edge; a motor, a pump, an L298N lie beside it
+  { type: 'servo', group: 'Actuators', name: 'Servo SG90', detail: '0–180°', prefix: 'servo', legs: { signal: [0, 0], vcc: [16, 0], gnd: [32, 0] }, props: {}, rows: ROWS },
+  { type: 'motor', group: 'Actuators', name: 'TT motor', detail: '3–6 V gear motor', prefix: 'motor', legs: {}, props: {}, rows: [],
+    terminals: { '+': [78, -8], '-': [78, 8] }, free: { box: [-36, -30, 82, 38] } },
+  { type: 'l9110s', group: 'Actuators', name: 'L9110S driver', detail: 'two motors', prefix: 'drv', props: {}, rows: MODULE_ROWS,
+    legs: header(['b-ia', 'b-ib', 'gnd', 'vcc', 'a-ia', 'a-ib']), terminals: { b1: [14, -78], b2: [25, -78], a1: [55, -78], a2: [66, -78] } },
+  { type: 'l298n', group: 'Actuators', name: 'L298N driver', detail: 'two motors · 5–12 V', prefix: 'l298n', legs: {}, props: {}, rows: [],
+    terminals: Object.fromEntries([
+      ...(['out1', 'out2'] as const).map((t, i) => [t, [12 + 15 * i, 20]]), ...(['out3', 'out4'] as const).map((t, i) => [t, [123 + 15 * i, 20]]),
+      ...(['12v', 'gnd', '5v'] as const).map((t, i) => [t, [16 + 13 * i, 124]]),
+      ...(['ena', 'in1', 'in2', 'in3', 'in4', 'enb'] as const).map((t, i) => [t, [74 + 11 * i, 124]]),
+    ]) as Record<string, [number, number]>, free: { box: [0, 0, 150, 140] } },
+  { type: 'relay', group: 'Actuators', name: 'Relay module', detail: '5 V · NO / NC', prefix: 'relay', props: {}, rows: MODULE_ROWS,
+    legs: header(['s', 'vcc', 'gnd']), terminals: { no: [3, -97], com: [16, -97], nc: [29, -97] } },
+  { type: 'pump', group: 'Actuators', name: 'Water pump', detail: '3–6 V', prefix: 'pump', legs: {}, props: {}, rows: [],
+    terminals: { '+': [-8, -46], '-': [8, -46] }, free: { box: [-40, -52, 64, 68] } },
+  { type: 'uln2003', group: 'Actuators', name: 'Stepper 28BYJ-48', detail: 'with ULN2003', prefix: 'uln', props: {}, rows: MODULE_ROWS,
+    legs: header(['in1', 'in2', 'in3', 'in4', '-', '+']), terminals: Object.fromEntries(['a', 'b', 'c', 'd', 'm'].map((t, i) => [t, [28 + 7 * i, -100]])),
+    brings: { type: 'stepper', legs: { blue: 'a', pink: 'b', yellow: 'c', orange: 'd', red: 'm' } } },
+  { type: 'stepper', group: 'Actuators', name: '28BYJ-48 stepper', detail: '5 V', prefix: 'step', legs: {}, props: {}, rows: [], hidden: true,
+    terminals: Object.fromEntries(['blue', 'pink', 'yellow', 'orange', 'red'].map((t, i) => [t, [-14 + 7 * i, 96]])), free: { box: [-64, -46, 64, 48] } },
+  // the kit's output modules (screens 25, 25b), standing in row f; the power supply on a breadboard's rails, its
+  // two pins in each (both pairs)
+  { type: 'traffic-module', group: 'Output modules', name: 'Traffic light module', detail: 'R Y G', prefix: 'tl', props: {}, rows: MODULE_ROWS, legs: header(['r', 'y', 'g', 'gnd']) },
+  { type: 'rgb-module', group: 'Output modules', name: 'RGB LED module', detail: 'R G B', prefix: 'rgbm', props: {}, rows: MODULE_ROWS, legs: header(['r', 'g', 'b', 'gnd']) },
+  { type: 'buzzer-module', group: 'Output modules', name: 'Passive buzzer module', detail: 'plays notes', prefix: 'bzm', props: {}, rows: MODULE_ROWS, legs: header(['io', 'vcc', 'gnd']) },
+  { type: 'power-supply', group: 'Output modules', name: 'Breadboard power supply', detail: '5 V · 3.3 V', prefix: 'psu', props: { top: 5, bottom: 3.3 }, rows: ['T-'],
+    legs: { 't-1': [0, 0], 't-2': [16, 0], 't+1': [0, 16], 't+2': [16, 16], 'b+1': [0, 246], 'b+2': [16, 246], 'b-1': [0, 262], 'b-2': [16, 262] } },
 ];
+
+/** A module's header: its pins in a row, one hole apart. */
+function header(legs: string[]): Record<string, [number, number]> {
+  return Object.fromEntries(legs.map((l, i) => [l, [16 * i, 0] as [number, number]]));
+}
+
+/** A free part (M7) lies beside the breadboard; the rest stand in its holes. */
+export const isFree = (type: string): boolean => PART_KINDS.some((k) => k.type === type && k.free);
 
 export function partKind(type: string): PartKind {
   const k = PART_KINDS.find((p) => p.type === type);
@@ -102,6 +152,8 @@ export function partKind(type: string): PartKind {
 
 /** Where the legs' middle is from the first leg: the point a part is held by while it is dragged. */
 export function legsCentre(type: string, turns = 0): [number, number] {
+  const free = partKind(type).free;
+  if (free) return [(free.box[0] + free.box[2]) / 2, (free.box[1] + free.box[3]) / 2];   // a free part: its body's middle
   const offs = Object.values(footprint(type, turns));
   return [offs.reduce((s, [x]) => s + x, 0) / offs.length, offs.reduce((s, [, y]) => s + y, 0) / offs.length];
 }
@@ -121,6 +173,7 @@ export function footprint(type: string, turns = 0): Record<string, [number, numb
 /** How many quarter turns clockwise a placed part is from its footprint, from its first two legs (0–3). */
 export function turnsOf(type: string, legs: Record<string, { x: number; y: number }>): number {
   const keys = Object.keys(partKind(type).legs);
+  if (keys.length < 2) return 0;   // a free part (M7) is not turned
   const base = partKind(type).legs[keys[1]!]!;
   const a = legs[keys[0]!];
   const b = legs[keys[1]!];

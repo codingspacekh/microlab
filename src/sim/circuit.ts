@@ -46,6 +46,8 @@ export type PartView =
   | { kind: 'motor'; rpm: number; direction: 1 | -1 | 0; amps: number }
   /** A pump: pumping or not, what it draws. */
   | { kind: 'pump'; running: boolean; amps: number }
+  /** A motor driver (L9110S, L298N): which way each of its two outputs drives (1: its first screw above its second). */
+  | { kind: 'driver'; a: -1 | 0 | 1; b: -1 | 0 | 1 }
   /** A relay module: its coil pulled in (COM to NO). */
   | { kind: 'relay'; on: boolean }
   /** A stepper: the half steps it has turned (4096 a turn; + clockwise), the coils on now ('BC'). */
@@ -514,6 +516,12 @@ export class CircuitHost {
           this.setView(t, id, { kind: 'pump', running: Math.abs(across(id, '+', '-')) >= PUMP.startVolts, amps: mA(this.solution!.amps[id] ?? 0) });
           continue;
         case 'relay': this.setView(t, id, { kind: 'relay', on: (this.solution!.amps[`${id}:coil`] ?? 0) > 0.02 }); continue;
+        case 'l9110s': case 'l298n': {
+          const way = (a: string, b: string): -1 | 0 | 1 => { const u = across(id, a, b); return u > 0.5 ? 1 : u < -0.5 ? -1 : 0; };
+          const [a, b] = part.type === 'l9110s' ? [way('a1', 'a2'), way('b1', 'b2')] : [way('out1', 'out2'), way('out3', 'out4')];
+          this.setView(t, id, { kind: 'driver', a, b });
+          continue;
+        }
         case 'stepper': this.setView(t, id, this.stepper(id)); continue;
         case 'buzzer-module': this.setView(t, id, this.buzzer(this.connectivity.netOf(`${id}.vcc`) ?? '', `${id}#c`, true, BUZZER_MODULE.minVolts)); continue;
         case 'power-supply': {

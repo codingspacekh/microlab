@@ -35,7 +35,8 @@ export function holeIndex(scene: Scene): HoleIndex {
 
 function legsFrom(scene: Scene, offsets: Record<string, [number, number]>, start: string, used: Set<string>, holes: HoleIndex): Legs | undefined {
   const bb = start.slice(0, start.indexOf('.') + 1);
-  const origin = pointAt(scene, start)!;
+  const origin = pointAt(scene, start);
+  if (!origin) return undefined;   // no such hole (a rail on a mini breadboard)
   const legs: Legs = {};
   for (const [leg, [dx, dy]] of Object.entries(offsets)) {
     const hit = holes.get(key(origin.x + dx, origin.y + dy));

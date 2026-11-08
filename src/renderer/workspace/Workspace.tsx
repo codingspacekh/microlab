@@ -212,8 +212,8 @@ export function Workspace({
               </button>
             </div>
           )}
-          {(['Basics', 'Sensors', 'Modules', 'Chips'] as const).map((group) => {
-            const kinds = PART_KINDS.filter((k) => k.group === group);
+          {(['Basics', 'Sensors', 'Modules', 'Chips', 'Actuators', 'Output modules'] as const).map((group) => {
+            const kinds = PART_KINDS.filter((k) => k.group === group && !k.hidden);
             return (
               <div key={group} className="pgroup" role="group" aria-label={group}>
                 <div className="gh">{group}<span className="n">{kinds.length + (group === 'Basics' ? 3 : 0)}</span></div>
@@ -230,7 +230,8 @@ export function Workspace({
                 })}
                 {kinds.map((k) => (
                   <button key={k.type} type="button" className={placing?.type === k.type ? 'pitem drag' : 'pitem'}
-                    title={`Drag the ${inText(k.name)} onto the breadboard, or click it and then click where it goes`}
+                    title={k.free ? `Drag the ${inText(k.name)} onto the canvas beside the breadboard, or click it and then click where it goes`
+                      : `Drag the ${inText(k.name)} onto the breadboard, or click it and then click where it goes`}
                     aria-disabled={running || undefined} {...pick(k.type)}>
                     <span className="pic"><PartIcon type={k.type} /></span>
                     <span className="nm">{k.name}<small>{k.detail}</small></span>

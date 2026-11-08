@@ -398,9 +398,12 @@ function Row({ icon, name, kind, reading, children }: { icon: string; name: stri
 const mA = (amps: number) => `${Number((amps * 1000).toFixed(1))} mA`;
 
 /** What an LED or an RGB LED says on hover while running: its current, each die's for an RGB LED. */
-export function PartTip({ id, type, common, views, overLine = false, values = {}, style }: {
-  id: string; type: string; common?: string; views: Record<string, PartView>; overLine?: boolean; values?: Record<string, number>; style: CSSProperties;
+export function PartTip({ id, type, common, views, overLine = false, values = {}, props = {}, style }: {
+  id: string; type: string; common?: string; views: Record<string, PartView>; overLine?: boolean; values?: Record<string, number>;
+  props?: Record<string, unknown>; style: CSSProperties;
 }) {
+  const m7 = actTip(id, type, views, props);
+  if (m7) return <div className="tip part-tip" role="tooltip" style={style}><b>{m7.title}</b>{m7.line && <div>{m7.line}</div>}{m7.note && <div className="note">{m7.note}</div>}</div>;
   if (type === 'ds1302') {
     const v = views[id];
     return (
@@ -492,4 +495,69 @@ export function UsbTip({ plugged, style }: { plugged: boolean; style: CSSPropert
         : <div>The GPIO board's own cable is <b>not plugged in</b>: its 5V pins give nothing. Click to plug it in.</div>}
     </div>
   );
+}
+
+const WAY = (d: number) => (d > 0 ? 'forward' : d < 0 ? 'backward' : 'stopped');
+const supplyMa = (a: number) => `${Math.round(a * 1000)} mA`;
+
+/** What M7's actuators and output modules say while running (screens 25, 25b: hovered, what each is doing). */
+function actTip(id: string, type: string, views: Record<string, PartView>, props: Record<string, unknown>): { title: string; line?: string; note?: string } | undefined {
+  const v = views[id];
+  const name = id.toUpperCase();
+  switch (type) {
+    case 'servo': {
+      const s = v?.kind === 'servo' ? v : undefined;
+      return {
+        title: `${name} · ${s?.angle ?? 90}°${s?.pulseUs ? ` · ${(s.pulseUs / 1000).toFixed(1)} ms pulses` : ''}`,
+        line: 'It turns to the angle of its pulses — 0.5 ms is 0°, 2.5 ms is 180°, one every 20 ms — at a servo\'s speed.',
+        ...(s && !s.powered ? { note: 'An SG90 needs 4.8–6 V: on 3V3 it twitches and can\'t turn. Give its + VBUS (5 V).' } : {}),
+      };
+    }
+    case 'motor': {
+      const m = v?.kind === 'motor' ? v : undefined;
+      return { title: `${name} · ${WAY(m?.direction ?? 0)}${m?.rpm ? ` · ${m.rpm} rpm` : ''}`, line: `${supplyMa(m?.amps ?? 0)} through it — a pin alone can't give that: a driver can.` };
+    }
+    case 'pump': {
+      const p = v?.kind === 'pump' ? v : undefined;
+      return { title: `${name} · ${p?.running ? 'pumping' : 'not pumping'}${p?.amps ? ` · ${supplyMa(p.amps)}` : ''}`, line: 'It pumps with 2.5 V or more across it.' };
+    }
+    case 'relay': {
+      const on = v?.kind === 'relay' && v.on;
+      return { title: `${name} · ${on ? 'on · COM to NO' : 'off · COM to NC'}`, line: 'S high switches it (its coil needs 5 V on +); what it switches is apart from the board.' };
+    }
+    case 'l9110s': case 'l298n': {
+      const d = v?.kind === 'driver' ? v : { a: 0, b: 0 };
+      return { title: `${name} · motor A ${WAY(d.a)} · motor B ${WAY(d.b)}` };
+    }
+    case 'stepper': case 'uln2003': {
+      const stepper = type === 'stepper' ? v : undefined;
+      const coils = ['A', 'B', 'C', 'D'].filter((c) => {
+        const led = views[`${id}:${c}`];
+        return type === 'uln2003' ? led?.kind === 'led' && led.brightness > 0.01 : stepper?.kind === 'stepper' && stepper.coils.includes(c);
+      });
+      const on = coils.length ? `Coil${coils.length > 1 ? 's' : ''} ${coils.join(' and ')} on` : 'No coil on';
+      if (stepper?.kind === 'stepper') return { title: `${name} · 28BYJ-48 · step ${stepper.steps}`, line: `4096 half steps make a turn. ${on}.` };
+      return { title: `${name} · ULN2003`, line: `${on} — its LEDs show them.` };
+    }
+    case 'buzzer-module': {
+      const hz = v?.kind === 'buzzer' && v.volume > 0 ? v.hz : 0;
+      const note = noteName(hz);
+      return { title: `${name} · ${hz ? `${hz} Hz${note ? ` · ${note}` : ''}` : 'silent'}`, line: 'It plays the note of the PWM on I/O.' };
+    }
+    case 'traffic-module': case 'rgb-module': {
+      const legs = type === 'traffic-module' ? [['r', 'R'], ['y', 'Y'], ['g', 'G']] : [['r', 'R'], ['g', 'G'], ['b', 'B']];
+      const led = (k: string) => { const x = views[`${id}:${k}`]; return x?.kind === 'led' ? x.amps : 0; };
+      return { title: name, line: legs.map(([k, t]) => `${t} ${mA(led(k!))}`).join(' · ') };
+    }
+    case 'power-supply': {
+      const s = v?.kind === 'supply' ? v : undefined;
+      const top = Number(props.top ?? 5);
+      const bottom = Number(props.bottom ?? 3.3);
+      return {
+        title: `${name} · ${s && !s.on ? 'off' : `top ${top} V · bottom ${bottom} V`}`,
+        line: s?.on === false ? 'Switched off: its rails give nothing.' : `Top rails ${supplyMa(s?.top ?? 0)} · bottom ${supplyMa(s?.bottom ?? 0)} of its 700 mA — join a GND to the board's.`,
+      };
+    }
+  }
+  return undefined;
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { boardData, deletePart, deleteWire, duplicate, joinsOf, partKind, rotateParts, setBreadboardSize, setPartProp, setUsb, setWireColour, straighten, takeOutOfGpioBoard } from '@lib/editor';
+import { boardData, deleteMany, deleteWire, duplicate, joinsOf, partKind, rotateParts, setBreadboardSize, setPartProp, setUsb, setWireColour, straighten, takeOutOfGpioBoard } from '@lib/editor';
 import type { BoardId } from '@lib/boards';
 import type { BreadboardSize } from '@lib/circuit';
 import type { Project, ProjectDoc } from '@lib/project';
@@ -30,10 +30,19 @@ const PRINTED: Record<string, [string, string][]> = {
   dht: [['vcc', 'VCC'], ['out', 'DATA'], ['gnd', 'GND']],
   'hc-sr04': [['vcc', 'VCC'], ['trig', 'Trig'], ['echo', 'Echo'], ['gnd', 'GND']],
   mpu6050: [['vcc', 'VCC'], ['gnd', 'GND'], ['scl', 'SCL'], ['sda', 'SDA'], ['xda', 'XDA'], ['xcl', 'XCL'], ['ad0', 'AD0'], ['int', 'INT']],
+  // M7: the servo's plug, the drivers' headers
+  servo: [['signal', 'S'], ['vcc', '+'], ['gnd', '−']],
+  l9110s: [['b-ia', 'B-IA'], ['b-ib', 'B-IB'], ['gnd', 'GND'], ['vcc', 'VCC'], ['a-ia', 'A-IA'], ['a-ib', 'A-IB']],
+  relay: [['s', 'S'], ['vcc', '+'], ['gnd', '−']],
+  uln2003: [['in1', 'IN1'], ['in2', 'IN2'], ['in3', 'IN3'], ['in4', 'IN4'], ['-', '−'], ['+', '+']],
   // the kit's modules (M6.5a): drawings.tsx KIT has their printed names
   ...Object.fromEntries(Object.entries(KIT).map(([type, k]) => [type, k.legs.map((l, i): [string, string] => [l, k.labels[i]!])])),
 };
 const BUZZERS = [{ value: 'active', label: 'Active' }, { value: 'passive', label: 'Passive' }];
+// M7 (screens 25, 25b)
+const TRIGGERS = [{ value: 'high', label: 'S high' }, { value: 'low', label: 'S low' }];
+const RAIL_VOLTS = [{ value: '5', label: '5 V' }, { value: '3.3', label: '3.3 V' }];
+const ON_OFF = [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }];
 const COMMONS = [{ value: 'cathode', label: '− cathode' }, { value: 'anode', label: '+ anode' }];
 /** A part's tip under its rows: what to know when it goes in. */
 const TIPS: Record<string, string> = {
@@ -72,6 +81,19 @@ const TIPS: Record<string, string> = {
   vl53l0x: 'On I²C at 0x29 (XSHUT low: off). Its start-up is long: use a driver (the vl53l0x library, above). A range takes about 30 ms; nothing within 2 m reads 8190.',
   max30102: 'On I²C at 0x57. Set SpO2 mode (0x09 = 3), then read its FIFO: red and IR, 3 bytes each. A program finds the beats in IR, and the oxygen from red against IR.',
   battery: 'A supply of its own, not joined to the board. To use it with the board, join its − to the board\'s GND.',
+  // M7 (screens 25, 25b, 25c)
+  servo: 'S to a PWM pin at 50 Hz: a 0.5 ms pulse is 0°, 2.5 ms 180°. + needs 5 V (VBUS, VIN or 5V) — on 3.3 V it can\'t turn. It draws ≈ 200 mA while it turns.',
+  motor: 'Never straight on a pin: a motor needs far more current than a pin can give. Wire its tabs to a driver\'s screws (L9110S, L298N), the driver on 5 V.',
+  pump: 'Like a motor, it needs more than a pin can give: switch it with a relay module or a driver, on a supply of its own (a 4×AA pack).',
+  l9110s: 'A-IA high and A-IB low turns MOTOR A one way, the other way round the other way; both low stops it. PWM on one input sets the speed. VCC 2.5–12 V: VBUS, VIN or 5V.',
+  l298n: 'IN1 / IN2 turn motor A (OUT1, OUT2), IN3 / IN4 motor B. Its 12V screw takes the motors\' supply (5–12 V), GND joined to the board\'s. Its bridge loses about 2 V.',
+  relay: 'S high switches COM from NC to NO; its coil needs 5 V on + (VBUS, VIN or 5V) — on 3.3 V it doesn\'t pull in. What it switches is apart from the board.',
+  uln2003: 'IN1–IN4 to four pins, + to 5 V, − to GND. Turn on the coils in turn — A, AB, B, BC … — and the 28BYJ-48 steps: 4096 half steps a turn. Its LEDs show the coils.',
+  stepper: 'Its cable goes into the ULN2003\'s socket; it steps as the ULN2003\'s coils turn on in turn.',
+  'traffic-module': 'R, Y and G to three pins: each LED has its resistor on the board.',
+  'rgb-module': 'R, G and B to three pins (PWM mixes them), − to GND: each die has its resistor on the board.',
+  'buzzer-module': 'I/O to a PWM pin: PWM(Pin(15), freq=440) plays A4. VCC 3.3 V or 5 V.',
+  'power-supply': 'Up to 700 mA from its own jack or USB, apart from the board: join a GND to the board\'s. Each rail pair\'s jumper is 5 V or 3.3 V — click it on the canvas, or set it here.',
 };
 const WIRE_SWATCHES = Object.entries(WIRE_COLOURS).map(([value, [colour]]) => ({ value, name: value[0]!.toUpperCase() + value.slice(1), colour }));
 
@@ -111,19 +133,19 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
     const part = project.parts.find((p) => p.id === selection.id);
     if (!part) return null;
     const kind = partKind(part.type);
-    const set = (key: string, v: number | string) => onChange(setPartProp(project, part.id, key, v), `${part.id}.${key}`);
+    const set = (key: string, v: number | string | boolean) => onChange(setPartProp(project, part.id, key, v), `${part.id}.${key}`);
     icon = <PartIcon type={part.type} />;
     title = `${part.id.toUpperCase()} · ${kind.name}`;
-    remove = () => deletePart(project, part.id);
+    remove = () => deleteMany(project, { parts: [part.id], wires: [] });
     // screen 02b: Rotate · Duplicate · Delete
     partActions = (
       <div className="actions">
-        <button type="button" className="btn sm" title="Rotate (R)" onClick={() => {
+        {!kind.free && <button type="button" className="btn sm" title="Rotate (R)" onClick={() => {
           const next = rotateParts(project, [part.id]);
           if (!next) { setError(MESSAGES.noTurn); return; }
           setError(null);
           onChange(next);
-        }}><Icon name="rotate" size={14} /> Rotate</button>
+        }}><Icon name="rotate" size={14} /> Rotate</button>}
         <button type="button" className="btn sm icon" aria-label="Duplicate" title="Duplicate (⌘D / Ctrl+D)" onClick={() => {
           const r = duplicate(project, { parts: [part.id], wires: [] });
           if (!r) { setError(MESSAGES.noCopy); return; }
@@ -131,7 +153,7 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
           onChange(r.project);
           onSelect?.([{ kind: 'part', id: r.parts[0]! }]);
         }}><Icon name="copy" size={14} /></button>
-        <button type="button" className="btn sm icon danger" aria-label="Delete" title="Delete (Delete key)" onClick={() => { onChange(deletePart(project, part.id)); onClose(); }}>
+        <button type="button" className="btn sm icon danger" aria-label="Delete" title="Delete (Delete key)" onClick={() => { onChange(deleteMany(project, { parts: [part.id], wires: [] })); onClose(); }}>
           <Icon name="trash" size={14} />
         </button>
       </div>
@@ -178,6 +200,29 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
             <Segmented label="Battery pack" hideLabel full value={String(part.props?.kind ?? '2xAA')} onChange={(v) => set('kind', v)} options={PACKS} />
           </Row>
         )}
+        {part.type === 'relay' && (
+          <Row name="On with">
+            <Segmented label="Relay trigger" hideLabel value={String(part.props?.trigger ?? 'high')} onChange={(v) => set('trigger', v)} options={TRIGGERS} />
+          </Row>
+        )}
+        {part.type === 'l298n' && ([['ena', 'ENA jumper'], ['enb', 'ENB jumper'], ['regulator', '5V-EN jumper']] as const).map(([key, name]) => (
+          <Row key={key} name={name}>
+            <Segmented label={name} hideLabel value={part.props?.[key] === false ? 'off' : 'on'} onChange={(v) => set(key, v === 'on')} options={ON_OFF} />
+          </Row>
+        ))}
+        {part.type === 'power-supply' && (
+          <>
+            {(['top', 'bottom'] as const).map((pair) => (
+              <Row key={pair} name={pair === 'top' ? 'Top rails' : 'Bottom rails'}>
+                <Segmented label={pair === 'top' ? 'Top rails' : 'Bottom rails'} hideLabel value={String(part.props?.[pair] ?? (pair === 'top' ? 5 : 3.3))}
+                  onChange={(v) => set(pair, Number(v))} options={RAIL_VOLTS} />
+              </Row>
+            ))}
+            <Row name="Power">
+              <Segmented label="Power" hideLabel value={part.props?.on === false ? 'off' : 'on'} onChange={(v) => set('on', v === 'on')} options={ON_OFF} />
+            </Row>
+          </>
+        )}
         {part.type === 'potentiometer' && (
           <Row name="Value">
             <Segmented label="Potentiometer value" hideLabel value={String(ohms)} onChange={(v) => set('ohms', Number(v))}
@@ -205,6 +250,16 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
               <span><b className="minus">−</b> <span className="mono">{label(part.legs['-']!)}</span></span>
             </span>
           </Row>
+        ) : part.type === 'stepper' ? (
+          <Row name="Cable in">
+            <span className="small">{part.legs.red ? `${part.legs.red.slice(0, part.legs.red.indexOf('.')).toUpperCase()}'s socket` : 'nothing — plug it into a ULN2003'}</span>
+          </Row>
+        ) : kind.free ? (
+          <Row name="Lies">
+            <span className="small">beside the breadboard — wire its {part.type === 'l298n' ? 'screws and header pins' : 'tabs'}</span>
+          </Row>
+        ) : part.type === 'power-supply' ? (
+          <Row name="Pins in"><span className="small mono">{label(part.legs['t-1']!).replace(/^T-/, 'columns ')}–{Number(label(part.legs['t-1']!).replace(/^T-/, '')) + 1}, both rail pairs</span></Row>
         ) : PRINTED[part.type] ? (
           <Row name="Legs in"><span className="small mono">{PRINTED[part.type]!.map(([leg, name]) => `${name} ${label(part.legs[leg]!)}`).join(', ')}</span></Row>
         ) : part.type === 'rgb-led' ? (

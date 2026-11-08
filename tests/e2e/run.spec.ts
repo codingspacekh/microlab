@@ -400,3 +400,39 @@ test('M6.7 (screen 22): Add a library from the + menu puts bmp280 in lib/ with i
     expect(box.x + box.width).toBeLessThanOrEqual(panel.x + panel.width);
   }
 });
+
+test('M7.1 (screens 25, 25c): a TT motor dropped beside the breadboard, wired at its tabs — through an L9110S it turns; straight on GP15 the pin is damaged', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
+  // the L9110S in f8–f13: GND, VCC VBUS, A-IA GP17, A-IB GP16; the motor below the breadboard, on MOTOR A
+  await win.locator('.parts .pitem:has-text("L9110S")').scrollIntoViewIfNeeded();
+  await drag(win, await centre(win, '.parts .pitem:has-text("L9110S")'), await between(win, 'bb1.f10', 'bb1.f11'));
+  const below = await centre(win, '[data-point="bb1.B-20"]');
+  await win.locator('.parts .pitem:has-text("TT motor")').scrollIntoViewIfNeeded();
+  await drag(win, await centre(win, '.parts .pitem:has-text("TT motor")'), { x: below.x, y: below.y + 90 });
+  await drag(win, await centre(win, '[data-point="board.GND@38"]'), await centre(win, '[data-point="bb1.j10"]'));
+  await drag(win, await centre(win, '[data-point="board.VBUS"]'), await centre(win, '[data-point="bb1.j11"]'));
+  await drag(win, await centre(win, '[data-point="board.GP17"]'), await centre(win, '[data-point="bb1.j12"]'));
+  await drag(win, await centre(win, '[data-point="board.GP16"]'), await centre(win, '[data-point="bb1.j13"]'));
+  await drag(win, await centre(win, '[data-point="drv1.a1"]'), await centre(win, '[data-point="motor1.+"]'));
+  await drag(win, await centre(win, '[data-point="drv1.a2"]'), await centre(win, '[data-point="motor1.-"]'));
+  await win.keyboard.press('Escape');
+  await setCode(win, ['from machine import Pin', 'import time', 'Pin(16, Pin.OUT, value=0)', 'Pin(17, Pin.OUT, value=1)', 'time.sleep(10)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect.poll(async () => Number(await win.locator('[data-part="motor1"] .tt-motor').getAttribute('data-rpm')), { timeout: 5000 }).toBeGreaterThan(150);
+  await expect(win.locator('[data-part="motor1"] .tt-motor')).toHaveAttribute('data-direction', '1');
+  await win.getByRole('button', { name: 'Stop' }).click();
+  await expect(win.getByRole('button', { name: 'Run main.py' })).toBeEnabled({ timeout: 2000 });
+
+  // screen 25c: the motor's + straight on GP15 — the wire from MOTOR A taken off first
+  await win.locator('[data-wire="w5"]').dispatchEvent('mousedown', { button: 0 });
+  await expect(win.getByRole('complementary', { name: 'Inspector' })).toContainText('W5 · Wire');
+  await win.getByRole('complementary', { name: 'Inspector' }).getByRole('button', { name: 'Delete' }).click();
+  await drag(win, await centre(win, '[data-point="board.GP15"]'), await centre(win, '[data-point="motor1.+"]'));
+  await win.keyboard.press('Escape');
+  await setCode(win, ['from machine import Pin', 'import time', 'Pin(15, Pin.OUT).on()', 'time.sleep(10)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.getByRole('log', { name: 'Console' })).toContainText(/GP15: motor1 straight on the pin draws \d+ mA, a pin gives 12 mA at most/, { timeout: 5000 });
+  await expect(win.getByRole('status')).toContainText('Stopped: the circuit was damaged');
+});
