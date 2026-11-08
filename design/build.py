@@ -406,6 +406,69 @@ for n in range(9, -1, -1):
     for i, s in enumerate(segs):
         s.value(FONT[n] >> i & 1)
     time.sleep(1)''',
+    "neopixels": '''from machine import Pin, ADC
+from neopixel import NeoPixel
+import time
+
+strip = NeoPixel(Pin(0), 8)    # the stick, DIN on GP0
+ring = NeoPixel(Pin(17), 12)   # the ring, DIN on GP17
+knob = ADC(26)
+
+def wheel(h):                  # 0–255 round the colours
+    if h < 85:
+        return (255 - h * 3, h * 3, 0)
+    if h < 170:
+        h -= 85
+        return (0, 255 - h * 3, h * 3)
+    h -= 170
+    return (h * 3, 0, 255 - h * 3)
+
+t = 0
+while True:
+    k = 1 + knob.read_u16() // 4096    # how bright: 1–16
+    for i in range(8):
+        r, g, b = wheel((t * 4 + i * 32) % 256)
+        strip[i] = (r * k // 64, g * k // 64, b * k // 64)
+    strip.write()
+    ring.fill((0, 0, 0))
+    ring[t % 12] = (0, 0, 8 * k)       # a spinner
+    ring[(t - 1) % 12] = (0, 0, 2 * k)  # and its tail
+    ring.write()
+    t += 1
+    time.sleep(0.08)''',
+    "rainbowring": '''from microbit import *
+import neopixel
+
+ring = neopixel.NeoPixel(pin0, 12)
+
+def wheel(h):              # 0–255 round the colours
+    if h < 85:
+        return (255 - h * 3, h * 3, 0)
+    if h < 170:
+        h -= 85
+        return (0, 255 - h * 3, h * 3)
+    h -= 170
+    return (h * 3, 0, 255 - h * 3)
+
+hue = 0
+while True:
+    for i in range(12):
+        r, g, b = wheel((hue + i * 21) % 256)
+        ring[i] = (r // 8, g // 8, b // 8)
+    ring.show()
+    hue = (hue + 4) % 256
+    sleep(30)''',
+    "neopixelfaults": '''from machine import Pin
+from neopixel import NeoPixel
+
+strip = NeoPixel(Pin(0), 8)
+ring = NeoPixel(Pin(17), 24)
+
+strip.fill((0, 40, 0))       # green
+strip.write()
+
+ring.fill((255, 255, 255))   # full white
+ring.write()''',
     "servo": '''from machine import Pin, PWM
 import time
 

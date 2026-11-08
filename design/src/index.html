@@ -57,6 +57,9 @@
   <a href="26-displays-running.html"><b>26 · Displays on I²C, running</b><span>M7: an SSD1306 OLED standing in the breadboard and a 16×2 LCD with its I²C backpack lying beside it, on one bus; the LCD's address and contrast</span></a>
   <a href="26b-digits-and-dots.html"><b>26b · Digits and dots</b><span>M7: a 7-segment digit, the TM1637 4-digit display and a MAX7219 8×8 dot matrix, the modules wired at their headers</span></a>
   <a href="26c-display-faults.html"><b>26c · A digit needs its resistor</b><span>M7: a 7-segment digit with no resistor damages a pin and stops the run; an LCD on 3V3 is a warning</span></a>
+  <a href="27-neopixels-running.html"><b>27 · NeoPixels, running</b><span>M7: a NeoPixel stick of 8 and a ring of 12 on a Pico W, each LED in the colour write() sent; hovered, its colour and current; the ring's inspector</span></a>
+  <a href="27b-neopixels-microbit.html"><b>27b · NeoPixels on the micro:bit</b><span>M7: a ring on P0 of the GPIO board, the micro:bit's own neopixel module (show())</span></a>
+  <a href="27c-neopixel-faults.html"><b>27c · NeoPixel mistakes</b><span>M7: data wired to DOUT lights nothing; a ring of 24 at full white asks more than USB gives</span></a>
 </div>
 <h2>Rebuild</h2>
 <ol><li>Edit <code>design/src/*.html</code>, the drawings in <code>design/svgparts.py</code> or the circuits in <code>design/scenes.py</code>.</li><li>Run <code>python3 design/build.py</code> — it writes <code>design/screens/</code>.</li></ol>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>27 NeoPixels running</title>
+{{include:head}}
+<style>
+.rail { flex: 0 0 56px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; z-index: 3; }
+.rail .rb { width: 44px; padding: 6px 0 5px; border-radius: 9px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; color: var(--tx-2); font-weight: 550; }
+.rail .rb .pic { width: 30px; height: 30px; display: grid; place-items: center; }
+.legend2 { padding: 10px 12px; } .legend2 .r { display: grid; grid-template-columns: 56px 1fr; gap: 6px; font-size: 11.5px; margin-top: 6px; line-height: 1.35; } .legend2 .r b { font-family: var(--mono); font-size: 11px; }
+.meter { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 4px; } .meter i { display: block; height: 100%; background: var(--run); }
+</style>
+</head>
+<body>
+<!--@PROJECT: Rainbow and spinner-->
+<!--@PROJECT_SUB: Pico W · saved just now-->
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@RUNTIME: 00:03-->
+<!--@EDITOR: {{code:neopixels:cur=27}}-->
+<!--@COUNTS: Pico W + 3 parts · 13 wires-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.29.0 on Raspberry Pi Pico W (simulated)</span>
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running main.py — Stop or <span class="kbd">Ctrl</span>+<span class="kbd">C</span> breaks in</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span><span>NeoPixels: 20 LEDs draw 45 mA of USB's 500 mA</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.07 ms</span>-->
+<p class="frame-label"><b>27 · NeoPixels, running</b> (M7 design, slice 3) — a <b>NeoPixel stick</b> of 8 and a <b>NeoPixel ring</b> of 12 (WS2812B) lie above the breadboard, wired at their pads like the displays' headers: <b>DIN, 5V, GND</b> in, and <b>DOUT</b> out to chain more; the arrows printed on the stick show the way the data goes. Each LED shows the colour <code>write()</code> sent it — <code>np[i] = (r, g, b)</code> and <code>fill()</code> set them, nothing changes until <code>write()</code> — taken bit by bit from the pin's 800 kHz bitstream (<code>machine.bitstream</code>), 24 bits an LED in the chip's own order (green, red, blue), the first 24 kept, the rest passed on. A dim LED is drawn in its full colour with a smaller glow, as the eye sees one at an eighth. <code>neopixel</code> is built into MicroPython on all three boards: no library file. Hovered, an LED says its number, its colour and its current; the status bar adds them up against what USB gives (500 mA): each LED draws up to 60 mA at full white. The ring's inspector: a <b>stick</b> (8, 16 or 30) or a <b>ring</b> (8, 12, 16 or 24), LED 0 at DIN's end / at the top, the rest clockwise. Both on VBUS (5 V); the knob on GP26 sets how bright. The parts panel folded by itself as the ring was clicked</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    <nav class="rail">
+      <span class="rb" title="Raspberry Pi Pico W — its pinout"><span class="pic">{{part:pico:bp}}</span>Board</span>
+      <span class="rb">{{i:grid:s20}}Parts</span>
+    </nav>
+    <div class="canvas">
+      <div class="stage">{{scene:neopixels}}
+      <div class="tip" style="left:380px;top:196px;width:196px"><b>RING1 · LED 3 of 12</b><div style="opacity:.85;margin-top:2px">(0, 0, 80) — blue, at a third · about 7 mA</div></div>
+      <div class="float inspector" style="right:10px;bottom:10px;width:276px">
+        <div class="ih"><span class="pic" style="width:28px;height:28px;border-radius:6px;background:var(--bg);display:grid;place-items:center">{{part:neopixel:bp}}</span><b>RING1 · NeoPixel ring</b><span class="spacer"></span><button class="btn ghost sm icon">{{i:x:s14}}</button></div>
+        <div class="prop"><span>Shape</span><div class="seg"><span>Stick</span><span class="on">Ring</span></div></div>
+        <div class="prop"><span>LEDs</span><div class="seg"><span>8</span><span class="on">12</span><span>16</span><span>24</span></div></div>
+        <div class="prop"><span>Now</span><span class="small">2 lit · 15 mA · up to 720 mA at full white</span></div>
+        <p class="tiny muted" style="margin:8px 0 0;line-height:1.45">Needs 5 V. Data goes in at DIN — the wire from the board's pin goes there; DOUT goes on to the next one's DIN.</p>
+      </div></div>
+      {{include:ctools}}
+    </div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

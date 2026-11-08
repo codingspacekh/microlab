@@ -1568,6 +1568,84 @@ def max7219(x, y, rows=HEART8, bright: float = 1.0):
     return "".join(o) + "</g>", pins
 
 
+def _np_look(rgb):
+    """How a WS2812's colour looks: its hue at full strength (the eye sees a pixel at 1/8 as plainly lit), the glow
+    growing with how bright it is. Returns (fill, glow opacity) — (None, 0) when off."""
+    m = max(rgb)
+    if m == 0:
+        return None, 0
+    r, g, b = (round(c * 255 / m) for c in rgb)
+    return f"#{r:02x}{g:02x}{b:02x}", .35 + .65 * math.sqrt(m / 255)
+
+
+def _np_pixel(cx, cy, rgb=(0, 0, 0), s: float = 18, hl: bool = False) -> str:
+    """One WS2812B (a 5050 LED): its white body, the round window over its three dies; lit, its colour and a glow."""
+    fill, glow = _np_look(rgb)
+    o = []
+    if fill:
+        gid = "npg-" + fill[1:]
+        o.append(f'<radialGradient id="{gid}"><stop offset="0" stop-color="{fill}" stop-opacity=".85"/><stop offset=".45" stop-color="{fill}" stop-opacity=".35"/>'
+                 f'<stop offset="1" stop-color="{fill}" stop-opacity="0"/></radialGradient>'
+                 f'<circle cx="{f(cx)}" cy="{f(cy)}" r="{f(s * 1.15)}" fill="url(#{gid})" opacity="{f(glow)}"/>')
+    o.append(f'<rect x="{f(cx - s / 2)}" y="{f(cy - s / 2)}" width="{f(s)}" height="{f(s)}" rx="1.5" fill="#f4f2ec" stroke="{"#2563d9" if hl else "#c9c4b8"}" stroke-width="{1.6 if hl else .8}"/>'
+             f'<circle cx="{f(cx)}" cy="{f(cy)}" r="{f(s * .36)}" fill="{fill or "#e2ddd0"}" stroke="#d3cdbf" stroke-width=".6"/>')
+    if not fill:
+        o.append("".join(f'<rect x="{f(cx + dx - 1.2)}" y="{f(cy - 1.6)}" width="2.4" height="3.2" fill="#b9b2a2"/>' for dx in (-3.4, 0, 3.4)))
+    return "".join(o)
+
+
+def neopixel_strip(x, y, colours, hl: int = -1):
+    """A NeoPixel stick (WS2812B on a black strip) lying beside the breadboard: `colours` = [(r, g, b)] from LED 0, at
+    DIN's end; its input header out of its left end — DIN 5V GND, top to bottom, points to wire — the output (DOUT, to
+    chain more) out of its right end; the arrows printed on it show the way the data goes. Returns (svg, {pin: (x, y)})."""
+    n, p = len(colours), 26
+    w, h = n * p + 50, 56
+    o = ['<g class="neopixel strip">',
+         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="3" fill="#1d1e21" stroke="#0f1012" filter="url(#lift)"/>']
+    for i, rgb in enumerate(colours):
+        cx = x + 25 + p / 2 + i * p
+        o.append(_np_pixel(cx, y + 24, rgb, hl=i == hl))
+        o.append(f'<text x="{f(cx)}" y="{y + 46}" font-size="5.5" font-weight="700" fill="#8f969f" text-anchor="middle" font-family="Inter">{i}</text>')
+        if i < n - 1:
+            ax = cx + p / 2
+            o.append(f'<path d="M{f(ax - 1.6)},{y + 21} l3,3 l-3,3" fill="none" stroke="#c7ccd2" stroke-width="1"/>')
+    o.append(f'<text x="{x + w / 2}" y="{y + 8.5}" font-size="5" font-weight="700" fill="#8f969f" text-anchor="middle" font-family="Inter">WS2812B · {n}</text>')
+    ys = [y + 12 + 16 * i for i in range(3)]
+    hsvg, pins = _side_header(x, ys, ("DIN", "5V", "GND"), right=False)
+    osvg, opins = _side_header(x + w, ys, ("DOUT", "5V", "GND"))
+    pins["DOUT"] = opins["DOUT"]
+    o += [hsvg, osvg]
+    return "".join(o) + "</g>", pins
+
+
+def neopixel_ring(cx, cy, colours, hl: int = -1):
+    """A NeoPixel ring (WS2812B on a black ring) lying beside the breadboard: LED 0 at the top, the rest clockwise;
+    its four pads brought out on a header below it — DIN GND 5V DOUT, left to right, points to wire. Returns
+    (svg, {pin: (x, y)})."""
+    n = len(colours)
+    r = {8: 34, 12: 50, 16: 64, 24: 92}.get(n, n * 4.2)
+    ro, ri = r + 15, r - 15
+    hy = cy + ro - 4                       # the header tab, under the ring
+    xs = [cx - 24 + 16 * i for i in range(4)]
+    o = ['<g class="neopixel ring">',
+         f'<rect x="{f(xs[0] - 10)}" y="{f(hy)}" width="{f(xs[-1] - xs[0] + 20)}" height="22" rx="2" fill="#26282c" filter="url(#lift)"/>',
+         f'<path d="M{f(cx)},{f(cy - ro)} a{ro},{ro} 0 1 0 .01,0z M{f(cx)},{f(cy - ri)} a{ri},{ri} 0 1 1 -.01,0z" fill="#1d1e21" stroke="#0f1012" fill-rule="evenodd" filter="url(#lift)"/>']
+    pins = {}
+    for px, lab in zip(xs, ("DIN", "GND", "5V", "DOUT")):
+        o.append(f'<line x1="{f(px)}" y1="{f(hy + 22)}" x2="{f(px)}" y2="{f(hy + 31)}" stroke="#c7ccd2" stroke-width="2"/>' + pad(px, hy + 31)
+                 + f'<text x="{f(px)}" y="{f(hy + 16)}" font-size="5.5" font-weight="700" fill="#e9edf2" text-anchor="middle" font-family="Inter">{lab}</text>')
+        pins[lab] = (px, hy + 31)
+    for i, rgb in enumerate(colours):
+        a = math.radians(-90 + 360 * i / n)
+        px, py = cx + r * math.cos(a), cy + r * math.sin(a)
+        o.append(_np_pixel(px, py, rgb, s=16, hl=i == hl))
+        if n <= 16:
+            tx, ty = cx + (ri - 7) * math.cos(a), cy + (ri - 7) * math.sin(a)
+            o.append(f'<text x="{f(tx)}" y="{f(ty + 2)}" font-size="5.5" font-weight="700" fill="#8f969f" text-anchor="middle" font-family="Inter">{i}</text>')
+    o.append(f'<text x="{f(cx)}" y="{f(cy + 2)}" font-size="5.5" font-weight="700" fill="#8f969f" text-anchor="middle" font-family="Inter">WS2812B · {n}</text>')
+    return "".join(o) + "</g>", pins
+
+
 # ------------------------------------------------------------------ part icons (parts panel, examples)
 def icon_svg(kind: str, cls: str = "") -> str:
     body = ICON_PARTS[kind]
