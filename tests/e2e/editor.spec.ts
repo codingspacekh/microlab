@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
@@ -84,4 +84,22 @@ test('M5.5 typing on the Pico W: machine. offers Pin with its arguments, Enter t
   await win.keyboard.press('End');
   await expect(editor).toContainText('button = machine.Pin(14, machine.Pin.IN, machine.Pin.PULL_UP)');
   await expect(win.locator('.ml-signature')).toHaveCount(0);
+});
+
+test('M7 (the teacher\'s report): a saved text size — the line numbers stand beside their lines as the project opens, unfocused', async () => {
+  await app.close();
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ editor: { size: 20, theme: 'light' } }));
+  app = await electron.launch({ args: ['out/main/index.js'], env: { ...process.env, MICROLAB_USER_DATA: home } });
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await expect(win.locator('.cm-line').first()).toBeVisible();
+  await win.waitForTimeout(300);
+  const tops = await win.evaluate(() => {
+    const lines = [...document.querySelectorAll('.cm-content .cm-line')].map((l) => l.getBoundingClientRect().top);
+    // each number by its text; the gutter's hidden spacer (its widest number) left out
+    const shown = [...document.querySelectorAll<HTMLElement>('.cm-lineNumbers .cm-gutterElement')].filter((g) => g.style.visibility !== 'hidden');
+    const numbers = lines.slice(0, 9).map((_, i) => shown.find((g) => g.textContent === String(i + 1))!.getBoundingClientRect().top);
+    return { lines: lines.slice(0, 9), numbers };
+  });
+  for (let i = 0; i < tops.lines.length; i++) expect(Math.abs(tops.numbers[i]! - tops.lines[i]!), `line ${i + 1}`).toBeLessThan(2);
 });

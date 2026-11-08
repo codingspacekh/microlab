@@ -3,7 +3,7 @@ import { echoUs, ldrOhms, SENSOR_START } from '@lib/circuit';
 import type { Point } from '@lib/editor';
 import type { PartView } from '../../sim/circuit';
 import { noteName } from '../audio';
-import { Icon, Segmented, Slider, Switch } from '../ui';
+import { Icon, Segmented, Select, Slider, Switch } from '../ui';
 import { TextField } from '../ui/TextField';
 import { UsbPlug } from './drawings';
 
@@ -314,7 +314,28 @@ export function radioText(hex: string): string {
 
 export function MicrobitCard({ live, onClose, style, radio = [] }: { live: Live; onClose: () => void; style: CSSProperties; radio?: string[] }) {
   const [message, setMessage] = useState('');
-  const moment = useRef<number[] | null>(null);   // the vector before a held moment (freefall, 3g …), back on release
+  // the accelerometer's gesture from the dropdown (the teacher's request): a posture stays; a moment (freefall, 3g …)
+  // lasts a second, then it is back as it was
+  const [gesture, setGesture] = useState('Face up');
+  const moment = useRef<{ before: number[]; posture: string; timer: ReturnType<typeof setTimeout> } | null>(null);
+  useEffect(() => () => { if (moment.current) clearTimeout(moment.current.timer); }, []);
+  const setVector = (v: readonly number[]) => { live.set('board:accelx', v[0]!); live.set('board:accely', v[1]!); live.set('board:accelz', v[2]!); };
+  const pick = (name: string) => {
+    const pose = POSES.find(([n]) => n === name);
+    if (pose) {
+      if (moment.current) { clearTimeout(moment.current.timer); moment.current = null; }
+      setVector([pose[1][0], pose[1][1], name === 'Face up' ? NaN : pose[1][2]]);
+      setGesture(name);
+      return;
+    }
+    const m = MOMENTS.find(([n]) => n === name)!;
+    const before = moment.current?.before ?? [x, y, live.value('board:accelz')];
+    const posture = moment.current?.posture ?? gesture;
+    if (moment.current) clearTimeout(moment.current.timer);
+    setVector(m[1]);
+    setGesture(name);
+    moment.current = { before, posture, timer: setTimeout(() => { setVector(before); setGesture(posture); moment.current = null; }, 1000) };
+  };
   const [held, setHeld] = useState<string[]>([]);
   const pad = useRef<{ left: number; top: number } | null>(null);
   const heldRef = useRef(held);
@@ -328,6 +349,7 @@ export function MicrobitCard({ live, onClose, style, radio = [] }: { live: Live;
     if (!p) return;
     const half = PAD / 2;
     liveRef.current.set('board:accelz', NaN);   // tilted from face up again
+    setGesture('Face up');
     liveRef.current.set('board:accelx', clampMg(((clientX - p.left - half) / half) * G_MG));
     liveRef.current.set('board:accely', clampMg(((clientY - p.top - half) / half) * G_MG));
   };
@@ -405,20 +427,9 @@ export function MicrobitCard({ live, onClose, style, radio = [] }: { live: Live;
           <button type="button" className="btn sm" onClick={() => live.set('board:shake', live.value('board:shake') + 1)}><Icon name="shake" size={12} /> Shake</button>
         </span>
       </div>
-      <div className="mb-gestures" role="group" aria-label="Gestures">
-        {POSES.map(([name, v]) => (
-          <button key={name} type="button" className="btn sm" title={`Hold it ${name.toLowerCase()}`}
-            onClick={() => { live.set('board:accelx', v[0]); live.set('board:accely', v[1]); live.set('board:accelz', name === 'Face up' ? NaN : v[2]); }}>{name}</button>
-        ))}
-        {MOMENTS.map(([name, v]) => {
-          const down = () => { moment.current = [x, y, live.value('board:accelz')]; live.set('board:accelx', v[0]); live.set('board:accely', v[1]); live.set('board:accelz', v[2]); };
-          const up = () => { const w = moment.current; if (!w) return; moment.current = null; live.set('board:accelx', w[0]!); live.set('board:accely', w[1]!); live.set('board:accelz', w[2]!); };
-          return (
-            <button key={name} type="button" className="btn sm" title={name === 'Freefall' ? 'Hold to drop it' : `Hold for a ${name} jolt`}
-              onMouseDown={(e) => { if (e.button === 0) { e.preventDefault(); down(); } }} onMouseUp={up} onMouseLeave={up}
-              onKeyDown={(e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); down(); } }} onKeyUp={up}>{name}</button>
-          );
-        })}
+      <div className="mb-gestures">
+        <Select<string> label="Gesture" value={gesture} onChange={pick}
+          options={[...POSES.map(([name]) => ({ value: name, label: name, hint: 'stays' })), ...MOMENTS.map(([name]) => ({ value: name, label: name, hint: '1 s' }))]} />
       </div>
       <div className="mb-radio" role="group" aria-label="Radio">
         <div className="small"><Icon name="wire" size={12} /> <b>Radio</b> <span className="tiny muted">· sent by this micro:bit</span></div>

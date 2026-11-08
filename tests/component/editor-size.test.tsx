@@ -1,17 +1,19 @@
 import { render } from '@testing-library/react';
-import { EditorView } from '@codemirror/view';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { CodeEditor } from '../../src/renderer/editor/CodeEditor';
 
-/** M7 (the teacher's report): a new text size is measured at once — the line numbers kept the old height until the
- *  editor was next focused. */
+/** M7 (the teacher's report): a new text size is CodeMirror's own theme, so it measures its lines for it — set in
+ *  CSS alone, the line numbers kept the old height until the editor was focused (a saved size, read as a project
+ *  opens). tests/e2e/editor.spec.ts checks the numbers against the lines in the real window. */
 describe('M7 the code editor and its text size', () => {
-  it('measures its lines again when the size changes, not only when it is focused', () => {
-    const measure = vi.spyOn(EditorView.prototype, 'requestMeasure');
-    const { rerender } = render(<CodeEditor label="main.py" value={'print(1)\nprint(2)\n'} onChange={() => {}} size={13} />);
-    const before = measure.mock.calls.length;
-    rerender(<CodeEditor label="main.py" value={'print(1)\nprint(2)\n'} onChange={() => {}} size={18} />);
-    expect(measure.mock.calls.length).toBeGreaterThan(before);
-    measure.mockRestore();
+  it('a new size changes the editor\'s own theme (its style class), not only the page\'s CSS', () => {
+    const code = 'print(1)\nprint(2)\n';
+    const { container, rerender } = render(<CodeEditor label="main.py" value={code} onChange={() => {}} size={13} />);
+    const before = container.querySelector('.cm-editor')!.className;
+    rerender(<CodeEditor label="main.py" value={code} onChange={() => {}} size={20} />);
+    const after = container.querySelector('.cm-editor')!.className;
+    expect(after).not.toBe(before);
+    rerender(<CodeEditor label="main.py" value={code} onChange={() => {}} size={13} />);
+    expect(container.querySelector('.cm-editor')!.className).toBe(before);
   });
 });

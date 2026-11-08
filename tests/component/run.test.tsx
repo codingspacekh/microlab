@@ -7,7 +7,7 @@ import type { MicrolabApi } from '../../src/renderer/app/api';
 import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
-import { startBuilding } from './start-building';
+import { partsPanel, startBuilding } from './start-building';
 
 /** M4.5 F-22, F-23 (screen 03): Run, Stop, Restart, the console, LEDs glowing and buttons pressed while running.
  *  The simulation is a fake here (the real worker runs in the e2e tests): the test says what the worker says. */
@@ -39,7 +39,7 @@ function setup(board = 'New Pico W project') {
     const c = svg.querySelector(`[data-point="${hole}"]`)!;
     const [cx, cy] = legsCentre(type);
     const at = client(Number(c.getAttribute('cx')) + cx, Number(c.getAttribute('cy')) + cy);
-    fireEvent.mouseDown(within(screen.getByRole('region', { name: 'Parts' })).getByRole('button', { name }), { clientX: 5, clientY: 5, button: 0 });
+    fireEvent.mouseDown(within(partsPanel()).getByRole('button', { name }), { clientX: 5, clientY: 5, button: 0 });
     fireEvent.mouseMove(svg, at);
     fireEvent.mouseUp(svg, at);
   };

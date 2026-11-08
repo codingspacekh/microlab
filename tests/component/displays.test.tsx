@@ -118,6 +118,24 @@ describe('M7 the parts panel\'s search (the teacher\'s request)', () => {
   });
 });
 
+describe('M7 the parts panel folds away by itself (the teacher\'s request)', () => {
+  it('a press on the canvas folds it; placing a part from it doesn\'t (that press puts the part down); its search keeps it', () => {
+    const s = setup();
+    const open = () => screen.queryByRole('region', { name: 'Parts' });
+    expect(open()).not.toBeNull();
+    fireEvent.mouseDown(within(open()!).getByRole('textbox', { name: 'Search the parts' }));
+    expect(open()).not.toBeNull();
+    s.place(/^Resistor/, 'resistor', 'bb1.a3');   // from the panel onto the breadboard: it stays open meanwhile
+    expect(s.part('r1')).toBeInTheDocument();
+    fireEvent.mouseDown(s.svg, { clientX: 0, clientY: 0, button: 0 });
+    expect(open()).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Parts' }));
+    expect(open()).not.toBeNull();
+    fireEvent.mouseDown(screen.getByRole('textbox', { name: 'main.py' }));
+    expect(open()).toBeNull();
+  });
+});
+
 describe('M7 a display beside the breadboard turned (the teacher\'s request)', () => {
   it('Rotate in its inspector turns the LCD a quarter about its middle: its drawing, its pins, the wire on its pin', () => {
     const s = setup();

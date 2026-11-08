@@ -34,7 +34,11 @@ test.afterEach(async () => {
 });
 
 const centre = async (win: Page, selector: string) => {
-  if (selector.includes('.pitem')) await win.locator(selector).first().scrollIntoViewIfNeeded();   // the panel scrolls
+  if (selector.includes('.pitem')) {
+    // M7: the panel folds away once the canvas is used — open it again, as a student would
+    if (!(await win.locator('section.parts').isVisible())) await win.getByRole('button', { name: 'Parts', exact: true }).click();
+    await win.locator(selector).first().scrollIntoViewIfNeeded();   // the panel scrolls
+  }
   const b = (await win.locator(selector).first().boundingBox())!;
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 };
@@ -295,12 +299,10 @@ test('M6.5a (screen 20): a joystick dragged and an IR obstacle sensor clicked, r
   await startBuilding(win);
   // joystick in f2–f6: GND, VCC 3V3, VRx GP26; IR obstacle in f10–f12: OUT GP14, GND, VCC 3V3 (the Modules group is
   // far down the parts panel: each item is scrolled into view first)
-  await win.locator('.parts .pitem:has-text("Joystick")').scrollIntoViewIfNeeded();
   await drag(win, await centre(win, '.parts .pitem:has-text("Joystick")'), await centre(win, '[data-point="bb1.f4"]'));
   await drag(win, await centre(win, '[data-point="board.GND@38"]'), await centre(win, '[data-point="bb1.j2"]'));
   await drag(win, await centre(win, '[data-point="board.3V3"]'), await centre(win, '[data-point="bb1.j3"]'));
   await drag(win, await centre(win, '[data-point="board.GP26"]'), await centre(win, '[data-point="bb1.j4"]'));
-  await win.locator('.parts .pitem:has-text("IR obstacle")').scrollIntoViewIfNeeded();
   await drag(win, await centre(win, '.parts .pitem:has-text("IR obstacle")'), await centre(win, '[data-point="bb1.f11"]'));
   await drag(win, await centre(win, '[data-point="board.GP14"]'), await centre(win, '[data-point="bb1.j10"]'));
   await drag(win, await centre(win, '[data-point="board.GND@18"]'), await centre(win, '[data-point="bb1.j11"]'));

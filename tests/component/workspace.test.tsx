@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { legsCentre, partKind } from '@lib/editor';
 import { App } from '../../src/renderer/app/App';
 import { fakeApi } from './fake-api';
-import { startBuilding } from './start-building';
+import { partsPanel, startBuilding } from './start-building';
 
 /** M4.3 the workspace (screens 02, 03): the board and breadboard drawn, parts dragged in (F-10), moved (F-11),
  *  wires from pin to pin (F-13, basic). In jsdom the canvas has no screen matrix: client = world − viewBox corner. */
@@ -23,8 +23,7 @@ function setup(board = 'New Pico W project') {
   };
   const parts = () => [...svg.querySelectorAll('[data-part]')].map((g) => `${g.getAttribute('data-part')} ${g.getAttribute('data-legs')}`);
   const wires = () => [...svg.querySelectorAll('[data-wire]')].map((g) => `${g.getAttribute('data-wire')} ${g.getAttribute('data-ends')}`);
-  const panel = screen.getByRole('region', { name: 'Parts' });
-  const item = (name: RegExp) => within(panel).getByRole('button', { name });
+  const item = (name: RegExp) => within(partsPanel()).getByRole('button', { name });   // M7: it folds once the canvas is used
   return { svg, client, point, parts, wires, item };
 }
 

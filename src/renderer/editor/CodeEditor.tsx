@@ -1,7 +1,7 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { python } from '@codemirror/lang-python';
 import { bracketMatching, HighlightStyle, indentOnInput, indentUnit, syntaxHighlighting } from '@codemirror/language';
-import { Annotation, EditorState } from '@codemirror/state';
+import { Annotation, Compartment, EditorState } from '@codemirror/state';
 import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
 import { useEffect, useRef } from 'react';
@@ -26,6 +26,16 @@ export interface CodeEditorProps {
   size?: number;
 }
 
+/** The text size as CodeMirror's own theme (M7, the teacher's report): set in CSS alone, a size that came after the
+ *  editor first measured its lines (a saved setting, read as a project opens) left the line numbers at the old
+ *  height until it was focused. A theme it is given is a change it measures for. */
+const SIZE_THEMES = new Map<number, ReturnType<typeof EditorView.theme>>();
+function sizeTheme(px: number) {
+  let t = SIZE_THEMES.get(px);
+  if (!t) SIZE_THEMES.set(px, (t = EditorView.theme({ '&': { fontSize: `${px}px` }, '.cm-scroller': { lineHeight: `${px * 1.55}px` } })));
+  return t;
+}
+
 /** A change put in from outside, not typed: onChange is not told. */
 const fromOutside = Annotation.define<boolean>();
 
@@ -42,6 +52,9 @@ export function CodeEditor({ label, value, onChange, board, size }: CodeEditorPr
   const view = useRef<EditorView | null>(null);
   const changed = useRef(onChange);
   changed.current = onChange;
+  const sizing = useRef(new Compartment());
+  const sizeNow = useRef(size);
+  sizeNow.current = size;
 
   useEffect(() => {
     const v = new EditorView({
@@ -49,6 +62,7 @@ export function CodeEditor({ label, value, onChange, board, size }: CodeEditorPr
       state: EditorState.create({
         doc: value,
         extensions: [
+          sizing.current.of(sizeTheme(sizeNow.current ?? 13)),
           lineNumbers(),
           highlightActiveLineGutter(),
           highlightActiveLine(),
@@ -70,7 +84,15 @@ export function CodeEditor({ label, value, onChange, board, size }: CodeEditorPr
       }),
     });
     view.current = v;
-    return () => { v.destroy(); view.current = null; };
+    // its font (JetBrains Mono) may load after the first measure — and a project opens before it has: measure again
+    // when the fonts are in, and once the panel is laid out (the teacher, M7: the line numbers kept the fallback's
+    // height until the editor was focused)
+    const again = () => { if (view.current === v) v.requestMeasure(); };
+    const fonts = typeof document !== 'undefined' ? document.fonts : undefined;
+    void fonts?.ready.then(again);
+    fonts?.addEventListener?.('loadingdone', again);
+    const frame = requestAnimationFrame(again);
+    return () => { cancelAnimationFrame(frame); fonts?.removeEventListener?.('loadingdone', again); v.destroy(); view.current = null; };
     // made once per file (and board): a new value is put in by the effect below
   }, [label, board]);
 
@@ -81,8 +103,10 @@ export function CodeEditor({ label, value, onChange, board, size }: CodeEditorPr
     v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: value }, annotations: fromOutside.of(true) });
   }, [value]);
 
-  // the size is a CSS variable on the code panel: once it is in the page, the lines and their numbers are measured again
-  useEffect(() => { view.current?.requestMeasure(); }, [size]);
+  // a new size: CodeMirror's theme changed, so it measures its lines and their numbers again
+  useEffect(() => {
+    view.current?.dispatch({ effects: sizing.current.reconfigure(sizeTheme(size ?? 13)) });
+  }, [size]);
 
   return <div className="code-editor" ref={host} />;
 }

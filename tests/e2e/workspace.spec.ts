@@ -36,6 +36,8 @@ async function resize(win: Page, width: number, height: number) {
 }
 
 const centre = async (win: Page, selector: string) => {
+  // M7: the parts panel folds away once the canvas is used — open it again to take a part, as a student would
+  if (selector.includes('.pitem') && !(await win.locator('section.parts').isVisible())) await win.getByRole('button', { name: 'Parts', exact: true }).click();
   const b = (await win.locator(selector).boundingBox())!;
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 };
@@ -110,6 +112,8 @@ test('M6.9 (screens 24, 24b) with the real mouse: a wire on ring 0, the GPIO boa
   await win.mouse.up();
   await expect(win.locator('[data-wire="w1"]')).toHaveAttribute('data-ends', 'board.P0 bb1.e5');
 
+  // the wire's press folded the parts panel (M7): open it again for the GPIO board
+  if (!(await win.locator('section.parts').isVisible())) await win.getByRole('button', { name: 'Parts', exact: true }).click();
   await win.getByRole('group', { name: 'micro:bit' }).getByRole('button', { name: /^GPIO board/ }).click();
   await expect(win.getByRole('img', { name: 'BBC micro:bit V2 on its GPIO board' })).toBeVisible();
   await expect(win.locator('[data-point^="board."]')).toHaveCount(29);   // 30 pins, P0 wired
@@ -228,6 +232,10 @@ test('M5.2 with the real mouse: hover lights a strip, the wheel zooms at the poi
   await startBuilding(win);
   const zoom = win.getByRole('button', { name: 'Zoom to 100 %' });
   const pct = async () => Number((await zoom.textContent())!.replace('%', ''));
+  // the parts panel folded (a press on the canvas folds it, M7) and the drawing fitted to the whole canvas
+  await win.getByRole('button', { name: 'Fold the parts away' }).click();
+  await win.getByRole('button', { name: 'Fit' }).click();
+  await expect.poll(pct).toBeGreaterThan(50);
   const fitted = await pct();
   expect(fitted).toBeGreaterThan(50);
   expect(fitted).toBeLessThan(200);

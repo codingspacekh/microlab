@@ -81,18 +81,29 @@ describe('M6.6 the micro:bit inputs card (screen 06)', () => {
 });
 
 describe('M7 the micro:bit card\'s gestures and radio (the teacher\'s requests)', () => {
-  it('a posture stays (Face down: z +1024); a moment lasts while held (Freefall, then back)', () => {
-    const s = setup();
-    const g = within(screen.getByRole('group', { name: 'Gestures' }));
-    fireEvent.click(g.getByRole('button', { name: 'Face down' }));
-    expect(s.input()).toHaveBeenLastCalledWith('board:accelz', 1024);
-    fireEvent.mouseDown(g.getByRole('button', { name: 'Freefall' }), { button: 0 });
-    expect(s.input()).toHaveBeenLastCalledWith('board:accelz', 0);
-    fireEvent.mouseUp(g.getByRole('button', { name: 'Freefall' }));
-    expect(s.input()).toHaveBeenLastCalledWith('board:accelz', 1024);
-    fireEvent.click(g.getByRole('button', { name: 'Face up' }));
-    expect(s.input()).toHaveBeenLastCalledWith('board:accelz', NaN);
-    expect(g.getAllByRole('button').map((b) => b.textContent)).toEqual(['Face up', 'Face down', 'Up', 'Down', 'Left', 'Right', 'Freefall', '3g', '6g', '8g']);
+  it('the gestures in a dropdown: a posture stays (Face down: z +1024); a moment lasts a second (Freefall, then back)', () => {
+    vi.useFakeTimers();
+    try {
+      const s = setup();
+      const card = within(screen.getByRole('group', { name: 'micro:bit inputs' }));
+      const choose = (name: string) => {
+        fireEvent.click(card.getByRole('combobox', { name: 'Gesture' }));
+        fireEvent.click(screen.getByRole('option', { name: new RegExp(`^${name}`) }));
+      };
+      expect(screen.getByRole('combobox', { name: 'Gesture' })).toHaveTextContent('Face up');
+      choose('Face down');
+      expect(s.input()).toHaveBeenLastCalledWith('board:accelz', 1024);
+      choose('Freefall');
+      expect(s.input()).toHaveBeenLastCalledWith('board:accelz', 0);
+      act(() => { vi.advanceTimersByTime(1000); });
+      expect(s.input()).toHaveBeenLastCalledWith('board:accelz', 1024);
+      expect(screen.getByRole('combobox', { name: 'Gesture' })).toHaveTextContent('Face down');
+      fireEvent.click(card.getByRole('combobox', { name: 'Gesture' }));
+      expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(
+        ['Face upstays', 'Face downstays', 'Upstays', 'Downstays', 'Leftstays', 'Rightstays', 'Freefall1 s', '3g1 s', '6g1 s', '8g1 s']);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('the radio: what the program sent, a string in quotes, bytes as bytes; a message sent in as another micro:bit', () => {

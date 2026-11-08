@@ -217,8 +217,7 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .parts .no-match { padding: 8px 12px; }
 
 /* the micro:bit card's gestures and radio (M7, the teacher's request) */
-.mb-gestures { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 6px; }
-.mb-gestures .btn { padding: 0 7px; }
+.mb-gestures { margin: 2px 0 6px; }
 .mb-radio { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 6px; }
 .mb-radio .sent { list-style: none; margin: 4px 0 6px; padding: 0; max-height: 64px; overflow: auto; }
 .mb-radio .sent li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

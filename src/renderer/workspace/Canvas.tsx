@@ -181,12 +181,13 @@ export function Canvas({
     sized.current = sizes;
     setViewBox(fitted(project));
   }, [sizes, project]);
-  // the parts panel opened or folded: fit again beside it
+  // the parts panel opened: fit again beside it. Folded, the drawing stays where it is (M7: it folds by itself as a
+  // press on the canvas starts — the view mustn't move under the mouse)
   const insetBefore = useRef(inset);
   useEffect(() => {
-    if (insetBefore.current === inset) return;
+    const opened = inset > insetBefore.current;
     insetBefore.current = inset;
-    setViewBox(fitted(latest.current.project));
+    if (opened) setViewBox(fitted(latest.current.project));
   }, [inset]);
   // screen pixels per drawing unit (1 = 100 %), measured after each change and when the panel is resized
   const [scale, setScale] = useState(1);

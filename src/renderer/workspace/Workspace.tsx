@@ -125,6 +125,23 @@ export function Workspace({
     setPartsOpen(false);   // it folds away while a program runs (screen 23b)
   }, [running]);
 
+  // the parts panel folds away by itself once the student works elsewhere (the teacher's request, M7): a press outside
+  // it and its rail button — not while a part is being placed from it (that press puts it down), nor in a menu or a
+  // dropdown it opened (drawn over everything)
+  const placingRef = useRef(placing);
+  placingRef.current = placing;
+  useEffect(() => {
+    if (!partsOpen) return;
+    const down = (e: MouseEvent) => {
+      const t = e.target as Element | null;
+      if (placingRef.current || !t?.closest) return;
+      if (t.closest('.drawer-wrap, .rail, [role="listbox"], [role="menu"], [role="dialog"]')) return;
+      setPartsOpen(false);
+    };
+    window.addEventListener('mousedown', down, true);
+    return () => window.removeEventListener('mousedown', down, true);
+  }, [partsOpen]);
+
   // P opens and folds the parts panel — not while typing (the editor, a field)
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
