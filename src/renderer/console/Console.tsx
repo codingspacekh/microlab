@@ -4,7 +4,9 @@ import type { ConsoleState } from '@lib/repl';
 import { Icon } from '../ui/Icon';
 import { TextField } from '../ui';
 import type { ConsoleChunk } from '../app/useRun';
+import type { Plot } from '@lib/plot';
 import { ProblemsList, type ProblemItem } from '../workspace/faults';
+import { Plotter, type PlotNames } from './Plotter';
 import './console.css';
 
 /**
@@ -30,7 +32,7 @@ export interface BoardConsoleView {
   onClear: () => void;
 }
 
-export type ConsoleTab = 'sim' | 'board' | 'problems';
+export type ConsoleTab = 'sim' | 'board' | 'plot' | 'problems';
 
 export interface ConsoleProps {
   chunks: ConsoleChunk[];
@@ -42,6 +44,8 @@ export interface ConsoleProps {
   tab?: ConsoleTab;
   onTab?: (tab: ConsoleTab) => void;
   /** Problems (M9 slice 2, F-24): the circuit's faults in the last run, each with Show; Clear empties them. */
+  /** The Plotter (M9 slice 5, F-26, screen 07): what the run printed as numbers. */
+  plot?: { data: Plot; names: PlotNames | null; startedAt?: number; onClear: () => void };
   problems?: { cards: ProblemItem[]; onShow: (item: ProblemItem) => void; onReplace?: (led: string) => void; onClear: () => void };
   /** The program has ended and its REPL waits (M9, F-23, screen 29c). */
   repl?: boolean;
@@ -55,9 +59,10 @@ export interface ConsoleProps {
   complete?: (line: string, pos: number) => { from: number; options: string[] } | null;
 }
 
-export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete, problems }: ConsoleProps) {
+export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete, problems, plot }: ConsoleProps) {
   const showBoard = !!board && tab === 'board';
   const showProblems = !!problems && tab === 'problems';
+  const showPlot = !!plot && tab === 'plot';
   const count = problems?.cards.length ?? 0;
   const damaged = !!problems?.cards.some((c) => c.severity === 'damage');
   // while the board takes typing (M9), what it printed last without a newline — >>>, input()'s prompt — is where to type
@@ -86,14 +91,19 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
   return (
     <div className="console" onKeyDown={onKeyDown}>
       <div className="chead">
-        {board || problems ? (
+        {board || problems || plot ? (
           <div role="tablist" aria-label="Consoles" className="ctabs">
-            <button type="button" role="tab" aria-selected={!showBoard && !showProblems} className={`ctab${showBoard || showProblems ? '' : ' on'}`} onClick={() => onTab?.('sim')}>
+            <button type="button" role="tab" aria-selected={!showBoard && !showProblems && !showPlot} className={`ctab${showBoard || showProblems || showPlot ? '' : ' on'}`} onClick={() => onTab?.('sim')}>
               <Icon name="term" size={14} /> {board ? 'Simulator' : 'Console'}
             </button>
             {board && (
               <button type="button" role="tab" aria-selected={showBoard} className={`ctab board${showBoard ? ' on' : ''}${board.state ? ' live' : ''}`} onClick={() => onTab?.('board')}>
                 <span className="dot" /> {board.label}
+              </button>
+            )}
+            {plot && (
+              <button type="button" role="tab" aria-selected={showPlot} className={`ctab${showPlot ? ' on' : ''}`} onClick={() => onTab?.('plot')}>
+                <Icon name="plot" size={14} /> Plotter
               </button>
             )}
             {problems && (
@@ -116,11 +126,17 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
             </button>
           </>
         )}
-        {showProblems
+        {showPlot
+          ? <button type="button" className="btn ghost sm" onClick={plot.onClear} disabled={plot.data.times.length === 0}>Clear</button>
+          : showProblems
           ? <button type="button" className="btn ghost sm" onClick={problems.onClear} disabled={count === 0}>Clear</button>
           : <button type="button" className="btn ghost sm" onClick={showBoard ? board.onClear : onClear} disabled={shown.length === 0}>Clear</button>}
       </div>
-      {showProblems ? (
+      {showPlot ? (
+        <div className="cbody plot-body" role="region" aria-label="Plotter">
+          <Plotter plot={plot.data} names={plot.names} running={running} startedAt={plot.startedAt} />
+        </div>
+      ) : showProblems ? (
         <div className="cbody problems-body" role="region" aria-label="Problems in the circuit">
           <ProblemsList cards={problems.cards} onShow={problems.onShow} onReplace={problems.onReplace} />
         </div>

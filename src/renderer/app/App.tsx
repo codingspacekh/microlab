@@ -358,7 +358,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
         runFile={running ? open.lastRun ?? target : target}
         run={sim.state} running={running} onInput={sim.setInput} onClearConsole={sim.clear}
         onType={sim.type} onSoftReset={() => sim.restart(() => latest.current!.doc)}
-        onReplace={sim.replace} onClearFaults={sim.clearFaults}
+        onReplace={sim.replace} onClearFaults={sim.clearFaults} onClearPlot={sim.clearPlot}
         check={{ items: checkItems, open: !!checking && !running, enabled: checkOn, onEnabled: turnCheck,
           onRunAnyway: () => runNow(checking ?? target), onCancel: () => setChecking(null) }}
         consoleTab={bc.tab} onConsoleTab={bc.setTab}

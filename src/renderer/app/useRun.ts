@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Fault, SimState } from '@lib/circuit';
+import { addOutput, emptyPlot, type Plot } from '@lib/plot';
 import type { ProjectDoc } from '@lib/project';
 import { explain, type Explanation } from '@lib/errors';
 import type { PartView } from '../../sim/circuit';
@@ -39,11 +40,13 @@ export interface RunState {
   faults: Fault[];
   /** LEDs burnt out in a run: dead in the next ones until replaced (screen 04: "Replace the LED"). */
   burnt: string[];
+  /** The numbers the run printed, as lines (M9 slice 5, F-26, screen 07): the Plotter. */
+  plot: Plot;
 }
 
 /** The console keeps about this much text: a program printing in a loop can't fill the memory. */
 export const CONSOLE_LIMIT = 200_000;
-const IDLE: RunState = { status: 'idle', console: [], parts: {}, board: { pins: {} }, faults: [], burnt: [] };
+const IDLE: RunState = { status: 'idle', console: [], parts: {}, board: { pins: {} }, faults: [], burnt: [], plot: emptyPlot() };
 const keyOf = (f: Fault) => `${f.kind}:${f.on}`;
 
 export function useRun(start: StartRun = realStart) {
@@ -70,10 +73,15 @@ export function useRun(start: StartRun = realStart) {
     const greeting = `${firmwareOf(doc.project.board)} on ${boardName} (simulated) — running ${entry}\n`;
     // a burnt LED whose part is gone — deleted, or another project's — is forgotten
     const dead = burnt.current.filter((id) => doc.project.parts.some((p) => p.id === id.split(':')[0]));
-    setState({ ...IDLE, status: 'running', startedAt: Date.now(), console: [{ kind: 'sys', text: greeting }], burnt: dead });
+    const t0 = Date.now();
+    setState({ ...IDLE, status: 'running', startedAt: t0, console: [{ kind: 'sys', text: greeting }], burnt: dead, plot: emptyPlot() });
     const context = { files: doc.files, board: doc.project.board, libraries: LIBRARIES };
     const session: RunHandle = start({ doc, entry, ...(dead.length ? { burnt: dead } : {}) }, {
-      onOutput: (text, echo) => add({ kind: echo ? 'me' : 'out', text }),
+      onOutput: (text, echo) => {
+        if (echo) { add({ kind: 'me', text }); return; }
+        // the board's own output: the console's, and its numbers the plotter's (at their time in the run)
+        setState((s) => ({ ...s, console: append(s.console, { kind: 'out', text }), plot: addOutput(s.plot, text, (Date.now() - t0) / 1000) }));
+      },
       onParts: (states) => setState((s) => ({ ...s, parts: { ...s.parts, ...states } })),
       // the radio's messages sent (M7): the last six, as hex
       onBoard: (b) => setState((s) => ({ ...s, board: { pins: { ...s.board.pins, ...b.pins }, display: b.display ?? s.board.display, sound: b.sound ?? s.board.sound, tone: b.sound !== undefined ? b.tone : s.board.tone,
@@ -150,6 +158,8 @@ export function useRun(start: StartRun = realStart) {
     setState((s) => ({ ...s, repl: false, console: append(s.console, { kind: 'sys', text: `\n${why}\n` }) }));
   }, []);
   const clear = useCallback(() => setState((s) => ({ ...s, console: [] })), []);
+  /** The Plotter's Clear: what it drew goes; new numbers start again. */
+  const clearPlot = useCallback(() => setState((s) => ({ ...s, plot: emptyPlot() })), []);
   /** Problems' Clear: the faults go until the next run (burnt LEDs stay burnt). */
   const clearFaults = useCallback(() => setState((s) => ({ ...s, faults: [] })), []);
   /** "Replace the LED" (screen 04): a new one in its place — it lights again in the next run. */
@@ -167,12 +177,12 @@ export function useRun(start: StartRun = realStart) {
     if (atRepl.current) close();
     handle.current?.stop();
     handle.current = null;
-    setState(IDLE);
+    setState({ ...IDLE, plot: emptyPlot() });
   }, []);
 
   useEffect(() => () => { if (atRepl.current) close(); else handle.current?.stop(); }, []);
 
-  return { state, run, stop, restart, setInput, type, endRepl, clear, clearFaults, replace, reset };
+  return { state, run, stop, restart, setInput, type, endRepl, clear, clearFaults, clearPlot, replace, reset };
 }
 
 /** The run's faults in the order they were told, each with the end's numbers (its worst); any not told, after. */

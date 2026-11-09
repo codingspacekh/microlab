@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { BoardId } from '@lib/boards';
 import { faultCards, type FaultCard } from '@lib/circuit';
+import { printNames } from '@lib/plot';
 import type { CheckItem } from '@lib/project';
 import { boardData, completeAt, EMPTY_HISTORY, PART_KINDS, record, type History } from '@lib/editor';
 import { microbitAlone, onGpioBoard, spaceNote, type ProjectDoc } from '@lib/project';
@@ -59,6 +60,8 @@ export interface WorkspaceProps {
   onReplace?: (led: string) => void;
   /** Problems' Clear (M9). */
   onClearFaults?: () => void;
+  /** The Plotter's Clear (M9 slice 5). */
+  onClearPlot?: () => void;
   /** The check before running (M9 slice 3, screen 29b): what it found, live until fixed (in Problems); `open` while
    *  its card asks before a run. */
   check?: { items: CheckItem[]; open: boolean; enabled: boolean; onEnabled: (on: boolean) => void; onRunAnyway: () => void; onCancel: () => void };
@@ -86,7 +89,7 @@ const IDLE_RUN: Pick<RunState, 'parts' | 'board'> = { parts: {}, board: { pins: 
 
 export function Workspace({
   api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, onConsoleTab, banner, onType, onSoftReset,
-  onReplace, onClearFaults, check, history = EMPTY_HISTORY, onHistory, onUndo, onRedo, file = 'main.py', onFile, runFile = file,
+  onReplace, onClearFaults, onClearPlot, check, history = EMPTY_HISTORY, onHistory, onUndo, onRedo, file = 'main.py', onFile, runFile = file,
 }: WorkspaceProps) {
   const { ref, width } = useWidth(fixed);
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
@@ -196,10 +199,16 @@ export function Workspace({
     try { board = boardData(project.board as BoardId); } catch { board = undefined; }
     return faultCards(run.faults ?? [], run.burnt, { board, parts: project.parts });
   }, [run.faults, run.burnt, project.board, project.parts]);
-  const [problemsTab, setProblemsTab] = useState(false);
-  // a damage stopped the run: Problems says why (screen 04); a new run shows the console again
-  useEffect(() => { if (run.ended?.ended === 'fault') setProblemsTab(true); }, [run.ended]);
-  useEffect(() => { if (running) setProblemsTab(false); }, [running]);
+  /** Plotter or Problems open beside the console (M9), or neither. */
+  const [sideTab, setSideTab] = useState<'plot' | 'problems' | null>(null);
+  // a damage stopped the run: Problems says why (screen 04); a new run shows the console again — or the Plotter, if open
+  useEffect(() => { if (run.ended?.ended === 'fault') setSideTab('problems'); }, [run.ended]);
+  useEffect(() => { if (running) setSideTab((t) => (t === 'plot' ? t : null)); }, [running]);
+  // the Plotter's names: the one print in the file that runs with as many values as each sample has (screen 07)
+  const plotNames = useMemo(() => {
+    const code = doc.files[runFile];
+    return typeof code === 'string' && run.plot?.width ? printNames(code, run.plot.width) : null;
+  }, [doc.files, runFile, run.plot?.width]);
   /** Show (Problems): the canvas brings the part or pin into view and rings it; a part is selected. */
   const [focus, setFocus] = useState<{ part?: string; pin?: string; point?: string; n: number }>();
   /** Show: a part, a pin or a hole rung on the canvas; a pin the code uses — its line in the editor (screen 29b). */
@@ -397,7 +406,8 @@ export function Workspace({
         )}
         {libraries && <AddLibrary doc={doc} onDoc={onChange} onCopy={(t) => void api.app.copy(t)} onClose={() => setLibraries(false)} />}
         <Console chunks={run.console} running={running} entry={runFile} onClear={onClearConsole} board={realBoard}
-          tab={problemsTab ? 'problems' : consoleTab} onTab={(t: ConsoleTab) => { setProblemsTab(t === 'problems'); if (t !== 'problems') onConsoleTab?.(t); }}
+          tab={sideTab ?? consoleTab} onTab={(t: ConsoleTab) => { setSideTab(t === 'plot' || t === 'problems' ? t : null); if (t === 'sim' || t === 'board') onConsoleTab?.(t); }}
+          {...(run.plot ? { plot: { data: run.plot, names: plotNames, ...(run.startedAt ? { startedAt: run.startedAt } : {}), onClear: () => onClearPlot?.() } } : {})}
           problems={{ cards: problemItems, onShow: show, ...(onReplace ? { onReplace } : {}), onClear: () => onClearFaults?.() }}
           repl={run.repl} onType={onType} onSoftReset={onSoftReset} onGoTo={goToLine}
           complete={(line, pos) => {

@@ -685,3 +685,16 @@ test('M9 slice 4 (screen 29): the multimeter with the real mouse and worker — 
   await win.keyboard.press('Escape');
   await expect(card).toHaveCount(0);
 });
+
+test('M9 slice 5 (screen 07): the Plotter draws what the real worker prints — a sine as it comes, named by its print', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await setCode(win, ['import math, time', 'for i in range(60):', '    wave = math.sin(i / 4) * 10', '    print(wave)', '    time.sleep(0.05)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await win.getByRole('tab', { name: /Plotter/ }).click();
+  const plot = win.getByRole('region', { name: 'Plotter' });
+  await expect(plot).toContainText('wave— printed by line 4');
+  await expect.poll(async () => ((await plot.locator('polyline[data-series="0"]').getAttribute('points')) ?? '').split(' ').length, { timeout: 8000 })
+    .toBeGreaterThan(40);
+  await expect(plot.locator('.grid text', { hasText: '−10' })).toHaveCount(1);
+});
