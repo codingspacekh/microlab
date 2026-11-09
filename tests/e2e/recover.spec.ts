@@ -24,7 +24,7 @@ test.afterEach(async () => {
   await app?.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach((w) => w.destroy())).catch(() => {});
   await app?.close().catch(() => {});
   app = undefined;
-  rmSync(home, { recursive: true, force: true });
+  rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
 test('F-03: the app is killed while editing; on restart the project is offered back, its changes in it', async () => {

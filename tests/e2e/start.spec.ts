@@ -18,7 +18,7 @@ test.afterEach(async () => {
   // unsaved changes would make the window ask before it closes (M4.6): end it without asking
   await app?.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach((w) => w.destroy())).catch(() => {});
   await app?.close();
-  rmSync(home, { recursive: true, force: true });
+  rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
 async function resize(win: Page, width: number, height: number) {

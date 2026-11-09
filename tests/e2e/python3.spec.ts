@@ -21,7 +21,7 @@ test.beforeEach(async () => {
 test.afterEach(async () => {
   await app?.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach((w) => w.destroy())).catch(() => {});
   await app?.close();
-  rmSync(home, { recursive: true, force: true });
+  rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
@@ -156,7 +156,10 @@ test('M12 slice 5b (F-97, F-92): Jedi offers turtle\'s names as they are typed, 
   const list = win.locator('.cm-tooltip-autocomplete');
   await expect(list.getByRole('option', { name: /forward/ })).toBeVisible({ timeout: 10_000 });   // the helper's first start
   await expect(win.locator('.cm-completionInfo')).toContainText('Move the turtle forward');
+  // Enter once forward is the chosen one (on a slow computer the list may still be answering again)
+  await expect(list.getByRole('option', { name: /forward/, selected: true })).toBeVisible();
   await win.keyboard.press('Enter');
+  await expect(win.getByRole('textbox', { name: 'main.py' })).toContainText('turtle.forward(');
   await win.keyboard.type('10, ');
   await expect(win.getByRole('textbox', { name: 'main.py' })).toContainText('turtle.forward(10, )');
   await win.keyboard.press(`${MOD}+A`);

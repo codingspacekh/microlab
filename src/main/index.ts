@@ -53,6 +53,9 @@ const HIDDEN = process.env.MICROLAB_HIDDEN === '1';
 if (HIDDEN) {
   app.dock?.hide();
   app.commandLine.appendSwitch('mute-audio');
+  // Windows draws nothing for a window never shown, so the tests' mouse never arrives (found on the first Windows run):
+  // there it is shown without focus, off the screen and the taskbar — and not taken for one behind other windows
+  if (process.platform === 'win32') app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 }
 
 protocol.registerSchemesAsPrivileged([
@@ -83,6 +86,7 @@ function createWindow(): void {
     minWidth: 1280,
     minHeight: 720,
     show: false,
+    ...(HIDDEN && process.platform === 'win32' ? { x: -32000, y: -32000, skipTaskbar: true, focusable: false } : {}),
     // the app icon while developing (M11, F-107); the installed app has its own in its bundle
     ...(!app.isPackaged && process.platform !== 'darwin' ? { icon: DEV_ICON } : {}),
     backgroundColor: '#f4f6f8',
@@ -97,6 +101,7 @@ function createWindow(): void {
     },
   });
   if (!HIDDEN) win.once('ready-to-show', () => win.show());
+  else if (process.platform === 'win32') win.once('ready-to-show', () => win.showInactive());
   // unsaved changes: the window asks the student first (M4.6), then closes itself through app:close
   win.on('close', (e) => {
     if (!dirty.get(win.webContents.id) || closing.has(win.webContents.id)) return;

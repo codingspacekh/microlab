@@ -24,7 +24,7 @@ test.beforeEach(async () => {
 test.afterEach(async () => {
   await app?.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach((w) => w.destroy())).catch(() => {});
   await app?.close();
-  rmSync(home, { recursive: true, force: true });
+  rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
 test('plugged in: the chip names the board and its MicroPython within 2 s, with a short message; unplugged: "No board" again', async () => {
