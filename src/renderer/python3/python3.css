@@ -92,11 +92,11 @@
    editor, the shell — not only the code; the top bar and the status bar stay as they are */
 .pyscreen[data-theme="dark"] {
   --bg: #151922; --panel: #1b202a; --bg-2: #232a37; --bg-3: #2b3341; --line: #2b3241; --line-strong: #3a4354;
-  --tx-1: #e3e8f2; --tx-2: #aab4c6; --tx-3: #7c879b;
+  --tx-1: #e3e8f2; --tx-2: #aab4c6; --tx-3: #8993a5; --success: #3ccf7a;
   --accent: #82aaff; --accent-soft: rgba(130, 170, 255, .16); --accent-line: rgba(130, 170, 255, .4); --accent-ink: #a9c4ff;
   --danger: #ff6b6b; --danger-soft: rgba(255, 107, 107, .14); --danger-line: rgba(255, 107, 107, .4); --danger-ink: #ffb3b3;
   --warn: #f2b84b; --warn-soft: rgba(242, 184, 75, .14); --warn-ink: #f6cf85;
-  --code-bg: #1e2430; --code-kw: #c792ea; --code-fn: #82aaff; --code-str: #c3e88d; --code-num: #f78c6c; --code-com: #7d889c; --code-err: #4a2328;
+  --code-bg: #1e2430; --code-kw: #c792ea; --code-fn: #82aaff; --code-str: #c3e88d; --code-num: #f78c6c; --code-com: #838da0; --code-err: #4a2328;
   color: var(--tx-1); color-scheme: dark;
 }
 .pyscreen[data-theme="contrast"] {

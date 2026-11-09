@@ -108,9 +108,11 @@ describe('Stop and Ctrl+C', () => {
   it('Ctrl+C stops a busy loop within 0.5 s (N-03): a KeyboardInterrupt, as CPython prints it', async () => {
     const s = session();
     let err = '';
-    s.on((e) => { if ('err' in e) err += e.err; });
-    s.run({ code: 'i = 0\nwhile True:\n    i += 1\n', file: 'loop.py', cwd: tmpdir() });
-    await new Promise((r) => setTimeout(r, 200));
+    let out = '';
+    s.on((e) => { if ('err' in e) err += e.err; if ('out' in e) out += e.out; });
+    // in the loop before Ctrl+C: it says so (a fixed wait was too short for a busy CI runner's Python to start)
+    s.run({ code: 'i = 0\nprint("looping", flush=True)\nwhile True:\n    i += 1\n', file: 'loop.py', cwd: tmpdir() });
+    await expect.poll(() => out, { timeout: 10_000 }).toContain('looping');
     const t = Date.now();
     s.interrupt();
     expect(await s.ended()).toEqual({ ended: 'stopped' });

@@ -5,7 +5,7 @@
 .code-editor .cm-scroller { font-family: var(--mono); line-height: 20px; padding: 6px 0; }
 .code-editor .cm-content { padding: 0; caret-color: var(--accent); }
 .code-editor .cm-line { padding: 0 10px 0 0; }
-.code-editor .cm-gutters { background: var(--code-bg); border: 0; color: #b3bac4; }
+.code-editor .cm-gutters { background: var(--code-bg); border: 0; color: #657182; }   /* M11.6: 4.5 : 1 (was #b3bac4) */
 .code-editor .cm-lineNumbers .cm-gutterElement { min-width: 30px; padding: 0 14px 0 8px; text-align: right; }
 .code-editor .cm-activeLine { background: rgba(37, 99, 217, .045); }
 .code-editor .cm-activeLineGutter { background: transparent; color: var(--tx-2); }
@@ -34,10 +34,10 @@
 .code-editor .cm-editor { font-size: var(--code-size, 13px); }
 .code-editor .cm-scroller { line-height: calc(var(--code-size, 13px) * 1.55); }
 :is(.side, .pyscreen)[data-theme="dark"] .code-editor, :is(.side, .pyscreen)[data-theme="dark"] .ftab.on, :is(.side, .pyscreen)[data-theme="dark"] .not-text {
-  --code-bg: #1e2430; --code-kw: #c792ea; --code-fn: #82aaff; --code-str: #c3e88d; --code-num: #f78c6c; --code-com: #7d889c; --code-err: #4a2328; color: #d6deeb; }
+  --code-bg: #1e2430; --code-kw: #c792ea; --code-fn: #82aaff; --code-str: #c3e88d; --code-num: #f78c6c; --code-com: #838da0; --code-err: #4a2328; color: #d6deeb; }
 :is(.side, .pyscreen)[data-theme="contrast"] .code-editor, :is(.side, .pyscreen)[data-theme="contrast"] .ftab.on, :is(.side, .pyscreen)[data-theme="contrast"] .not-text {
   --code-bg: #000; --code-kw: #ffd700; --code-fn: #7fdbff; --code-str: #7cfc00; --code-num: #ffa64d; --code-com: #d0d0d0; --code-err: #5a0000; color: #fff; }
-:is(.side, .pyscreen)[data-theme="dark"] .code-editor .cm-gutters { color: #5d6884; }
+:is(.side, .pyscreen)[data-theme="dark"] .code-editor .cm-gutters { color: #828ca7; }
 :is(.side, .pyscreen)[data-theme="contrast"] .code-editor .cm-gutters { color: #d0d0d0; }
 :is(.side, .pyscreen)[data-theme="dark"] .code-editor .cm-activeLine { background: rgba(255, 255, 255, .045); }
 :is(.side, .pyscreen)[data-theme="contrast"] .code-editor .cm-activeLine { background: rgba(255, 255, 255, .1); }

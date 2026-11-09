@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { cls } from './field';
 import { Icon } from './Icon';
 
 /**
  * A menu button (the project menu, screen 02's ⌄ by the project's name). A click, Enter, Space or ArrowDown opens it
  * on the first item, ArrowUp on the last; arrows move (wrapping, past disabled items), Home / End; Enter, Space or a
- * click chooses; Esc closes and gives focus back to the button; Tab or a click elsewhere closes it.
+ * click chooses; Esc closes and gives focus back to the button; Tab or a click elsewhere closes it. It opens on the side
+ * where it fits in the window (M11.6, N-13): a right-aligned one near the left edge opens rightwards, and the other way.
  */
 export interface MenuItem {
   label: string;
@@ -28,7 +29,7 @@ export interface MenuButtonProps {
   icon?: string;
   items: MenuItem[];
   className?: string;
-  /** Opens under the button's right edge, leftwards (at the right of the top bar). */
+  /** Opens under the button's right edge, leftwards (at the right of the top bar) — if it fits there. */
   alignRight?: boolean;
   disabled?: boolean;
   /** Words on the button instead of an icon (M12 Rev 12: the app's size, "100 %"). */
@@ -43,6 +44,8 @@ export function MenuButton({ label, icon = 'chevd', items, className, alignRight
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const refs = useRef<(HTMLLIElement | null)[]>([]);
+  const list = useRef<HTMLUListElement>(null);
+  const [right, setRight] = useState(!!alignRight);
 
   const enabled = (i: number) => !items[i]?.disabled;
   const move = (from: number, dir: 1 | -1) => {
@@ -55,7 +58,7 @@ export function MenuButton({ label, icon = 'chevd', items, className, alignRight
   const first = () => move(items.length - 1, 1);
   const last = () => move(0, -1);
 
-  const show = (at: number) => { setHl(at); setOpen(true); };
+  const show = (at: number) => { setHl(at); setRight(!!alignRight); setOpen(true); };
   const close = (refocus: boolean) => {
     setOpen(false);
     if (refocus) button.current?.focus();
@@ -69,6 +72,14 @@ export function MenuButton({ label, icon = 'chevd', items, className, alignRight
   useEffect(() => {
     if (open) refs.current[hl]?.focus();
   }, [open, hl]);
+
+  // the side it fits on: before it is painted, so it never shows past the window's edge
+  useLayoutEffect(() => {
+    if (!open || !list.current) return;
+    const r = list.current.getBoundingClientRect();
+    if (right && r.left < 0) setRight(false);
+    else if (!right && r.right > window.innerWidth) setRight(true);
+  }, [open, right]);
 
   useEffect(() => {
     if (!open) return;
@@ -109,7 +120,7 @@ export function MenuButton({ label, icon = 'chevd', items, className, alignRight
         {text ?? <Icon name={icon} size={14} />}
       </button>
       {open && (
-        <ul className={cls('menu', alignRight && 'right', up && 'up', items.some((x) => x.description) && 'described')} role="menu" aria-label={label} onKeyDown={onMenuKey}>
+        <ul ref={list} className={cls('menu', right && 'right', up && 'up', items.some((x) => x.description) && 'described')} role="menu" aria-label={label} onKeyDown={onMenuKey}>
           {items.map((it, i) => (
             <li
               key={it.label}

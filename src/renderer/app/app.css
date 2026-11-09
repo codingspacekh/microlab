@@ -14,19 +14,19 @@
   /* text */
   --tx-1: #151a21;
   --tx-2: #4b5563;
-  --tx-3: #7c8594;
+  --tx-3: #646d7b;   /* M11.6: 4.5 : 1 on every surface (was #7c8594, 3.3–3.7) */
 
   /* accent + states */
   --accent: #2563d9;
   --accent-soft: #e8effc;
   --accent-line: #b9cdf4;
   --accent-ink: #1b4597;
-  --run: #1f9d55;
+  --run: #1a8548;   /* M11.6: white words on it, and its timer on white, at 4.5 : 1 (was #1f9d55, 3.5) */
   --run-ink: #ffffff;
   --success: #198754;
   --success-soft: #e6f4ec;
   --success-line: #b9dfc9;
-  --warn: #b7791f;
+  --warn: #98641a;   /* M11.6: 4.5 : 1 on white (was #b7791f, 3.6) */
   --warn-soft: #fdf3e1;
   --warn-line: #f1d9a8;
   --warn-ink: #7a520f;
@@ -55,7 +55,7 @@
   --code-fn: #1b6ac9;
   --code-str: #1a7f37;
   --code-num: #b2560b;
-  --code-com: #8a94a3;
+  --code-com: #667182;   /* M11.6: comments at 4.5 : 1 (was #8a94a3, 3.0) */
   --code-cur: #fff8db;
   --code-err: #fdeaea;
 

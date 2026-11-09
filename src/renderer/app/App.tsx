@@ -404,20 +404,25 @@ export function App({ api, width, startRun, audio }: AppProps) {
     return r ? { ...cur!, history: r.history, doc: { ...cur!.doc, project: r.project }, savedNote: undefined } : cur;
   });
 
-  // ⌘S / Ctrl+S save, ⇧ for Save as; ⌘O / Ctrl+O open
+  // ⌘S / Ctrl+S save, ⇧ for Save as; ⌘O / Ctrl+O open; F5 runs and Shift+F5 stops (M11.6), on a board and in Python 3
   const modeRef = useRef(mode);
   modeRef.current = mode;
   const keysRef = useRef<(e: KeyboardEvent) => void>(() => {});
   keysRef.current = (e: KeyboardEvent) => {
+    const f5 = e.key === 'F5' && !e.metaKey && !e.ctrlKey && !e.altKey;
     // Python 3 (M12): F5 runs the file shown, as in IDLE; ⌘S / ⌘O are for .py files there
     if (modeRef.current === 'python') {
-      if (e.key === 'F5' && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); runPy(); return; }
+      if (f5 && e.shiftKey) { e.preventDefault(); if (pyRun.state.status !== 'idle') pyRun.stop(); return; }
+      if (f5) { e.preventDefault(); runPy(); return; }
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === 's') { e.preventDefault(); void savePy(e.shiftKey); }
       else if (k === 'o') { e.preventDefault(); guardPy(() => void openAny()); }
       return;
     }
+    // a board's run (M11.6): F5 runs the file Run names (the check first, as the button does); Shift+F5 stops it
+    if (f5 && e.shiftKey) { e.preventDefault(); if (running) sim.stop(); return; }
+    if (f5) { e.preventDefault(); if (open && !running) runFile(target); return; }
     if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
     const k = e.key.toLowerCase();
     if (k === 's' && latest.current) { e.preventDefault(); void save(e.shiftKey); }
@@ -769,7 +774,7 @@ function RunBox({ run }: { run: RunControls }) {
     return (
       <div className="runbox">
         <span className={run.onRunMain ? 'runsplit' : 'runsplit single'}>
-          <button type="button" className="btn run" onClick={run.onRun} title={run.onRunMain ? `Run ${run.target} on the simulated board` : `Run ${run.target} with Python 3${run.keys ? ` (${run.keys})` : ''}`}>
+          <button type="button" className="btn run" onClick={run.onRun} aria-keyshortcuts="F5" title={`${run.onRunMain ? `Run ${run.target} on the simulated board` : `Run ${run.target} with Python 3`} (F5)`}>
             <Icon name="play" size={14} /> Run <span className="runfile">{run.target.split('/').pop()}</span>{run.keys && <span className="runkeys">{run.keys}</span>}
           </button>
           {run.onRunMain && (
@@ -780,14 +785,14 @@ function RunBox({ run }: { run: RunControls }) {
             ]} />
           )}
         </span>
-        <button type="button" className="btn icon" disabled title="Stop" aria-label="Stop"><Icon name="stop" size={14} /></button>
+        <button type="button" className="btn icon" disabled title="Stop (Shift+F5)" aria-label="Stop" aria-keyshortcuts="Shift+F5"><Icon name="stop" size={14} /></button>
       </div>
     );
   }
   return (
     <div className="runbox">
       <span className="timer" role="timer" aria-label="Running for"><span className="dot" />Running {clock(seconds)}</span>
-      <button type="button" className="btn stop" onClick={run.onStop} disabled={status === 'stopping'}><Icon name="stop" size={14} /> Stop</button>
+      <button type="button" className="btn stop" onClick={run.onStop} disabled={status === 'stopping'} title="Stop (Shift+F5)" aria-keyshortcuts="Shift+F5"><Icon name="stop" size={14} /> Stop</button>
       <button type="button" className="btn icon" onClick={run.onRestart} disabled={status === 'stopping'} title="Restart" aria-label="Restart"><Icon name="restart" /></button>
     </div>
   );

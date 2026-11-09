@@ -1,4 +1,4 @@
-# The check on GitHub (MILESTONES §4.3): `npm run check` and the e2e tests on macOS and Windows 11, for every push to
+# The check on GitHub (MILESTONES §4.3): `npm run check` and the e2e tests on macOS (Apple chip and Intel) and Windows, for every push to
 # main or dev and every pull request — the same gate as on the teacher's Mac, and the first run on Windows (N-06).
 # Releases are the Release workflow's (a version tag), not this one's.
 name: check
@@ -19,7 +19,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        # N-06: an Apple-chip Mac, an Intel Mac (its own installer, its own Python) and Windows
+        os: [macos-latest, macos-15-intel, windows-latest]
     runs-on: ${{ matrix.os }}
     env:
       MICROLAB_HIDDEN: '1'
