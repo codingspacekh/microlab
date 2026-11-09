@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>30e Learn — the Pico W as a part</title>
+{{include:head}}
+</head>
+<body>
+<!--@NAV_PICO: on-->
+<!--@TOP_RIGHT: <button class="btn">{{i:chevl:s14}} Back to my project</button>-->
+<p class="frame-label"><b>30e · Learn: a board page — the Pico W as a part</b> (M8 design, Rev 9, F-41; replaces screen 10) — the board as a component, no code: what is on it, named for 10–13; what its pins are (power, ground, the ones it controls); where its power comes from and what it can give; its limits, each said in words — the same limits the simulator's faults use (12 mA a pin, 3.3 V on a pin). The workspace's pin cards already say what each pin does</p>
+<div class="frame">
+  {{include:topbar-learn}}
+  <div class="learn">
+    {{include:learn-nav2}}
+    <main class="lmain">
+      <div class="lcol" style="flex:1.3 1 0;min-width:500px">
+        <div class="card lhero" style="padding:16px 20px">
+          <div class="col" style="gap:6px;min-width:0">
+            <span class="tag">Board</span>
+            <h1>Raspberry Pi Pico W</h1>
+            <p class="lede">A small computer on one board — the <b>microcontroller</b>. It runs one program, and its pins switch things on and off and read what's joined to them. The W means it has Wi-Fi.</p>
+          </div>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">1</span>What's on it</h2>
+          <div class="play">{{fig:picoparts}}</div>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">2</span>Its pins</h2>
+          <div class="pinkinds">
+            <span><i style="background:#d94545"></i>Power out · 3V3 (3.3 V), VBUS (5 V from USB)</span>
+            <span><i style="background:#3a3d42"></i>GND · 8 of them, all joined</span>
+            <span><i style="background:#2f6fd6"></i>GP0–GP22 · on, off, or reading</span>
+            <span><i style="background:#2fa253"></i>GP26–GP28 · can also measure voltage</span>
+          </div>
+          <p style="margin-top:10px">A GP pin is like a tiny switch the program controls: <b>on</b> gives 3.3 V, <b>off</b> gives 0 V. Or it can listen and tell the program whether something joined to it is high or low.</p>
+        </div>
+      </div>
+      <div class="lcol" style="flex:1 1 0;min-width:340px">
+        <div class="card lsec">
+          <h2><span class="num">3</span>Its limits</h2>
+          <div class="limits">
+            <div><b>3.3 V</b>the most a pin can take. 5 V into a pin damages it.</div>
+            <div><b>12 mA</b>the most a pin should give: an LED, through its resistor.</div>
+            <div><b>50 mA</b>all the pins together.</div>
+            <div><b>300 mA</b>from 3V3 for your parts.</div>
+            <div><b>5 V</b>from USB at VBUS, for a servo or a motor driver.</div>
+            <div><b>3 ADC</b>pins that measure 0–3.3 V.</div>
+          </div>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">4</span>Where its power comes from</h2>
+          <p>The USB cable brings <b>5 V</b>. A small part on the board, the <b>regulator</b>, turns it into the <b>3.3 V</b> the chip needs — and that is what comes out of 3V3 for your parts.</p>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">5</span>Mistakes</h2>
+          <div class="mistake">{{i:alert}}<div><b>5 V into a pin</b><span>The pin takes 3.3 V at most: a real pin would be damaged. Bring a 5 V signal down with two resistors first.</span></div></div>
+          <div class="mistake">{{i:warn}}<div><b>A motor straight on a pin</b><span>A motor wants far more than 12 mA: use a motor driver.</span></div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</body></html>

@@ -10,9 +10,10 @@ import { whenText } from './when';
  */
 export interface StartPageProps {
   onNew: (board: NewProjectBoard) => void;
+  /** A new Python 3 file (M12, F-90, screen 31): the first card in the row. */
+  onNewPython: () => void;
+  /** Open a project…: a .mlab, or a Python project (its folder, or a .py file in it). */
   onOpen: () => void;
-  onLearn: () => void;
-  onExamples: () => void;
   recent?: RecentItem[];
   onOpenRecent?: (item: RecentItem) => void;
   onForget?: (item: RecentItem) => void;
@@ -22,7 +23,7 @@ export interface StartPageProps {
   onDiscard?: () => void;
 }
 
-export function StartPage({ onNew, onOpen, onLearn, onExamples, recent = [], onOpenRecent, onForget, recovered, onRecover, onDiscard }: StartPageProps) {
+export function StartPage({ onNew, onNewPython, onOpen, recent = [], onOpenRecent, onForget, recovered, onRecover, onDiscard }: StartPageProps) {
   return (
     <main className="start">
       <div className="start-main">
@@ -38,10 +39,16 @@ export function StartPage({ onNew, onOpen, onLearn, onExamples, recent = [], onO
           </div>
         )}
         <div>
-          <h1>Start a new project</h1>
-          <p className="muted">Choose the board you'll use. The breadboard and a starter <code>main.py</code> are ready for you.</p>
+          <h1>Start something new</h1>
+          <p className="muted">Python on this computer, or a board in the simulator — the breadboard and a starter <code>main.py</code> are ready for you.</p>
         </div>
         <div className="bcards">
+          <div className="card bcard">
+            <div className="art"><PyCardArt /></div>
+            <div className="about"><b>Python 3</b><span className="small muted">As in IDLE: turtle, tkinter, libraries</span></div>
+            <span className="small muted mono">print("Hello!")</span>
+            <button type="button" className="btn" onClick={onNewPython}><Icon name="plus" size={14} /> New Python project</button>
+          </div>
           {BOARD_CARDS.map((b) => (
             <div key={b.id} className="card bcard">
               <div className="art"><img src={b.art} alt={b.title} draggable={false} /></div>
@@ -51,22 +58,22 @@ export function StartPage({ onNew, onOpen, onLearn, onExamples, recent = [], onO
             </div>
           ))}
         </div>
-        <section className="card recent-card" aria-label="Recent projects">
+        <section className="card recent-card" aria-label="Recent">
           <div className="rh">
-            <h2>Recent projects</h2>
+            <h2>Recent</h2>
             <button type="button" className="btn ghost sm link" onClick={onOpen}><Icon name="folder" size={14} /> Open a project…</button>
           </div>
           {recent.length === 0 ? (
-            <p className="small muted empty">The projects you open or save show here. A <code>.mlab</code> file — one of yours, or a starter project from your teacher — opens with <b>Open a project…</b></p>
+            <p className="small muted empty">The projects you make or open show here. A board's <code>.mlab</code>, or a Python project — its folder, or a <code>.py</code> file in it — opens with <b>Open a project…</b></p>
           ) : (
             <ul>
               {recent.map((r) => (
                 <li key={r.path} className={r.missing ? 'missing' : undefined}>
                   <button type="button" className="row-btn" disabled={r.missing} title={r.missing ? `${r.where} is no longer there` : r.path}
                     onClick={() => onOpenRecent?.(r)}>
-                    <span className="pic"><img src={BOARD_ART[r.board as BoardId]} alt="" draggable={false} /></span>
-                    <span className="nm"><b>{r.name}</b><span className="mono tiny muted">{r.missing ? `${r.where} — no longer there` : r.where}</span></span>
-                    <span className="chip">{BOARD_CHIPS[r.board as BoardId] ?? r.board}</span>
+                    <span className="pic">{r.board === PYTHON3 ? <PySpiral /> : <img src={BOARD_ART[r.board as BoardId]} alt="" draggable={false} />}</span>
+                    <span className="nm"><b>{r.board === PYTHON3 ? `${r.name}.py` : r.name}</b><span className="mono tiny muted">{r.missing ? `${r.where} — no longer there` : r.where}</span></span>
+                    <span className={r.board === PYTHON3 ? 'chip py' : 'chip'}>{r.board === PYTHON3 ? 'Python 3' : BOARD_CHIPS[r.board as BoardId] ?? r.board}</span>
                     <span className="small muted when">{whenText(r.at)}</span>
                   </button>
                   {r.missing && <button type="button" className="btn ghost sm" onClick={() => onForget?.(r)}>Take off the list</button>}
@@ -76,22 +83,50 @@ export function StartPage({ onNew, onOpen, onLearn, onExamples, recent = [], onO
           )}
         </section>
       </div>
-      <aside className="start-side">
-        <div className="card side-card">
-          <h2><Icon name="book" /> Learn</h2>
-          <p className="small muted">How every part works, its pins, and how to connect it to your board.</p>
-          <button type="button" className="btn" onClick={onLearn}>Open Learn</button>
-        </div>
-        <div className="card side-card">
-          <h2><Icon name="bulb" /> Examples</h2>
-          <p className="small muted">Ready projects to run and change.</p>
-          <button type="button" className="btn" onClick={onExamples}>See the examples</button>
-        </div>
-        <div className="card side-card tip">
-          <b className="small"><Icon name="bulb" size={12} /> Tip</b>
-          <p className="small">A teacher's starter project is just a <code>.mlab</code> file: open it here and it's yours to change.</p>
-        </div>
-      </aside>
     </main>
+  );
+}
+
+/** A recent item that is a Python 3 file (M12): the recent list keeps it with "python3" as its board. */
+export const PYTHON3 = 'python3';
+
+/** The Python 3 card's picture (screen 31): a small editor with a few lines of turtle, and the spiral they draw. */
+/** A Python project in Recent: the spiral the card's program draws, small — as boards show their picture there. */
+function PySpiral() {
+  const colours = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#32ade6', '#af52de'];
+  const segs: React.ReactNode[] = [];
+  let [x, y, a] = [15, 15, 0];
+  for (let i = 0; i < 40; i++) {
+    const nx = x + i * 0.37 * Math.cos((a * Math.PI) / 180);
+    const ny = y - i * 0.37 * Math.sin((a * Math.PI) / 180);
+    segs.push(<line key={i} x1={x.toFixed(1)} y1={y.toFixed(1)} x2={nx.toFixed(1)} y2={ny.toFixed(1)} stroke={colours[i % 6]} strokeWidth={1.1} />);
+    [x, y, a] = [nx, ny, a + 59];
+  }
+  return <svg className="pyspiral" viewBox="0 0 30 30" width="30" height="30" role="img" aria-label="Python 3">{segs}</svg>;
+}
+
+function PyCardArt() {
+  const colours = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#32ade6', '#af52de'];
+  const segs: React.ReactNode[] = [];
+  let x = 212;
+  let y = 68;
+  let a = 0;
+  for (let i = 0; i < 54; i++) {
+    const nx = x + i * 1.05 * Math.cos((a * Math.PI) / 180);
+    const ny = y - i * 1.05 * Math.sin((a * Math.PI) / 180);
+    segs.push(<line key={i} x1={x.toFixed(1)} y1={y.toFixed(1)} x2={nx.toFixed(1)} y2={ny.toFixed(1)} stroke={colours[i % 6]} strokeWidth={1.4} />);
+    [x, y, a] = [nx, ny, a + 59];
+  }
+  const lines: [string, string, string][] = [['#c678dd', 'import', ' turtle'], ['#61afef', 't', ' = turtle.Turtle()'], ['#c678dd', 'for', ' i in range(60):'],
+    ['#e5c07b', '    t', '.forward(i * 3)'], ['#e5c07b', '    t', '.left(59)']];
+  return (
+    <svg viewBox="0 0 270 135" role="img" aria-label="Python 3: a turtle program and the spiral it draws" style={{ width: '100%', height: '100%' }}>
+      <rect x="8" y="10" width="150" height="112" rx="9" fill="#1f2430" />
+      <circle cx="20" cy="21" r="3.2" fill="#ff5f57" /><circle cx="30" cy="21" r="3.2" fill="#febc2e" /><circle cx="40" cy="21" r="3.2" fill="#28c840" />
+      {lines.map(([c, k, rest], i) => (
+        <text key={i} x="18" y={42 + i * 15} fontSize="9.5" fontFamily="JetBrains Mono, monospace" fill={c} xmlSpace="preserve">{k}<tspan fill="#d7dae0">{rest}</tspan></text>
+      ))}
+      {segs}
+    </svg>
   );
 }

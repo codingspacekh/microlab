@@ -7,10 +7,11 @@ import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
 import { startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M6.5a (screens 20, 20b, approved 2026-11-07): the SunFounder kit's input modules in the editor and while running —
  *  held, clicked, dragged, turned, and set on the Inputs card. */
-function setup() {
+async function setup() {
   const runs: { doc: ProjectDoc; events: RunEvents; setInput: ReturnType<typeof vi.fn> }[] = [];
   const start: StartRun = (req, events) => {
     const r = { ...req, events, setInput: vi.fn() };
@@ -18,7 +19,7 @@ function setup() {
     return { stop: vi.fn(), setInput: r.setInput };
   };
   render(<App api={fakeApi()} width={1440} startRun={start} audio={() => null} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
@@ -40,15 +41,15 @@ function setup() {
 }
 
 describe('M6.5a the kit\'s modules in the editor (screens 20, 20b)', () => {
-  it('a Modules group in the parts panel, the 14 of them and the RC522 RFID reader (M7)', () => {
-    const s = setup();
+  it('a Modules group in the parts panel, the 14 of them and the RC522 RFID reader (M7)', async () => {
+    const s = await setup();
     const group = within(s.panel).getByRole('group', { name: 'Modules' });
     expect(within(group).getAllByRole('button')).toHaveLength(15);
     expect(within(group).getByRole('button', { name: /^Gas \/ smoke \(MQ-2\)/ })).toBeInTheDocument();
   });
 
-  it('each drawn from its pins, named as printed in the inspector, with what to know', () => {
-    const s = setup();
+  it('each drawn from its pins, named as printed in the inspector, with what to know', async () => {
+    const s = await setup();
     s.place(/^Flame/, 'flame', 'bb1.f21');
     const inspector = screen.getByRole('complementary', { name: 'Inspector' });
     expect(within(inspector).getByText('AO f21, GND f22, VCC f23, DO f24')).toBeInTheDocument();
@@ -59,8 +60,8 @@ describe('M6.5a the kit\'s modules in the editor (screens 20, 20b)', () => {
 });
 
 describe('M6.5a while running (screen 20)', () => {
-  it('held: the button module (pressed), the touch pad; clicked: the IR obstacle sensor, the Hall sensor', () => {
-    const s = setup();
+  it('held: the button module (pressed), the touch pad; clicked: the IR obstacle sensor, the Hall sensor', async () => {
+    const s = await setup();
     s.place(/^Button module/, 'button-module', 'bb1.f2');
     s.place(/^Touch/, 'touch', 'bb1.f6');
     s.place(/^IR obstacle/, 'ir-obstacle', 'bb1.f10');
@@ -80,8 +81,8 @@ describe('M6.5a while running (screen 20)', () => {
     expect(s.input()).toHaveBeenLastCalledWith('position:hall1', 1);
   });
 
-  it('the joystick: dragged, its axes follow; let go, it springs back; a click presses SW', () => {
-    const s = setup();
+  it('the joystick: dragged, its axes follow; let go, it springs back; a click presses SW', async () => {
+    const s = await setup();
     s.place(/^Joystick/, 'joystick', 'bb1.f2');
     s.run();
     fireEvent.mouseDown(s.part('joy1'), { clientX: 200, clientY: 200, button: 0 });
@@ -96,8 +97,8 @@ describe('M6.5a while running (screen 20)', () => {
     expect(s.input()).toHaveBeenCalledWith('pressed:joy1', 1);
   });
 
-  it('the rotary encoder: dragged round a quarter turn clockwise is 6 steps; a click presses it', () => {
-    const s = setup();
+  it('the rotary encoder: dragged round a quarter turn clockwise is 6 steps; a click presses it', async () => {
+    const s = await setup();
     s.place(/^Rotary encoder/, 'rotary-encoder', 'bb1.f2');
     s.run();
     // jsdom has no layout: the encoder's middle is the screen's corner (0, 0)
@@ -111,8 +112,8 @@ describe('M6.5a while running (screen 20)', () => {
     expect(s.input()).toHaveBeenCalledWith('pressed:enc1', 1);
   });
 
-  it('the Inputs card: the flame, the gas, the wheel\'s speed — each with its output', () => {
-    const s = setup();
+  it('the Inputs card: the flame, the gas, the wheel\'s speed — each with its output', async () => {
+    const s = await setup();
     s.place(/^Flame/, 'flame', 'bb1.f2');
     s.place(/^Gas \/ smoke/, 'mq2', 'bb1.f8');
     s.place(/^IR speed sensor/, 'speed-sensor', 'bb1.f14');

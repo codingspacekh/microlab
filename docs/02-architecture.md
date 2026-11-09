@@ -264,3 +264,32 @@ npm run dist         # installers: Windows .exe, Mac .dmg (Apple chip, Intel) (M
   `src/main/usb` opens ports.
 - **A change to `project.json`** → bump `format`, add a migration step and a saved old file to
   `tests/fixtures/projects/`.
+
+## 2.11 Python 3 *(Rev 10, M12)*
+
+```
+┌─ Renderer ── Python 3 screen ─────────┐  IPC   ┌─ Main process ── src/main/python3 ─────────┐  pipes  ┌─ CPython 3.13 (bundled) ────────────────┐
+│ editor (.py tabs) · shell · Run/Stop │ ─────► │ start / keep one process ready · .py      │ ──────► │ src/python3/runner.py: runs the file    │
+│ Packages window · Plotter            │ ◄───── │ dialogs · pip (install / list / remove)    │ ◄────── │ as __main__ in its folder; print, input,│
+└───────────────────────────────────────┘        │ Stop: SIGINT / CTRL_BREAK, then kill       │ SIGINT  │ tracebacks, >>> in its names; turtle &  │
+                                                 └────────────────────────────────────────────┘         │ tkinter open their own windows          │
+                                                                                                        └──────────────────────────────────────────┘
+```
+
+- **The program runs in its own process**, not in the window and not in a worker: a busy loop or a tkinter
+  `mainloop()` never blocks MicroLab, and Stop always works (the process can be ended).
+- **The runner speaks JSON lines** on its stdout (`{"out": …}`, `{"err": …}`, `{"input": prompt}`, `{"ended": …}`,
+  `{"error": {type, message, file, line}}`) and reads its stdin for answers and REPL lines; the program's own
+  `print` goes through it, so what the program prints can never be mistaken for a message.
+- **The bundled CPython** lives in the app's resources (`python/<platform>-<arch>/`), fetched at build time by a script
+  that checks its hash; **installed libraries** live in the app's user data (`python/site-packages`), on every
+  program's `sys.path`; `pip` runs from the same Python with `--target` that folder.
+- Pure parts stay pure: what a CPython error means (`src/lib/errors`, with CPython's texts), the Plotter's samples
+  (`src/lib/plot`), the shell's prompt rules (`src/lib/repl`).
+- **Help while typing (F-97)** comes from **Jedi in a second process** (`src/python3/assist.py`), started when the
+  editor first asks and kept ready: never the program's process (which restarts at each Run and may be busy), and
+  Jedi never on a program's path. It reads the bundled Python's modules and MicroLab's libraries folder; installing or
+  removing a library restarts it. Jedi and parso are fetched with the Python (`vendor/python-tools`, by hash). **Tab
+  at `>>>`** asks the runner itself (`rlcompleter` over the program's names, answered on its reader thread).
+- Ctrl+C and Stop are messages to the runner's reader thread (`_thread.interrupt_main`), not signals — the same on
+  macOS and Windows (R12); Stop ends the process after 0.5 s if the program doesn't stop.

@@ -122,9 +122,10 @@ const LED_COLOURS: Record<string, [string, string, string]> = {
  * bent one, the cathode (−) leg is straight and the rim is flat on its side, as on a real LED; a red "+" and a dark
  * "−" sit by the legs, and each leg says what it is on hover. The body leans down from the holes; `on` glows (M4.5).
  */
-export function Led({ a, k, colour = 'red', glow: light = 0, labels = true, upright = 0 }: { a: Point; k: Point; colour?: string; glow?: number; labels?: boolean; upright?: number }) {
-  const [onC, offC, glow] = LED_COLOURS[colour] ?? LED_COLOURS.red!;
-  const on = light > 0.01;   // brightness = current / the LED's 20 mA rating (M3.4)
+export function Led({ a, k, colour = 'red', glow: light = 0, labels = true, upright = 0, burnt = false }: { a: Point; k: Point; colour?: string; glow?: number; labels?: boolean; upright?: number; burnt?: boolean }) {
+  const [onC, off, glow] = LED_COLOURS[colour] ?? LED_COLOURS.red!;
+  const offC = burnt ? '#4a3a33' : off;   // burnt: dark brown, with a puff of smoke (M9, screen 04)
+  const on = !burnt && light > 0.01;   // brightness = current / the LED's 20 mA rating (M3.4)
   const cx = (a.x + k.x) / 2;
   const cy = a.y + 22;
   const side = Math.sign(k.x - a.x) || 1;           // which way the cathode is
@@ -146,7 +147,15 @@ export function Led({ a, k, colour = 'red', glow: light = 0, labels = true, upri
       {on && <circle className="glow" cx={cx} cy={cy} r={34} fill={`url(#glow-${glow})`} opacity={f(Math.min(1, 0.3 + 0.7 * Math.sqrt(light)))} />}
       <path d={body} fill={on ? onC : offC} stroke="rgba(0,0,0,.28)" strokeWidth={1} />
       <line x1={f(flat)} y1={f(cy - flatY)} x2={f(flat)} y2={f(cy + flatY)} stroke="rgba(0,0,0,.45)" strokeWidth={1.6} />
-      <ellipse cx={cx - 3.5} cy={cy - 4} rx={3.2} ry={2.4} fill="#fff" opacity={on ? 0.85 : 0.55} />
+      <ellipse cx={cx - 3.5} cy={cy - 4} rx={3.2} ry={2.4} fill="#fff" opacity={on ? 0.85 : burnt ? 0.15 : 0.55} />
+      {burnt && (
+        <g className="puff" pointerEvents="none">
+          <circle cx={cx} cy={cy} r={r + 6} fill="none" stroke="#d94545" strokeWidth={2} />
+          <circle cx={cx + 8} cy={cy - 18} r={5} fill="#8a8f96" opacity={0.55} />
+          <circle cx={cx + 14} cy={cy - 26} r={4} fill="#8a8f96" opacity={0.4} />
+          <circle cx={cx + 11} cy={cy - 33} r={3} fill="#8a8f96" opacity={0.28} />
+        </g>
+      )}
       {labels && (
         <g fontSize={9} fontWeight={800} textAnchor="middle" pointerEvents="none" fontFamily="Inter Variable, Inter, sans-serif">
           <circle cx={f(a.x - side * 9)} cy={f(a.y + 12)} r={5.2} fill="#fff" stroke="#d94545" strokeWidth={1} />
@@ -841,6 +850,8 @@ export function KitModule({ type, pins, look = {}, upright = 0 }: { type: string
 export interface PartLook {
   /** An LED's brightness, 0–1, while running (M4.5). */
   glow?: number;
+  /** An LED burnt out in a run (M9): dark, with a puff of smoke, until it is replaced. */
+  burnt?: boolean;
   /** An RGB LED's red, green and blue dies, 0–1 each (M6.1). */
   dies?: [number, number, number];
   /** A push button held down while running. */
@@ -922,7 +933,7 @@ export function PartDrawing({ type, legs, props, look = {}, label = '' }: { type
       const { local, transform } = unturned(legs, t);
       const up = -90 * t;
       const body = KIT[type] ? <KitModule type={type} pins={KIT[type]!.legs.map((l) => local[l]!)} look={look.kit} upright={up} /> : ({
-        led: () => <Led a={local.a!} k={local.k!} colour={String(props?.color ?? 'red')} glow={look.glow} upright={up} />,
+        led: () => <Led a={local.a!} k={local.k!} colour={String(props?.color ?? 'red')} glow={look.glow} upright={up} burnt={look.burnt} />,
         potentiometer: () => <Potentiometer l={local['1']!} w={local['2']!} r={local['3']!} angle={((look.position ?? 0.5) - 0.5) * 270} />,
         'slide-switch': () => <SlideSwitch l={local['1']!} m={local['2']!} r={local['3']!} position={look.position} upright={up} />,
         ldr: () => <Ldr a={local.a!} b={local.b!} />,

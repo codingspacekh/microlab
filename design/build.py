@@ -27,6 +27,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 import scenes  # noqa: E402
+import learnfigs  # noqa: E402
+import pyfigs  # noqa: E402
 from svgparts import icon_svg, PICO_B, PICO_T  # noqa: E402
 
 SRC = ROOT / "src"
@@ -52,8 +54,15 @@ ICONS = {
     "phone": '<path d="M8 2.5h8a1.5 1.5 0 0 1 1.5 1.5v16a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 20V4A1.5 1.5 0 0 1 8 2.5M11 18.5h2"/>',
     "bt": '<path d="M7 7.5l10 9-5 4.5V3l5 4.5-10 9"/>',
     "gps": '<path d="M12 21s6.5-6.2 6.5-11.2a6.5 6.5 0 0 0-13 0C5.5 14.8 12 21 12 21M12 7.5a2.3 2.3 0 1 0 0 4.6a2.3 2.3 0 0 0 0-4.6"/>',
+    "probe": '<path d="M5 19l5-5M10 14l6.5-6.5a2 2 0 0 1 2.8 2.8L12.8 16.8zM4 20l1-1"/>',
     "chevr": '<path d="M9 6l6 6-6 6"/>', "chevd": '<path d="M6 9l6 6 6-6"/>', "chevl": '<path d="M15 6l-6 6 6 6"/>',
     "x": '<path d="M6 6l12 12M18 6L6 18"/>',
+    "shellbelow": '<path d="M4 4h16v16H4zM4 14h16"/>',
+    "sidebar": '<path d="M4 4h16v16H4zM9.5 4v16"/>',
+    "shellhide": '<path d="M4 4h16v16H4zM4 14h16M9 17.5l3-2 3 2"/>',
+    "shellright": '<path d="M4 4h16v16H4zM14 4v16"/>',
+    "folderplus": '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5zM12 11v6M9 14h6"/>',
+    "fileplus": '<path d="M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14h6"/>',
     "file": '<path d="M6 3h8l4 4v14H6zM14 3v4h4"/>',
     "folder": '<path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/>',
     "zoomin": '<path d="M11 4a7 7 0 1 0 0 14a7 7 0 0 0 0-14M16.5 16.5L21 21M8 11h6M11 8v6"/>',
@@ -525,6 +534,26 @@ while True:
     usb1.write('Hello from UART0\\r\\n')
     usb2.write('Hello from UART1\\r\\n')
     time.sleep(1)''',
+    "divider": '''# Two 10 kΩ from 3V3 to GND: no code needed.
+# The board on USB gives its 3V3 — measure it with
+# the multimeter: Meter, below the canvas.''',
+    "twoleds": '''from machine import Pin
+import time
+
+red = Pin(15, Pin.OUT)
+green = Pin(13, Pin.OUT)
+button = Pin(12, Pin.IN, Pin.PULL_UP)
+
+while True:
+    if button.value() == 0:      # pressed
+        red.toggle()
+        green.toggle()
+    time.sleep(0.2)''',
+    "greet": '''from machine import Pin
+
+led = Pin(15, Pin.OUT)
+name = input("What's your name? ")
+print('Hello, ' + name + '!')''',
     "servo": '''from machine import Pin, PWM
 import time
 
@@ -547,6 +576,9 @@ KW = {"from", "import", "as", "def", "return", "while", "if", "elif", "else", "f
       "True", "False", "None", "pass", "break", "continue", "with", "try", "except", "class", "lambda"}
 BUILTINS = {"print", "range", "int", "str", "float", "len", "min", "max", "abs", "round", "sleep"}
 TOK = re.compile(r"(#.*$)|(\"[^\"]*\"|'[^']*')|(\b\d+(?:\.\d+)?\b)|([A-Za-z_]\w*)|(⟨caret⟩)|(⟦|⟧)|(.)", re.S)
+
+
+CODE.update(pyfigs.CODES)
 
 
 def hl(line: str) -> str:
@@ -746,7 +778,7 @@ def examples() -> str:
 
 
 # ---------------------------------------------------------------- template engine
-GENERATORS = {"scene": scenes.scene, "code": code, "parts": parts, "part": part, "pinout": pinout, "picov": picov,
+GENERATORS = {"pyfig": pyfigs.fig, "fig": learnfigs.fig, "scene": scenes.scene, "code": code, "parts": parts, "part": part, "pinout": pinout, "picov": picov,
               "examples": examples}
 TAG = re.compile(r"\{\{(include|i|" + "|".join(GENERATORS) + r")(?::([^}]*))?\}\}")
 

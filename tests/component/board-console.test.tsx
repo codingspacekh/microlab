@@ -4,6 +4,7 @@ import { parseUname, type ConsoleKind, type SendResult } from '@lib/repl';
 import type { Detection, FoundBoard } from '@lib/usb';
 import { App } from '../../src/renderer/app/App';
 import { fakeApi } from './fake-api';
+import { newProjectFromStart } from './new-project';
 
 /** M10.4 F-51 (screen 16): the real board's console in its own tab; Stop, Restart, Let go; typing at >>>. */
 const PICO: FoundBoard = { id: 'e661', kind: 'pico', port: '/dev/cu.usbmodem14201', usb: '2e8a:0005' };
@@ -12,7 +13,7 @@ const ready: Detection = { boards: [PICO], drives: [], checks: { e661: { state: 
 const running: Detection = { ...ready, consoles: { e661: { prompt: false, running: 'main.py' } } };
 const prompt: Detection = { ...ready, consoles: { e661: { prompt: true, running: null } } };
 
-function setup(start: Detection = ready) {
+async function setup(start: Detection = ready) {
   const api = fakeApi();
   let push: (now: Detection) => void = () => {};
   let out: (id: string, chunks: { text: string; kind: ConsoleKind }[]) => void = () => {};
@@ -21,7 +22,7 @@ function setup(start: Detection = ready) {
   api.boards.console.onOutput = vi.fn((h) => { out = h; return () => {}; });
   api.boards.send = vi.fn(async (): Promise<SendResult> => ({ ok: true, board: 'Pico W', sent: [{ path: 'main.py', size: 612 }], same: [], kept: [] }));
   render(<App api={api} width={1440} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   return {
     api,
     change: (now: Detection) => act(() => push(now)),
@@ -32,7 +33,7 @@ function setup(start: Detection = ready) {
 const boardTab = () => screen.getByRole('tab', { name: /Pico W \(USB\)/ });
 const log = () => screen.getByRole('log', { name: /Console/ });
 
-async function sendAndRun(s: ReturnType<typeof setup>) {
+async function sendAndRun(s: Awaited<ReturnType<typeof setup>>) {
   await waitFor(() => expect(screen.getByRole('button', { name: 'Send to board' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'Send to board' }));
   fireEvent.click(within(screen.getByRole('dialog', { name: 'Send to a real board' })).getByRole('button', { name: 'Send and run' }));
@@ -42,7 +43,7 @@ async function sendAndRun(s: ReturnType<typeof setup>) {
 
 describe('M10.4 F-51 the board\'s console tab', () => {
   it('Send and run: its tab opens, says what was sent, then shows what the board prints', async () => {
-    const s = setup();
+    const s = await setup();
     await sendAndRun(s);
     await waitFor(() => expect(boardTab()).toHaveAttribute('aria-selected', 'true'));
     s.print('MPY: soft reboot\nTraffic lights ready\n');
@@ -52,7 +53,7 @@ describe('M10.4 F-51 the board\'s console tab', () => {
   });
 
   it('running: the canvas says so and the chip and the status bar too; Stop the board stops it', async () => {
-    const s = setup(running);
+    const s = await setup(running);
     await waitFor(() => expect(screen.getByRole('button', { name: /^Board:/ })).toHaveAccessibleName('Board: Pico W, running main.py'));
     expect(await screen.findByText(/Running on the real Pico W\./)).toBeInTheDocument();
     expect(screen.getByText('Pico W (USB): running main.py')).toBeInTheDocument();
@@ -61,7 +62,7 @@ describe('M10.4 F-51 the board\'s console tab', () => {
   });
 
   it('its tab while running: what Ctrl+C does; Ctrl+C in it stops the board', async () => {
-    const s = setup(running);
+    const s = await setup(running);
     fireEvent.click(await screen.findByRole('tab', { name: /Pico W \(USB\)/ }));
     expect(screen.getByText('main.py runs on the board — Ctrl+C stops it and opens its REPL (>>>)')).toBeInTheDocument();
     fireEvent.keyDown(log(), { key: 'c', ctrlKey: true });
@@ -69,7 +70,7 @@ describe('M10.4 F-51 the board\'s console tab', () => {
   });
 
   it('at >>>: a line typed goes to the board; a block waits for an empty line, then goes whole', async () => {
-    const s = setup(prompt);
+    const s = await setup(prompt);
     fireEvent.click(await screen.findByRole('tab', { name: /Pico W \(USB\)/ }));
     const input = screen.getByRole('textbox', { name: 'Python for the board' });
     fireEvent.change(input, { target: { value: 'led.toggle()' } });
@@ -88,7 +89,7 @@ describe('M10.4 F-51 the board\'s console tab', () => {
   });
 
   it('Restart, and Let go (the port closed so Thonny can use the board); let go, it can be opened again', async () => {
-    const s = setup(prompt);
+    const s = await setup(prompt);
     fireEvent.click(await screen.findByRole('tab', { name: /Pico W \(USB\)/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Restart the board' }));
     expect(s.api.boards.console.do).toHaveBeenCalledWith('e661', { do: 'restart' });
@@ -100,7 +101,7 @@ describe('M10.4 F-51 the board\'s console tab', () => {
   });
 
   it('the Simulator tab is still there', async () => {
-    setup(running);
+    await setup(running);
     fireEvent.click(await screen.findByRole('tab', { name: /Pico W \(USB\)/ }));
     fireEvent.click(screen.getByRole('tab', { name: /Simulator/ }));
     expect(screen.getByText(/Press Run to start the simulation/)).toBeInTheDocument();
@@ -109,7 +110,7 @@ describe('M10.4 F-51 the board\'s console tab', () => {
 
 describe('M10.4 F-50 Rev 7 the Send menu', () => {
   it('Run main.py on the board: the file in the editor runs there, not saved as main.py', async () => {
-    const s = setup();
+    const s = await setup();
     await waitFor(() => expect(screen.getByRole('button', { name: 'More ways to send' })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: 'More ways to send' }));
     fireEvent.click(screen.getByRole('menuitem', { name: /Run main.py on the board/ }));
@@ -118,7 +119,7 @@ describe('M10.4 F-50 Rev 7 the Send menu', () => {
   });
 
   it('the app\'s note about it starts on a line of its own, after the board\'s >>>', async () => {
-    const s = setup(prompt);
+    const s = await setup(prompt);
     fireEvent.click(await screen.findByRole('tab', { name: /Pico W \(USB\)/ }));
     s.print('>>> ');
     fireEvent.click(screen.getByRole('button', { name: 'More ways to send' }));
@@ -129,7 +130,7 @@ describe('M10.4 F-50 Rev 7 the Send menu', () => {
   });
 
   it('Open the board\'s console: just its output, nothing stopped', async () => {
-    const s = setup();
+    const s = await setup();
     await waitFor(() => expect(screen.getByRole('button', { name: 'More ways to send' })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: 'More ways to send' }));
     fireEvent.click(screen.getByRole('menuitem', { name: /Open the board's console/ }));

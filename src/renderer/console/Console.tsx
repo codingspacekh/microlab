@@ -1,8 +1,12 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import type { Explanation } from '@lib/errors';
 import type { ConsoleState } from '@lib/repl';
 import { Icon } from '../ui/Icon';
 import { TextField } from '../ui';
 import type { ConsoleChunk } from '../app/useRun';
+import type { Plot } from '@lib/plot';
+import { ProblemsList, type ProblemItem } from '../workspace/faults';
+import { Plotter, type PlotNames } from './Plotter';
 import './console.css';
 
 /**
@@ -28,20 +32,57 @@ export interface BoardConsoleView {
   onClear: () => void;
 }
 
+export type ConsoleTab = 'sim' | 'board' | 'plot' | 'problems';
+
+/** What Tab completes: where the name starts in the line, and the names that finish it. */
+export type Completed = { from: number; options: string[] } | null;
+
 export interface ConsoleProps {
   chunks: ConsoleChunk[];
   running: boolean;
   entry: string;
   onClear: () => void;
   board?: BoardConsoleView;
-  /** Which tab shows: the simulator's, or the board's. */
-  tab?: 'sim' | 'board';
-  onTab?: (tab: 'sim' | 'board') => void;
+  /** Which tab shows: the simulator's, the board's, or Problems (M9). */
+  tab?: ConsoleTab;
+  onTab?: (tab: ConsoleTab) => void;
+  /** Problems (M9 slice 2, F-24): the circuit's faults in the last run, each with Show; Clear empties them. */
+  /** Its name, on its tab and for screen readers: "Console" (the simulator's), "Shell" (Python 3, screen 31b). */
+  name?: string;
+  /** What it says before anything has run. */
+  idleText?: string;
+  /** The Plotter (M9 slice 5, F-26, screen 07): what the run printed as numbers. */
+  plot?: { data: Plot; names: PlotNames | null; startedAt?: number; onClear: () => void };
+  problems?: { cards: ProblemItem[]; onShow: (item: ProblemItem) => void; onReplace?: (led: string) => void; onClear: () => void };
+  /** The program has ended and its REPL waits (M9, F-23, screen 29c). */
+  repl?: boolean;
+  /** A line typed — input()'s answer, a line for the REPL — or '\x03' for Ctrl+C (M9). */
+  onType?: (text: string) => void;
+  /** Ctrl+D on an empty line at the REPL: a soft reset — the program runs again. */
+  onSoftReset?: () => void;
+  /** More buttons in the bar, before Clear (M12 Rev 11: where the Python 3 shell sits). */
+  headExtra?: ReactNode;
+  /** At the bar's very end, after Clear (M12 Rev 12: the shell's ×). */
+  headEnd?: ReactNode;
+  /** "Go to line 5": the editor shows the error's line (M9, screen 05). */
+  onGoTo?: (file: string, line: number) => void;
+  /** Tab: the names the line could go on with, as the editor offers them. */
+  complete?: (line: string, pos: number) => Completed | Promise<Completed>;
 }
 
-export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab }: ConsoleProps) {
+export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete, problems, plot, name = 'Console', idleText, headExtra, headEnd }: ConsoleProps) {
   const showBoard = !!board && tab === 'board';
-  const shown: BoardChunk[] = showBoard ? board.chunks : chunks;
+  const showProblems = !!problems && tab === 'problems';
+  const showPlot = !!plot && tab === 'plot';
+  const count = problems?.cards.length ?? 0;
+  const damaged = !!problems?.cards.some((c) => c.severity === 'damage');
+  // while the board takes typing (M9), what it printed last without a newline — >>>, input()'s prompt — is where to type
+  const typing = !showBoard && !!onType && (running || !!repl);
+  const lastChunk = chunks.at(-1);
+  const cut = typing && lastChunk?.kind === 'out' && !lastChunk.text.endsWith('\n') ? lastChunk.text.lastIndexOf('\n') + 1 : -1;
+  const prompt = cut >= 0 ? lastChunk!.text.slice(cut) : '';
+  const simChunks = cut >= 0 ? [...chunks.slice(0, -1), ...(cut ? [{ ...lastChunk!, text: lastChunk!.text.slice(0, cut) }] : [])] : chunks;
+  const shown: BoardChunk[] = showBoard ? board.chunks : simChunks;
   const body = useRef<HTMLDivElement>(null);
   const atEnd = useRef(true);
   useLayoutEffect(() => {
@@ -61,19 +102,32 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
   return (
     <div className="console" onKeyDown={onKeyDown}>
       <div className="chead">
-        {board ? (
+        {board || problems || plot ? (
           <div role="tablist" aria-label="Consoles" className="ctabs">
-            <button type="button" role="tab" aria-selected={!showBoard} className={`ctab${showBoard ? '' : ' on'}`} onClick={() => onTab?.('sim')}>
-              <Icon name="term" size={14} /> Simulator
+            <button type="button" role="tab" aria-selected={!showBoard && !showProblems && !showPlot} className={`ctab${showBoard || showProblems || showPlot ? '' : ' on'}`} onClick={() => onTab?.('sim')}>
+              <Icon name="term" size={14} /> {board ? 'Simulator' : name}
             </button>
-            <button type="button" role="tab" aria-selected={showBoard} className={`ctab board${showBoard ? ' on' : ''}${board.state ? ' live' : ''}`} onClick={() => onTab?.('board')}>
-              <span className="dot" /> {board.label}
-            </button>
+            {board && (
+              <button type="button" role="tab" aria-selected={showBoard} className={`ctab board${showBoard ? ' on' : ''}${board.state ? ' live' : ''}`} onClick={() => onTab?.('board')}>
+                <span className="dot" /> {board.label}
+              </button>
+            )}
+            {plot && (
+              <button type="button" role="tab" aria-selected={showPlot} className={`ctab${showPlot ? ' on' : ''}`} onClick={() => onTab?.('plot')}>
+                <Icon name="plot" size={14} /> Plotter
+              </button>
+            )}
+            {problems && (
+              <button type="button" role="tab" aria-selected={showProblems} className={`ctab${showProblems ? ' on' : ''}`} onClick={() => onTab?.('problems')}>
+                <Icon name="warn" size={14} /> Problems{count > 0 && <span className={damaged ? 'count bad' : 'count'} aria-label={`, ${count}`}>{count}</span>}
+              </button>
+            )}
           </div>
         ) : (
-          <span className="ctab on"><Icon name="term" size={14} /> Console</span>
+          <span className="ctab on"><Icon name="term" size={14} /> {name}</span>
         )}
         <span className="spacer" />
+        {headExtra}
         {showBoard && board.state && (
           <>
             <button type="button" className="btn ghost sm" onClick={board.onRestart} aria-label="Restart the board" title="Restart the board: it runs main.py again, as when it is switched on">
@@ -84,21 +138,137 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
             </button>
           </>
         )}
-        <button type="button" className="btn ghost sm" onClick={showBoard ? board.onClear : onClear} disabled={shown.length === 0}>Clear</button>
+        {showPlot
+          ? <button type="button" className="btn ghost sm" onClick={plot.onClear} disabled={plot.data.times.length === 0}>Clear</button>
+          : showProblems
+          ? <button type="button" className="btn ghost sm" onClick={problems.onClear} disabled={count === 0}>Clear</button>
+          : <button type="button" className="btn ghost sm" onClick={showBoard ? board.onClear : onClear} disabled={shown.length === 0}>Clear</button>}
+        {headEnd}
       </div>
-      <div className="cbody" ref={body} role="log" aria-label={showBoard ? `Console of the ${board.name}` : 'Console'} aria-live="polite" tabIndex={showBoard ? 0 : undefined}
+      {showPlot ? (
+        <div className="cbody plot-body" role="region" aria-label="Plotter">
+          <Plotter plot={plot.data} names={plot.names} running={running} startedAt={plot.startedAt} />
+        </div>
+      ) : showProblems ? (
+        <div className="cbody problems-body" role="region" aria-label="Problems in the circuit">
+          <ProblemsList cards={problems.cards} onShow={problems.onShow} onReplace={problems.onReplace} />
+        </div>
+      ) : (<>
+      <div className="cbody" ref={body} role="log" aria-label={showBoard ? `Console of the ${board.name}` : name} aria-live="polite" tabIndex={showBoard ? 0 : undefined}
         onScroll={(e) => { const el = e.currentTarget; atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24; }}>
         {shown.length === 0
-          ? <span className="sys">{showBoard ? `What the ${board.name} prints appears here.` : 'Press Run to start the simulation. print() output and errors appear here.'}</span>
-          : shown.map((c, i) => <span key={i} className={c.kind === 'out' ? undefined : c.kind}>{c.kind === 'sent' ? `✓ ${c.text}` : c.text}</span>)}
+          ? <span className="sys">{showBoard ? `What the ${board.name} prints appears here.` : idleText ?? 'Press Run to start the simulation. print() output and errors appear here.'}</span>
+          : shown.map((c, i) => (c.kind === 'why' && 'why' in c && c.why
+            ? <Why key={i} why={c.why as Explanation} onGoTo={onGoTo} />
+            : <span key={i} className={c.kind === 'out' ? undefined : c.kind}>{c.kind === 'sent' ? `✓ ${c.text}` : c.text}</span>))}
       </div>
-      {showBoard ? <BoardPrompt board={board} live={!!live} /> : (
-        <div className="prompt">
-          {running
-            ? <><b className="live"><Icon name="play" size={12} /></b><span>Running {entry} — Stop ends it at once</span></>
-            : <><b>&gt;&gt;&gt;</b><span>The REPL comes later; press Run to run {entry}</span></>}
+      {showBoard ? <BoardPrompt board={board} live={!!live} />
+        : typing ? <SimPrompt prompt={prompt} atRepl={!!repl} running={running} entry={entry} onType={onType!} onSoftReset={repl ? onSoftReset : undefined} complete={complete} />
+        : (
+          <div className="prompt">
+            {running
+              ? <><b className="live"><Icon name="play" size={12} /></b><span>Running {entry} — Stop ends it at once</span></>
+              : <><b>&gt;&gt;&gt;</b><span>Press Run to run {entry}; when it ends, its REPL is here</span></>}
+          </div>
+        )}
+      </>)}
+    </div>
+  );
+}
+
+/** What an error means (screen 05): beside MicroPython's message, for students; Go to line puts the editor there. */
+function Why({ why, onGoTo }: { why: Explanation; onGoTo?: (file: string, line: number) => void }) {
+  return (
+    <div className="explain" role="note" aria-label={`What the ${why.type} means`}>
+      <b>What this means:</b> {rich(why.text)}
+      {why.file && why.line && onGoTo && (
+        <div className="row">
+          <button type="button" className="btn sm primary" onClick={() => onGoTo(why.file!, why.line!)}>Go to line {why.line}</button>
         </div>
       )}
+    </div>
+  );
+}
+
+/** `code` and **bold** in an explanation. */
+export function rich(text: string): ReactNode[] {
+  return text.split(/(`[^`]+`|\*\*[^*]+\*\*)/).map((part, i) => (part.startsWith('`') && part.length > 1 ? <code key={i}>{part.slice(1, -1)}</code>
+    : part.startsWith('**') && part.length > 3 ? <b key={i}>{part.slice(2, -2)}</b> : part));
+}
+
+/**
+ * Where to type to the simulated board (M9, screen 29c): after input()'s prompt, or >>> / ... at the REPL. Enter
+ * sends the line; ↑ and ↓ go through what was typed; Tab completes a name; Ctrl+C interrupts; Ctrl+D on an empty
+ * line at the REPL runs the program again. After a line ending in ":", the next ... line starts indented.
+ */
+function SimPrompt({ prompt, atRepl, running, entry, onType, onSoftReset, complete }: {
+  prompt: string; atRepl: boolean; running: boolean; entry: string; onType: (text: string) => void; onSoftReset?: () => void;
+  complete?: ConsoleProps['complete'];
+}) {
+  const [line, setLine] = useState('');
+  const [history, setHistory] = useState<string[]>([]);
+  const [at, setAt] = useState<number | null>(null);
+  const [hint, setHint] = useState('');
+  const indent = useRef('');
+  const repl = prompt === '>>> ' || prompt === '... ';
+  // a block's next line starts where the last one did (4 more after a ":"), as MicroPython's auto-indent does
+  useEffect(() => {
+    if (prompt === '... ') setLine((l) => l || indent.current);
+    if (prompt === '>>> ') indent.current = '';
+  }, [prompt]);
+
+  const send = () => {
+    onType(line);
+    if (line.trim()) setHistory((h) => (h.at(-1) === line ? h : [...h, line].slice(-100)));
+    const lead = /^\s*/.exec(line)![0];
+    indent.current = line.trimEnd().endsWith(':') ? `${lead}    ` : line.trim() && prompt === '... ' ? lead : '';
+    setLine('');
+    setAt(null);
+    setHint('');
+  };
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const input = e.target as HTMLInputElement;
+    if (e.ctrlKey && e.key === 'c' && input.selectionStart === input.selectionEnd) {
+      e.preventDefault();
+      onType('\x03');
+      setLine('');
+      indent.current = '';
+    } else if (e.ctrlKey && e.key === 'd' && !line && onSoftReset) {
+      e.preventDefault();
+      onSoftReset();
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      if (!history.length) return;
+      e.preventDefault();
+      const next = e.key === 'ArrowUp' ? Math.max(0, (at ?? history.length) - 1) : (at ?? history.length) + 1;
+      if (next >= history.length) { setAt(null); setLine(''); } else { setAt(next); setLine(history[next]!); }
+    } else if (e.key === 'Tab' && complete && !e.shiftKey) {
+      const pos = input.selectionStart ?? line.length;
+      if (!line.slice(0, pos).trim()) { e.preventDefault(); setLine(`${line.slice(0, pos)}    ${line.slice(pos)}`); return; }
+      e.preventDefault();
+      const shown = (r: Completed) => {
+        if (!r || !r.options.length) return;
+        const typedPart = line.slice(r.from, pos);
+        const common = r.options.reduce((a, b) => { let i = 0; while (i < a.length && a[i] === b[i]) i++; return a.slice(0, i); });
+        if (common.length > typedPart.length) setLine(line.slice(0, r.from) + common + line.slice(pos));
+        setHint(r.options.length > 1 ? r.options.slice(0, 12).join('  ') + (r.options.length > 12 ? '  …' : '') : '');
+      };
+      const r = complete(line, pos);
+      // an answer from Python 3's shell comes later: used only if the line is still what was asked about
+      if (r instanceof Promise) void r.then((a) => { if (input.value === line) shown(a); });
+      else shown(r);
+    }
+  };
+  // named for where the session is — the program, or its REPL — not for what is printed now (a line that runs prints none)
+  const label = atRepl ? 'Python for the simulated board' : `Type for ${entry}: input() reads it`;
+  return (
+    <div className="prompt sim" onKeyDown={onKeyDown}>
+      {hint && <div className="hint">{hint}</div>}
+      <div className="row">
+        {repl ? <b>{prompt.trim()}</b> : prompt ? <span className="asks">{prompt}</span> : running ? <b className="live"><Icon name="play" size={12} /></b> : null}
+        <TextField label={label} hideLabel mono value={line} onChange={(v) => { setLine(v); setHint(''); }} onEnter={send}
+          placeholder={repl ? (prompt === '... ' ? 'An empty line runs the block' : 'Type Python and press Enter') : prompt ? 'Type the answer and press Enter'
+            : atRepl ? 'A line runs — Ctrl+C stops it' : `Running ${entry} — what you type here goes to input(); Stop ends it`} />
+      </div>
     </div>
   );
 }

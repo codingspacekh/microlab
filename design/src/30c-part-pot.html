@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>30c Learn — the potentiometer</title>
+{{include:head}}
+</head>
+<body>
+<!--@NAV_POT: on-->
+<!--@TOP_RIGHT: <button class="btn">{{i:chevl:s14}} Back to my project</button>-->
+<p class="frame-label"><b>30c · Learn: a part page you play with — the potentiometer</b> (M8 design, Rev 9) — its cover taken off: turn the knob (drag it, or the slider) and the wiper slides along the carbon track; beside it, the track pulled straight shows the volts at the wiper and the resistance each side, worked out as the simulator does (a quarter turn of 3.3 V: 0.83 V). <b>The idea</b> it shows — a voltage divider — has its own ideas page; its legs and how to connect it, with no board</p>
+<div class="frame">
+  {{include:topbar-learn}}
+  <div class="learn">
+    {{include:learn-nav2}}
+    <main class="lmain">
+      <div class="lcol" style="flex:1.35 1 0;min-width:520px">
+        <div class="card lhero">
+          <div style="flex:none;width:96px;height:96px;border-radius:14px;background:var(--canvas);display:grid;place-items:center">{{part:pot:p}}</div>
+          <div class="col" style="gap:6px;min-width:0">
+            <span class="tag">Basics · input</span>
+            <h1>Potentiometer</h1>
+            <p class="lede">A knob that gives you <b>any voltage in between</b>: turn it one way for less, the other way for more. People call it a <i>pot</i>.</p>
+            <div class="uses"><span>volume knobs</span><span>dimmers</span><span>a joystick (two of them)</span></div>
+          </div>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">1</span>Look inside</h2>
+          <div class="play">
+            {{fig:potinside}}
+            <div class="ctl"><div class="slider"><span>Turn the knob</span><div class="track"><i style="width:25%"></i><b class="focus" style="left:25%"></b></div><span class="v">25 %</span></div></div>
+            <div class="says">{{i:info:s14}}<span>A quarter of the way round, the wiper touches the track a quarter of the way along. So leg 2 gets a quarter of the push: <b>0.83 V</b> of 3.3 V. Turn it all the way and leg 2 gets all of it.</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="lcol" style="flex:1 1 0;min-width:360px">
+        <div class="card lsec">
+          <h2><span class="num">2</span>The idea</h2>
+          <div class="idea">{{i:bulb:s16}}<span>The track is one long resistor. The wiper splits it into two parts, and the push (voltage) splits the same way: the closer the wiper is to leg 3, the more volts it picks up. This is called a <b>voltage divider</b>.</span></div>
+          <p class="small" style="margin-top:8px"><a style="color:var(--accent-ink);font-weight:600">{{i:bolt:s12}} Voltage, current, resistance →</a></p>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">3</span>Its numbers</h2>
+          <table class="spec">
+            <tr><td>Whole track</td><td>10 kΩ</td><td>between legs 1 and 3, whatever the knob says</td></tr>
+            <tr><td>Turns</td><td>about 300°</td><td>not quite a full circle; it stops at each end</td></tr>
+            <tr><td>Most current</td><td>a few mA</td><td>it measures; it isn't for driving a motor or a lamp</td></tr>
+          </table>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">4</span>Its legs and how to connect it</h2>
+          <table class="spec">
+            <tr><td>Leg 1</td><td>one end</td><td>to − (GND)</td></tr>
+            <tr><td>Leg 2</td><td>the wiper</td><td>to what reads the voltage — a board's analog pin, or the multimeter</td></tr>
+            <tr><td>Leg 3</td><td>other end</td><td>to + (3.3 V); swap 1 and 3 and the knob works backwards</td></tr>
+          </table>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">5</span>Mistakes</h2>
+          <div class="mistake">{{i:warn}}<div><b>The wiper to + or −</b><span>Turned to the end, the knob joins + straight to −: a short circuit.</span></div></div>
+          <div class="mistake">{{i:warn}}<div><b>Only two legs used</b><span>It works as a variable resistor — fine, but no voltage in between to read.</span></div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</body></html>

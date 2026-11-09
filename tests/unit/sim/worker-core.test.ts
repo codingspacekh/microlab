@@ -92,3 +92,59 @@ describe('M2.8 the worker\'s run: output batched to ≤ 60 a second, then the en
     expect(c.stopRequested()).toBe(true);
   });
 });
+
+describe('M9 the worker\'s REPL: the program\'s end, then lines typed, until Stop', () => {
+  it('posts the end of the program, the prompt, the echo of a line typed and an error\'s explanation; Stop ends it', async () => {
+    const control = new Control();
+    const posts: WorkerMessage[] = [];
+    const done = handleStart({ type: 'start', board: 'pico-w', files: { 'main.py': 'x = 2\n' }, control: control.buffer, inputs: [], repl: true },
+      (m) => {
+        posts.push(m);
+        if (m.type === 'ended') control.type('x * 21\n');
+        if (m.type === 'output' && m.text.includes('42\n')) control.type('y\n');
+        if (m.type === 'repl-error') control.stop();
+      }, await nodeLoader());
+    await done;
+    expect(posts.find((m) => m.type === 'ended')).toMatchObject({ result: { ended: 'done', repl: true } });
+    expect(posts.filter((m) => m.type === 'output' && m.echo).map((m) => (m as { text: string }).text)).toEqual(['x * 21\n', 'y\n']);
+    expect(posts.find((m) => m.type === 'repl-error')).toMatchObject({ error: { type: 'NameError', file: '<stdin>', line: 1 } });
+    expect(posts.at(-1)).toMatchObject({ type: 'end' });
+  });
+});
+
+describe('M9 slice 2: the worker tells each fault as it is seen', () => {
+  it('a red LED straight on GP15: the burnt LED and the pin, as faults, before the end', async () => {
+    const control = new Control();
+    const posts: WorkerMessage[] = [];
+    let t = 0;
+    await handleStart({
+      type: 'start', board: 'pico-w', control: control.buffer, inputs: [],
+      files: { 'main.py': 'from machine import Pin\nPin(15, Pin.OUT).on()\n' },
+      circuit: {
+        board: { data: parseBoard(picoJson) }, breadboards: [],
+        parts: [{ id: 'led1', type: 'led', legs: { a: 'board.GP15', k: 'board.GND' } }], wires: [],
+      },
+    }, (m) => posts.push(m), await nodeLoader(), () => (t += 1));
+    const faults = posts.filter((m): m is Extract<WorkerMessage, { type: 'fault' }> => m.type === 'fault').map((m) => `${m.fault.kind} ${m.fault.on}`);
+    expect(faults).toEqual(['led-burnt led1', 'pin-over-current GP15']);
+    expect(posts.findIndex((m) => m.type === 'fault')).toBeLessThan(posts.findIndex((m) => m.type === 'end'));
+    expect(posts.at(-1)).toMatchObject({ type: 'end', result: { ended: 'fault' } });
+  });
+});
+
+describe('M9 slice 4: the circuit\'s state for the multimeter', () => {
+  it('the pins as the circuit has them reach the window: GP15 driven high, GP14 an input with its pull-up', async () => {
+    const control = new Control();
+    const posts: WorkerMessage[] = [];
+    let t = 0;
+    await handleStart({
+      type: 'start', board: 'pico-w', control: control.buffer, inputs: [],
+      files: { 'main.py': 'from machine import Pin\nimport time\nPin(14, Pin.IN, Pin.PULL_UP)\nPin(15, Pin.OUT).on()\ntime.sleep_ms(50)\n' },
+      circuit: { board: { data: parseBoard(picoJson) }, breadboards: [], parts: [{ id: 'r1', type: 'resistor', legs: { a: 'board.GP15', b: 'board.GP14' } }], wires: [] },
+    }, (m) => posts.push(m), await nodeLoader(), () => (t += 1));
+    const states = posts.flatMap((m) => (m.type === 'board' && m.state ? [m.state] : []));
+    expect(states.at(-1)!.pins).toMatchObject({ GP15: { mode: 'out', value: 1 }, GP14: { mode: 'in', pull: 'up' } });
+    // only when it changes: not once per frame
+    expect(new Set(states.map((x) => JSON.stringify(x))).size).toBe(states.length);
+  });
+});

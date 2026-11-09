@@ -9,17 +9,18 @@ import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
 import { startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M6.7b (screens 22 and 22b, approved 2026-11-08): Add a library — from the + menu and the files panel — and the
  *  inspector's Library line. Run hands the project's files to the (fake) simulation: the test reads them there. */
 const pack = (f: string) => readFileSync(join(process.cwd(), 'library/lib-pack', f), 'utf8');
 
-function setup(board = 'New Pico W project') {
+async function setup(board = 'New Pico W project') {
   const runs: { doc: ProjectDoc; events: RunEvents }[] = [];
   const start: StartRun = (req, events) => { runs.push({ ...req, events }); return { stop: vi.fn(), setInput: vi.fn() }; };
   const api = fakeApi();
   render(<App api={api} width={1440} startRun={start} audio={() => null} />);
-  fireEvent.click(screen.getByRole('button', { name: board }));
+  await newProjectFromStart(board);
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
@@ -50,8 +51,8 @@ function setup(board = 'New Pico W project') {
 }
 
 describe('M6.7b Add a library (screen 22)', () => {
-  it('from the + menu: the circuit\'s parts first, each with its authors and licence; what needs nothing says so', () => {
-    const s = setup();
+  it('from the + menu: the circuit\'s parts first, each with its authors and licence; what needs nothing says so', async () => {
+    const s = await setup();
     s.place(/^VL53L0X/, 'vl53l0x', 'bb1.f2');
     s.place(/^DS18B20/, 'ds18b20', 'bb1.f12');
     s.plus('Add a library…');
@@ -64,8 +65,8 @@ describe('M6.7b Add a library (screen 22)', () => {
     expect(within(other).getAllByRole('listitem')).toHaveLength(12);   // M7 slice 2 added four, then the RC522's, slice 5 micropyGPS
   });
 
-  it('how to start with the chosen one, to copy; Add puts its files and its licence in lib/', () => {
-    const s = setup();
+  it('how to start with the chosen one, to copy; Add puts its files and its licence in lib/', async () => {
+    const s = await setup();
     s.plus('Add a library…');
     fireEvent.click(within(s.row('BMP280 air pressure')).getByRole('button', { name: /BMP280 air pressure/ }));
     const start = within(s.dialog()).getByRole('region', { name: 'How to start with bmp280' });
@@ -80,8 +81,8 @@ describe('M6.7b Add a library (screen 22)', () => {
     expect(f['lib/LICENSE-bmp280.txt']).toBe(pack('bmp280/LICENSE'));
   });
 
-  it('the Pico W gets the rotary library\'s rp2 file; a lib/ file the student changed is replaced only when asked', () => {
-    const s = setup();
+  it('the Pico W gets the rotary library\'s rp2 file; a lib/ file the student changed is replaced only when asked', async () => {
+    const s = await setup();
     s.plus('New file…');
     const field = screen.getByRole('textbox', { name: 'New file' });
     fireEvent.change(field, { target: { value: 'lib/rotary.py' } });
@@ -103,8 +104,8 @@ describe('M6.7b Add a library (screen 22)', () => {
     expect(f['lib/rotary_irq_esp.py']).toBeUndefined();
   });
 
-  it('the files panel has Add library too; on the micro:bit, MicroLab\'s own drivers go next to main.py, the MIT notice inside', () => {
-    const s = setup('New micro:bit project');
+  it('the files panel has Add library too; on the micro:bit, MicroLab\'s own drivers go next to main.py, the MIT notice inside', async () => {
+    const s = await setup('New micro:bit project');
     fireEvent.click(screen.getByRole('button', { name: 'Project files' }));
     fireEvent.click(within(screen.getByRole('complementary', { name: 'Project files' })).getByRole('button', { name: 'Add library' }));
     expect(within(s.dialog()).getAllByRole('listitem')).toHaveLength(13);   // M7 slice 5: micropyGPS
@@ -119,8 +120,8 @@ describe('M6.7b Add a library (screen 22)', () => {
 });
 
 describe('M6.7b the inspector\'s Library line (screen 22b)', () => {
-  it('a part that needs a library: Add adds it at once; then it says it is in lib/', () => {
-    const s = setup();
+  it('a part that needs a library: Add adds it at once; then it says it is in lib/', async () => {
+    const s = await setup();
     s.place(/^VL53L0X/, 'vl53l0x', 'bb1.f2');
     const line = within(s.inspector()).getByRole('group', { name: 'Library' });
     expect(line).toHaveTextContent('vl53l0x');
@@ -129,16 +130,16 @@ describe('M6.7b the inspector\'s Library line (screen 22b)', () => {
     expect(s.files()['lib/vl53l0x.py']).toBe(pack('vl53l0x/vl53l0x.py'));
   });
 
-  it('nothing to add (MicroPython\'s own); none for the micro:bit; a part without one has no line', () => {
-    const s = setup();
+  it('nothing to add (MicroPython\'s own); none for the micro:bit; a part without one has no line', async () => {
+    const s = await setup();
     s.place(/^DS18B20/, 'ds18b20', 'bb1.f12');
     expect(within(s.inspector()).getByRole('group', { name: 'Library' })).toHaveTextContent('None needed: onewire, ds18x20 are part of MicroPython');
     s.place(/^Push button/, 'button', 'bb1.e20');
     expect(within(s.inspector()).queryByRole('group', { name: 'Library' })).toBeNull();
   });
 
-  it('on the micro:bit: MicroLab\'s own bmp280, added next to main.py', () => {
-    const s = setup('New micro:bit project');
+  it('on the micro:bit: MicroLab\'s own bmp280, added next to main.py', async () => {
+    const s = await setup('New micro:bit project');
     s.place(/^BMP280/, 'bmp280', 'bb1.f2');
     fireEvent.click(within(s.inspector()).getByRole('button', { name: 'Add the bmp280 library' }));
     expect(within(s.inspector()).getByRole('group', { name: 'Library' })).toHaveTextContent('bmp280 added · MIT');

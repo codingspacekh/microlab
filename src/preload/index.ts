@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webFrame } from 'electron';
 
 /** The only bridge from the window to Node (architecture §2.2): the app version, the settings file, project files. */
 /** What the main process passed the window (webPreferences.additionalArguments): --microlab-<name>=<value>. */
@@ -16,6 +16,59 @@ contextBridge.exposeInMainWorld('microlab', {
     recent: (): Promise<unknown> => ipcRenderer.invoke('project:recent'),
     openPath: (path: string): Promise<unknown> => ipcRenderer.invoke('project:open-path', path),
     forget: (path: string): Promise<void> => ipcRenderer.invoke('project:forget', path),
+  },
+  // Python 3 (M12): .py files, and the session that runs them
+  pyfile: {
+    save: (text: string, opts: unknown): Promise<unknown> => ipcRenderer.invoke('py:save', text, opts),
+  },
+  // projects as folders (M12 Rev 11): made, opened, their tree and its files
+  projects: {
+    home: (): Promise<unknown> => ipcRenderer.invoke('projects:home'),
+    choose: (from: string): Promise<unknown> => ipcRenderer.invoke('projects:choose', from),
+    newPython: (location: string, name: string): Promise<unknown> => ipcRenderer.invoke('projects:new-python', location, name),
+    newBoard: (location: string, name: string, doc: unknown): Promise<unknown> => ipcRenderer.invoke('projects:new-board', location, name, doc),
+    openPython: (path: string): Promise<unknown> => ipcRenderer.invoke('projects:open-python', path),
+    tree: (root: string): Promise<unknown> => ipcRenderer.invoke('projects:tree', root),
+    newEntry: (root: string, rel: string, kind: string): Promise<unknown> => ipcRenderer.invoke('projects:new-entry', root, rel, kind),
+    rename: (root: string, from: string, to: string): Promise<unknown> => ipcRenderer.invoke('projects:rename', root, from, to),
+    trash: (root: string, rel: string): Promise<unknown> => ipcRenderer.invoke('projects:trash', root, rel),
+    reveal: (root: string, rel: string): Promise<unknown> => ipcRenderer.invoke('projects:reveal', root, rel),
+    read: (root: string, rel: string): Promise<unknown> => ipcRenderer.invoke('projects:read', root, rel),
+    context: (items: unknown): Promise<unknown> => ipcRenderer.invoke('projects:context', items),
+    onChanged: (handler: (root: string) => void): (() => void) => {
+      const listener = (_e: unknown, root: string) => handler(root);
+      ipcRenderer.on('projects:changed', listener);
+      return () => { ipcRenderer.removeListener('projects:changed', listener); };
+    },
+  },
+  file: {
+    open: (): Promise<unknown> => ipcRenderer.invoke('file:open'),
+  },
+  python3: {
+    run: (code: string, file: string): Promise<unknown> => ipcRenderer.invoke('py:run', code, file),
+    line: (text: string): Promise<void> => ipcRenderer.invoke('py:line', text),
+    interrupt: (): Promise<void> => ipcRenderer.invoke('py:interrupt'),
+    stop: (): Promise<void> => ipcRenderer.invoke('py:stop'),
+    shellComplete: (text: string): Promise<unknown> => ipcRenderer.invoke('py:shell-complete', text),
+    complete: (at: unknown): Promise<unknown> => ipcRenderer.invoke('py:complete', at),
+    signature: (at: unknown): Promise<unknown> => ipcRenderer.invoke('py:signature', at),
+    onEvent: (handler: (e: unknown) => void): (() => void) => {
+      const listener = (_e: unknown, ev: unknown) => handler(ev);
+      ipcRenderer.on('py:event', listener);
+      return () => { ipcRenderer.removeListener('py:event', listener); };
+    },
+    libs: {
+      list: (): Promise<unknown> => ipcRenderer.invoke('py:libs-list'),
+      lookUp: (name: string): Promise<unknown> => ipcRenderer.invoke('py:libs-lookup', name),
+      install: (name: string): Promise<unknown> => ipcRenderer.invoke('py:libs-install', name),
+      installFile: (): Promise<unknown> => ipcRenderer.invoke('py:libs-install-file'),
+      remove: (name: string): Promise<unknown> => ipcRenderer.invoke('py:libs-remove', name),
+      onOutput: (handler: (text: string) => void): (() => void) => {
+        const listener = (_e: unknown, t: string) => handler(t);
+        ipcRenderer.on('py:libs-output', listener);
+        return () => { ipcRenderer.removeListener('py:libs-output', listener); };
+      },
+    },
   },
   recovery: {
     get: (): Promise<unknown> => ipcRenderer.invoke('recovery:get'),
@@ -68,5 +121,7 @@ contextBridge.exposeInMainWorld('microlab', {
     copy: (text: string): Promise<void> => ipcRenderer.invoke('app:copy', text),
     openDriverPage: (chip: string): Promise<void> => ipcRenderer.invoke('app:open-driver-page', chip),
     showFirmware: (kind: string): Promise<void> => ipcRenderer.invoke('app:show-firmware', kind),
+    // the app's size (M12 Rev 12, F-106): the window's zoom
+    zoom: { get: (): number => webFrame.getZoomFactor(), set: (f: number): void => webFrame.setZoomFactor(f) },
   },
 });

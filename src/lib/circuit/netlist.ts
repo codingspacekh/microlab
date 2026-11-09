@@ -54,5 +54,8 @@ export function toNetlist(spec: CircuitSpec): { netlist: Netlist; connectivity: 
   }
 
   const nets = [...c.nets.map((n) => n.id), ...extraNets];
-  return { netlist: { nets, ground: ground ?? nets[0], devices }, connectivity: c };
+  // a burnt LED is open: as if it weren't there (M9)
+  const dead = new Set(spec.burnt ?? []);
+  const alive = dead.size ? devices.filter((d) => !(d.kind === 'led' && dead.has(d.id))) : devices;
+  return { netlist: { nets, ground: ground ?? nets[0], devices: alive }, connectivity: c };
 }

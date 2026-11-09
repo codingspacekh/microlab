@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>31f Python 3 — the shell on the right; pairs typed</title>
+<meta name="viewport" content="width=device-width">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="fit.js" defer></script>
+
+</head>
+<body>
+<p class="frame-label"><b>31f · Python 3: the shell on the right; brackets and quotes typed in pairs</b> (M12 design, <b>Rev 11</b>, the teacher: <i>"the shell should be allowed to move to different position, and resizable"</i>; <i>"improve on pair symbol like quotation, bracket, parentheses"</i>) — the shell's second button puts it <b>beside the editor</b>; its edge is dragged to make it wider (from a quarter to three quarters of the width); the first button puts it back below. MicroLab remembers where and how big. In the editor, typing <code>(</code> <code>[</code> <code>{</code> <code>"</code> <code>'</code> <b>puts its pair after the cursor</b>: <code>print(</code> becomes <code>print(|)</code>, then <code>"</code> gives <code>print("|")</code>; typing the closing one <b>steps over</b> it rather than adding another; Backspace right after the opening one takes both away; a word selected and <code>"</code> typed puts the quotes around it. A completion taken from the list (<i>forward</i>) brings its brackets too, as now. The same in the boards' editor</p>
+<div class="frame">
+  <div class="topbar">
+  <div class="brand"><svg class="logo" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="#2563d9"/><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M11 8V4.5M17 8V4.5M11 23.5V20M17 23.5V20M8 11H4.5M8 17H4.5M20 11h3.5M20 17h3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="14" r="2.2" fill="#7fe0a8"/></svg>
+<b>Micro<span>Lab</span></b></div>
+  <div class="seg modes"><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg> Workspace</span><span class="on"><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 10l3 2-3 2M13 15h3"/></svg> Python 3</span><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M8 7h7"/></svg> Learn</span></div>
+  <div class="pyfile"><b>turtle_art · spiral.py</b><span>Documents/MicroLab/Sokha/turtle_art · not saved</span></div>
+  <span class="spacer"></span>
+  <div class="runbox"><button class="btn run"><svg class="ico fill s14" viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z"/></svg> Run spiral.py <span class="tiny" style="opacity:.75;margin-left:2px">F5</span></button><button class="btn icon disabled" title="Stop"><svg class="ico fill s14" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg></button></div><button class="btn"><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg> Libraries</button>
+</div>
+
+  <div class="pyscreen">
+    <div class="pybody">
+      <div class="ptree" aria-label="Project">
+        <div class="ph"><b><svg class="ico s14" viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg> turtle_art</b><span class="spacer"></span><button class="btn ghost sm icon" title="New file"><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14h6"/></svg></button><button class="btn ghost sm icon" title="New folder"><svg class="ico s14" viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5zM12 11v6M9 14h6"/></svg></button></div>
+        <div class="pt">
+          <div class="r"><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg> flower.py</div>
+          <div class="r"><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg> main.py</div>
+          <div class="r sel"><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg> spiral.py</div>
+        </div>
+        <div class="pf">Documents/MicroLab/Sokha/turtle_art</div>
+      </div>
+      <div class="pmain right">
+        <div class="pcol">
+          <div class="tabs"><a><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg> main.py</a><a class="on"><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg> spiral.py<span class="dirty" title="Not saved"></span></a><span class="spacer"></span><button class="btn ghost sm icon" title="Text size and theme">Aa</button></div>
+          <div class="ed" style="position:relative"><div class="code">
+<div class="ln"><span class="no">1</span><span class="tx"><span class="k">import</span> turtle</span></div>
+<div class="ln"><span class="no">2</span><span class="tx"></span></div>
+<div class="ln"><span class="no">3</span><span class="tx">t = turtle.Turtle()</span></div>
+<div class="ln"><span class="no">4</span><span class="tx">colours = [<span class="s">"red"</span>, <span class="s">"orange"</span>, <span class="s">"yellow"</span>, <span class="s">"green"</span>]</span></div>
+<div class="ln"><span class="no">5</span><span class="tx"></span></div>
+<div class="ln"><span class="no">6</span><span class="tx"><span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="n">100</span>):</span></div>
+<div class="ln"><span class="no">7</span><span class="tx">    t.pencolor(colours[i % <span class="n">4</span>])</span></div>
+<div class="ln"><span class="no">8</span><span class="tx">    t.forward(i * <span class="n">2</span>)</span></div>
+<div class="ln"><span class="no">9</span><span class="tx">    t.left(<span class="n">91</span>)</span></div>
+<div class="ln"><span class="no">10</span><span class="tx"></span></div>
+<div class="ln"><span class="no">11</span><span class="tx">turtle.title(<span class="s">"<span class="cur"></span></span><span class="s pair">"</span><span class="pair">)</span></span></div>
+</div>
+            <div class="callout" style="left:300px;top:228px">Typed <code>(</code> then <code>"</code>: their pairs came after the cursor. Typing <code>"</code> or <code>)</code> steps over them.</div>
+          </div>
+        </div>
+        <div class="grip v" title="Drag to make the shell wider or narrower"></div>
+        <div class="shell">
+          <div class="sh"><span class="ctab on" style="display:inline-flex;gap:6px;align-items:center;font-weight:600;font-size:12.5px;padding:0 8px"><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 10l3 2-3 2M13 15h3"/></svg> Shell</span><span class="ctab" style="display:inline-flex;gap:6px;align-items:center;color:var(--tx-2);font-size:12.5px;padding:0 8px"><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 19h16M4 5v14M7 15l4-5 3 3 5-7"/></svg> Plotter</span><span class="spacer"></span><span class="dock" role="group" aria-label="Where the shell is"><button class="btn ghost sm icon" title="Shell below the editor"><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 14h16"/></svg></button><button class="btn ghost sm icon on" title="Shell on the right"><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM14 4v16"/></svg></button></span><button class="btn ghost sm">Clear</button></div>
+<div class="sb"><div><span class="sys">Running spiral.py in Documents/MicroLab/Sokha/turtle_art</span>
+<span class="sys">A window from spiral.py is open beside MicroLab. Close it, or press Stop, to end the program.</span>
+<span class="sys">spiral.py ended. Its names are still here: type Python and press Enter.</span>
+<span class="p">&gt;&gt;&gt;</span> i
+99
+<span class="p">&gt;&gt;&gt;</span> t.heading()
+9.0</div></div>
+          <div class="prompt"><b>&gt;&gt;&gt;</b><span class="field" style="flex:1;height:30px"><span class="ph">Type Python and press Enter</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="statusbar"><span class="st"><span class="dot" style="background:var(--tx-3)"></span>Ended</span><span>Python 3.13.18 (MicroLab)</span><span class="spacer"></span><span>Ln 11, Col 15</span><span>UTF-8 · spaces 4</span></div>
+</div>
+</body></html>

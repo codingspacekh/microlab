@@ -4,19 +4,20 @@ import { parseUname } from '@lib/repl';
 import type { Detection, FoundBoard } from '@lib/usb';
 import { App } from '../../src/renderer/app/App';
 import { fakeApi } from './fake-api';
+import { newProjectFromStart } from './new-project';
 
 /** M10.1 F-55 the board chip (screens 13, 13b) — the states USB can tell; the board's own answer comes in M10.2. */
 const PICO: FoundBoard = { id: 'e661', kind: 'pico', port: '/dev/cu.usbmodem14201', usb: '2e8a:0005' };
 const MB: FoundBoard = { id: '9906', kind: 'microbit', port: '/dev/cu.usbmodem14202', usb: '0d28:0204' };
 const ESP: FoundBoard = { id: '0001', kind: 'esp32', port: 'COM7', usb: '10c4:ea60', chip: 'CP210x' };
 
-function setup(start: Detection, project = 'New Pico W project') {
+async function setup(start: Detection, project = 'New Pico W project') {
   const api = fakeApi();
   let push: (now: Detection, changes: { plugged: FoundBoard[]; unplugged: FoundBoard[] }) => void = () => {};
   api.boards.get = vi.fn(async () => start);
   api.boards.onChange = vi.fn((h) => { push = h; return () => {}; });
   render(<App api={api} width={1440} />);
-  fireEvent.click(screen.getByRole('button', { name: project }));
+  await newProjectFromStart(project);
   const change = (now: Detection, plugged: FoundBoard[] = [], unplugged: FoundBoard[] = []) => act(() => push(now, { plugged, unplugged }));
   return { api, change };
 }
@@ -26,14 +27,14 @@ const none: Detection = { boards: [], drives: [] };
 
 describe('M10.1 the board chip', () => {
   it('no board: "No board"; its card says what to plug in', async () => {
-    setup(none);
+    await setup(none);
     expect(await chip()).toHaveAccessibleName('Board: No board');
     fireEvent.click(await chip());
     expect(screen.getByRole('dialog', { name: 'Board' })).toHaveTextContent('Plug a micro:bit, Pico W or ESP32 in with a USB cable that carries data');
   });
 
   it('the project\'s board: ready, with its port in its card', async () => {
-    setup({ boards: [PICO], drives: [] });
+    await setup({ boards: [PICO], drives: [] });
     expect(await chip()).toHaveAccessibleName('Board: Pico, ready');
     expect(await chip()).toHaveClass('ok');
     fireEvent.click(await chip());
@@ -44,20 +45,20 @@ describe('M10.1 the board chip', () => {
   });
 
   it('another board: "project is for Pico W", in amber', async () => {
-    setup({ boards: [MB], drives: [] });
+    await setup({ boards: [MB], drives: [] });
     expect(await chip()).toHaveAccessibleName('Board: micro:bit, project is for Pico W');
     expect(await chip()).toHaveClass('warn');
   });
 
   it('a Pico in BOOTSEL mode: no program runs; how to start it normally', async () => {
-    setup({ boards: [], drives: [{ kind: 'pico-bootsel', volume: 'RPI-RP2' }] });
+    await setup({ boards: [], drives: [{ kind: 'pico-bootsel', volume: 'RPI-RP2' }] });
     expect(await chip()).toHaveAccessibleName('Board: Pico, BOOTSEL mode');
     fireEvent.click(await chip());
     expect(screen.getByRole('dialog', { name: 'Board' })).toHaveTextContent('Unplug it and plug it back in without holding the button');
   });
 
   it('two boards: the one that fits is chosen; another can be chosen, and is remembered', async () => {
-    const s = setup({ boards: [PICO, ESP], drives: [] }, 'New ESP32 project');
+    const s = await setup({ boards: [PICO, ESP], drives: [] }, 'New ESP32 project');
     expect(await chip()).toHaveAccessibleName('Board: ESP32, ready (2 boards)');
     fireEvent.click(await chip());
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Board' })).getByRole('radio', { name: /Pico/ }));
@@ -67,7 +68,7 @@ describe('M10.1 the board chip', () => {
   });
 
   it('plugged in and out: the chip changes at once, and a short message says so', async () => {
-    const s = setup(none);
+    const s = await setup(none);
     await chip();
     s.change({ boards: [PICO], drives: [] }, [PICO]);
     expect(await chip()).toHaveAccessibleName('Board: Pico, ready');
@@ -80,7 +81,7 @@ describe('M10.1 the board chip', () => {
   it('the message goes after 5 seconds', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
-      const s = setup(none);
+      const s = await setup(none);
       await chip();
       s.change({ boards: [MB], drives: [] }, [MB]);
       expect(screen.getByText(/micro:bit plugged in/)).toBeInTheDocument();
@@ -93,7 +94,7 @@ describe('M10.1 the board chip', () => {
   });
 
   it('Esc or a click elsewhere closes its card', async () => {
-    setup({ boards: [PICO], drives: [] });
+    await setup({ boards: [PICO], drives: [] });
     fireEvent.click(await chip());
     fireEvent.keyDown(screen.getByRole('dialog', { name: 'Board' }), { key: 'Escape' });
     expect(screen.queryByRole('dialog', { name: 'Board' })).toBeNull();
@@ -109,13 +110,13 @@ const at = (checks: Detection['checks'], boards = [PICO]): Detection => ({ board
 
 describe('M10.2 the chip, with the board\'s answer', () => {
   it('being asked: "checking…"', async () => {
-    setup(at({ e661: { state: 'checking' } }));
+    await setup(at({ e661: { state: 'checking' } }));
     expect(await chip()).toHaveAccessibleName('Board: Pico, checking…');
     expect(await chip()).toHaveClass('looking');
   });
 
   it('answered: its own name and MicroPython version, in the chip and its card', async () => {
-    setup(at({ e661: { state: 'micropython', uname: W } }));
+    await setup(at({ e661: { state: 'micropython', uname: W } }));
     expect(await chip()).toHaveAccessibleName('Board: Pico W, ready, MicroPython 1.29');
     expect(await chip()).toHaveTextContent('Pico W · MicroPython 1.29');
     fireEvent.click(await chip());
@@ -126,7 +127,7 @@ describe('M10.2 the chip, with the board\'s answer', () => {
   });
 
   it('plugged in: the message waits for the answer, then names the board and its version', async () => {
-    const s = setup(none);
+    const s = await setup(none);
     await chip();
     s.change(at({ e661: { state: 'checking' } }), [PICO]);
     expect(screen.getByText('Pico plugged in — checking…')).toBeInTheDocument();
@@ -135,7 +136,7 @@ describe('M10.2 the chip, with the board\'s answer', () => {
   });
 
   it('used by another program: says which, how to free it, and asks again', async () => {
-    const s = setup(at({ e661: { state: 'busy', by: 'Thonny' } }));
+    const s = await setup(at({ e661: { state: 'busy', by: 'Thonny' } }));
     expect(await chip()).toHaveAccessibleName('Board: Pico, used by Thonny');
     expect(await chip()).toHaveClass('warn');
     fireEvent.click(await chip());
@@ -146,14 +147,14 @@ describe('M10.2 the chip, with the board\'s answer', () => {
   });
 
   it('no MicroPython on it', async () => {
-    setup(at({ 9906: { state: 'no-micropython', seen: '' } }, [MB]), 'New micro:bit project');
+    await setup(at({ 9906: { state: 'no-micropython', seen: '' } }, [MB]), 'New micro:bit project');
     expect(await chip()).toHaveAccessibleName('Board: micro:bit, no MicroPython');
     fireEvent.click(await chip());
     expect(screen.getByRole('dialog', { name: 'Board' })).toHaveTextContent('MakeCode');
   });
 
   it('can\'t connect: in red, with the reason', async () => {
-    setup(at({ e661: { state: 'cant-open', message: 'Opening COM7: The semaphore timeout period has expired.' } }));
+    await setup(at({ e661: { state: 'cant-open', message: 'Opening COM7: The semaphore timeout period has expired.' } }));
     expect(await chip()).toHaveAccessibleName("Board: Board found, can't connect");
     expect(await chip()).toHaveClass('bad');
     fireEvent.click(await chip());
@@ -161,7 +162,7 @@ describe('M10.2 the chip, with the board\'s answer', () => {
   });
 
   it('there before MicroLab started, not asked yet: its card can ask it, saying its program restarts', async () => {
-    const s = setup({ boards: [PICO], drives: [] });
+    const s = await setup({ boards: [PICO], drives: [] });
     fireEvent.click(await chip());
     const card = screen.getByRole('dialog', { name: 'Board' });
     expect(card).toHaveTextContent('its program stops for a moment and starts again');

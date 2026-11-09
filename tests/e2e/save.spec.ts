@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
+import { newProject } from './new-project';
 
 /** M4.6 F-02, F-60 with real files: a project saved, a fresh start, the file opened again — as a teacher's starter
  *  project is; and the window doesn't close on unsaved changes without asking. */
@@ -67,13 +68,14 @@ async function circuit(win: Page) {
 
 test('F-02 / F-60: save with ⌘S / Ctrl+S, start again, open the file: the same circuit and code', async () => {
   const win = await app.firstWindow();
-  const file = join(home, 'Starter.mlab');
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  // Rev 11: named first, and saved from the start where it was made
+  const file = join(home, 'Documents', 'MicroLab', 'Starter.mlab');
+  await newProject(win, 'New Pico W project', 'Starter');
+  expect(existsSync(file)).toBe(true);
   await circuit(win);
   await expect(win.getByRole('group', { name: 'Project' }).getByTitle('Not saved')).toBeVisible();
 
-  await choose(file);
-  await win.keyboard.press(`${MOD}+S`);
+  await win.keyboard.press(`${MOD}+S`);   // to its file: nothing is asked
   await expect(win.getByRole('group', { name: 'Project' })).toContainText('Starter');
   await expect(win.getByRole('status')).toContainText('Saved “Starter.mlab”');
   await expect(win.getByRole('group', { name: 'Project' }).getByTitle('Not saved')).toHaveCount(0);
@@ -83,8 +85,9 @@ test('F-02 / F-60: save with ⌘S / Ctrl+S, start again, open the file: the same
   // a fresh start (no question: nothing unsaved), then the file opened again
   await win.getByRole('button', { name: 'Project menu' }).click();
   await win.getByRole('menuitem', { name: 'New project…' }).click();
-  await win.getByRole('button', { name: 'New ESP32 project' }).click();
+  await newProject(win, 'New ESP32 project');
   await win.getByRole('button', { name: 'Project menu' }).click();
+  await choose(file);
   await win.getByRole('menuitem', { name: 'Open a project…' }).click();
   await expect(win.getByRole('group', { name: 'Project' })).toContainText('Starter');
   await expect(win.getByRole('group', { name: 'Project' })).toContainText('Raspberry Pi Pico W');
@@ -93,18 +96,21 @@ test('F-02 / F-60: save with ⌘S / Ctrl+S, start again, open the file: the same
   expect((await win.locator('[data-wire="w1"]').getAttribute('data-via'))!.split(' ')).toHaveLength(2);
   await expect(win.getByRole('textbox', { name: 'main.py' })).toContainText('print("from the teacher")');
 
-  // and it runs as it was saved
+  // and it runs as it was saved — the check before running (M9 slice 3) sees the resistor's free end: Run anyway
   await win.getByRole('button', { name: 'Run main.py' }).click();
+  const check = win.getByRole('dialog', { name: 'Before it runs' });
+  await expect(check).toContainText("R1's leg is alone in column");
+  await check.getByRole('button', { name: 'Run anyway' }).click();
   await expect(win.getByRole('log', { name: 'Console' })).toContainText('from the teacher', { timeout: 5000 });
 });
 
 test('closing the window with unsaved changes asks first; Don\'t save closes it', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New micro:bit project' }).click();
+  await newProject(win, 'New micro:bit project');
   await win.getByRole('textbox', { name: 'main.py' }).click();
   await win.keyboard.insertText('# a change\n');
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.close());
-  const ask = win.getByRole('alertdialog', { name: 'Save your changes to “Untitled project”?' });
+  const ask = win.getByRole('alertdialog', { name: 'Save your changes to “Test project”?' });
   await expect(ask).toBeVisible();
   expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
   await ask.getByRole('button', { name: 'Cancel' }).click();

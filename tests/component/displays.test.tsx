@@ -7,19 +7,20 @@ import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
 import { startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M7 slice 2 in the editor (screens 26, 26b, 26c): the Displays group; the OLED stands in row f, the digit straddles
  *  the gap, the LCD, the TM1637 and the matrix lie beside the breadboard, their header pins points to wire; the
  *  address and common in the inspector; while running each shows what the sim says it shows, and says it hovered.
  *  The simulation is a fake: the test says what the worker says. */
-function setup() {
+async function setup() {
   const runs: { doc: ProjectDoc; events: RunEvents }[] = [];
   const start: StartRun = (req, events) => {
     runs.push({ ...req, events });
     return { stop: vi.fn(), setInput: vi.fn() };
   };
   render(<App api={fakeApi()} width={1440} startRun={start} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
@@ -59,8 +60,8 @@ function setup() {
 const HEX_ONE_PIXEL = `01${'00'.repeat(1023)}`;
 
 describe('M7 the displays in the parts panel and on the canvas (screens 26, 26b)', () => {
-  it('a Displays group of six; the OLED in row f; the digit across the gap, its pins in rows h and d', () => {
-    const s = setup();
+  it('a Displays group of six; the OLED in row f; the digit across the gap, its pins in rows h and d', async () => {
+    const s = await setup();
     const group = screen.getByRole('group', { name: 'Displays' });
     expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual([
       expect.stringMatching(/^OLED SSD1306/), expect.stringMatching(/^LCD 16×2/), expect.stringMatching(/^7-segment digit/),
@@ -73,8 +74,8 @@ describe('M7 the displays in the parts panel and on the canvas (screens 26, 26b)
     expect(within(s.inspector()).getByRole('radiogroup', { name: 'Common pins' })).toBeInTheDocument();
   });
 
-  it('the LCD lies where it is let go; its GND VCC SDA SCL are points; a wire to its SDA; its address 0x27 or 0x3F', () => {
-    const s = setup();
+  it('the LCD lies where it is let go; its GND VCC SDA SCL are points; a wire to its SDA; its address 0x27 or 0x3F', async () => {
+    const s = await setup();
     s.drop(/^LCD 16×2/, { x: 760, y: 200 });
     for (const t of ['gnd', 'vcc', 'sda', 'scl']) expect(s.point(`lcd1.${t}`)).toBeDefined();
     s.wire('board.GP20', 'lcd1.sda');
@@ -86,8 +87,8 @@ describe('M7 the displays in the parts panel and on the canvas (screens 26, 26b)
     expect(s.part('lcd1')).toHaveTextContent('0x3F');
   });
 
-  it('the TM1637 and the matrix lie beside it, their headers points: CLK DIO VCC GND; VCC GND DIN CS CLK and the chain out', () => {
-    const s = setup();
+  it('the TM1637 and the matrix lie beside it, their headers points: CLK DIO VCC GND; VCC GND DIN CS CLK and the chain out', async () => {
+    const s = await setup();
     s.drop(/^4-digit display/, { x: 760, y: 120 });
     s.drop(/^8×8 dot matrix/, { x: 760, y: 320 });
     for (const t of ['clk', 'dio', 'vcc', 'gnd']) expect(s.point(`tm1.${t}`)).toBeDefined();
@@ -96,8 +97,8 @@ describe('M7 the displays in the parts panel and on the canvas (screens 26, 26b)
 });
 
 describe('M7 the parts panel\'s search (the teacher\'s request)', () => {
-  it('filters by name, what a part is and its group, as typed; groups with nothing hidden; nothing found says so; Esc empties it', () => {
-    setup();
+  it('filters by name, what a part is and its group, as typed; groups with nothing hidden; nothing found says so; Esc empties it', async () => {
+    await setup();
     const panel = screen.getByRole('region', { name: 'Parts' });
     const search = within(panel).getByRole('textbox', { name: 'Search the parts' });
     expect(search).toHaveAttribute('placeholder', expect.stringMatching(/^Search \d+ parts$/));
@@ -119,8 +120,8 @@ describe('M7 the parts panel\'s search (the teacher\'s request)', () => {
 });
 
 describe('M7 the parts panel folds away by itself (the teacher\'s request)', () => {
-  it('a press on the canvas folds it; placing a part from it doesn\'t (that press puts the part down); its search keeps it', () => {
-    const s = setup();
+  it('a press on the canvas folds it; placing a part from it doesn\'t (that press puts the part down); its search keeps it', async () => {
+    const s = await setup();
     const open = () => screen.queryByRole('region', { name: 'Parts' });
     expect(open()).not.toBeNull();
     fireEvent.mouseDown(within(open()!).getByRole('textbox', { name: 'Search the parts' }));
@@ -137,8 +138,8 @@ describe('M7 the parts panel folds away by itself (the teacher\'s request)', () 
 });
 
 describe('M7 a display beside the breadboard turned (the teacher\'s request)', () => {
-  it('Rotate in its inspector turns the LCD a quarter about its middle: its drawing, its pins, the wire on its pin', () => {
-    const s = setup();
+  it('Rotate in its inspector turns the LCD a quarter about its middle: its drawing, its pins, the wire on its pin', async () => {
+    const s = await setup();
     s.drop(/^LCD 16×2/, { x: 760, y: 200 });
     s.wire('board.GP20', 'lcd1.sda');
     const before = s.point('lcd1.gnd');
@@ -155,8 +156,8 @@ describe('M7 a display beside the breadboard turned (the teacher\'s request)', (
 });
 
 describe('M7 the displays while running (screens 26, 26b, 26c)', () => {
-  it('each shows what the sim says; hovered, what it shows', () => {
-    const s = setup();
+  it('each shows what the sim says; hovered, what it shows', async () => {
+    const s = await setup();
     s.place(/^OLED SSD1306/, 'ssd1306', 'bb1.f14');
     s.place(/^7-segment digit/, 'seven-segment', 'bb1.h4');
     s.drop(/^LCD 16×2/, { x: 760, y: 120 });
@@ -192,8 +193,8 @@ describe('M7 the displays while running (screens 26, 26b, 26c)', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent(/OLED1 · 1 pixels lit/);
   });
 
-  it('an LCD on 3V3 (screen 26c): its letters faint, and hovered it says why', () => {
-    const s = setup();
+  it('an LCD on 3V3 (screen 26c): its letters faint, and hovered it says why', async () => {
+    const s = await setup();
     s.drop(/^LCD 16×2/, { x: 760, y: 120 });
     s.run();
     s.say((e) => e.onParts({ lcd1: { kind: 'lcd', on: true, backlight: true, faint: true, rows: ['Counting down   ', '                '] } }));
@@ -204,8 +205,8 @@ describe('M7 the displays while running (screens 26, 26b, 26c)', () => {
 });
 
 describe('M7 the RC522 RFID reader (the teacher\'s request)', () => {
-  it('in the Modules group, in row f by its eight pins; while running, the Inputs card holds a tag to it; drawn over it; hovered, its UID', () => {
-    const s = setup();
+  it('in the Modules group, in row f by its eight pins; while running, the Inputs card holds a tag to it; drawn over it; hovered, its UID', async () => {
+    const s = await setup();
     s.place(/^RFID reader RC522/, 'rc522', 'bb1.f3');
     expect(s.part('rfid1')).toHaveAttribute('data-legs', 'bb1.f3 bb1.f4 bb1.f5 bb1.f6 bb1.f7 bb1.f8 bb1.f9 bb1.f10');
     expect(s.inspector()).toHaveTextContent(/3\.3 V only/);
@@ -224,8 +225,8 @@ describe('M7 the RC522 RFID reader (the teacher\'s request)', () => {
 });
 
 describe('M7 NeoPixels (screens 27, 27b, 27c)', () => {
-  it('a stick of 8 lies where it is let go, its pads points; its inspector makes it a ring of 12, then 24 — its pads with it', () => {
-    const s = setup();
+  it('a stick of 8 lies where it is let go, its pads points; its inspector makes it a ring of 12, then 24 — its pads with it', async () => {
+    const s = await setup();
     s.drop(/^NeoPixel strip \/ ring/, { x: 760, y: 200 });
     const np = () => s.part('neo1').querySelector('.neopixel')!;
     expect(np()).toHaveAttribute('data-shape', 'stick');
@@ -245,8 +246,8 @@ describe('M7 NeoPixels (screens 27, 27b, 27c)', () => {
     expect(s.inspector()).toHaveTextContent('up to 1440 mA — 24 LEDs × 60 mA');
   });
 
-  it('while running each LED shows the colour the sim says; hovered, an LED says its colour and current; the status bar adds them up', () => {
-    const s = setup();
+  it('while running each LED shows the colour the sim says; hovered, an LED says its colour and current; the status bar adds them up', async () => {
+    const s = await setup();
     s.drop(/^NeoPixel strip \/ ring/, { x: 760, y: 200 });
     s.run();
     s.say((e) => e.onParts({ neo1: { kind: 'pixels', on: true, pixels: `ff0000${'000000'.repeat(2)}000050${'000000'.repeat(4)}`, lit: 2, amps: 0.0313, from: 'VBUS', limitA: 0.5 } }));

@@ -16,6 +16,14 @@
 
 *Revision 8 (2026-11-06): two facts from the teacher's real boards, for the connection helper and installing MicroPython (§1.13, F-52, F-56). **The Pico and Pico W have no power light** — their only LED is the program's — so the helper's cable test for a Pico is its BOOTSEL drive: hold BOOTSEL while plugging in; if `RPI-RP2` appears, the cable carries data. **macOS asks before an app may write to a removable drive** (`RPI-RP2`, `MICROBIT`): installing MicroPython says so and offers to show the file to drag across by hand.*
 
+*Revision 9 (2026-11-09): **Learn is about the components, for children** — the teacher: "I don't want it to be about specific board … electronics for kids perspective where we tell students how the component operate behind the scene, how it work, how it use or connect, what the principle idea behind it, not about code, it's more about specification of the component." A part page is now **what it is, how it works inside (a picture to play with), the idea behind it, its specifications, how to connect it, and the mistakes it shows** — for students of **10–13** (Q20): short sentences, everyday comparisons, real units explained; **no code and no particular board** (F-40). **Board pages stay**, about the board as a component — what is on it, its pins and power, its limits — with no code (F-41). **Ideas pages** (voltage, current, resistance, a circuit, the breadboard, digital and analog, PWM) and the **glossary** stay (F-42, F-45). The **Examples tab is taken out** (F-04: the example projects stay as the acceptance suite and as `.mlab` files a teacher opens); code snippets per part (F-25) leave Learn. The first Learn slice is the **Basics** group (Q21).*
+
+*Revision 12 (2026-11-09): **The Python 3 screen, finished by the teacher's trial** — (1) the project's tree and the shell can each be hidden and shown again (F-102); (2) New file / New folder's button says *Create*; (3) the Python logo on every `.py` file (F-103); (4) the theme in Aa *"is not working yet"*: its panel was cut off by the tabs' strip — fixed — and the theme now colours the whole Python 3 screen (F-104); (5) more fonts — for the code: five, shipped inside MicroLab (F-105); (6) completions of turtle and tkinter came without their `( )`: names that are another name for a function (`pack = pack_configure`, `title = wm_title`, `fd = forward`) are now followed to it (F-97); (7) the app's size shown, 75–150 %, with *Back to 100 %* (F-106). Screens 31b updated; 31g, 31h new.*
+
+*Revision 11 (2026-11-09): **Projects as folders, a shell that moves** — the teacher, after trying M12: (1) *"the shell should be allowed to move to different position, and resizable"*: below or beside the editor, resized by its edge (F-98); (2) *"the code completion should improve on pair symbol like quotation, bracket, parentheses"*: typed in pairs, in both editors (F-99); (3) *"when a new project is created the app should show the file explorer to request them where they save … then show the file tree … ensure that the student store their file or project in their belonging folder"* — the computers are open to everyone (no sign-in): *"allow the student to better organize their file/project just like in pycharm, not a single file everywhere"*: every new project, Python or board, asks its name and location first; a Python project is a folder with its tree in the app (F-100, F-101); (4) the `>_` badge on the Start page taken out. Screens 31, 31b updated; 31e, 31f new.*
+
+*Revision 10 (2026-11-09): **A Python 3 IDE in MicroLab** — the teacher: "integrate pure Python IDLE in the microlab so that student can write their python3 code in the application directly … in the front page add another panel to go to python 3 ide editor"; with **turtle** and **tkinter**, plain **`.py` files**, and **libraries from PyPI** installed when the internet is there. A new Start-page card opens the **Python 3** screen: an editor for `.py` files and a shell, as IDLE has (F-90–F-97). It runs **real CPython 3.13, shipped inside MicroLab** (a self-contained build per platform and processor, with Tcl/Tk), the student's program in its own process, as Thonny does (Q22, §1.14). Learn (M8) waits until after the pilot.*
+
 Name: **MicroLab**.
 
 ---
@@ -34,7 +42,8 @@ Name: **MicroLab**.
 10. [1.10 Decisions & open questions](#110-decisions--open-questions)
 11. [1.11 Proposed way to build it](#111-proposed-way-to-build-it)
 12. [1.12 Files on the board](#112-files-on-the-board) *(Rev 4)*
-13. [1.13 Connecting a real board](#113-connecting-a-real-board) *(Rev 5)*
+13. [1.13 Connecting a real board](#113-connecting-a-real-board)
+14. [1.14 Python 3 in MicroLab](#114-python-3-in-microlab-rev-10) *(Rev 5)*
 
 ---
 
@@ -128,7 +137,7 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 | F-01 | New project: choose the board (micro:bit V2, Pico W, ESP32); it is placed with a breadboard and a starter `main.py` | M |
 | F-02 | Save and open a project as one file (`.mlab`, Q10) that opens on any laptop with the app | M |
 | F-03 | Autosave and crash recovery | M |
-| F-04 | Examples: open a ready project from the library (e.g. *Blink*, *Traffic lights*, *Servo sweep*) for any of the three boards | M |
+| F-04 | Examples: open a ready project from the library (e.g. *Blink*, *Traffic lights*, *Servo sweep*) for any of the three boards. *(Rev 9)* No Examples tab: the example projects are the acceptance suite (M3) and `.mlab` files the teacher hands out (`npm run examples`) | C |
 | F-05 | Recent projects on the start screen | S |
 | F-06 | Export a picture of the circuit and a wiring list (part pin → board pin) for printing or the real build | S |
 
@@ -154,7 +163,7 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 | F-22 | **Run / Stop / Restart** the simulation; Stop always works, even in `while True:` with no sleep. *(Rev 7)* **Run runs the file open in the editor**, as Thonny does (Q19): a fresh board, its start-up file (`boot.py` on the Pico W and ESP32 — the micro:bit has none), then the open file as `__main__`; the other files can be imported. The button names the file (*▶ Run led_test.py*); its ⌄ menu has *Run main.py (as when the board is switched on)*. When the open file isn't Python, Run runs the last Python file run, or `main.py` | M |
 | F-23 | Console: `print()` output, `input()`, and the REPL after the program ends | M |
 | F-24 | Errors: the line is highlighted, the real MicroPython message is shown, and a short student-friendly explanation beside it (e.g. *"NameError: name 'pin' isn't defined" → Python is case-sensitive: you named it `Pin`*) | M |
-| F-25 | Code snippets for each part ("Insert example code for this servo on GP15") | S |
+| F-25 | Code snippets for each part ("Insert example code for this servo on GP15"). *(Rev 9)* Not in Learn, which has no code; later, if at all | C |
 | F-26 | Plotter: numbers printed as `print(a, b)` are drawn as live lines (as in Mu / Thonny) | S |
 
 ### Simulation
@@ -176,9 +185,10 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 ### Learn
 | ID | Requirement | P |
 |---|---|---|
-| F-40 | **Part page** for every part: what it is, how it works (with an animated picture), its pins, key numbers (voltage, current), how to connect it to **each** of the three boards (wiring picture + table), example code per board, common mistakes, and **Try it** (opens a ready project) | M |
-| F-41 | **Board page**: interactive pinout (hover / filter by PWM, ADC, I²C …), power pins, limits, built-in parts | M |
-| F-42 | Glossary: voltage, current, resistance, Ohm's law, PWM, pull-up, I²C, ADC … linked from the part pages | S |
+| F-40 | **Part page** for every part, for students of 10–13 *(Rev 9: about the component, not a board, no code)*: **what it is** and what it is used for; **look inside** — a picture to play with that shows how it works (turn the potentiometer's knob and the wiper slides along its track; press the button and its contacts touch; the LED's current flows one way only); **the idea behind it** (a resistor holds the current back: Ohm's law with an everyday comparison); **its specifications**, each number explained (an LED: about 2 V across it, 20 mA, 30 mA at most); **its legs** and how to tell them apart; **how to connect it** — in a breadboard, to a battery or a supply's + and −, with the parts it needs (an LED's resistor and how to choose it); **the mistakes** — what goes wrong, as the simulator shows it (screen 04's faults) | M |
+| F-41 | **Board page**: interactive pinout (hover / filter by PWM, ADC, I²C …), power pins, limits, built-in parts. *(Rev 9)* The board as a component: what is on it (the chip, the USB, the regulator, its own LEDs and buttons), what its pins can do and give, its limits — no code | M |
+| F-42 | Glossary: voltage, current, resistance, Ohm's law, PWM, pull-up, I²C, ADC … linked from the part pages. *(Rev 9)* One or two lines each, for 10–13 | S |
+| F-45 | *(Rev 9)* **Ideas pages**: the big ideas a part page leans on, each with a picture to play with — voltage, current and resistance (water in pipes), a circuit (a loop, open and closed), the breadboard (which holes are joined), series and parallel, digital and analog, PWM | M |
 | F-43 | Guided projects: step-by-step lessons that check each step (*"Place a 220 Ω resistor in row 12" ✓*) | S |
 | F-44 | Part pages open from the parts panel, from a part on the workspace (right-click → *Learn about this*) and from a search | M |
 
@@ -199,6 +209,27 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 | F-80 | Web pages for IoT projects on the Pico W / ESP32: `www/` files served by the board's own small web server (sockets or `microdot`) to phones and laptops on the same Wi-Fi | Later phase |
 | F-81 | In the simulator, the board's web page opens in a panel inside MicroLab: buttons on the page reach the student's code (e.g. switch an LED), no real network needed | Later phase |
 | F-82 | Pretend Wi-Fi: `network.WLAN` connects to a pretend network; `urequests` reaches a small built-in test server (was F-3B) | Later phase |
+
+### Python 3 *(Rev 10)*
+| ID | Requirement | P |
+|---|---|---|
+| F-90 | A **Python 3** card on the Start page — the first in the row of boards, before the micro:bit — opens the Python 3 screen with a new file; the top bar has *Workspace · Python 3 · Learn* | M |
+| F-91 | **`.py` files, as IDLE**: New, Open, Save, Save as; the recent `.py` files in the Start page's Recent list with the projects; several files open in tabs; a file's folder is where the program runs (`open('data.txt')` finds the file beside it) | M |
+| F-92 | **Run** (F5) runs the file in the editor with real **CPython 3**; the **shell** shows what it prints and errors in red, takes `input()`'s answers, and after the program its **`>>>`** has the program's names (as IDLE's *Run Module*); **Stop** (Ctrl+C) interrupts it; ↑ ↓ history, Tab completes | M |
+| F-93 | **turtle and tkinter** work as on a computer with Python: their windows open beside MicroLab and close with the program, or when Stop is pressed | M |
+| F-94 | **Friendly errors** for CPython's own messages (screen 05's way): the line marked, *What this means*, Go to line | S |
+| F-95 | **Libraries** (a Packages window): the ones installed; a library **looked up by its name** on PyPI (its version and summary — PyPI has no search for programs), or chosen from a short list of those often used in class; Install and Remove with `pip` when the internet is there; offline, install from a `.whl` file a teacher hands out. They go into MicroLab's own folder for Python, never into a Python installed on the computer, and every program sees them | M |
+| F-96 | The **Plotter** for numbers a Python 3 program prints (as M9's) | S |
+| F-97 | The editor knows Python 3: highlighting, indentation, completions of names and of the libraries installed (Jedi, shipped) | S |
+| F-98 | *(Rev 11)* The Python 3 **shell below or beside the editor**, chosen with two buttons in its bar, **resized by dragging its edge**; both remembered | M |
+| F-99 | *(Rev 11)* **Brackets and quotes typed in pairs** in the editors: `(` `[` `{` `"` `'` put their pair after the cursor; the closing one typed steps over it; Backspace after an opening one removes both; a selection typed over with a quote or bracket is wrapped | M |
+| F-100 | *(Rev 11)* **New project asks first**: its name and location (MicroLab's folder in Documents to start with, every time — never the last one chosen, which on a shared computer is someone else's; *Choose…* opens the computer's folder window), and says what it will make; the project is saved from the start. A Python project is a folder with `main.py`; a board project a `.mlab` file | M |
+| F-101 | *(Rev 11)* **A Python project's tree** beside the editor (as PyCharm's Project view): its files and folders, as on disk and kept up to date; a double-click opens a file (`.py`, and text files) in a tab; New file, New folder, Rename, Delete (to the Recycle Bin / Bin), Show in Explorer / Finder. Open a project takes a folder or a `.mlab`; a `.py` file opens its folder as the project. Recent lists projects | M |
+| F-102 | *(Rev 12)* The Python 3 screen's **tree and shell can each be hidden and shown again** (buttons beside Aa, the tree's ‹, the shell's ×; Ctrl+B, Ctrl+J); remembered; Run shows a hidden shell | M |
+| F-103 | *(Rev 12)* **The Python logo** (the Python Software Foundation's, unaltered) on every `.py` file — the project's tree, the tabs | S |
+| F-104 | *(Rev 12)* **The editor's theme colours the whole Python 3 screen** — the tree, the tabs, the editor, the shell | M |
+| F-105 | *(Rev 12)* **The code font** chosen in Aa from a dropdown — thirteen, shipped inside MicroLab (SIL OFL): JetBrains Mono, Fira Code, Source Code Pro, Cascadia Code, IBM Plex Mono, Atkinson Hyperlegible Mono, Roboto Mono, Inconsolata, Noto Sans Mono, Red Hat Mono, Space Mono, Courier Prime, Anonymous Pro — for the editors and the shell; the text size 11–36 px; remembered | S |
+| F-106 | *(Rev 12)* **The app's size** in the status bar: − and +, a menu of 75–150 %, **Back to 100 %**; ⌘− ⌘+ ⌘0 / Ctrl+ do the same and the number follows; remembered | S |
 
 ### Teacher
 | ID | Requirement | P |
@@ -298,6 +329,10 @@ library/parts/servo-sg90/
     microbit.py   pico-w.py   esp32.py     + a ready project per board for "Try it"
 ```
 
+*(Rev 9)* A part's Learn page is about the part itself: `learn.md` has the sections of F-40 (what it is · look inside · the idea · specifications · legs · connecting · mistakes), with no code and no board; its **look inside** picture is one of the app's interactive figures, named in `learn.md`; its numbers come from `part.json` so the page and the simulator agree. The examples per board stay as the acceptance suite (`library/examples/`), not in Learn.
+
+*(Rev 9)* The content is now one page per part (not per board) and the ideas pages, for 10–13, with no code to test; it is still drafted with AI help from the datasheets and checked by the teacher, group by group, the Basics first.
+
 The **content is the largest piece of work** in the project (about 30 parts × 3 boards of explanations, wiring and tested examples). Suggestion: drafts are written with AI help from the datasheets, then the teacher checks them; every example is an automated test (it must run in the simulator without errors and produce the expected outputs).
 
 ## 1.9 Risks
@@ -312,6 +347,8 @@ The **content is the largest piece of work** in the project (about 30 parts × 3
 | R10 | *(Rev 5)* Checking a board means briefly stopping its program (Ctrl-C), and opening an ESP32's port can restart it | The check runs only when a board is plugged in (it has just restarted anyway), then restarts the program with a soft reset; the serial lines are set so an ESP32 is not held in its bootloader; tested with each board in M10 |
 | R6 | A full 3D workspace costs a lot of time and is harder to use for precise wiring (Q1) | Decided: 2D (Rev 2) |
 | R8 | Arduino later (Q13): the classic Uno cannot run MicroPython | Keep the engine's board layer open to new boards; decide Arduino's language when its phase starts |
+| R11 | *(Rev 10)* A bundled CPython makes the installers bigger (≈ 25 MB macOS, ≈ 45 MB Windows, compressed) and every binary in it must be signed (macOS notarization) | A self-contained build (python-build-standalone) per platform and processor; signed with the app in M11, as Thonny does; checked on clean macOS and Windows 11 machines |
+| R12 | *(Rev 10)* Stop on Windows: a child process has no Ctrl+C signal of its own | The program's process starts in its own process group and gets CTRL_BREAK, which MicroLab's runner turns into a KeyboardInterrupt; killed if it doesn't stop within 0.5 s (N-03) — checked on Windows 11 at the milestone's gate |
 | R9 | The TypeScript circuit solver is too slow on weak laptops (Q14) | Performance test from M1 (≤ 1 ms for 40 parts); if missed, rewrite only the solver in Rust → WebAssembly behind the same interface |
 | R7 | Looking like a copy of Tinkercad or Wokwi | Our own layout, pictures and wording; similar *workflow* only |
 
@@ -335,6 +372,10 @@ The **content is the largest piece of work** in the project (about 30 parts × 3
 | Q17 | *(Rev 5)* Can the app show that a board is connected, with no setup? | **Yes** — F-55, F-56, §1.13. The board is recognised by its USB IDs, then asked for its MicroPython version |
 | Q18 | *(Rev 5)* Install MicroPython from inside the app (F-52)? | **Yes for the micro:bit and Pico** (S): one file copied to the board's drive, firmware shipped with the app. **ESP32 stays C** (needs `esptool-js`); the helper links to a guide |
 | Q16 | *(Rev 4)* IoT web pages and Wi-Fi in v1? | **Later phase** (F-80–F-82). v1 keeps the folder tree and `www/` files ready for it |
+| Q22 | *(Rev 10)* How does MicroLab run Python 3? | **A real CPython 3.13 shipped inside the app** (python-build-standalone, with Tcl/Tk), the program in its own process. Pyodide (CPython as WebAssembly) was tried first (spike, 2026-11-09): it ran Python 3.14, `input()`, Stop and a library from PyPI, but has **no tkinter and no turtle**. The native spike ran Python 3.13.18 with Tk 9.0.4, `input()` through a pipe, Ctrl+C in 44 ms, CPython's messages, and `pip install` into an app folder |
+| Q23 | *(Rev 10)* Python 3 projects or plain files? | **Plain `.py` files**, as IDLE; libraries installed with `pip` from PyPI when online, or from a `.whl` file (the teacher, 2026-11-09) |
+| Q20 | *(Rev 9)* Who reads Learn? | **Students of 10–13**: short sentences, everyday comparisons, the real units explained (the teacher, 2026-11-09) |
+| Q21 | *(Rev 9)* Learn's first slice, and how a part shows how it works | **The Basics group** first; each part with a **picture to play with** (look inside), still pictures only where nothing moves (the teacher, 2026-11-09) |
 | Q19 | *(Rev 7)* Can Run run any file, as in Thonny, not only `main.py` as on python.microbit.org? | **Yes** (F-22, F-50, §1.12). It is how the boards themselves work: on a soft reset into the raw REPL (what Thonny uses), the Pico W and ESP32 run `boot.py` but not `main.py`, and the micro:bit runs neither (it has no `boot.py`); Thonny then sends the file in the editor, which runs as `__main__`. `main.py` only runs by itself on a normal start (checked in the firmware: `ports/rp2/main.c`, `ports/esp32/main.c`, micro:bit `codal_port/main.c`). A helper file can carry its own test code under `if __name__ == "__main__":` |
 | Q14 | *(Rev 3)* Rust instead of TypeScript, since the app "is like a compiler"? | **TypeScript + Electron.** We don't write a compiler: MicroPython's own compiler and VM (C) run as the official WebAssembly build, already near native speed. What we write — the board hardware layer, the circuit solver (~30 nets: microseconds per solve), the editor UI — needs no Rust speed, and the hardware layer has to talk to MicroPython's JavaScript bridge anyway. Rust would add a second language and test setup for one maintainer; Tauri would use a different browser engine per OS (sound, rendering, SharedArrayBuffer to check); a native Rust UI has no code editor as good as CodeMirror. Electron is the same choice as EasyMedia. **Safeguard:** the circuit engine stays pure behind one interface (`solve(netlist) → voltages, currents`) with a performance test in M1 (a 40-part circuit solves in ≤ 1 ms); if real laptops ever miss it, only the solver is rewritten in Rust → WebAssembly, against the same tests (§1.11, R9) |
 
@@ -471,3 +512,14 @@ Getting the computer to "see" the board is where most students get stuck: which 
 A *Copy report* button gathers the operating system, the USB list, the ports and the last messages, so a teacher can see the problem at a glance.
 
 **Testing.** The detection rules are pure functions: a recorded USB list in, a board state out. The helper's steps run against a fake board (the same fake used for the raw REPL, Q15). Real cables, drivers and boards are checked by hand in M10 on clean Windows 11 and macOS machines.
+
+## 1.14 Python 3 in MicroLab *(Rev 10)*
+
+**What runs the code.** MicroLab ships a self-contained **CPython 3.13** for each platform and processor (macOS Apple silicon and Intel, Windows x64): the standard library, Tcl/Tk for tkinter and turtle, and `pip`. Nothing is installed on the computer, and a Python already there is never used or touched.
+
+**How a program runs** (as Thonny does): the main process starts the bundled `python` with MicroLab's small runner script, in the folder of the file being run. The runner reads the student's file and runs it as `__main__`; it sends what the program prints and its tracebacks to the window, asks the window when the program calls `input()`, and, when the program ends, keeps its names for the shell's `>>>`. Stop sends Ctrl+C (SIGINT; on Windows CTRL_BREAK, R12) and, if the program ignores it, ends the process. A tkinter or turtle window is the program's own window, as with IDLE. One Python process is kept ready, so Run starts at once.
+
+**Libraries.** A folder in MicroLab's own data holds the libraries the student installs (`pip install --target`), and it is on every program's path. The Packages window lists them and searches PyPI when the internet is there; offline, a `.whl` file installs the same way. Removing one deletes it from that folder.
+
+**What is shared with the simulator.** The code editor, the shell (its `>>>`, history, Tab, Ctrl+C), the friendly errors (with CPython's own messages), the Plotter, the window's layout. The Python 3 screen has no circuit and no board.
+

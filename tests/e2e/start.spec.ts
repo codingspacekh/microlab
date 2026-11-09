@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import { newProject, writeMlab } from '../../src/lib/project';
+import { newProject as newProjectFromStart } from './new-project';
 
 /** M4.2 the Start screen (01): it fills the window (N-13); a new project from a board (F-01); open a .mlab (F-02). */
 let app: ElectronApplication;
@@ -32,28 +33,29 @@ async function chooseFile(path: string | null) {
   }, path);
 }
 
-test('at 1280, 1440 and 1920 wide the start screen fills the window: no horizontal scroll, no empty band', async () => {
+test('at 1280, 1440 and 1920 wide the start screen fills the window: no horizontal scroll, no empty band (screen 31: four cards, no side column)', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('heading', { name: 'Start a new project' }).waitFor();
+  await win.getByRole('heading', { name: 'Start something new' }).waitFor();
   for (const [w, h] of [[1280, 720], [1440, 900], [1920, 1080]] as const) {
     await resize(win, w, h);
     const m = await win.evaluate(() => {
       const box = (sel: string) => document.querySelector(sel)!.getBoundingClientRect();
       const cards = [...document.querySelectorAll('.bcard')].map((c) => c.getBoundingClientRect());
-      return { scroll: document.documentElement.scrollWidth, start: box('.start'), side: box('.start-side'), cards, main: box('.start-main') };
+      return { scroll: document.documentElement.scrollWidth, start: box('.start'), cards, main: box('.start-main') };
     });
     expect(m.scroll).toBeLessThanOrEqual(w);
     expect(m.start.width).toBe(w);
-    expect(m.side.right).toBeGreaterThan(w - 60);                        // the side column reaches the right edge
-    expect(m.cards).toHaveLength(3);
-    expect(m.cards[2]!.right).toBeGreaterThan(m.main.right - 2);         // the boards share the main column
-    expect(Math.abs(m.cards[0]!.width - m.cards[2]!.width)).toBeLessThan(2);
+    // M12 (screen 31): no side column — the main column reaches the right edge; Python 3 and the three boards share it
+    expect(m.main.right).toBeGreaterThan(w - 60);
+    expect(m.cards).toHaveLength(4);
+    expect(m.cards[3]!.right).toBeGreaterThan(m.main.right - 2);
+    expect(Math.abs(m.cards[0]!.width - m.cards[3]!.width)).toBeLessThan(2);
   }
 });
 
 test('F-01 a new ESP32 project: the workspace, the board named in the top bar, the starter main.py', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New ESP32 project' }).click();
+  await newProjectFromStart(win, 'New ESP32 project');
   await expect(win.getByRole('region', { name: 'Circuit' })).toBeVisible();
   await expect(win.getByRole('group', { name: 'Project' })).toContainText('ESP32 DevKit V1 (30 pins)');
   await expect(win.getByRole('region', { name: 'Code' })).toContainText('Pin(2, Pin.OUT)');
@@ -67,11 +69,11 @@ test('F-02 open a .mlab: the chosen file opens, named as the file; a broken one 
   const win = await app.firstWindow();
 
   await chooseFile(bad);
-  await win.getByRole('button', { name: 'Open a project…' }).first().click();
+  await win.getByRole('button', { name: 'Open…' }).click();
   await expect(win.getByRole('alert')).toContainText('“photo.mlab” isn\'t a MicroLab project');
 
   await chooseFile(good);
-  await win.getByRole('button', { name: 'Open a project…' }).first().click();
+  await win.getByRole('button', { name: 'Open…' }).click();
   await expect(win.getByRole('group', { name: 'Project' })).toContainText('Heart');
   await expect(win.getByRole('group', { name: 'Project' })).toContainText('BBC micro:bit V2');
   await expect(win.getByRole('alert')).toHaveCount(0);
@@ -80,8 +82,8 @@ test('F-02 open a .mlab: the chosen file opens, named as the file; a broken one 
   await win.getByRole('button', { name: 'Project menu' }).click();
   await win.getByRole('menuitem', { name: 'New project…' }).click();
   await chooseFile(null);
-  await win.getByRole('button', { name: 'Open a project…' }).first().click();
-  await expect(win.getByRole('heading', { name: 'Start a new project' })).toBeVisible();
+  await win.getByRole('button', { name: 'Open…' }).click();
+  await expect(win.getByRole('heading', { name: 'Start something new' })).toBeVisible();
 });
 
 test('the board pictures load from the app\'s own files', async () => {

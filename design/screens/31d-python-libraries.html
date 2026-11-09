@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>31d Python 3 — libraries</title>
+<meta name="viewport" content="width=device-width">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="fit.js" defer></script>
+
+</head>
+<body>
+<p class="frame-label"><b>31d · Python 3: Libraries</b> (M12 design, Rev 10, F-95) — the libraries this computer's MicroLab has: installed into <b>MicroLab's own folder</b> (never into a Python already on the computer), and every program sees them. With the internet, a library is <b>looked up by its name on PyPI</b> (PyPI has no search for programs, only each library's page: its version and what it does), or chosen from those often used in class; each library's summary as its authors wrote it on PyPI; Install and Remove — what <code>pip</code> says shown as it works; without the internet, said plainly, and a <code>.whl</code> file from the teacher installs the same way</p>
+<div class="frame" style="position:relative">
+  <div class="topbar">
+  <div class="brand"><svg class="logo" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="#2563d9"/><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M11 8V4.5M17 8V4.5M11 23.5V20M17 23.5V20M8 11H4.5M8 17H4.5M20 11h3.5M20 17h3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="14" r="2.2" fill="#7fe0a8"/></svg>
+<b>Micro<span>Lab</span></b></div>
+  <div class="seg modes"><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg> Workspace</span><span class="on"><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 10l3 2-3 2M13 15h3"/></svg> Python 3</span><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M8 7h7"/></svg> Learn</span></div>
+  <div class="pyfile"><b>weather.py</b><span>Documents/Python · saved</span></div>
+  <span class="spacer"></span>
+  <div class="runbox"><button class="btn run"><svg class="ico fill s14" viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z"/></svg> Run weather.py <span class="tiny" style="opacity:.75;margin-left:2px">F5</span></button><button class="btn icon disabled" title="Stop"><svg class="ico fill s14" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg></button></div><button class="btn on"><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg> Libraries</button>
+</div>
+
+  <div class="pyscreen" style="opacity:.55">
+    <div class="tabs"><a class="on"><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg> weather.py</a></div>
+    <div class="ed"></div>
+  </div>
+  <div class="overlay"></div>
+  <div class="dialog" style="left:50%;top:70px;transform:translateX(-50%);width:min(720px,calc(100% - 40px))">
+    <div class="dh"><svg class="ico " viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><h2 style="font-size:16px">Libraries for Python 3</h2><span class="spacer"></span><span class="pill ok"><svg class="ico s12" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg> Connected to PyPI</span><button class="btn ghost icon sm"><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="db">
+      <div class="row" style="gap:8px"><div class="field" style="flex:1;height:34px"><svg class="ico s14" viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 0 0 14a7 7 0 0 0 0-14M16.5 16.5L21 21"/></svg><span>requests</span></div><button class="btn primary">Look up on PyPI</button></div>
+      <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><span class="tiny muted">Often used in class:</span><span class="pill">numpy</span><span class="pill">matplotlib</span><span class="pill">pygame</span><span class="pill">pillow</span><span class="pill info">requests</span></div>
+      <div class="pkgs" style="margin-top:6px">
+        <div class="pk"><b>requests</b><span class="v">2.32.5</span><span class="d">Python HTTP for Humans.</span><button class="btn sm" disabled><svg class="ico s12" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg> Installed</button></div>
+      </div>
+      <div class="pipout" style="margin-top:8px">Collecting requests
+  Downloading requests-2.32.5-py3-none-any.whl (64 kB)
+Collecting charset-normalizer, idna, urllib3, certifi …
+Installed requests 2.32.5 and 4 libraries it needs.</div>
+      <div class="gh" style="font-size:11px;font-weight:650;color:var(--tx-3);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 2px">Installed in MicroLab · 3</div>
+      <div class="pkgs">
+        <div class="pk"><b>requests</b><span class="v">2.32.5</span><span class="d">Python HTTP for Humans.</span><button class="btn ghost sm"><svg class="ico s12" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg> Remove</button></div>
+        <div class="pk"><b>art</b><span class="v">6.5</span><span class="d">ASCII Art Library For Python</span><button class="btn ghost sm"><svg class="ico s12" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg> Remove</button></div>
+        <div class="pk"><b>numpy</b><span class="v">2.3.4</span><span class="d">Fundamental package for array computing in Python</span><button class="btn ghost sm"><svg class="ico s12" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg> Remove</button></div>
+      </div>
+    </div>
+    <div class="df"><button class="btn"><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg> Install from a .whl file…</button><span class="small muted">No internet? A teacher's <code>.whl</code> file installs the same way.</span><span class="spacer"></span><button class="btn">Done</button></div>
+  </div>
+</div>
+</body></html>

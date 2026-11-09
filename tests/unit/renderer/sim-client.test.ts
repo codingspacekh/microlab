@@ -122,6 +122,23 @@ describe('M4.5 starting a run', () => {
     expect(w.terminated).toBe(true);
   });
 
+  it('M9: a fault the worker tells is passed on; LEDs burnt in an earlier run go with the circuit, dead', () => {
+    const w = new FakeWorker();
+    const e = { ...events(), onFault: vi.fn() };
+    startRun({ doc: doc(), entry: 'main.py', burnt: ['led1'] }, e, () => w);
+    expect(w.sent[0]!.circuit!.burnt).toEqual(['led1']);
+    w.say({ type: 'fault', fault: { kind: 'led-burnt', severity: 'damage', on: 'led2', atMs: 1400 } });
+    expect(e.onFault).toHaveBeenCalledWith({ kind: 'led-burnt', severity: 'damage', on: 'led2', atMs: 1400 });
+  });
+
+  it('M9 slice 4: the circuit\'s state comes with the board\'s outputs (the multimeter reads with it)', () => {
+    const w = new FakeWorker();
+    const e = events();
+    startRun({ doc: doc(), entry: 'main.py' }, e, () => w);
+    w.say({ type: 'board', pins: { 15: 1 }, state: { pins: { GP15: { mode: 'out', value: 1 } } } });
+    expect(e.onBoard).toHaveBeenCalledWith({ pins: { 15: 1 }, state: { pins: { GP15: { mode: 'out', value: 1 } } } });
+  });
+
   it('a button pressed while running: its slot is set in the shared buffer', () => {
     const w = new FakeWorker();
     const run = startRun({ doc: doc(), entry: 'main.py' }, events(), () => w);
@@ -162,5 +179,41 @@ describe('M4.5 Stop (N-03)', () => {
     startRun({ doc: doc(), entry: 'main.py' }, e, () => w);
     w.onerror?.({ message: 'no wasm' } as ErrorEvent);
     expect(e.onEnd).toHaveBeenCalledWith(expect.objectContaining({ ended: 'error', error: expect.objectContaining({ message: expect.stringContaining('no wasm') }) }));
+  });
+});
+
+describe('M9 the REPL after the program (F-23, screen 29c)', () => {
+  it('the program\'s end is told and the worker goes on: lines typed go through the shared buffer, echoes and REPL errors come back', () => {
+    const w = new FakeWorker();
+    const e = { ...events(), onReplError: vi.fn() };
+    const run = startRun({ doc: doc(), entry: 'main.py' }, e, () => w);
+    expect(w.sent[0]).toMatchObject({ repl: true });
+    w.say({ type: 'ended', result: { ended: 'done', repl: true } as never });
+    expect(e.onEnd).toHaveBeenCalledWith(expect.objectContaining({ repl: true }));
+    expect(w.terminated).toBe(false);
+    run.type!('led.on()\n');
+    w.say({ type: 'output', text: 'led.on()\n', echo: true });
+    w.say({ type: 'parts', states: { led1: { kind: 'led', amps: 0.01, brightness: 1 } } });
+    w.say({ type: 'repl-error', error: { type: 'NameError', message: "name 'x' isn't defined", file: '<stdin>', line: 1 } });
+    expect(e.onOutput).toHaveBeenCalledWith('led.on()\n', true);
+    expect(e.onParts).toHaveBeenCalled();
+    expect(e.onReplError).toHaveBeenCalledWith(expect.objectContaining({ type: 'NameError' }));
+    // the window's ring: written count, then the characters
+    const keys = new Int32Array(w.sent[0]!.control, 8 + 8 * 2, 2);
+    expect(keys[0]).toBe('led.on()\n'.length);
+  });
+
+  it('Stop at the REPL ends the worker at once, telling nothing more; close() does the same', () => {
+    const w = new FakeWorker();
+    const e = events();
+    const run = startRun({ doc: doc(), entry: 'main.py' }, e, () => w);
+    w.say({ type: 'ended', result: { ended: 'error', repl: true } as never });
+    run.stop();
+    expect(w.terminated).toBe(true);
+    w.say({ type: 'end', result: { ended: 'stopped' } as never });
+    expect(e.onEnd).toHaveBeenCalledTimes(1);
+    const w2 = new FakeWorker();
+    startRun({ doc: doc(), entry: 'main.py' }, events(), () => w2).close!();
+    expect(w2.terminated).toBe(true);
   });
 });

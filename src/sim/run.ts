@@ -1,4 +1,4 @@
-import { describeFault, type CircuitSpec, type Fault } from '@lib/circuit';
+import { describeFault, type CircuitSpec, type Fault, type SimState } from '@lib/circuit';
 import { CircuitHost, type PartChange, type PartTraceEntry } from './circuit';
 import { RealClock, type Clock } from './clock';
 import type { Control } from './control';
@@ -6,6 +6,8 @@ import { PinBank, RP2040_RESET, type AnalogEntry, type InputChange, type Level, 
 import { Motion, type MotionChange } from './motion';
 import { soundSteps, type Wave } from './soundfx';
 import { TimerBank } from './timers';
+import { HELP } from './help-text';
+import { Stdin } from './stdin';
 import { Console, lineBeingRun, startMicroPython, type LoadMicroPython, type MicroPython, type Where } from './vm';
 
 /**
@@ -54,6 +56,8 @@ export interface RunResult {
   fault?: Fault & { message: string };
   /** Every fault seen, warnings too, each once with its worst numbers. */
   faults: (Fault & { message: string })[];
+  /** The REPL followed the program (M9, F-23): it ended by itself, with an error or by Ctrl+C, and `repl` was asked. */
+  repl?: boolean;
 }
 
 /** The boards with simulated MicroPython modules: the folder of src/python each one uses, and its pins after
@@ -77,7 +81,8 @@ export interface RunOptions {
   files: ProjectFiles;
   /** Levels driven onto pins from outside, over time (buttons; M3 replaces these with the circuit). */
   inputs?: InputChange[];
-  onOutput?: (text: string) => void;
+  /** What the board prints; `echo` marks what the student typed, echoed back (M9). */
+  onOutput?: (text: string, echo?: boolean) => void;
   /** The board's time (M2.2): the RealClock in the app, a VirtualClock in tests. */
   clock?: Clock;
   /** What the board's own temperature sensor reads (°C); 25 if not set (M6 adds the slider, F-35). */
@@ -94,6 +99,10 @@ export interface RunOptions {
   partInputs?: PartChange[];
   /** Each change of a part's state (LED brightness, servo angle), as it happens (M3.4). */
   onParts?: (entry: PartTraceEntry) => void;
+  /** Each fault as it is first seen, warnings too, with its time (M9: the cards and Problems while running). */
+  onFault?: (fault: Fault) => void;
+  /** The circuit's pins and parts as it solves them, when they change (M9 slice 4: the multimeter). */
+  onState?: (state: SimState) => void;
   /** Stop the run, quietly, when the clock reaches this (µs): the acceptance suite's `seconds` (M3.6). */
   maxUs?: number;
   /** The file Run runs (M4.5, requirements Rev 7, Q19): the one open in the editor; main.py when the board is
@@ -111,6 +120,16 @@ export interface RunOptions {
   onRadio?: (hex: string) => void;
   /** Messages another micro:bit sends to this one (M7, tests and examples): [µs, the text], on its group and channel. */
   radioIn?: [number, string][];
+  /** What is typed in the console over time (M9, tests): [µs, text]; '\n' ends a line, '\x03' is Ctrl+C. The app
+   *  types through `control`. */
+  stdin?: [number, string][];
+  /** After the program — unless Stop or a fault ended it — the REPL (F-23, screen 29c): each line typed runs in the
+   *  program's names until Stop (or the time limit). */
+  repl?: boolean;
+  /** The program has ended and the REPL starts (M9): how it ended. runProject's result comes when the REPL ends. */
+  onProgramEnd?: (result: RunResult) => void;
+  /** An error in a line typed at the REPL (M9: the window explains it as one in the code). */
+  onReplError?: (error: SimError) => void;
 }
 
 /** The sim's own Python (src/python/common) and the boards' (src/python/<folder>), written to a folder the
@@ -133,11 +152,14 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const circuit = options.circuit ? new CircuitHost(options.circuit, pins, now, options.partInputs, options.control) : undefined;
   const timeUp = () => options.maxUs !== undefined && clock.nowUs() >= options.maxUs;
   const quiet = () => circuit?.damage !== undefined || timeUp();
-  const stop = stopper(mp, options.control, quiet);
+  const stdin = new Stdin(options.control, options.stdin, () => clock.nowUs());
+  const stop = stopper(mp, options.control, quiet, () => stdin.interrupted());
   pins.onLevel = options.onPin;
   if (circuit) {
     pins.attach(circuit);
     circuit.onChange = options.onParts;
+    circuit.onFault = options.onFault;
+    circuit.onState = options.onState;
     circuit.onDamage = () => mp._module._mp_sched_keyboard_interrupt();   // stop at once, as Stop does
   }
   const timers = new TimerBank(now);
@@ -148,7 +170,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const radio: [number, string][] = [];
   const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
   mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, {
-    console, display, sound, motion, bus, radio, stop, quiet, circuit,
+    console, display, sound, motion, bus, radio, stop, quiet, circuit, stdin,
     asOf: (t, read) => { asOf = t; try { return read(); } finally { asOf = undefined; } },
   }, options));
   mp._module.microlabHook = () => {
@@ -165,30 +187,45 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const hidden = Object.keys(common).map(moduleName);
   const boardModules = Object.keys(board).map(moduleName);
   let last: string;
+  let sim: { last: unknown; repl: () => void } | undefined;
   try {
     mp.runPython(`import sys\nsys.path.insert(0, '${SIM_DIR}')\nimport _sim`);   // setup() takes the folder off the path
-    const sim = mp.pyimport('_sim');   // our handle: setup() takes _sim out of sys.modules
+    sim = mp.pyimport('_sim') as unknown as typeof sim;   // our handle: setup() takes _sim out of sys.modules
     mp.runPython([
-      `_sim.setup('${PROJECT_DIR}', ${JSON.stringify(hidden)}, ${JSON.stringify(boardModules)})`,
+      `_sim.setup('${PROJECT_DIR}', ${JSON.stringify(hidden)}, ${JSON.stringify(boardModules)}, ${JSON.stringify(options.board ? HELP[options.board] : '')})`,
       '__sim = _sim',
       'del _sim',
       `__sim.run(${JSON.stringify(startFiles(options))}, globals())`,   // run() drops __sim from the program's namespace
     ].join('\n'));
-    last = String(sim.last);
+    last = String(sim!.last);
   } catch (e) {
-    // Only reached if Python fails outside the student's code (Stop landing in the runner itself).
     last = /KeyboardInterrupt/.test(String(e)) ? 'stopped\n' : `error\n${String(e)}`;
   }
   circuit?.update();   // the last writes since the last solve: the parts end as the program left them
   console.flush();
 
   const nl = last.indexOf('\n');
-  const damage = circuit?.damage;
-  const ended = damage ? 'fault' : (last.slice(0, nl) as RunResult['ended']);
+  const ended = (): RunResult['ended'] => (circuit?.damage ? 'fault' : (last.slice(0, nl) as RunResult['ended']));
   const traceback = last.slice(nl + 1);
   const withText = (f: Fault) => ({ ...f, message: describeFault(f) });
-  return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, bus, radio, parts: circuit?.partTrace ?? [],
-    faults: [...(circuit?.seen.values() ?? [])].map(withText), ...(damage ? { fault: withText(damage) } : {}), ended, ...(ended === 'error' ? { error: parseTraceback(traceback) } : {}) };
+  const result = (): RunResult => {
+    const damage = circuit?.damage;
+    return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, bus, radio, parts: circuit?.partTrace ?? [],
+      faults: [...(circuit?.seen.values() ?? [])].map(withText), ...(damage ? { fault: withText(damage) } : {}), ended: ended(),
+      ...(ended() === 'error' ? { error: parseTraceback(traceback) } : {}), ...(repl ? { repl: true } : {}) };
+  };
+  // the REPL (M9): after a program that ended by itself, with an error or by Ctrl+C — not after Stop, a fault or the
+  // time limit, which end the session
+  const repl = !!options.repl && !!sim && ended() !== 'fault' && !options.control?.stopRequested() && !quiet();
+  if (repl) {
+    options.onProgramEnd?.(result());
+    try {
+      sim!.repl();
+    } catch { /* Stop while a line ran: the session is over */ }
+    circuit?.update();
+    console.flush();
+  }
+  return result();
 }
 
 /** What a run starts: boot.py (not on the micro:bit, which has none — its firmware runs main.py only), then the
@@ -227,15 +264,22 @@ interface MicrobitParts {
   quiet: () => boolean;
   /** The circuit, when there is one: the parts that answer a protocol (a DHT, M6.4). */
   circuit?: CircuitHost;
+  /** What is typed in the console (M9). */
+  stdin: Stdin;
   /** Reads the pins as of `t` (µs) while `read` runs (time_pulse_us, M6.4). */
   asOf: <T>(t: number, read: () => T) => T;
 }
 
 /** Stop (N-03): KeyboardInterrupt is scheduled when the window asks, and again every 50 ms while it still asks, in
  *  case the program catches it (the sim-client ends the worker after 300 ms if even that fails, architecture §2.3). */
-function stopper(mp: MicroPython, control: Control | undefined, faulted: () => boolean): () => boolean {
+function stopper(mp: MicroPython, control: Control | undefined, faulted: () => boolean, interrupted: () => boolean): () => boolean {
   let last = -Infinity;
   return () => {
+    // Ctrl+C typed in the console (M9): one KeyboardInterrupt, as a board's console raises it; the program may go on
+    if (interrupted()) {
+      mp._module._mp_sched_keyboard_interrupt();
+      return true;
+    }
     if (!control?.stopRequested() && !faulted()) return false;
     const t = performance.now();
     if (t - last >= 50) {
@@ -247,7 +291,7 @@ function stopper(mp: MicroPython, control: Control | undefined, faulted: () => b
 }
 
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
-  const { console, display, sound, motion, bus, radio, stop, quiet, circuit, asOf } = mb;
+  const { console, display, sound, motion, bus, radio, stop, quiet, circuit, stdin, asOf } = mb;
   const random = seeded(options.seed ?? Date.now());
   const log = (entry: string) => bus.push([clock.nowUs(), entry]);
   // the micro:bit's own inputs from the window (M6.6, screen 06): 'board:…' slots, NaN until the window sets them
@@ -344,6 +388,19 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     temperature: (): number => or(slot('board:celsius'), options.temperatureC ?? 25),
     /** True when the run is being stopped by a fault: the runner prints no KeyboardInterrupt traceback then. */
     quiet_stop: (): boolean => quiet(),
+    /** A line typed in the console, or None while there is none (M9: input(), the REPL); what was printed before it
+     *  (input()'s prompt, >>>) is shown while it waits. */
+    stdin_line: (): string | null => {
+      const line = stdin.line();
+      if (line === undefined) console.flush();
+      return line ?? null;
+    },
+    /** The program goes on after input() or the REPL's line: Ctrl+C acts as it arrives again. */
+    stdin_idle: () => stdin.idle(),
+    /** Stop (or a fault, or the time limit) ends the session; Ctrl+C only the line (M9). */
+    echo: (text: string) => console.echo(text),
+    session_over: (): boolean => !!options.control?.stopRequested() || quiet(),
+    repl_error: (traceback: string) => options.onReplError?.(parseTraceback(traceback)),
     dac_out: (pin: string, volts: number) => pins.setAnalog(pin, volts),
     touched: (pin: string): boolean => { clock.ticksUs(); return pins.touched(pin); },
     pin_falls: (pin: string): number => pins.takeFalls(pin),

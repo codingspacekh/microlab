@@ -22,3 +22,55 @@
 .prompt.board .fld { flex: 1; }
 .prompt.board .field { height: 28px; }
 .prompt.board .pending { display: flex; flex-direction: column; color: var(--tx-2); white-space: pre; }
+
+/* ---------- typing to the simulated board (M9, screen 29c) and an error explained (screen 05) ---------- */
+.cbody .me { color: var(--accent-ink); }
+.prompt.sim { flex-direction: column; align-items: stretch; gap: 4px; }
+.prompt.sim .row { display: flex; align-items: center; gap: 8px; }
+.prompt.sim .fld { flex: 1; }
+.prompt.sim .field { height: 28px; }
+.prompt.sim .asks { color: var(--tx-1); white-space: pre; }
+.prompt.sim .hint { color: var(--tx-2); white-space: pre-wrap; }
+.cbody .explain { margin: 6px 0 4px; padding: 10px 12px; border-radius: 9px; background: var(--accent-soft); border: 1px solid var(--accent-line); font-family: var(--font); font-size: 12.5px; line-height: 1.5; color: var(--tx-1); white-space: normal; }
+.cbody .explain > b { color: var(--accent-ink); }
+.cbody .explain code { background: var(--panel); padding: 0 4px; border-radius: 3px; font-family: var(--mono); font-size: 11.5px; }
+.cbody .explain .row { display: flex; gap: 6px; margin-top: 8px; }
+
+/* M9 slice 2: Problems (F-24, screens 04, 25c) */
+.chead .ctab .count { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: inline-grid; place-items: center; font-size: 11px; font-weight: 700; background: var(--warn); color: #fff; }
+.chead .ctab .count.bad { background: var(--danger); }
+.problems-body { padding: 0; }
+.problems-body > .sys { display: block; padding: 10px 12px; }
+.problems { list-style: none; margin: 0; padding: 0; font-family: var(--font); white-space: normal; }
+.problems .problem { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.problems .problem > .ico { flex: none; margin-top: 2px; color: var(--warn); }
+.problems .problem.damage > .ico { color: var(--danger); }
+.problems .pbody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; line-height: 1.45; }
+.problems .pbody b { color: var(--tx-1); }
+.problems .pbody span { color: var(--tx-2); }
+.problems .pacts { display: flex; gap: 6px; flex: none; }
+
+/* M9 slice 5: the Plotter (F-26, screen 07) */
+.plot-body { padding: 0; display: flex; overflow: hidden; white-space: normal; font-family: var(--font); }
+.plotter { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.plotter .phead { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 12px 4px; font-size: 12px; color: var(--tx-2); }
+.plotter .phead .spacer { flex: 1; }
+.plotter .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.plotter .key { display: inline-flex; align-items: center; gap: 6px; color: var(--tx-1); }
+.plotter .key i, .plotter .ptip i { width: 12px; height: 2px; border-radius: 1px; display: inline-block; }
+.plotter .muted { color: var(--tx-3); }
+.plotter .seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; background: var(--bg); }
+.plotter .seg button { height: 22px; padding: 0 10px; border: 0; border-radius: 5px; background: none; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--tx-2); cursor: pointer; }
+.plotter .seg button.on { background: var(--panel); color: var(--tx-1); box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+.plotter .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.plotter .pbox { position: relative; flex: 1; min-height: 120px; }
+.plotter .pbox svg { position: absolute; inset: 0; display: block; }
+.plotter .grid line { stroke: var(--line); stroke-width: 1; }
+.plotter .grid text, .plotter .end text { font-size: 10.5px; fill: var(--tx-3); font-family: var(--font); }
+.plotter .end text { fill: var(--tx-2); font-weight: 600; }
+.plotter polyline.series { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.plotter .cross line { stroke: var(--tx-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.plotter .cross circle { stroke: var(--panel); stroke-width: 2; }
+.plotter .ptip { position: absolute; pointer-events: none; display: flex; flex-direction: column; gap: 2px; padding: 6px 9px; border-radius: 7px;
+  background: var(--tx-1); color: var(--panel); font-size: 11.5px; line-height: 1.4; box-shadow: var(--shadow-m); }
+.plotter .ptip span { display: inline-flex; align-items: center; gap: 6px; }

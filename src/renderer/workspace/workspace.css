@@ -252,3 +252,64 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .serial-card .bubbles .out { align-self: flex-end; background: var(--accent); color: #fff; }
 .serial-card .bubbles .in { align-self: flex-start; background: var(--bg-2); }
 .serial-card.phone form.row2 > :nth-child(3) { flex: 1; min-width: 0; }
+
+/* M9 (screen 05): the program stopped with an error */
+.canvas .cbanner.error > .ico { color: var(--danger); }
+.canvas .cbanner.error { border-color: var(--danger-soft); }
+
+/* ---------- M9 slice 2: faults on the workspace (screens 04, 25c, 26c, 27c) ---------- */
+.canvas .fault-card { z-index: 6; width: 300px; max-width: calc(100% - 16px); padding: 12px 14px 14px; border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); font-size: 12.5px; line-height: 1.5; }
+.fault-card .fh, .fault-note .fh { display: flex; align-items: center; gap: 8px; }
+.fault-card .fh > .ico { color: var(--danger); flex: none; }
+.fault-card .fh b { color: var(--danger); font-size: 13px; }
+.fault-card .fh .spacer, .fault-note .fh .spacer { flex: 1; }
+.fault-card p { margin: 8px 0 0; color: var(--tx-2); }
+.fault-card p b { color: var(--tx-1); }
+.fault-card .nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 6px; margin-top: 10px; }
+.fault-card .num { display: flex; flex-direction: column; gap: 2px; padding: 7px 9px; border-radius: 7px; background: var(--bg); }
+.fault-card .num span { font-size: 10.5px; color: var(--tx-3); }
+.fault-card .num b { font-family: var(--mono); font-size: 13px; color: var(--tx-1); }
+.fault-card .num.bad b { color: var(--danger); }
+.fault-card .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.canvas .fault-note { z-index: 5; width: 240px; max-width: calc(100% - 16px); padding: 9px 11px; border-color: color-mix(in srgb, var(--warn) 50%, var(--line)); font-size: 12px; line-height: 1.45; }
+.fault-note .fh b { color: var(--warn); font-size: 12px; }
+.fault-note p { margin: 4px 0 0; color: var(--tx-2); }
+.canvas .hurt-pin { fill: none; stroke: var(--danger); stroke-width: 2.5; }
+.canvas .focus-ring { fill: none; stroke: var(--accent); stroke-width: 3; animation: focus-ring 0.9s ease-out 3; }
+@keyframes focus-ring { from { stroke-opacity: 1; r: 12; } to { stroke-opacity: 0.15; r: 30; } }
+@media (prefers-reduced-motion: reduce) { .canvas .focus-ring { animation: none; } }
+
+/* ---------- M9 slice 3: the check before running (screen 29b) ---------- */
+.canvas .check-card { z-index: 7; top: 12px; left: 50%; transform: translateX(-50%); width: min(460px, calc(100% - 24px)); padding: 12px 14px; font-size: 12.5px; line-height: 1.45; border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+.check-card .fh { display: flex; align-items: center; gap: 8px; }
+.check-card .fh > .ico { color: var(--warn); flex: none; }
+.check-card ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.check-card li { display: flex; align-items: flex-start; gap: 8px; }
+.check-card li > .ico { color: var(--warn); flex: none; margin-top: 2px; }
+.check-card li .tx { flex: 1; min-width: 0; color: var(--tx-2); }
+.check-card li .tx b { color: var(--tx-1); }
+.check-card li .btn { flex: none; }
+.check-card .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.check-card .row .spacer { flex: 1; }
+.check-card .row .crow { padding: 0; }
+
+/* ---------- M9 slice 4: the multimeter (screen 29) ---------- */
+.canvas .meter-card { z-index: 6; width: 236px; padding: 10px 12px 12px; font-size: 12px; line-height: 1.45; }
+.meter-card .fh { display: flex; align-items: center; gap: 7px; }
+.meter-card .fh .spacer { flex: 1; }
+.meter-card .lcd { display: flex; align-items: baseline; justify-content: flex-end; gap: 4px; margin-top: 8px; padding: 8px 12px; border-radius: 7px;
+  background: #c9d4b8; border: 2px solid #4a5240; color: #1e2418; font-family: var(--mono); }
+.meter-card .lcd .v { font-size: 28px; font-weight: 700; letter-spacing: 0.04em; }
+.meter-card .lcd .u { font-size: 13px; font-weight: 700; min-width: 2.2em; }
+.meter-card .seg { display: flex; gap: 2px; margin-top: 8px; padding: 3px; border-radius: 8px; background: var(--bg); }
+.meter-card .seg button { flex: 1; height: 26px; border: 0; border-radius: 6px; background: none; font: inherit; font-weight: 700; color: var(--tx-2); cursor: pointer; }
+.meter-card .seg button.on { background: var(--panel); color: var(--tx-1); box-shadow: var(--shadow-s, 0 1px 2px rgba(0,0,0,.12)); }
+.meter-card .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.meter-card .probes { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; margin-top: 10px; }
+.meter-card .probes .lab { font-weight: 700; color: var(--tx-1); }
+.meter-card .probes .lab.red { color: #d94545; }
+.meter-card .hint { margin: 8px 0 0; color: var(--tx-3); font-size: 11.5px; }
+.ctools .meter-tool { gap: 5px; }
+.ctools .meter-tool.on { background: var(--accent-soft); color: var(--accent-ink); }
+.scene .probe { cursor: grab; pointer-events: all; }
+.scene .meter-through { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 4 3; }

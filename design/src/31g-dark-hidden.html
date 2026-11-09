@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>31g Python 3 — dark, the tree hidden</title>
+{{include:head}}
+</head>
+<body>
+<!--@MODE_WS: -->
+<!--@MODE_PY: on-->
+<!--@PY_FILE: <div class="pyfile"><b>guessing_game · main.py</b><span>Documents/MicroLab/guessing_game · saved</span></div>-->
+<!--@TOP_RIGHT: <div class="runbox"><button class="btn run">{{i:play:s14}} Run main.py <span class="tiny" style="opacity:.75;margin-left:2px">F5</span></button><button class="btn icon disabled" title="Stop">{{i:stop:s14}}</button></div><button class="btn">{{i:grid:s14}} Libraries</button>-->
+<p class="frame-label"><b>31g · Python 3: the Dark theme; the project's tree hidden</b> (M12 design, <b>Rev 12</b>, the teacher: <i>"file explorer sidebar and shell panel should be possible to be toggle (show/hide collapse the panel)"</i>; <i>"the change theme in python editor is not working yet"</i>) — the theme chosen in <b>Aa</b> now colours <b>the whole Python 3 screen</b>: the tree, the tabs, the editor and the shell (the top bar stays as it is); Aa's panel opens in full (it was cut off by the tabs' strip). The tree is <b>hidden</b>: a narrow strip keeps its button, and the first panel button beside Aa is off — a click (or Ctrl+B) brings it back at the width it had. The shell is hidden the same way (its button, or Ctrl+J): then the editor fills the height; Run brings it back</p>
+<div class="frame">
+  {{include:topbar-py}}
+  <div class="pyscreen dark-py">
+    <div class="pybody">
+      <div class="rail" aria-label="Project, hidden"><button class="btn ghost sm icon" title="Show the project's files (Ctrl+B)">{{i:folder:s14}}</button></div>
+      <div class="pmain">
+        <div class="pcol">
+          <div class="tabs"><a class="on">{{pyfig:logo:14}} main.py</a><a>{{pyfig:logo:14}} helpers.py</a><span class="spacer"></span><span class="lay" role="group" aria-label="Panels"><button class="btn ghost sm icon" title="The project's files (Ctrl+B)">{{i:sidebar:s14}}</button><button class="btn ghost sm icon on" title="The shell (Ctrl+J)">{{i:shellbelow:s14}}</button></span><button class="btn ghost sm icon" title="Text, font and theme">Aa</button></div>
+          <div class="ed">{{code:guess}}</div>
+        </div>
+        <div class="grip h"></div>
+        <div class="shell" style="flex:0 0 34%">
+          <div class="sh"><span class="ctab on" style="display:inline-flex;gap:6px;align-items:center;font-weight:600;font-size:12.5px;padding:0 8px">{{i:term:s14}} Shell</span><span class="ctab" style="display:inline-flex;gap:6px;align-items:center;color:var(--tx-2);font-size:12.5px;padding:0 8px">{{i:plot:s14}} Plotter</span><span class="spacer"></span><span class="dock"><button class="btn ghost sm icon on">{{i:shellbelow:s14}}</button><button class="btn ghost sm icon">{{i:shellright:s14}}</button></span><button class="btn ghost sm">Clear</button><button class="btn ghost sm icon" title="Hide the shell (Ctrl+J)">{{i:x:s14}}</button></div>
+<div class="sb"><div><span class="sys">Running main.py in MicroLab/guessing_game</span>
+I'm thinking of a number from 1 to 10.
+Your guess: <span class="me">5</span>
+Higher!
+Your guess: <span class="me">7</span>
+Yes! 7 in 2 tries.
+<span class="sys">main.py ended. Its names are still here: type Python and press Enter.</span></div></div>
+          <div class="prompt"><b>&gt;&gt;&gt;</b><span class="field" style="flex:1;height:30px;background:var(--bg);border-color:var(--line)"><span class="ph">Type Python and press Enter</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="statusbar"><span class="st"><span class="dot" style="background:var(--tx-3)"></span>Ended</span><span>Python 3.13.18 (MicroLab)</span><span class="spacer"></span><span>Ln 7, Col 1</span><span class="zoom"><button class="btn ghost icon">{{i:minus:s12}}</button><b>100 %</b><button class="btn ghost icon">{{i:plus:s12}}</button></span></div>
+</div>
+</body></html>

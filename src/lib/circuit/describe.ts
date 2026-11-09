@@ -28,6 +28,7 @@ export function describeFault(f: Fault): string {
     case 'sensor-underpowered': return `${f.on}: the sensor has ${V(f.volts)}, it needs ${V(f.limitV)} at least`;
     case 'neopixel-backwards': return `${f.on}: ${f.part}'s wire is on its DOUT — a NeoPixel takes data at DIN, so none of its LEDs light`;
     case 'neopixel-over-current': return `${f.on}: the NeoPixels on ${f.part} ask ${(f.amps ?? 0) >= 1 ? `${(f.amps ?? 0).toFixed(2)} A` : mA(f.amps)}, it gives ${mA(f.limitA)} — make them dimmer, light fewer, or give them their own 5 V supply`;
+    case 'led-backwards': return `${on}: the LED is the wrong way round — ${V(f.volts)} across it backwards, it stays dark`;
     case 'uart-tx-to-tx': return `${f.on} (TX) is wired to ${f.part}: two outputs on one wire — neither hears the other. A TX goes to the other side's RX`;
     case 'display-underpowered': return `${f.on}: the display has ${V(f.volts)}, it needs ${V(f.limitV)} at least${f.partType === 'lcd1602' ? ' — its letters are too faint to read' : f.partType === 'max7219' ? ' — its dots may stay dark' : ''}`;
   }

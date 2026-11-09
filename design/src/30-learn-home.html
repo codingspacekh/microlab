@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>30 Learn — home</title>
+{{include:head}}
+</head>
+<body>
+<!--@NAV_HOME: on-->
+<!--@TOP_RIGHT: <button class="btn">{{i:chevl:s14}} Back to my project</button>-->
+<p class="frame-label"><b>30 · Learn: home</b> (M8 design, requirements Rev 9) — Learn is about the parts themselves, for students of 10–13: how each one works inside, the idea behind it, its numbers and how to connect it — <b>no code and no particular board</b>. The parts by group (the Basics first, the others as their pages come), the big ideas, the boards as parts too, and the glossary; a search for any of them (F-40–F-42, F-44, F-45). The Examples tab is gone</p>
+<div class="frame">
+  {{include:topbar-learn}}
+  <div class="learn">
+    {{include:learn-nav2}}
+    <main class="lmain flow">
+      <div>
+        <h1 style="font-size:24px">How electronics works</h1>
+        <p style="color:var(--tx-2);font-size:14px;margin-top:4px;max-width:70ch">Every part has a page: what it is, a look inside to play with, the idea behind it, its numbers, and how to connect it. Start with the Basics — the parts in almost every circuit.</p>
+      </div>
+      <section>
+        <div class="row" style="margin:6px 0 10px"><h2>Basics</h2><span class="tiny muted">10 parts</span></div>
+        <div class="lgrid">
+          <div class="card lcard"><div class="art">{{part:breadboard:p}}</div><b>Breadboard</b><span>Joins parts without solder: which holes are connected inside.</span></div>
+          <div class="card lcard"><div class="art">{{part:resistor:p}}</div><b>Resistor</b><span>Holds the current back. Its stripes tell you how much.</span></div>
+          <div class="card lcard"><div class="art">{{part:led:p}}</div><b>LED</b><span>A tiny light that lets current go one way only.</span></div>
+          <div class="card lcard"><div class="art">{{part:rgb:p}}</div><b>RGB LED</b><span>Red, green and blue in one: mix them into any colour.</span></div>
+          <div class="card lcard"><div class="art">{{part:button:p}}</div><b>Push button</b><span>Two metal contacts that touch while you press.</span></div>
+          <div class="card lcard"><div class="art">{{part:switch:p}}</div><b>Slide switch</b><span>Stays where you slide it: this way, or that way.</span></div>
+          <div class="card lcard"><div class="art">{{part:pot:p}}</div><b>Potentiometer</b><span>A knob that slides along a track: any voltage in between.</span></div>
+          <div class="card lcard"><div class="art">{{part:ldr:p}}</div><b>Light sensor (LDR)</b><span>Lets more current through the more light falls on it.</span></div>
+          <div class="card lcard"><div class="art">{{part:buzzer:p}}</div><b>Buzzer</b><span>A thin disc that shakes the air: that's the sound.</span></div>
+          <div class="card lcard"><div class="art">{{part:battery:p}}</div><b>Battery pack</b><span>Where the push comes from: volts, and how long it lasts.</span></div>
+        </div>
+      </section>
+      <section>
+        <div class="row" style="margin:6px 0 10px"><h2>Big ideas</h2><span class="tiny muted">what every part page leans on</span></div>
+        <div class="row" style="gap:12px;flex-wrap:wrap;align-items:stretch">
+          <div class="card ideacard" style="flex:1 1 260px"><span class="ib">{{i:bolt:s18}}</span><div><b>Voltage, current, resistance</b><span>Push, flow and holding back — like water in pipes.</span></div></div>
+          <div class="card ideacard" style="flex:1 1 260px"><span class="ib">{{i:wire:s18}}</span><div><b>A circuit is a loop</b><span>Current only flows when the loop is closed.</span></div></div>
+          <div class="card ideacard" style="flex:1 1 260px"><span class="ib">{{i:grid:s18}}</span><div><b>Inside a breadboard</b><span>The metal strips under the holes.</span></div></div>
+        </div>
+      </section>
+      <section>
+        <div class="row" style="margin:6px 0 10px"><h2>More parts</h2><span class="tiny muted">their pages come group by group</span></div>
+        <div class="row" style="gap:8px;flex-wrap:wrap">
+          <span class="pill">Sensors · 7</span><span class="pill">Modules · 14</span><span class="pill">Chips · 6</span><span class="pill">Actuators · 7</span>
+          <span class="pill">Output modules · 4</span><span class="pill">Communication · 3</span><span class="pill">Displays · 6</span><span class="pill">Boards · 3</span>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+</body></html>

@@ -9,3 +9,9 @@ design/__pycache__/
 *.tsbuildinfo
 .DS_Store
 .cache/
+
+# M12: fetched by scripts/fetch-python.mjs (checked by hash), not kept in git
+/vendor/python/
+/vendor/python-tools/
+__pycache__/
+/vendor/*.aside/

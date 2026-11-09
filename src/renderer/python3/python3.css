@@ -1,0 +1,112 @@
+/* M12 (screen 31b): the Python 3 screen — the files' tabs, the editor, the shell below it, the whole width */
+.pyscreen { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--panel); }
+.pytabs { flex: none; display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 10px; border-bottom: 1px solid var(--line); position: relative; }
+.pytablist { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; height: 38px; overflow-x: auto; overflow-y: hidden; }
+.pytab { display: inline-flex; align-items: center; height: 38px; border-bottom: 2px solid transparent; }
+.pytab.on { border-bottom-color: var(--accent); }
+.pytab > button[role="tab"] { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 8px 0 10px; border: 0; background: none; cursor: pointer;
+  font-family: var(--mono); font-size: 12.5px; color: var(--tx-2); white-space: nowrap; }
+.pytab.on > button[role="tab"] { color: var(--tx-1); }
+.pytab > button[role="tab"]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
+.pytab .dirty { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+.pytab .close { width: 22px; height: 22px; }
+/* Rev 11 (F-98, screens 31b, 31f): the editor's column and the shell, below or on the right; the edge between them resizes */
+.pybody { flex: 1; min-height: 0; display: flex; }
+.pymain { flex: 1; min-width: 0; min-height: 0; display: flex; }
+.pymain.below { flex-direction: column; }
+.pymain.right { flex-direction: row; }
+.pycol { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.pyed { flex: 1; min-height: 0; display: flex; }
+.pyed .code-editor { flex: 1; min-width: 0; }
+.pyshell { flex: 0 0 40%; min-height: 0; min-width: 0; display: flex; }
+.pymain.below .pyshell { min-height: 120px; }
+.pymain.right .pyshell { min-width: 260px; }
+.pyshell .console { flex: 1; min-width: 0; }
+.pygrip { flex: none; position: relative; background: var(--bg); touch-action: none; }
+.pymain.below .pygrip { height: 6px; cursor: row-resize; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.pymain.right .pygrip { width: 6px; cursor: col-resize; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+.pygrip::after { content: ""; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border-radius: 2px; background: var(--tx-3); opacity: .55; }
+.pymain.below .pygrip::after { width: 28px; height: 2px; }
+.pymain.right .pygrip::after { width: 2px; height: 28px; }
+.pygrip:hover, .pygrip.dragging, .pygrip:focus-visible { background: var(--accent-soft); outline: none; }
+.pygrip:hover::after, .pygrip.dragging::after, .pygrip:focus-visible::after { background: var(--accent); opacity: 1; }
+.pyscreen .dock { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; background: var(--bg); margin-right: 4px; }
+.pyscreen .dock .btn.on { background: var(--panel); color: var(--accent-ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+.topbar .pyfile { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.topbar .pyfile b { font-size: 13.5px; display: inline-flex; align-items: center; gap: 6px; }
+.topbar .pyfile span { font-size: 11.5px; color: var(--tx-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40ch; }
+/* the Start page's Python 3 card (screen 31): first in the row of boards */
+.start .bcard .pyart { width: 100%; height: 100%; display: grid; place-items: center; background: #eef1f6; }
+.runsplit.single .btn.run { border-radius: var(--radius, 8px); }
+.btn.run .runkeys { font-size: 10.5px; opacity: .75; margin-left: 2px; font-family: var(--font); }
+.recent-card .pic .pyspiral { display: block; }
+.recent-card .chip.py { background: var(--accent-soft); color: var(--accent-ink); }
+/* Libraries (screen 31d) */
+.pylibs { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pylibs .net { align-self: flex-end; margin-top: -4px; }
+.pylibs .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pylibs .look > :first-child { flex: 1; min-width: 200px; }
+.pylibs .often .btn-pill { border: 0; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 600; }
+.pylibs .often .btn-pill:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent-ink); }
+.pylibs .gh { font-size: 11px; font-weight: 650; color: var(--tx-3); text-transform: uppercase; letter-spacing: .05em; margin-top: 6px; }
+.pylibs .pkgs { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; }
+.pylibs .pk { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.pylibs .pk:last-child { border-bottom: 0; }
+.pylibs .pk b { font-family: var(--mono); font-size: 13px; }
+.pylibs .pk .v { color: var(--tx-3); font-family: var(--mono); font-size: 11.5px; }
+.pylibs .pk .d { color: var(--tx-2); flex: 1; min-width: 0; }
+.pylibs .found { border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px; }
+.pylibs .pipout { margin: 0; max-height: 140px; overflow: auto; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+  font-family: var(--mono); font-size: 11.5px; line-height: 17px; color: var(--tx-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.pylibs .note { margin: 0; font-size: 12.5px; color: var(--tx-2); }
+.pylibs .note.warn { color: var(--warn-ink, var(--warn)); }
+.pylibs .note.bad { color: var(--danger); }
+/* Rev 11 (F-101, screen 31b): the project's tree beside the editor */
+.ptree { width: 240px; flex: none; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); background: var(--panel); }
+.ptree .ph { flex: none; display: flex; align-items: center; gap: 2px; height: 38px; padding: 0 6px 0 12px; border-bottom: 1px solid var(--line); }
+.ptree .ph b { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ptree .pt { flex: 1; min-height: 0; overflow: auto; padding: 4px 0; }
+.ptree .pt .tree .r { grid-template-columns: 18px minmax(0, 1fr); margin: 0 6px; }
+.ptree .pask { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.ptree .pask .row { display: flex; align-items: center; gap: 6px; }
+.ptree .pbad { margin: 6px 10px 0; color: var(--danger); }
+.ptree .pf { flex: none; padding: 8px 12px; border-top: 1px solid var(--line); font-size: 11px; color: var(--tx-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pyempty { margin: auto; max-width: 42ch; text-align: center; padding: 20px; }
+.pynone { flex: 1; display: grid; place-items: center; background: var(--panel); }
+.pynone > div { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 46ch; text-align: center; }
+.pynone .row { display: flex; gap: 8px; }
+/* the New project dialog (screen 31e) */
+.newproj { display: flex; flex-direction: column; gap: 14px; }
+.newproj .loc { display: flex; align-items: flex-end; gap: 8px; }
+.newproj .loc > :first-child { flex: 1; min-width: 0; }
+.newproj .made { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 9px 11px; border-radius: 8px; background: var(--accent-soft); font-size: 12.5px; color: var(--tx-1); }
+.newproj .made .ico { flex: none; margin-top: 2px; color: var(--accent); }
+.newproj .made b { word-break: break-all; }
+.newproj .tip { margin: 0; }
+/* Rev 12 (F-102, screens 31b, 31g): the panels' buttons beside Aa; the strip a hidden tree leaves */
+.pytabs .lay { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; background: var(--bg); flex: none; }
+.pytabs .lay .btn.on { background: var(--panel); color: var(--accent-ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+.pyrail { width: 40px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 6px; border-right: 1px solid var(--line); background: var(--panel); }
+.pylogo { flex: none; }
+/* Rev 12 (F-104, screen 31g): the theme chosen in Aa colours the whole Python 3 screen — the tree, the tabs, the
+   editor, the shell — not only the code; the top bar and the status bar stay as they are */
+.pyscreen[data-theme="dark"] {
+  --bg: #151922; --panel: #1b202a; --bg-2: #232a37; --bg-3: #2b3341; --line: #2b3241; --line-strong: #3a4354;
+  --tx-1: #e3e8f2; --tx-2: #aab4c6; --tx-3: #7c879b;
+  --accent: #82aaff; --accent-soft: rgba(130, 170, 255, .16); --accent-line: rgba(130, 170, 255, .4); --accent-ink: #a9c4ff;
+  --danger: #ff6b6b; --danger-soft: rgba(255, 107, 107, .14); --danger-line: rgba(255, 107, 107, .4); --danger-ink: #ffb3b3;
+  --warn: #f2b84b; --warn-soft: rgba(242, 184, 75, .14); --warn-ink: #f6cf85;
+  --code-bg: #1e2430; --code-kw: #c792ea; --code-fn: #82aaff; --code-str: #c3e88d; --code-num: #f78c6c; --code-com: #7d889c; --code-err: #4a2328;
+  color: var(--tx-1); color-scheme: dark;
+}
+.pyscreen[data-theme="contrast"] {
+  --bg: #000; --panel: #000; --bg-2: #111; --bg-3: #1a1a1a; --line: #ffffff; --line-strong: #ffffff;
+  --tx-1: #ffffff; --tx-2: #ffffff; --tx-3: #d0d0d0;
+  --accent: #ffd700; --accent-soft: rgba(255, 215, 0, .2); --accent-line: #ffd700; --accent-ink: #ffd700;
+  --danger: #ff6b6b; --danger-soft: #3a0000; --danger-line: #ff6b6b; --danger-ink: #ffb3b3;
+  --warn: #ffd700; --warn-soft: #332b00; --warn-ink: #ffd700;
+  --code-bg: #000; --code-kw: #ffd700; --code-fn: #7fdbff; --code-str: #7cfc00; --code-num: #ffa64d; --code-com: #d0d0d0; --code-err: #5a0000;
+  color: var(--tx-1); color-scheme: dark;
+}
+.pyscreen[data-theme="dark"] .pyshell .console, .pyscreen[data-theme="contrast"] .pyshell .console,
+.pyscreen[data-theme="dark"] .ptree, .pyscreen[data-theme="contrast"] .ptree { background: var(--panel); }

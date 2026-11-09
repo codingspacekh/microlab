@@ -7,6 +7,7 @@ import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
 import { startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M6.3 (screen 18, approved 2026-11-07): the PIR, the line sensor, the soil moisture sensor and the TMP36 / LM35 in
  *  the parts panel's Sensors group, standing in the breadboard; while running the PIR is held to see motion, the line
@@ -22,10 +23,10 @@ function fakeSim() {
   return { start, runs, say };
 }
 
-function setup() {
+async function setup() {
   const sim = fakeSim();
   render(<App api={fakeApi()} width={1440} startRun={sim.start} audio={() => null} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
@@ -47,8 +48,8 @@ function setup() {
 }
 
 describe('M6.3 the sensors in the editor (screen 18)', () => {
-  it('the parts panel has a Sensors group: the modules of screen 19, then PIR, line sensor, soil moisture, temperature', () => {
-    const s = setup();
+  it('the parts panel has a Sensors group: the modules of screen 19, then PIR, line sensor, soil moisture, temperature', async () => {
+    const s = await setup();
     const group = within(s.panel).getByRole('group', { name: 'Sensors' });
     expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual([
       'Ultrasonic HC-SR04distance · 5 V', 'DHT11 / DHT22temperature, humidity', 'MPU6050 motionaccelerometer · I²C',
@@ -57,8 +58,8 @@ describe('M6.3 the sensors in the editor (screen 18)', () => {
     expect(within(within(s.panel).getByRole('group', { name: 'Basics' })).getAllByRole('button')).toHaveLength(12);   // 3 breadboards (M6.8) and 9 parts
   });
 
-  it('each stands in row f, drawn from its pins; the inspector names them in their printed order', () => {
-    const s = setup();
+  it('each stands in row f, drawn from its pins; the inspector names them in their printed order', async () => {
+    const s = await setup();
     s.place(/^PIR motion/, 'pir', 'bb1.f7');
     expect(s.part('pir1')).toHaveAttribute('data-legs', 'bb1.f7 bb1.f8 bb1.f9');
     expect(within(s.inspector()).getByText('VCC f7, OUT f8, GND f9')).toBeInTheDocument();
@@ -70,8 +71,8 @@ describe('M6.3 the sensors in the editor (screen 18)', () => {
     for (const id of ['pir1', 'line1', 'soil1']) expect(s.part(id).querySelector('rect')).not.toBeNull();
   });
 
-  it('a temperature sensor is a TMP36 or an LM35; the drawing says which', () => {
-    const s = setup();
+  it('a temperature sensor is a TMP36 or an LM35; the drawing says which', async () => {
+    const s = await setup();
     s.place(/^Temperature/, 'temp-sensor', 'bb1.f2');
     expect(within(s.inspector()).getByText('+Vs f2, Vout f3, GND f4')).toBeInTheDocument();
     const kind = within(s.inspector()).getByRole('radiogroup', { name: 'Sensor kind' });
@@ -84,8 +85,8 @@ describe('M6.3 the sensors in the editor (screen 18)', () => {
 });
 
 describe('M6.3 while running (screen 18)', () => {
-  it('the PIR is held to see motion; its waves show while its OUT is high (its 3 s hold too); its tip says so', () => {
-    const s = setup();
+  it('the PIR is held to see motion; its waves show while its OUT is high (its 3 s hold too); its tip says so', async () => {
+    const s = await setup();
     s.place(/^PIR motion/, 'pir', 'bb1.f7');
     s.run();
     fireEvent.mouseDown(s.part('pir1'), s.client(0, 0));
@@ -101,8 +102,8 @@ describe('M6.3 while running (screen 18)', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent(/PIR1 · no motion.*Not powered: it needs 5 V/);
   });
 
-  it('the line sensor is clicked over the line, and back over white', () => {
-    const s = setup();
+  it('the line sensor is clicked over the line, and back over white', async () => {
+    const s = await setup();
     s.place(/^Line sensor/, 'line-sensor', 'bb1.f12');
     s.run();
     expect(s.part('line1')).toHaveAttribute('data-position', '0');
@@ -115,8 +116,8 @@ describe('M6.3 while running (screen 18)', () => {
     expect(s.sim.runs[0]!.setInput).toHaveBeenLastCalledWith('position:line1', 0);
   });
 
-  it('the Inputs card: a row for the temperature and one for the soil, each with its output\'s volts', () => {
-    const s = setup();
+  it('the Inputs card: a row for the temperature and one for the soil, each with its output\'s volts', async () => {
+    const s = await setup();
     s.place(/^Temperature/, 'temp-sensor', 'bb1.f2');
     s.place(/^Soil moisture/, 'soil-moisture', 'bb1.f19');
     s.run();

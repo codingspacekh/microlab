@@ -6,7 +6,7 @@
 .code-editor .cm-content { padding: 0; caret-color: var(--accent); }
 .code-editor .cm-line { padding: 0 10px 0 0; }
 .code-editor .cm-gutters { background: var(--code-bg); border: 0; color: #b3bac4; }
-.code-editor .cm-lineNumbers .cm-gutterElement { min-width: 30px; padding: 0 14px 0 0; text-align: right; }
+.code-editor .cm-lineNumbers .cm-gutterElement { min-width: 30px; padding: 0 14px 0 8px; text-align: right; }
 .code-editor .cm-activeLine { background: rgba(37, 99, 217, .045); }
 .code-editor .cm-activeLineGutter { background: transparent; color: var(--tx-2); }
 .code-editor .cm-cursor { border-left: 2px solid var(--accent); }
@@ -27,26 +27,26 @@
 .ftabs .libtag { font-family: var(--font); font-size: 10.5px; color: var(--tx-3); flex: none; }
 .ftabs .r { margin-left: auto; display: flex; align-items: center; gap: 2px; padding: 0 6px; flex: none; }
 .space-warn { flex: none; display: flex; gap: 6px; align-items: center; margin: 0; padding: 6px 12px; font-size: 12px; border-bottom: 1px solid var(--warn-line, #f0d08a); background: var(--warn-soft, #fff7e6); color: var(--tx-1); }
-.space-warn.over { border-color: var(--danger-line); background: var(--danger-soft, #fdecec); }
+.space-warn.over { border-color: var(--danger-line); background: var(--danger-soft); }
 .not-text { flex: 1; margin: 0; padding: 20px; background: var(--code-bg); }
 
 /* ---------- M6.8: the editor's text size and theme (screen 23) ---------- */
 .code-editor .cm-editor { font-size: var(--code-size, 13px); }
 .code-editor .cm-scroller { line-height: calc(var(--code-size, 13px) * 1.55); }
-.side[data-theme="dark"] .code-editor, .side[data-theme="dark"] .ftab.on, .side[data-theme="dark"] .not-text {
+:is(.side, .pyscreen)[data-theme="dark"] .code-editor, :is(.side, .pyscreen)[data-theme="dark"] .ftab.on, :is(.side, .pyscreen)[data-theme="dark"] .not-text {
   --code-bg: #1e2430; --code-kw: #c792ea; --code-fn: #82aaff; --code-str: #c3e88d; --code-num: #f78c6c; --code-com: #7d889c; --code-err: #4a2328; color: #d6deeb; }
-.side[data-theme="contrast"] .code-editor, .side[data-theme="contrast"] .ftab.on, .side[data-theme="contrast"] .not-text {
+:is(.side, .pyscreen)[data-theme="contrast"] .code-editor, :is(.side, .pyscreen)[data-theme="contrast"] .ftab.on, :is(.side, .pyscreen)[data-theme="contrast"] .not-text {
   --code-bg: #000; --code-kw: #ffd700; --code-fn: #7fdbff; --code-str: #7cfc00; --code-num: #ffa64d; --code-com: #d0d0d0; --code-err: #5a0000; color: #fff; }
-.side[data-theme="dark"] .code-editor .cm-gutters { color: #5d6884; }
-.side[data-theme="contrast"] .code-editor .cm-gutters { color: #d0d0d0; }
-.side[data-theme="dark"] .code-editor .cm-activeLine { background: rgba(255, 255, 255, .045); }
-.side[data-theme="contrast"] .code-editor .cm-activeLine { background: rgba(255, 255, 255, .1); }
-.side[data-theme="dark"] .code-editor .cm-activeLineGutter, .side[data-theme="contrast"] .code-editor .cm-activeLineGutter { color: #fff; }
-.side[data-theme="dark"] .code-editor .cm-cursor { border-left-color: #82aaff; }
-.side[data-theme="contrast"] .code-editor .cm-cursor { border-left-color: #ffd700; }
-.side[data-theme="dark"] .code-editor .cm-selectionBackground, .side[data-theme="dark"] .code-editor .cm-focused .cm-selectionBackground { background: rgba(130, 170, 255, .28) !important; }
-.side[data-theme="contrast"] .code-editor .cm-selectionBackground, .side[data-theme="contrast"] .code-editor .cm-focused .cm-selectionBackground { background: rgba(255, 215, 0, .4) !important; }
-.side[data-theme="dark"] .ftabs .ftab.on [role="tab"], .side[data-theme="contrast"] .ftabs .ftab.on [role="tab"] { color: #fff; }
+:is(.side, .pyscreen)[data-theme="dark"] .code-editor .cm-gutters { color: #5d6884; }
+:is(.side, .pyscreen)[data-theme="contrast"] .code-editor .cm-gutters { color: #d0d0d0; }
+:is(.side, .pyscreen)[data-theme="dark"] .code-editor .cm-activeLine { background: rgba(255, 255, 255, .045); }
+:is(.side, .pyscreen)[data-theme="contrast"] .code-editor .cm-activeLine { background: rgba(255, 255, 255, .1); }
+:is(.side, .pyscreen)[data-theme="dark"] .code-editor .cm-activeLineGutter, :is(.side, .pyscreen)[data-theme="contrast"] .code-editor .cm-activeLineGutter { color: #fff; }
+:is(.side, .pyscreen)[data-theme="dark"] .code-editor .cm-cursor { border-left-color: #82aaff; }
+:is(.side, .pyscreen)[data-theme="contrast"] .code-editor .cm-cursor { border-left-color: #ffd700; }
+:is(.side, .pyscreen)[data-theme="dark"] .code-editor .cm-selectionBackground, :is(.side, .pyscreen)[data-theme="dark"] .code-editor .cm-focused .cm-selectionBackground { background: rgba(130, 170, 255, .28) !important; }
+:is(.side, .pyscreen)[data-theme="contrast"] .code-editor .cm-selectionBackground, :is(.side, .pyscreen)[data-theme="contrast"] .code-editor .cm-focused .cm-selectionBackground { background: rgba(255, 215, 0, .4) !important; }
+:is(.side, .pyscreen)[data-theme="dark"] .ftabs .ftab.on [role="tab"], :is(.side, .pyscreen)[data-theme="contrast"] .ftabs .ftab.on [role="tab"] { color: #fff; }
 .aa-wrap { position: relative; display: inline-flex; }
 .btn.aa { font-weight: 700; font-size: 12px; width: auto; padding: 0 7px; }
 .btn.aa.on { background: var(--bg-2); }
@@ -60,3 +60,7 @@
 .aa-themes .th:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .aa-themes .th.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
 .aa-themes .th i { display: block; height: 34px; border-radius: 5px; margin-bottom: 5px; font-style: normal; font-family: var(--mono); font-size: 9px; text-align: left; padding: 4px 6px; line-height: 12px; }
+
+/* M9 (screen 05): the line the error is on */
+.code-editor .cm-error-line { background: var(--danger-soft); }
+.code-editor .cm-error-code { text-decoration: underline wavy var(--danger); text-decoration-skip-ink: none; text-underline-offset: 3px; }

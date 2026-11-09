@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
+import { newProject } from './new-project';
 
 /** M4.4 F-20 with the real keyboard: main.py is edited in place; Python indents; the editor fills the code side. */
 let app: ElectronApplication;
@@ -21,7 +22,7 @@ test.afterEach(async () => {
 
 test('typing in main.py: a new line after a colon is indented, the text is kept', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New ESP32 project' }).click();
+  await newProject(win, 'New ESP32 project');
   const editor = win.getByRole('textbox', { name: 'main.py' });
   await editor.click();
   await win.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End');
@@ -39,7 +40,7 @@ test('the editor and the console below it fill the code side', async () => {
   const win = await app.firstWindow();
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setContentSize(1280, 720));
   await win.waitForFunction(() => window.innerWidth === 1280);
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   const side = (await win.getByRole('region', { name: 'Code' }).boundingBox())!;
   const tabs = (await win.getByRole('tablist', { name: 'Files' }).boundingBox())!;
   const ed = (await win.locator('.cm-editor').boundingBox())!;
@@ -53,7 +54,7 @@ test('the editor and the console below it fill the code side', async () => {
 
 test('M5.5 typing on the Pico W: machine. offers Pin with its arguments, Enter takes it with its brackets, inside them it shows what it needs', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   const editor = win.getByRole('textbox', { name: 'main.py' });
   await editor.click();
   await win.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End');
@@ -91,7 +92,7 @@ test('M7 (the teacher\'s report): a saved text size — the line numbers stand b
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ editor: { size: 20, theme: 'light' } }));
   app = await electron.launch({ args: ['out/main/index.js'], env: { ...process.env, MICROLAB_USER_DATA: home } });
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await expect(win.locator('.cm-line').first()).toBeVisible();
   await win.waitForTimeout(300);
   const tops = await win.evaluate(() => {

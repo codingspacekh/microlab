@@ -2,6 +2,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync,
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
+import { newProject } from './new-project';
 
 /** M10.1 F-55, N-12: a board plugged in is named within 2 s, with no setup. USB is stood in for by a port-list
  *  file recorded on the teacher's laptop (tests/fixtures/usb), rewritten to plug and unplug. */
@@ -28,7 +29,7 @@ test.afterEach(async () => {
 
 test('plugged in: the chip names the board and its MicroPython within 2 s, with a short message; unplugged: "No board" again', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   const chip = win.getByRole('button', { name: /^Board:/ });
   await expect(chip).toHaveAccessibleName('Board: No board');
 
@@ -52,13 +53,13 @@ test('plugged in: the chip names the board and its MicroPython within 2 s, with 
 test('a Pico in BOOTSEL mode is told apart', async () => {
   const win = await app.firstWindow();
   plug('mac-pico-bootsel');
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await expect(win.getByRole('button', { name: /^Board:/ })).toHaveAccessibleName('Board: Pico, BOOTSEL mode', { timeout: 2000 });
 });
 
 test('M10.2 a port another program holds: "used by Thonny"', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   const chip = win.getByRole('button', { name: /^Board:/ });
   await expect(chip).toHaveAccessibleName('Board: No board');
   plugAnswering('mac-pico-w', { answers: { '/dev/cu.usbmodem14201': 'busy' }, holder: 'Thonny' });
@@ -70,7 +71,7 @@ test('M10.2 R10 a board there before MicroLab started is not interrupted; its ca
   plug('mac-pico-w');
   app = await electron.launch({ args: ['out/main/index.js'], env: { ...process.env, MICROLAB_USER_DATA: home, MICROLAB_FAKE_USB: usb } });
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   const chip = win.getByRole('button', { name: /^Board:/ });
   await expect(chip).toHaveAccessibleName('Board: Pico, ready');
   await chip.click();
@@ -80,7 +81,7 @@ test('M10.2 R10 a board there before MicroLab started is not interrupted; its ca
 
 test('M10.3 F-50 Send to board: the files go, the board runs them; sent again, nothing changed is copied', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   plug('mac-pico-w');
   const chip = win.getByRole('button', { name: /^Board:/ });
   await expect(chip).toHaveAccessibleName('Board: Pico W, ready, MicroPython 1.29', { timeout: 2000 });
@@ -98,7 +99,7 @@ test('M10.3 F-50 Send to board: the files go, the board runs them; sent again, n
 
 test('M10.4 F-51 the board\'s console: Send and run shows it; Stop gives >>>; typed; a file run there; let go', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   plug('mac-pico-w');
   const chip = win.getByRole('button', { name: /^Board:/ });
   await expect(chip).toHaveAccessibleName('Board: Pico W, ready, MicroPython 1.29', { timeout: 2000 });
@@ -131,7 +132,7 @@ test('M10.4 F-51 the board\'s console: Send and run shows it; Stop gives >>>; ty
 
 test('M10.5 F-53 Board files: the board beside the project; a folder made and deleted; done', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   plug('mac-pico-w');
   await expect(win.getByRole('button', { name: /^Board:/ })).toHaveAccessibleName('Board: Pico W, ready, MicroPython 1.29', { timeout: 2000 });
   await win.getByRole('button', { name: 'Send to board' }).click();
@@ -161,7 +162,7 @@ test('M10.5 F-53 Board files: the board beside the project; a folder made and de
 
 test('M10.6 F-56 the connection helper: step by step; it follows the board as it is plugged in', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await win.getByRole('button', { name: /^Board:/ }).click();
   await win.getByRole('dialog', { name: 'Board' }).getByRole('button', { name: /Help connecting/ }).click();
   const helper = win.getByRole('dialog', { name: 'Help connecting a board' });
@@ -186,7 +187,7 @@ test('M10.6 F-56 the connection helper: step by step; it follows the board as it
 
 test('M10.6 R5 an ESP32 whose USB chip has no driver (Windows\' device list, constructed): can\'t connect, which driver', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New ESP32 project' }).click();
+  await newProject(win, 'New ESP32 project');
   const f = JSON.parse(readFileSync('tests/fixtures/usb/win-esp32-no-driver-constructed.json', 'utf8')) as { pnp: string };
   writeFileSync(usb, JSON.stringify({ platform: 'win32', volumes: [], ports: [], pnp: f.pnp }));
   const chip = win.getByRole('button', { name: /^Board:/ });
@@ -205,7 +206,7 @@ test('M10.7 F-52 installing MicroPython on a Pico W in BOOTSEL: the .uf2 copied 
   const drive = join(home, 'volumes', 'RPI-RP2');
   mkdirSync(drive, { recursive: true });
   plug('mac-pico-bootsel');
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   const chip = win.getByRole('button', { name: /^Board:/ });
   await expect(chip).toHaveAccessibleName('Board: Pico, BOOTSEL mode', { timeout: 2000 });
   await chip.click();

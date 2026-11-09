@@ -1,8 +1,9 @@
+import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { python } from '@codemirror/lang-python';
 import { bracketMatching, HighlightStyle, indentOnInput, indentUnit, syntaxHighlighting } from '@codemirror/language';
-import { Annotation, Compartment, EditorState } from '@codemirror/state';
-import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
+import { Annotation, Compartment, EditorSelection, EditorState, StateEffect, StateField, type Extension, type Range } from '@codemirror/state';
+import { Decoration, drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, type DecorationSet } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
 import { useEffect, useRef } from 'react';
 import { boardAssist } from './assist';
@@ -24,7 +25,33 @@ export interface CodeEditorProps {
   /** The text size (px, M6.8): when it changes the editor measures its lines again — or the line numbers keep the
    *  old height until it is next focused (the teacher, M7). */
   size?: number;
+  /** The line the last run's error is on (M9, screen 05): highlighted, its code underlined. */
+  errorLine?: number;
+  /** Put the cursor on this line and show it (M9: "Go to line 5"); a new object each time it is asked. */
+  goTo?: { line: number };
+  /** Help while typing from elsewhere (M12: Python 3's, from Jedi) — instead of a board's. */
+  assist?: Extension;
 }
+
+/** The error's line (M9): a line decoration and its code underlined; it moves with edits, until the next run. */
+const setErrorLine = StateEffect.define<number | null>();
+const errorLine = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    let out = deco.map(tr.changes);
+    for (const e of tr.effects) {
+      if (!e.is(setErrorLine)) continue;
+      if (e.value === null || e.value < 1 || e.value > tr.state.doc.lines) { out = Decoration.none; continue; }
+      const line = tr.state.doc.line(e.value);
+      const start = line.from + /^\s*/.exec(line.text)![0].length;
+      const marks: Range<Decoration>[] = [Decoration.line({ class: 'cm-error-line' }).range(line.from)];
+      if (line.to > start) marks.push(Decoration.mark({ class: 'cm-error-code' }).range(start, line.to));
+      out = Decoration.set(marks);
+    }
+    return out;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 /** The text size as CodeMirror's own theme (M7, the teacher's report): set in CSS alone, a size that came after the
  *  editor first measured its lines (a saved setting, read as a project opens) left the line numbers at the old
@@ -47,7 +74,7 @@ const colours = HighlightStyle.define([
   { tag: t.comment, color: 'var(--code-com)', fontStyle: 'italic' },
 ]);
 
-export function CodeEditor({ label, value, onChange, board, size }: CodeEditorProps) {
+export function CodeEditor({ label, value, onChange, board, size, errorLine: errorAt, goTo, assist }: CodeEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const changed = useRef(onChange);
@@ -70,12 +97,15 @@ export function CodeEditor({ label, value, onChange, board, size }: CodeEditorPr
           drawSelection(),
           indentOnInput(),
           bracketMatching(),
+          // ( [ { " ' typed in pairs; the closing one steps over; Backspace takes both (Rev 11, F-99, screen 31f)
+          closeBrackets(),
           python(),
-          ...(board ? [boardAssist(board)] : []),
+          errorLine,
+          ...(board ? [boardAssist(board)] : assist ? [assist] : []),
           syntaxHighlighting(colours),
           indentUnit.of('    '),
           EditorState.tabSize.of(4),
-          keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+          keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
           EditorView.contentAttributes.of({ 'aria-label': label, spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off' }),
           EditorView.updateListener.of((u) => {
             if (u.docChanged && !u.transactions.every((tr) => tr.annotation(fromOutside))) changed.current(u.state.doc.toString());
@@ -107,6 +137,21 @@ export function CodeEditor({ label, value, onChange, board, size }: CodeEditorPr
   useEffect(() => {
     view.current?.dispatch({ effects: sizing.current.reconfigure(sizeTheme(size ?? 13)) });
   }, [size]);
+
+  // the error's line (M9): set after each run, and when the editor is made again for its file
+  useEffect(() => {
+    view.current?.dispatch({ effects: setErrorLine.of(errorAt ?? null) });
+  }, [errorAt, label, board]);
+
+  // "Go to line": the cursor at the line's code, scrolled to, the editor focused
+  useEffect(() => {
+    const v = view.current;
+    if (!v || !goTo || goTo.line < 1 || goTo.line > v.state.doc.lines) return;
+    const line = v.state.doc.line(goTo.line);
+    const at = line.from + /^\s*/.exec(line.text)![0].length;
+    v.dispatch({ selection: EditorSelection.cursor(at), effects: EditorView.scrollIntoView(at, { y: 'center' }) });
+    v.focus();
+  }, [goTo, label, board]);
 
   return <div className="code-editor" ref={host} />;
 }

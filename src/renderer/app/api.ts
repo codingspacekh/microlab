@@ -11,6 +11,23 @@ export type Result<T> = ({ ok: true } & T) | { ok: false; message: string };
 import type { Detection, FoundBoard, InstallResult, InstallStep, UsbChip } from '@lib/usb';
 
 /** What the preload gives the window (src/preload/index.ts): the only way to Node (architecture §2.2). */
+/** A .py file opened (M12, F-91). */
+export type PyOpen = { ok: true; path: string; name: string; text: string } | { ok: false; message: string } | { ok: false; canceled: true };
+export type PyProjectOpen = { ok: true; root: string; name: string; file?: { path: string; text: string } } | { ok: false; message: string };
+export interface TreeEntry { path: string; dir: boolean }
+export type Made = { ok: true; path: string } | { ok: false; message: string };
+export type PySave = { ok: true; path: string; name: string } | { ok: false; message: string } | { ok: false; canceled: true };
+/** A library installed in MicroLab's folder (src/main/python3/libraries.ts). */
+export interface PyLibrary { name: string; version: string; summary: string }
+/** What the Python 3 session tells the window (src/main/python3/session.ts). */
+export interface PyPlace { code: string; line: number; column: number; path: string }
+export interface PyCompletion { name: string; type: string; doc?: string; call?: 'args' | 'empty' }
+export interface PySignature { name: string; params: string[]; active: number; doc: string }
+export interface PyError { type: string; message: string; file: string; line: number | null }
+export type PyEvent =
+  | { ready: string } | { out: string } | { err: string } | { input: true } | { prompt: string }
+  | { ended: 'done' | 'stopped' } | { ended: 'error'; error: PyError } | { replError: PyError } | { window: true } | { exit: number | null };
+
 export interface MicrolabApi {
   /** The app's version; the system it runs on ("macOS 26.0"), when the app gives it. */
   versions: { app: string; electron: string; system?: string };
@@ -29,6 +46,67 @@ export interface MicrolabApi {
     openPath(path: string): Promise<OpenResult>;
     /** Takes a project off the recent list. */
     forget(path: string): Promise<void>;
+  };
+  /** .py files (M12, F-91): opened and saved as IDLE does; they join the recent list (board "python3"). */
+  pyfile: {
+    /** A project's file saved to its path; or (Save as) asking where, from its project's folder. */
+    save(text: string, opts: { path?: string; name: string; from?: string }): Promise<PySave>;
+  };
+  /** Open a project… on the Start page (screen 31): a .mlab, or a Python project (its folder, or a .py file's). */
+  file: {
+    open(): Promise<({ kind: 'mlab' } & OpenResult) | ({ kind: 'py' } & PyProjectOpen) | { ok: false; canceled: true }>;
+  };
+  /** Projects as folders (M12 Rev 11, F-100, F-101; screens 31e, 31b). Paths in a project use forward slashes. */
+  projects: {
+    /** MicroLab's folder in Documents: where every new project's location starts. */
+    home(): Promise<string>;
+    /** The computer's folder window; the folder chosen, or null. */
+    choose(from: string): Promise<string | null>;
+    newPython(location: string, name: string): Promise<PyProjectOpen>;
+    newBoard(location: string, name: string, doc: ProjectDoc): Promise<SaveResult | { ok: false; message: string }>;
+    /** A Python project's folder, or a .py file's (that file shown). */
+    openPython(path: string): Promise<PyProjectOpen>;
+    tree(root: string): Promise<TreeEntry[]>;
+    newEntry(root: string, rel: string, kind: 'file' | 'folder'): Promise<Made>;
+    rename(root: string, from: string, to: string): Promise<Made>;
+    /** To the Recycle Bin / Bin. */
+    trash(root: string, rel: string): Promise<{ ok: true } | { ok: false; message: string }>;
+    /** Shows it in Explorer / Finder ('' : the project's folder). */
+    reveal(root: string, rel: string): Promise<void>;
+    read(root: string, rel: string): Promise<PyOpen>;
+    /** The computer's right-click menu; the id chosen, or null. '-' is a line between. */
+    context(items: { id: string; label: string }[]): Promise<string | null>;
+    /** Files changed in the project (here or outside MicroLab). */
+    onChanged(handler: (root: string) => void): () => void;
+  };
+  /** Python 3 (M12, F-92): a file run in the bundled CPython; its events come through onEvent. */
+  python3: {
+    run(code: string, file: string): Promise<{ ok: true; version: string } | { ok: false; message: string }>;
+    /** input()'s answer, or a line for the shell. */
+    line(text: string): Promise<void>;
+    /** Ctrl+C. */
+    interrupt(): Promise<void>;
+    /** Stop: the program ends, its windows close. */
+    stop(): Promise<void>;
+    onEvent(handler: (e: PyEvent) => void): () => void;
+    /** Tab at >>> (F-92): what finishes `text`, from the program's names. */
+    shellComplete(text: string): Promise<string[]>;
+    /** Help while typing (F-97, Jedi): the names that fit at a place in the code (line from 1, column from 0). */
+    complete(at: PyPlace): Promise<PyCompletion[]>;
+    /** The call being typed at a place: its arguments, the one being typed. */
+    signature(at: PyPlace): Promise<PySignature | null>;
+    /** Libraries (F-95, screen 31d), in MicroLab's own folder. */
+    libs: {
+      list(): Promise<PyLibrary[]>;
+      /** A library looked up by its name on PyPI. */
+      lookUp(name: string): Promise<{ ok: true; name: string; version: string; summary: string } | { ok: false; message: string; offline?: true }>;
+      install(name: string): Promise<{ ok: true } | { ok: false; message: string }>;
+      /** Asks for a .whl file and installs it. */
+      installFile(): Promise<{ ok: true } | { ok: false; message: string } | { ok: false; canceled: true }>;
+      remove(name: string): Promise<{ ok: true } | { ok: false; message: string }>;
+      /** What pip says while it installs. */
+      onOutput(handler: (text: string) => void): () => void;
+    };
   };
   /** The copy of a project with unsaved changes (F-03): offered back if the app ended without saving or giving
    *  the changes up. */
@@ -80,6 +158,8 @@ export interface MicrolabApi {
     openDriverPage(chip: UsbChip): Promise<void>;
     /** Shows a firmware file in Finder / File Explorer, to drag onto the board's drive by hand. */
     showFirmware(kind: 'pico' | 'microbit'): Promise<void>;
+    /** The app's size (M12 Rev 12, F-106): the window's zoom factor (1 = 100 %). */
+    zoom: { get(): number; set(factor: number): void };
   };
 }
 
@@ -104,6 +184,30 @@ export function getApi(): MicrolabApi {
       forget: async () => {},
     },
     recovery: { get: async () => null, write: async () => {}, clear: async () => {} },
+    pyfile: { save: async () => ({ ok: false, message: 'Saving a file needs the MicroLab app.' }) },
+    projects: {
+      home: async () => 'Documents/MicroLab', choose: async () => null,
+      newPython: async () => ({ ok: false, message: 'Python projects need the MicroLab app.' }),
+      newBoard: async () => ({ ok: false, message: 'Saving a project needs the MicroLab app.' }),
+      openPython: async () => ({ ok: false, message: 'Python projects need the MicroLab app.' }),
+      tree: async () => [], newEntry: async () => ({ ok: false, message: 'Needs the MicroLab app.' }), rename: async () => ({ ok: false, message: 'Needs the MicroLab app.' }),
+      trash: async () => ({ ok: false, message: 'Needs the MicroLab app.' }), reveal: async () => {}, read: async () => ({ ok: false, message: 'Needs the MicroLab app.' }),
+      context: async () => null, onChanged: () => () => {},
+    },
+    file: { open: async () => ({ ok: false, canceled: true }) },
+    python3: {
+      run: async () => ({ ok: false, message: 'Python 3 needs the MicroLab app.' }),
+      line: async () => {}, interrupt: async () => {}, stop: async () => {}, onEvent: () => () => {},
+      shellComplete: async () => [], complete: async () => [], signature: async () => null,
+      libs: {
+        list: async () => [],
+        lookUp: async () => ({ ok: false, message: 'Libraries need the MicroLab app.' }),
+        install: async () => ({ ok: false, message: 'Libraries need the MicroLab app.' }),
+        installFile: async () => ({ ok: false, message: 'Libraries need the MicroLab app.' }),
+        remove: async () => ({ ok: false, message: 'Libraries need the MicroLab app.' }),
+        onOutput: () => () => {},
+      },
+    },
     boards: { get: async () => ({ boards: [], drives: [] }), check: async () => {}, send: async () => ({ ok: false, message: 'Sending to a board needs the MicroLab app.' }),
       install: async () => ({ ok: false, message: 'Installing MicroPython needs the MicroLab app.' }),
       cancelInstall: async () => {},
@@ -118,6 +222,6 @@ export function getApi(): MicrolabApi {
       },
       console: { open: async () => ({ ok: false, message: 'A board needs the MicroLab app.' }), close: async () => {}, do: async () => {}, onOutput: () => () => {} },
       onChange: () => () => {} },
-    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close(), copy: async (t) => navigator.clipboard?.writeText(t), openDriverPage: async () => {}, showFirmware: async () => {} },
+    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close(), copy: async (t) => navigator.clipboard?.writeText(t), openDriverPage: async () => {}, showFirmware: async () => {}, zoom: { get: () => 1, set: () => {} } },
   };
 }

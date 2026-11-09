@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>30d Learn — voltage, current, resistance</title>
+{{include:head}}
+</head>
+<body>
+<!--@NAV_VIR: on-->
+<!--@TOP_RIGHT: <button class="btn">{{i:chevl:s14}} Back to my project</button>-->
+<p class="frame-label"><b>30d · Learn: an ideas page — voltage, current and resistance</b> (M8 design, Rev 9, F-45) — the big idea every part page leans on, as water in a loop of pipe: the pump's push is the voltage, the narrow pipe's holding back the resistance, the flow the current; two sliders change the push and the narrowing and the flow follows (Ohm's law, said in words first, then as I = V ÷ R). The glossary (F-42) beside it: each word in a line or two, for 10–13</p>
+<div class="frame">
+  {{include:topbar-learn}}
+  <div class="learn">
+    {{include:learn-nav2}}
+    <main class="lmain">
+      <div class="lcol" style="flex:1.4 1 0;min-width:520px">
+        <div class="card lhero" style="padding:16px 20px">
+          <div class="col" style="gap:6px;min-width:0">
+            <span class="tag">Big idea</span>
+            <h1>Voltage, current and resistance</h1>
+            <p class="lede">Three words you'll meet on every part page. They're easiest to picture as <b>water going round a loop of pipe</b>.</p>
+          </div>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">1</span>Play with it</h2>
+          <div class="play">
+            {{fig:water}}
+            <div class="slider" style="grid-template-columns:150px 1fr 70px;font-size:13px;margin-top:4px"><span>Push (voltage)</span><div class="track"><i style="width:33%"></i><b style="left:33%"></b></div><span class="v">3 V</span></div>
+            <div class="slider" style="grid-template-columns:150px 1fr 70px;font-size:13px;margin-top:10px"><span>Narrowing (resistance)</span><div class="track"><i style="width:15%"></i><b class="focus" style="left:15%"></b></div><span class="v">150 Ω</span></div>
+            <div class="says">{{i:info:s14}}<span>Flow (current): <b>20 mA</b>. Push harder and more flows. Narrow the pipe and less flows. The flow is the same all the way round the loop — what goes in comes back.</span></div>
+          </div>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">2</span>The rule</h2>
+          <div class="idea">{{i:bulb:s16}}<span><b>Current = push ÷ holding back.</b> Scientists write it <b>I = V ÷ R</b> and call it <b>Ohm's law</b>. 3 V ÷ 150 Ω = 0.02 A, which is 20 mA — just right for an LED.</span></div>
+        </div>
+      </div>
+      <div class="lcol" style="flex:1 1 0;min-width:320px">
+        <div class="card lsec">
+          <h2>{{i:list:s16}} Glossary</h2>
+          <table class="spec">
+            <tr><td><b>Voltage</b></td><td style="font-weight:400;white-space:normal" colspan="2">How hard the electricity is pushed. Measured in volts (V). A AA battery gives 1.5 V.</td></tr>
+            <tr><td><b>Current</b></td><td style="font-weight:400;white-space:normal" colspan="2">How much electricity flows past a point each second. Amps (A), or milliamps (mA): 1000 mA = 1 A.</td></tr>
+            <tr><td><b>Resistance</b></td><td style="font-weight:400;white-space:normal" colspan="2">How much something holds the current back. Ohms (Ω); 1 kΩ = 1000 Ω.</td></tr>
+            <tr><td><b>Circuit</b></td><td style="font-weight:400;white-space:normal" colspan="2">A loop the current can go round, from + back to −. Break the loop and it stops.</td></tr>
+            <tr><td><b>GND</b></td><td style="font-weight:400;white-space:normal" colspan="2">Ground: the − side, where the current comes back. 0 V.</td></tr>
+            <tr><td><b>Short circuit</b></td><td style="font-weight:400;white-space:normal" colspan="2">+ joined straight to −, with nothing holding the current back. Too much flows: things get hot.</td></tr>
+          </table>
+          <p class="small muted" style="margin-top:8px">Every word with a dotted line on a page opens here.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</body></html>

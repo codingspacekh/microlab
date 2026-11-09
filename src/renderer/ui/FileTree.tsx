@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import './file-tree.css';
 
@@ -66,9 +66,15 @@ export interface FileTreeProps {
   onActivate?: (n: FileNode) => void;
   /** Said when there are no files. */
   empty?: string;
+  /** Each row's size, or what a folder holds (M12 Rev 11: a Python project's tree shows none). */
+  sizes?: boolean;
+  /** A right-click on a row (it is selected first): the caller's menu. */
+  onContext?: (n: FileNode) => void;
+  /** A file's own icon (M12 Rev 12: the Python logo on a .py), else the file's. */
+  fileIcon?: (n: FileNode) => ReactNode;
 }
 
-export function FileTree({ label, nodes, status = () => '', selected, onSelect, opened, onOpened, onActivate, empty = 'No files.' }: FileTreeProps) {
+export function FileTree({ label, nodes, status = () => '', selected, onSelect, opened, onOpened, onActivate, empty = 'No files.', sizes = true, onContext, fileIcon }: FileTreeProps) {
   const rows: { n: FileNode; level: number }[] = [];
   const walk = (ns: FileNode[], level: number) => {
     for (const n of ns) {
@@ -111,15 +117,16 @@ export function FileTree({ label, nodes, status = () => '', selected, onSelect, 
             role="treeitem" aria-label={`${n.name}${st ? `, ${st}` : ''}`} aria-level={level} aria-selected={selected === n.path}
             aria-expanded={n.dir ? open : undefined} tabIndex={n.path === focusable ? 0 : -1}
             className={`r${selected === n.path ? ' sel' : ''}`} style={{ paddingLeft: 6 + (level - 1) * 16 }}
-            onClick={() => onSelect(n.path)} onDoubleClick={() => (n.dir ? toggle(n.path) : onActivate?.(n))} onKeyDown={(e) => onKey(e, i)}>
+            onClick={() => onSelect(n.path)} onDoubleClick={() => (n.dir ? toggle(n.path) : onActivate?.(n))} onKeyDown={(e) => onKey(e, i)}
+            onContextMenu={onContext ? (e) => { e.preventDefault(); onSelect(n.path); onContext(n); } : undefined}>
             {n.dir
               ? <button type="button" className="tw" tabIndex={-1} aria-label={`${open ? 'Close' : 'Open'} ${n.name}`} onClick={(e) => { e.stopPropagation(); toggle(n.path); }}>
                   <Icon name={open ? 'chevd' : 'chevr'} size={12} />
                 </button>
               : <span className="tw" />}
-            <span className="nm"><Icon name={n.dir ? 'folder' : 'file'} size={14} />{n.name}</span>
-            <span className="sz">{n.dir ? holds(n) : fileSize(n.size ?? 0)}</span>
-            <span className={`diff ${st.replace(/ /g, '-')}`}>{st}</span>
+            <span className="nm">{n.dir ? <Icon name="folder" size={14} /> : fileIcon?.(n) ?? <Icon name="file" size={14} />}{n.name}</span>
+            {sizes && <span className="sz">{n.dir ? holds(n) : fileSize(n.size ?? 0)}</span>}
+            {sizes && <span className={`diff ${st.replace(/ /g, '-')}`}>{st}</span>}
           </div>
         );
       })}
