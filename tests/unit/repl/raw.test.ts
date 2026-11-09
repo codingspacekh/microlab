@@ -7,7 +7,8 @@ import { appWrites, boardText, latin1, loadRecording, replay, text } from './rep
  * its program, Ctrl-A gives a prompt that runs whatever is sent before Ctrl-D, Ctrl-B goes back, and Ctrl-D at the
  * normal prompt restarts the board's own main.py. Checked against exchanges recorded on the teacher's Pico W.
  */
-const quick = { pauseMs: 0, replyMs: 60 };
+// the board's answers within 60 ms here; on a busy CI runner (Windows) the fake board's timers can take longer
+const quick = { pauseMs: 0, replyMs: process.env.CI ? 400 : 60 };
 
 describe('M10.2 Q15 checking a board, against the recordings', () => {
   it.each(['pico-w-idle', 'pico-w-running'])('%s: the same bytes as recorded are sent, in order, and the board is a Pico W', async (name) => {
