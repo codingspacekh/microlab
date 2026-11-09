@@ -70,8 +70,8 @@ test('Stop ends a program that runs on; ⌘S saves main.py in its project\'s fol
   await setCode(win, 'main.py', ['import time', 'n = 0', 'while True:', '    n += 1', '    print(n)', '    time.sleep(0.1)', ''].join('\n'));
   await win.keyboard.press(`${MOD}+s`);
   await expect(win.getByRole('group', { name: 'Python project' })).toContainText('Test project · main.py');
-  await expect(win.getByRole('group', { name: 'Python project' })).toContainText('saved');
-  expect(readFileSync(file, 'utf8')).toContain('time.sleep(0.1)');
+  await expect(win.getByRole('group', { name: 'Python project' })).not.toContainText('not saved');   // ("not saved" holds "saved" too)
+  await expect.poll(() => readFileSync(file, 'utf8')).toContain('time.sleep(0.1)');
   await win.getByRole('button', { name: /Run main\.py/ }).click();
   await expect(win.getByRole('log', { name: 'Shell' })).toContainText('3', { timeout: 10_000 });
   await win.getByRole('button', { name: 'Stop' }).click();
