@@ -75,10 +75,12 @@ describe('M2.8 the worker\'s run: output batched to ≤ 60 a second, then the en
   it('M6.2: the micro:bit speaker\'s pitch reaches the window, then its silence', async () => {
     const control = new Control();
     const posts: WorkerMessage[] = [];
+    let t = 0;
     await handleStart({
       type: 'start', board: 'microbit-v2', control: control.buffer, inputs: [],
       files: { 'main.py': 'from microbit import *\nimport music\nmusic.pitch(440, 50)\nsleep(50)\n' },
-    }, (m) => posts.push(m), await nodeLoader());
+    }, (m) => posts.push(m), await nodeLoader(), () => (t += 20));   // a frame (16 ms) at every look: counted, not timed —
+    // a busy computer's late frame once took the note and its silence together, and sent only the silence
     const sounds = posts.flatMap((m) => (m.type === 'board' && m.sound !== undefined ? [m.sound] : []));
     expect(sounds.some((hz) => Math.abs(hz - 440) < 1)).toBe(true);   // 440.14: the nearest whole µs period
     expect(sounds.at(-1)).toBe(0);
