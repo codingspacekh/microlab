@@ -55,7 +55,9 @@ test('a new Python file runs in real CPython: input() answered in the shell, the
   await expect(shell).toContainText('KeyboardInterrupt', { timeout: 3000 });
   await prompt.fill('secret');
   await prompt.press('Enter');
-  await expect(shell.locator('span').last()).toContainText('>>> ');
+  // the names stayed: secret is still 7; the next >>> is the prompt row's, below the shell
+  await expect(shell).toContainText(/>>> secret\s*7/);
+  await expect(win.locator('.pyshell .prompt')).toContainText('>>>');
 });
 
 test('Stop ends a program that runs on; Save writes the .py file where the student chose', async () => {
@@ -75,3 +77,18 @@ test('Stop ends a program that runs on; Save writes the .py file where the stude
   await expect(win.getByRole('button', { name: /Run loop\.py/ })).toBeVisible({ timeout: 2000 });
   await expect(win.getByRole('log', { name: 'Shell' })).toContainText('Stopped.');
 });
+
+test('M12 slice 3 (screen 31c): a turtle program in real CPython — its window (hidden in tests) is said to be open; Stop ends it', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Python file' }).click();
+  await setCode(win, 'untitled.py', ['import turtle', 't = turtle.Turtle()', 't.speed(0)', 'for i in range(36):', '    t.forward(i * 3)', '    t.left(59)', 'print("drawn")', 'turtle.done()', ''].join('\n'));
+  await win.keyboard.press('F5');
+  const shell = win.getByRole('log', { name: 'Shell' });
+  await expect(shell).toContainText('A window from untitled.py is open beside MicroLab.', { timeout: 15_000 });
+  await expect(shell).toContainText('drawn', { timeout: 10_000 });
+  await expect(win.getByRole('status')).toContainText('Running untitled.py');
+  await win.getByRole('button', { name: 'Stop' }).click();
+  await expect(win.getByRole('button', { name: /Run untitled\.py/ })).toBeVisible({ timeout: 2000 });
+  await expect(shell).toContainText('Stopped.');
+});
+

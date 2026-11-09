@@ -8,6 +8,7 @@ while the program is busy or waits for input().
 
 Window → runner:  {"run": {"code", "file", "cwd"}} · {"line": text} · {"interrupt": true}
 Runner → window:  {"ready": version} · {"out": text} · {"err": text} · {"input": true} · {"prompt": ">>> " | "... "}
+                  {"window": true} (a tkinter or turtle window opened)
                   {"ended": "done" | "error" | "stopped", "error"?: {type, message, file, line}} · {"replError": {...}}
 """
 import _thread
@@ -15,6 +16,7 @@ import builtins
 import codeop
 import io
 import json
+import linecache
 import os
 import queue
 import sys
@@ -88,6 +90,57 @@ def _next():
                     pass
 
 
+# MICROLAB_HIDDEN (the app's tests): a tkinter or turtle window is made but never shown, and never takes focus
+_HIDDEN = os.environ.get("MICROLAB_HIDDEN") == "1"
+
+
+def _watch_tk():
+    """Once tkinter is imported, each window it makes tells the window, and comes to the front — a window from
+    another process can open behind MicroLab, where the student wouldn't see it (F-93, screen 31c)."""
+    tk = sys.modules.get("tkinter")
+    if tk is None or getattr(tk, "_microlab", False) or not hasattr(tk, "Tk"):
+        return
+    tk._microlab = True
+    made = tk.Tk.__init__
+
+    def init(self, *args, **kwargs):
+        made(self, *args, **kwargs)
+        try:
+            if _HIDDEN:
+                self.withdraw()
+            else:
+                self.lift()
+                self.attributes("-topmost", True)
+                self.after(400, lambda: self.attributes("-topmost", False))
+                self.focus_force()
+        except Exception:
+            pass
+        send({"window": True})
+
+    tk.Tk.__init__ = init
+
+
+_import = builtins.__import__
+
+
+def _importing(name, *args, **kwargs):
+    module = _import(name, *args, **kwargs)
+    if "tkinter" in sys.modules:
+        _watch_tk()
+    return module
+
+
+def _window_closed(exc):
+    """The turtle window was closed while the program drew (closed by the student, or by turtle.bye()): turtle raises
+    turtle.Terminator, or tkinter's "invalid command name" for its gone canvas. The program ends quietly, as when the
+    window is closed at the end."""
+    if type(exc).__name__ == "Terminator" and type(exc).__module__ == "turtle":
+        return True
+    if type(exc).__name__ != "TclError" or not str(exc).startswith(("invalid command name", "can't invoke")):
+        return False
+    return any(os.path.basename(f.filename) == "turtle.py" for f in traceback.extract_tb(exc.__traceback__))
+
+
 def _input(prompt=""):
     if prompt:
         sys.stdout.write(str(prompt))
@@ -150,6 +203,8 @@ def run(code, file, cwd):
         sys.path.insert(0, cwd)
     sys.argv = [file]
     names = {"__name__": "__main__", "__file__": file, "__builtins__": builtins}
+    # the editor's text is the file's (it may not be saved): tracebacks show its lines, as for a file on disk
+    linecache.cache[file] = (len(code), None, code.splitlines(True), file)
     try:
         exec(compile(code, file, "exec"), names)
         send({"ended": "done"})
@@ -161,8 +216,11 @@ def run(code, file, cwd):
         _print_error(e)
         send({"ended": "stopped"})
     except BaseException as e:
-        _print_error(e)
-        send({"ended": "error", "error": _where(e, file)})
+        if _window_closed(e):
+            send({"ended": "done"})
+        else:
+            _print_error(e)
+            send({"ended": "error", "error": _where(e, file)})
     return names
 
 
@@ -212,6 +270,7 @@ def main():
     sys.stderr = _Stream("err")
     sys.stdin = _Stdin()
     builtins.input = _input
+    builtins.__import__ = _importing
     threading.Thread(target=_reader, daemon=True).start()
     send({"ready": sys.version.split()[0]})
     try:

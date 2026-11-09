@@ -109,6 +109,15 @@ describe('M12 the Python 3 screen (screen 31b)', () => {
     expect(s.shell().querySelector('.err')).toHaveTextContent("NameError: name 'pritn' is not defined");
   });
 
+  it('M12 slice 3 (screen 31c): a turtle or tkinter window opens beside MicroLab — the shell says so, once', () => {
+    const s = setup();
+    newFile();
+    fireEvent.click(screen.getByRole('button', { name: /Run untitled\.py/ }));
+    s.say({ window: true }, { window: true });
+    expect(s.shell()).toHaveTextContent('A window from untitled.py is open beside MicroLab. Close it, or press Stop, to end the program.');
+    expect(s.shell().textContent!.match(/A window from/g)).toHaveLength(1);
+  });
+
   it('⌘S saves (asking where for a new file); an edit shows the dot; the file\'s name comes back from Save', async () => {
     const s = setup();
     newFile();

@@ -17,6 +17,8 @@ export type PythonEvent =
   | { prompt: string }
   | Ended
   | { replError: PyError }
+  /** A tkinter or turtle window has opened (beside MicroLab). */
+  | { window: true }
   | { exit: number | null };
 
 export interface PythonSession {
@@ -59,9 +61,9 @@ export function findRunner(resources = process.resourcesPath ?? '', cwd = proces
   return resources && existsSync(shipped) ? shipped : join(cwd, 'src', 'python3', 'runner.py');
 }
 
-export function startPython(opts: { python: string; runner?: string; libs?: string }): PythonSession {
+export function startPython(opts: { python: string; runner?: string; libs?: string; env?: NodeJS.ProcessEnv }): PythonSession {
   const args = ['-I', '-u', '-X', 'utf8', opts.runner ?? findRunner(), ...(opts.libs ? ['--libs', opts.libs] : [])];
-  const child = spawn(opts.python, args, { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+  const child = spawn(opts.python, args, { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, ...(opts.env ? { env: opts.env } : {}) });
   const listeners = new Set<(e: PythonEvent) => void>();
   const emit = (e: PythonEvent) => { for (const l of [...listeners]) l(e); };
   let alive = true;

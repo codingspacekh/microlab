@@ -18,7 +18,7 @@ export type PySave = { ok: true; path: string; name: string } | { ok: false; mes
 export interface PyError { type: string; message: string; file: string; line: number | null }
 export type PyEvent =
   | { ready: string } | { out: string } | { err: string } | { input: true } | { prompt: string }
-  | { ended: 'done' | 'stopped' } | { ended: 'error'; error: PyError } | { replError: PyError } | { exit: number | null };
+  | { ended: 'done' | 'stopped' } | { ended: 'error'; error: PyError } | { replError: PyError } | { window: true } | { exit: number | null };
 
 export interface MicrolabApi {
   /** The app's version; the system it runs on ("macOS 26.0"), when the app gives it. */

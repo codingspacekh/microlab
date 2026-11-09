@@ -29,6 +29,7 @@ export function usePython(api: MicrolabApi) {
   const live = useRef(false);   // a session is there: running, or at its >>>
   const t0 = useRef(0);
   const name = useRef('');
+  const windowSaid = useRef(false);
 
   useEffect(() => api.python3.onEvent((e: PyEvent) => {
     if (!live.current) return;
@@ -45,6 +46,11 @@ export function usePython(api: MicrolabApi) {
         : 'Its names are still here: type Python and press Enter.\n';
       // after Stop the session is ended: no names to offer
       setState((s) => (s.status === 'stopping' ? { ...s, ended: e } : { ...s, ended: e, console: append(s.console, { kind: 'sys', text: note }) }));
+    } else if ('window' in e) {
+      // screen 31c: the window is the program's own, beside MicroLab — said once a run
+      if (windowSaid.current) return;
+      windowSaid.current = true;
+      add({ kind: 'sys', text: `A window from ${name.current} is open beside MicroLab. Close it, or press Stop, to end the program.\n` });
     } else if ('exit' in e) {
       live.current = false;
       setState((s) => ({ ...s, status: 'idle', repl: false, ...(s.status === 'idle' && s.repl ? {} : { ended: s.ended ?? { ended: 'stopped' } }) }));
@@ -54,6 +60,7 @@ export function usePython(api: MicrolabApi) {
   /** Runs the file's code (its text as it is in the editor) in a new session; `path` is its file, or its name if new. */
   const run = useCallback((code: string, path: string, label: string) => {
     live.current = true;
+    windowSaid.current = false;
     t0.current = Date.now();
     name.current = label;
     const folder = /[\\/]/.test(path) ? path.replace(/[\\/][^\\/]*$/, '').split(/[\\/]/).slice(-2).join('/') : 'Documents/Python';

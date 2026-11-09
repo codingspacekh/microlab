@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { findPython, findRunner, startPython, type PythonSession } from '../../src/main/python3/session';
 
 /**
@@ -13,7 +13,7 @@ const python = findPython();
 const sessions: PythonSession[] = [];
 afterEach(() => { for (const s of sessions.splice(0)) s.kill(); });
 
-function session(opts: { libs?: string } = {}) {
+function session(opts: { libs?: string; env?: NodeJS.ProcessEnv } = {}) {
   const s = startPython({ python, ...opts });
   sessions.push(s);
   return s;
@@ -59,6 +59,7 @@ describe('the runner', () => {
     expect(r.err).toMatch(/^Traceback \(most recent call last\):\n {2}File "guess\.py", line 6, in <module>/);
     expect(r.err).toContain("NameError: name 'pritn' is not defined. Did you mean: 'print'?");
     expect(r.err).not.toContain('runner.py');
+    expect(r.err).toContain('    return pritn(x)');   // its code line, though the file isn't saved (M12 slice 3)
     expect(r.ended).toEqual({ ended: 'error', error: { type: 'NameError', message: "name 'pritn' is not defined. Did you mean: 'print'?", file: 'guess.py', line: 4 } });
   });
 
@@ -225,5 +226,50 @@ describe('finding Python and the runner', () => {
     expect(err).toMatch(/^Python couldn't start/);
     expect(s.alive).toBe(false);
     expect(await s.ended()).toEqual({ ended: 'stopped' });
+  });
+});
+
+describe('turtle and tkinter (F-93): their windows are the program\'s own', () => {
+  // the tests never show a window or take focus (MICROLAB_HIDDEN, the teacher's rule): the runner withdraws them
+  const hidden = { env: { ...process.env, MICROLAB_HIDDEN: '1' } };
+
+  it('a tkinter window: the window says it is open; the program goes on; the window is the program\'s', async () => {
+    const s = session(hidden);
+    const events: string[] = [];
+    s.on((e) => { if ('window' in e) events.push('window'); if ('out' in e) events.push(e.out.trim()); });
+    const r = await runToEnd(s, 'import tkinter\nroot = tkinter.Tk()\nroot.title("Hello")\nprint(root.state())\nroot.destroy()\n');
+    expect(r.ended).toEqual({ ended: 'done' });
+    expect(events.filter(Boolean)).toEqual(['window', 'withdrawn']);
+  });
+
+  it('turtle draws, and turtle.done() waits for its window — Ctrl+C there stops it', async () => {
+    const s = session(hidden);
+    let window = false;
+    s.on((e) => { if ('window' in e) window = true; });
+    s.run({ code: 'import turtle\nt = turtle.Turtle()\nt.speed(0)\nfor i in range(4):\n    t.forward(50)\n    t.left(90)\nprint("drawn", round(t.xcor()), round(t.ycor()))\nturtle.done()\n', file: 'square.py', cwd: tmpdir() });
+    await vi.waitFor(() => expect(window).toBe(true), { timeout: 10_000 });
+    await new Promise((r) => setTimeout(r, 400));
+    s.interrupt();
+    expect(await s.ended()).toEqual({ ended: 'stopped' });
+  });
+
+  it('a turtle window closed while it draws: the program ends quietly, not with turtle.Terminator', async () => {
+    const s = session(hidden);
+    const r = await runToEnd(s, 'import turtle\nt = turtle.Turtle()\nturtle.bye()\nt.forward(10)\nprint("never")\n');
+    expect(r.ended).toEqual({ ended: 'done' });
+    expect(r.err).toBe('');
+    expect(r.out).toBe('');
+  });
+
+  it('Stop ends a program in its mainloop, and its window with it', async () => {
+    const s = session(hidden);
+    let window = false;
+    s.on((e) => { if ('window' in e) window = true; });
+    s.run({ code: 'import tkinter\nroot = tkinter.Tk()\nroot.mainloop()\n', file: 'win.py', cwd: tmpdir() });
+    await vi.waitFor(() => expect(window).toBe(true), { timeout: 10_000 });
+    const t = Date.now();
+    await s.stop();
+    expect(s.alive).toBe(false);
+    expect(Date.now() - t).toBeLessThan(1500);
   });
 });
