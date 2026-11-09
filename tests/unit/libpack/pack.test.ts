@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { PART_KINDS } from '@lib/editor';
 import { addLibrary, buildFor, filesFor, isAdded, licencePath, librariesFor, needsOf, parsePack, wouldReplace } from '@lib/libpack';
@@ -41,7 +41,7 @@ describe('M6.7 the library pack, as shipped', () => {
       expect(Object.keys(b.use).sort()).toEqual([...b.boards].sort());
     }
     // nothing in its folder that pack.json doesn't list
-    const onDisk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? onDisk(join(dir, e.name)) : [relative(join(ROOT, id), join(dir, e.name))]));
+    const onDisk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? onDisk(join(dir, e.name)) : [relative(join(ROOT, id), join(dir, e.name)).split(sep).join('/')]));
     expect(onDisk(join(ROOT, id)).sort()).toEqual([...listed].sort());
   });
 

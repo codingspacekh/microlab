@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseBoard, type BoardData } from '@lib/boards';
 import { parseProject, toCircuit } from '@lib/project';
@@ -22,7 +22,7 @@ function files(dir: string, base = dir): ProjectFiles {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) Object.assign(out, files(path, base));
-    else out[relative(base, path)] = readFileSync(path, 'utf8');
+    else out[relative(base, path).split(sep).join('/')] = readFileSync(path, 'utf8');
   }
   return out;
 }
