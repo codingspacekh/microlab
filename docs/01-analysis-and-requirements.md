@@ -209,8 +209,8 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 ### Python 3 *(Rev 10)*
 | ID | Requirement | P |
 |---|---|---|
-| F-90 | A **Python 3** card on the Start page opens the Python 3 screen; the top bar has *Workspace · Python 3 · Learn* | M |
-| F-91 | **`.py` files, as IDLE**: New, Open, Save, Save as, the recent files on the Start page's card; several files open in tabs; a file's folder is where the program runs (`open('data.txt')` finds the file beside it) | M |
+| F-90 | A **Python 3** card on the Start page — the first in the row of boards, before the micro:bit — opens the Python 3 screen with a new file; the top bar has *Workspace · Python 3 · Learn* | M |
+| F-91 | **`.py` files, as IDLE**: New, Open, Save, Save as; the recent `.py` files in the Start page's Recent list with the projects; several files open in tabs; a file's folder is where the program runs (`open('data.txt')` finds the file beside it) | M |
 | F-92 | **Run** (F5) runs the file in the editor with real **CPython 3**; the **shell** shows what it prints and errors in red, takes `input()`'s answers, and after the program its **`>>>`** has the program's names (as IDLE's *Run Module*); **Stop** (Ctrl+C) interrupts it; ↑ ↓ history, Tab completes | M |
 | F-93 | **turtle and tkinter** work as on a computer with Python: their windows open beside MicroLab and close with the program, or when Stop is pressed | M |
 | F-94 | **Friendly errors** for CPython's own messages (screen 05's way): the line marked, *What this means*, Go to line | S |

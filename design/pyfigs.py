@@ -56,7 +56,25 @@ def turtle_window(steps: int = 96, w: int = 360, h: int = 330) -> str:
             f'{bar}{"".join(segs)}{head}</g></svg>')
 
 
-FIGS = {"turtlewin": turtle_window}
+def card_art(w: int = 270, h: int = 135) -> str:
+    """The Start page's Python 3 card: a small editor with a few lines of Python, and the spiral they draw."""
+    lines = [("#c678dd", "import", " turtle"), ("#61afef", "t", " = turtle.Turtle()"), ("#c678dd", "for", " i in range(60):"),
+             ("#e5c07b", "    t", ".forward(i * 3)"), ("#e5c07b", "    t", ".left(59)")]
+    o = [f'<rect x="8" y="10" width="150" height="112" rx="9" fill="#1f2430"/>',
+         '<circle cx="20" cy="21" r="3.2" fill="#ff5f57"/><circle cx="30" cy="21" r="3.2" fill="#febc2e"/><circle cx="40" cy="21" r="3.2" fill="#28c840"/>']
+    for i, (c, a, b) in enumerate(lines):
+        y = 42 + i * 15
+        o.append(f'<text x="18" y="{y}" font-size="9.5" font-family="JetBrains Mono" fill="{c}">{a}<tspan fill="#d7dae0">{b}</tspan></text>')
+    colours = ["#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#32ade6", "#af52de"]
+    x, y, a = 212, 68, 0.0
+    for i in range(54):
+        nx, ny = x + i * 1.05 * math.cos(math.radians(a)), y - i * 1.05 * math.sin(math.radians(a))
+        o.append(f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{nx:.1f}" y2="{ny:.1f}" stroke="{colours[i % 6]}" stroke-width="1.4"/>')
+        x, y, a = nx, ny, a + 59
+    return f'<svg class="scene" width="{w}" height="{h}" viewBox="0 0 270 135" font-family="Inter">{"".join(o)}</svg>'
+
+
+FIGS = {"turtlewin": turtle_window, "cardart": card_art}
 
 
 def fig(name: str, *args: str) -> str:
