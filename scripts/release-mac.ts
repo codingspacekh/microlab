@@ -15,7 +15,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import yaml from 'js-yaml';
+import { dump, load } from 'js-yaml';   // js-yaml 5: named exports only (its default went)
 import { mergeMacFeeds, type Feed } from '../src/lib/updates/index.ts';
 import { feedUrl, macFeedName, RELEASES_REPO } from './lib/package.ts';
 
@@ -44,7 +44,8 @@ const tag = `v${version}`;
 const repo = process.env.MICROLAB_RELEASES_REPO || RELEASES_REPO;
 process.env.MICROLAB_UPDATE_URL ||= feedUrl(repo);
 
-if (read('git', ['status', '--porcelain'])) stop('There are changes not committed: commit them first.');
+// files git doesn't track (a screenshot in issues/) are never in a build: only changes to tracked ones stop it
+if (read('git', ['status', '--porcelain', '--untracked-files=no'])) stop('There are changes not committed: commit them first.');
 if (!read('git', ['tag', '--points-at', 'HEAD']).split('\n').includes(tag)) stop(`HEAD is not ${tag}: check out the release's tag first.`);
 if (!dry) {
   const draft = read('gh', ['release', 'view', tag, '--repo', repo, '--json', 'isDraft', '--jq', '.isDraft']);
@@ -56,9 +57,9 @@ run('npm', ['run', 'build']);
 for (const arch of ['arm64', 'x64']) run(process.execPath, ['scripts/package.ts', '--arch', arch]);
 
 const release = join(root, 'release');
-const feeds = ['arm64', 'x64'].map((arch) => yaml.load(readFileSync(join(release, macFeedName(arch)), 'utf8')) as Feed);
+const feeds = ['arm64', 'x64'].map((arch) => load(readFileSync(join(release, macFeedName(arch)), 'utf8')) as Feed);
 if (feeds.some((f) => f.version !== version)) stop('A Mac feed is not for this version.');
-writeFileSync(join(release, 'latest-mac.yml'), yaml.dump(mergeMacFeeds(feeds), { lineWidth: -1 }));
+writeFileSync(join(release, 'latest-mac.yml'), dump(mergeMacFeeds(feeds), { lineWidth: -1 }));
 
 const files = [
   ...['arm64', 'x64'].flatMap((arch) => ['dmg', 'zip', 'dmg.blockmap', 'zip.blockmap'].map((ext) => `MicroLab-${version}-mac-${arch}.${ext}`)),
