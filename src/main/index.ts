@@ -92,7 +92,8 @@ function createWindow(): void {
     minWidth: 1280,
     minHeight: 720,
     show: false,
-    // (just past the screens' right edge — not -32000, where Windows keeps minimised windows: one there never resized)
+    // (just past the screens' right edge — not -32000, where Windows keeps minimised windows; a shown window is kept no
+    // bigger than the screen, so the CI runner is given a 1920 × 1080 one)
     ...(HIDDEN && process.platform === 'win32' ? { ...pastTheScreens(), skipTaskbar: true, focusable: false } : {}),
     // the app icon while developing (M11, F-107); the installed app has its own in its bundle
     ...(!app.isPackaged && process.platform !== 'darwin' ? { icon: DEV_ICON } : {}),
