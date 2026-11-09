@@ -42,6 +42,8 @@ export function configFor(env: Record<string, string | undefined>, version: stri
       // MicroLab's own Python: the runner (a program's process) and the help while typing (Jedi's process)
       { from: 'src/python3', to: 'python3', filter: ['*.py'] },
       { from: 'vendor/python-tools', to: 'python-tools' },
+      // Install MicroPython's firmware (F-52): copied to a board's drive, offline
+      { from: 'library/firmware', to: 'firmware' },
     ],
     win: {
       target: [{ target: 'nsis', arch: ['x64'] }],

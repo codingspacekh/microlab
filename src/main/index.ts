@@ -107,10 +107,13 @@ function createWindow(): void {
   void win.loadURL(devUrl ?? APP_URL);
 }
 
+/** The MicroPython firmware Install MicroPython copies to a board (F-52): in the installed app's resources, else the source tree's. */
+const firmwareFolder = () => (app.isPackaged ? join(process.resourcesPath, 'firmware') : join(here, '../../library/firmware'));
+
 /** M11: the packaged app checks itself (MICROLAB_SELF_CHECK, from scripts/package.ts): what it found, then it quits. */
 async function runSelfCheck(report: string): Promise<void> {
   const r = await selfCheck({
-    python: findPython(), runner: findRunner(), assist: findAssist(), tools: findTools(), renderer: rendererDir,
+    python: findPython(), runner: findRunner(), assist: findAssist(), tools: findTools(), renderer: rendererDir, firmware: firmwareFolder(),
     updatesFile: join(process.resourcesPath ?? '', 'updates.json'),
     runPython: (exe) => new Promise((done, fail) => {
       execFile(exe, ['-I', '-c', 'import sys; print(sys.version.split()[0])'], { timeout: 30_000, windowsHide: true }, (err, out) => (err ? fail(err) : done(out)));
@@ -430,7 +433,8 @@ app.whenReady().then(() => {
   ipcMain.handle('boards:get', () => boardsNow());
 
   // Installing MicroPython (F-52, screen 14b): the firmware shipped in library/firmware, copied to the board's drive
-  const firmwareDir = process.env.MICROLAB_FIRMWARE_DIR ?? join(here, '../../library/firmware');
+  // the installed app's copy is in its resources (M11: library/ isn't packaged — the M10 gate's open item)
+  const firmwareDir = process.env.MICROLAB_FIRMWARE_DIR ?? firmwareFolder();
   const firmwareOf = async (kind: 'pico' | 'microbit'): Promise<Firmware> => {
     const all = JSON.parse(await readFile(join(firmwareDir, 'firmware.json'), 'utf8')) as Record<string, { file: string; size: number; drive: string; version: string }>;
     const f = all[kind === 'pico' ? 'pico-w' : 'microbit-v2']!;

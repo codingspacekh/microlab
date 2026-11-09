@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -13,6 +13,8 @@ export interface SelfCheckDeps {
   assist: string;
   tools: string | undefined;
   renderer: string;
+  /** Install MicroPython's firmware (library/firmware: firmware.json and the files it names). */
+  firmware: string;
   updatesFile: string;
   runPython: (exe: string) => Promise<string>;
   loadUpdater: () => Promise<unknown>;
@@ -33,6 +35,13 @@ export async function selfCheck(d: SelfCheckDeps): Promise<SelfCheckReport> {
   checks.jedi = there(d.tools && join(d.tools, 'jedi'), 'Jedi (python-tools/jedi)');
   checks.pages = there(join(d.renderer, 'index.html'), "the window's pages (index.html)");
   checks.updates = there(d.updatesFile, 'the update address (updates.json)');
+  try {
+    const list = JSON.parse(readFileSync(join(d.firmware, 'firmware.json'), 'utf8')) as Record<string, { file?: string }>;
+    const missing = Object.values(list).filter((f) => f && typeof f === 'object' && f.file && !existsSync(join(d.firmware, f.file))).map((f) => f.file);
+    checks.firmware = missing.length ? `the firmware missing: ${missing.join(', ')}` : true;
+  } catch {
+    checks.firmware = `Install MicroPython's firmware missing (${join(d.firmware, 'firmware.json')})`;
+  }
   try {
     await d.loadUpdater();
     checks.updater = true;

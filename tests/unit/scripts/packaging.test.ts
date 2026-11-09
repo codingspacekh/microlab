@@ -16,11 +16,12 @@ describe('installers', () => {
     expect(config.npmRebuild).toBe(false);   // serialport's N-API binaries are prebuilt for every platform
   });
 
-  it('every installer carries the update address, MicroLab\'s Python scripts and Jedi', () => {
+  it('every installer carries the update address, MicroLab\'s Python scripts, Jedi and the boards\' firmware', () => {
     expect(resources(config.extraResources)).toEqual([
       'build-info/updates.json → updates.json',
       'src/python3 → python3',
       'vendor/python-tools → python-tools',
+      'library/firmware → firmware',   // Install MicroPython (F-52): library/ itself isn't packaged
     ]);
   });
 
