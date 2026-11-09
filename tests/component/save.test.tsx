@@ -5,6 +5,7 @@ import { newProject, type ProjectDoc, type SaveResult } from '@lib/project';
 import { App } from '../../src/renderer/app/App';
 import type { MicrolabApi } from '../../src/renderer/app/api';
 import { newProjectFromStart } from './new-project';
+import { UPDATES_OFF } from './fake-api';
 
 /** M4.6 F-02, F-60: Save, Save as, the unsaved mark, "Save your changes?" before the project is closed. */
 function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) => Promise<SaveResult> = async (_d, o) => ({ ok: true, path: o.path ?? `/s/${o.name} 2.mlab`, name: o.path ? o.name : `${o.name} 2` })) {
@@ -22,6 +23,7 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
     },
     recovery: { get: vi.fn(async () => null), write: vi.fn(async () => {}), clear: vi.fn(async () => {}) },
     pyfile: { save: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
+    updates: { get: vi.fn(async () => UPDATES_OFF), check: vi.fn(async () => UPDATES_OFF), download: vi.fn(async () => UPDATES_OFF), install: vi.fn(async () => UPDATES_OFF), setAuto: vi.fn(async () => UPDATES_OFF), seen: vi.fn(async () => UPDATES_OFF), showDmg: vi.fn(async () => UPDATES_OFF), openDmg: vi.fn(async () => UPDATES_OFF), onChange: vi.fn(() => () => {}) },
     projects: { home: vi.fn(async () => '/u/Documents/MicroLab'), choose: vi.fn(async () => null), newPython: vi.fn(async () => ({ ok: false as const, message: 'no' })),
       newBoard: vi.fn(async (location: string, name: string) => ({ ok: true as const, path: `${location}/${name}.mlab`, name })), openPython: vi.fn(async () => ({ ok: false as const, message: 'no' })),
       tree: vi.fn(async () => []), newEntry: vi.fn(async () => ({ ok: false as const, message: 'no' })), rename: vi.fn(async () => ({ ok: false as const, message: 'no' })),

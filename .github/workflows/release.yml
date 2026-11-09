@@ -1,0 +1,70 @@
+name: Release
+
+# M11 (Rev 13, F-109), as OneEditor's: pushing a version tag (vX.Y.Z, on the merge into main) makes a DRAFT release in
+# the releases repo — installers only, public (the teacher: as the gradebook's; the code stays private) — and builds
+# the Windows installer into it; the packaged app checks itself. The installers carry the update address (that repo's
+# latest release), and latest.yml is added for the installed apps to find the next version. The two Mac installers are
+# built on the teacher's Mac, signed with their certificate so Macs update by themselves: `npm run release:mac` adds
+# them to the same draft. Publishing the draft releases it to every installed MicroLab.
+#
+# Secrets: RELEASES_TOKEN — a fine-grained token with "Contents: read and write" on the releases repo only.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  RELEASES_REPO: codingspacekh/microlab-releases
+
+jobs:
+  # Once, before the builds: GitHub allows several drafts for one tag, so if each build made its own, there would be
+  # several drafts (the installers in one, the others empty).
+  draft:
+    name: Draft release
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - run: |
+          gh release create "$TAG" --repo "$RELEASES_REPO" --draft --title "MicroLab ${TAG#v}" \
+            --notes "Installers for Windows (x64) and macOS (Apple chip: arm64, Intel: x64; added by npm run release:mac)."
+
+  installers:
+    name: ${{ matrix.name }}
+    needs: draft
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows x64, os: windows-latest }
+    env:
+      GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+      TAG: ${{ github.ref_name }}
+      MICROLAB_UPDATE_URL: https://github.com/codingspacekh/microlab-releases/releases/latest/download
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - name: The tag matches the version in package.json
+        shell: bash
+        run: test "v$(node -p "require('./package.json').version")" = "$TAG"
+      - name: Download the Electron binary, up to 3 tries (the download sometimes fails)
+        shell: bash
+        run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
+      - name: Build the app and the installer (with the Python for Windows x64); the packaged app checks itself
+        run: npm run dist
+
+      - name: Attach the installer to the draft release
+        shell: bash
+        run: |
+          shopt -s nullglob
+          gh release upload "$TAG" --repo "$RELEASES_REPO" --clobber release/*.exe release/*.blockmap release/latest.yml

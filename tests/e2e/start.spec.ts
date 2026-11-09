@@ -106,7 +106,34 @@ test('M11 slice 1 (Rev 13; screen 33): the app menu has About MicroLab and Check
   await expect(about.getByRole('button', { name: /codingspacekh\.dev/ })).toBeVisible();
   await about.getByRole('button', { name: 'Close' }).click();
   await expect(about).toHaveCount(0);
-  // the app menu's About, sent from the main process
+  // the app menu's About, sent from the main process (the window is up)
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.webContents.send('app:menu', 'about'));
   await expect(win.getByRole('dialog', { name: 'About MicroLab' })).toBeVisible();
+});
+
+test('M11 slice 3 (screen 34b): Check for Updates… from the app menu; not the installed app: it says updates work only there', async () => {
+  const win = await app.firstWindow();
+  await expect(win.getByRole('heading', { name: 'Start something new' })).toBeVisible();   // the window is up: menu actions reach it
+  await app.evaluate(({ Menu }) => {
+    const find = (items: Electron.MenuItem[]): Electron.MenuItem | undefined => {
+      for (const i of items) { if (i.label === 'Check for Updates…') return i; const s = i.submenu && find(i.submenu.items); if (s) return s; }
+      return undefined;
+    };
+    find(Menu.getApplicationMenu()!.items)!.click();
+  });
+  const d = win.getByRole('dialog', { name: 'Updates' });
+  await expect(d).toContainText('Updates work only in the installed MicroLab');
+  await expect(win.getByRole('region', { name: 'Updates' })).toHaveCount(0);   // no note: nothing to say
+  await d.getByRole('button', { name: 'Close' }).click();
+});
+
+test('M11: the window\'s pages load whole under its security policy — no font, script or style refused', async () => {
+  const win = await app.firstWindow();
+  const refused: string[] = [];
+  win.on('console', (m) => { if (m.type() === 'error' && /Content Security Policy|Loading the (font|script|stylesheet)/.test(m.text())) refused.push(m.text().slice(0, 160)); });
+  await win.reload();
+  await expect(win.getByRole('heading', { name: 'Start something new' })).toBeVisible();
+  await win.evaluate(() => document.fonts.ready);
+  await win.waitForTimeout(500);
+  expect(refused).toEqual([]);
 });

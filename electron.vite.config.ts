@@ -24,5 +24,8 @@ export default defineConfig({
     server: { port: 5391, strictPort: true, headers: isolation },
     preview: { headers: isolation },
     worker: { format: 'es' },
+    // fonts are files, never inlined as data: URLs — the window's policy allows fonts from the app only (font-src 'self');
+    // small pieces of the code fonts (M12 Rev 12) would otherwise be inlined and refused
+    build: { assetsInlineLimit: (file: string) => (/\.(woff2?|ttf|otf)$/.test(file) ? false : undefined) },
   },
 });

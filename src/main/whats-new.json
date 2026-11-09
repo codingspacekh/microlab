@@ -1,0 +1,9 @@
+{
+  "0.12.0": [
+    "Python 3 in MicroLab: make a Python project, write and run your programs with real Python 3.13 — input(), turtle drawings and tkinter windows; install libraries from PyPI",
+    "Help while you type: names and what they do, a call's arguments, brackets and quotes in pairs; errors explained in plain words, with Go to line",
+    "Your work in projects: each one a folder (Python) or a .mlab file (boards), made where you choose",
+    "The editor's theme on the whole screen, thirteen code fonts, text up to 36 px; the app's size in the status bar",
+    "MicroLab updates itself: when a new version is out, it says so — Download, then Restart and update"
+  ]
+}

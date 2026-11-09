@@ -21,6 +21,22 @@ contextBridge.exposeInMainWorld('microlab', {
   pyfile: {
     save: (text: string, opts: unknown): Promise<unknown> => ipcRenderer.invoke('py:save', text, opts),
   },
+  // updates (M11, F-109), as the gradebook and OneEditor
+  updates: {
+    get: (): Promise<unknown> => ipcRenderer.invoke('updates:get'),
+    check: (): Promise<unknown> => ipcRenderer.invoke('updates:check'),
+    download: (): Promise<unknown> => ipcRenderer.invoke('updates:download'),
+    install: (): Promise<unknown> => ipcRenderer.invoke('updates:install'),
+    setAuto: (on: boolean): Promise<unknown> => ipcRenderer.invoke('updates:auto', on),
+    seen: (): Promise<unknown> => ipcRenderer.invoke('updates:seen'),
+    showDmg: (): Promise<unknown> => ipcRenderer.invoke('updates:show-dmg'),
+    openDmg: (): Promise<unknown> => ipcRenderer.invoke('updates:open-dmg'),
+    onChange: (handler: (state: unknown) => void): (() => void) => {
+      const listener = (_e: unknown, state: unknown) => handler(state);
+      ipcRenderer.on('updates:state', listener);
+      return () => { ipcRenderer.removeListener('updates:state', listener); };
+    },
+  },
   // projects as folders (M12 Rev 11): made, opened, their tree and its files
   projects: {
     home: (): Promise<unknown> => ipcRenderer.invoke('projects:home'),

@@ -15,6 +15,7 @@ import { ProjectTree } from '../python3/ProjectTree';
 import { NewProject, shortPath, type NewKind } from './NewProject';
 import { ZoomControl } from './Zoom';
 import { About } from './About';
+import { UpdateNote, UpdatesWindow, useUpdates } from './Updates';
 import { usePython, type PyRunState } from '../python3/usePython';
 import { Libraries } from '../python3/Libraries';
 import '../python3/python3.css';
@@ -353,9 +354,16 @@ export function App({ api, width, startRun, audio }: AppProps) {
     if (!t || (!again && pyRun.state.status !== 'idle')) return;
     pyRun.run(t.text, t.path, fileName(t));
   };
-  // About MicroLab (M11, F-108): the logo, and the app menu's About (Check for Updates…: slice 3)
+  // About MicroLab (M11, F-108): the logo, and the app menu's About; Check for Updates… (F-109) from the menu or About
   const [aboutOpen, setAboutOpen] = useState(false);
-  useEffect(() => api.app.onMenu((action) => { if (action === 'about') setAboutOpen(true); }), [api]);
+  const [updatesOpen, setUpdatesOpen] = useState(false);
+  useEffect(() => api.app.onMenu((action) => {
+    if (action === 'about') setAboutOpen(true);
+    else if (action === 'updates') { setAboutOpen(false); setUpdatesOpen(true); }
+  }), [api]);
+  const updates = useUpdates(api);
+  /** Restart and update: never with unsaved work — the project's, then each Python file's, are asked about first. */
+  const restartAndUpdate = () => guardAll(() => updates.update(api.updates.install()));
   // Libraries (screen 31d): the window, and how many are installed (the status bar)
   const [libsOpen, setLibsOpen] = useState(false);
   const [libCount, setLibCount] = useState<number | null>(null);
@@ -574,6 +582,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
         } : undefined} />
       {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
       {page}
+      <UpdateNote api={api} {...updates} onRestart={restartAndUpdate} />
       {mode === 'python' ? <PyStatusBar api={api} run={pyRun.state} libraries={libCount} /> : <StatusBar api={api} project={open && mode === 'workspace' ? open : null} run={sim.state} board={boardRuns} sound={sound}
         check={{ count: checkItems.length, asking: !!checking && !running }} />}
       <div className="toasts">
@@ -605,7 +614,9 @@ export function App({ api, width, startRun, audio }: AppProps) {
           onClose={() => { void api.boards.files.done(filesOf.id); setFilesOf(null); }} />
       )}
       {libsOpen && <Libraries api={api} onClose={() => setLibsOpen(false)} onChanged={(l) => setLibCount(l.length)} />}
-      {aboutOpen && <About api={api} onClose={() => setAboutOpen(false)} />}
+      {aboutOpen && <About api={api} onClose={() => setAboutOpen(false)}
+        actions={[{ label: 'Check for updates', icon: 'restart', onClick: () => { setAboutOpen(false); setUpdatesOpen(true); } }]} />}
+      {updatesOpen && <UpdatesWindow api={api} state={updates.state} update={updates.update} onRestart={restartAndUpdate} onClose={() => setUpdatesOpen(false)} />}
       {newKind && (
         <NewProject api={api} kind={newKind} onCancel={() => setNewKind(null)}
           onPython={(r) => { setNewKind(null); pyProjectOpened(r); }}

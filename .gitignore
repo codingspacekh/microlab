@@ -15,3 +15,7 @@ design/__pycache__/
 /vendor/python-tools/
 __pycache__/
 /vendor/*.aside/
+
+# M11: installers and what the build writes (scripts/package.ts)
+/release/
+/build-info/

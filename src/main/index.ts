@@ -2,9 +2,9 @@ import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { basename, dirname, extname, join, resolve, sep } from 'node:path';
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, protocol, session, shell } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, net, protocol, session, shell } from 'electron';
 import { APP_SCHEME, APP_URL, isolationHeaders, resolveAppPath, responseHeaders } from './app-protocol';
-import { existsSync, mkdirSync, watch, type FSWatcher } from 'node:fs';
+import { existsSync, mkdirSync, watch, writeFileSync, type FSWatcher } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { SerialPort } from 'serialport';
@@ -17,11 +17,14 @@ import { openSerial, type SerialLink } from './serial-link';
 import { openProjectFile, saveProjectFile } from './project-files';
 import { openPyFile, saveTextFile } from './python3/files';
 import { insideProject, newBoardProjectPath, newEntry, newPythonProject, projectOf, projectTree, renameEntry, textFile } from './projects';
-import { findPython, startPython, type PythonSession } from './python3/session';
-import { Assistant, findTools, type Place } from './python3/assist';
+import { findPython, findRunner, startPython, type PythonSession } from './python3/session';
+import { Assistant, findAssist, findTools, type Place } from './python3/assist';
 import { installLibrary, listLibraries, lookUp, removeLibrary } from './python3/libraries';
 import { Recent, Recovery } from './recent';
 import { menuTemplate, WEBSITE, type MenuAction } from './menu';
+import { selfCheck } from './self-check';
+import { autoUpdaterOf, setUpUpdates } from './update-setup';
+import type { Updates } from './updates';
 import { SettingsStore } from './settings';
 import pkg from '../../package.json';
 import type { ProjectDoc } from '@lib/project';
@@ -102,6 +105,20 @@ function createWindow(): void {
   });
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   void win.loadURL(devUrl ?? APP_URL);
+}
+
+/** M11: the packaged app checks itself (MICROLAB_SELF_CHECK, from scripts/package.ts): what it found, then it quits. */
+async function runSelfCheck(report: string): Promise<void> {
+  const r = await selfCheck({
+    python: findPython(), runner: findRunner(), assist: findAssist(), tools: findTools(), renderer: rendererDir,
+    updatesFile: join(process.resourcesPath ?? '', 'updates.json'),
+    runPython: (exe) => new Promise((done, fail) => {
+      execFile(exe, ['-I', '-c', 'import sys; print(sys.version.split()[0])'], { timeout: 30_000, windowsHide: true }, (err, out) => (err ? fail(err) : done(out)));
+    }),
+    loadUpdater: async () => autoUpdaterOf(await import('electron-updater')),
+  });
+  writeFileSync(report, `${JSON.stringify(r, null, 2)}\n`);
+  app.exit(r.ok ? 0 : 1);
 }
 
 /** The app icon while developing (build/icon.png, made by `npm run icon`). */
@@ -494,7 +511,28 @@ app.whenReady().then(() => {
   app.on('before-quit', () => watcher.stop());
   // Nothing in the window may open other sites (N-04, N-08).
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, done) => done(false));
+  // M11: the packaged app checks itself (scripts/package.ts), then quits — no window
+  if (process.env.MICROLAB_SELF_CHECK) { void runSelfCheck(process.env.MICROLAB_SELF_CHECK); return; }
+  // M11 (Rev 13, F-109): updates, as the gradebook and OneEditor — only the installed app with an update address looks;
+  // a little after the window is up, then every 6 hours; every window is told what there is
+  const updatesReady = setUpUpdates({
+    packaged: app.isPackaged, platform: process.platform, arch: process.arch, version: app.getVersion(),
+    configFile: join(process.resourcesPath ?? '', 'updates.json'), userData: app.getPath('userData'), downloads: app.getPath('downloads'),
+    send: (state) => { for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('updates:state', state); },
+    fetch: (url) => net.fetch(url), showItem: (path) => shell.showItemInFolder(path), openPath: (path) => shell.openPath(path), quit: () => app.quit(),
+    loadUpdater: async () => autoUpdaterOf(await import('electron-updater')),
+  });
+  const upd = <T>(f: (u: Updates) => T) => updatesReady.then(f);
+  ipcMain.handle('updates:get', () => upd((u) => u.get()));
+  ipcMain.handle('updates:check', () => upd((u) => u.check()));
+  ipcMain.handle('updates:download', () => upd((u) => u.download()));
+  ipcMain.handle('updates:install', () => upd((u) => u.install()));
+  ipcMain.handle('updates:auto', (_e, on: boolean) => upd((u) => u.setAuto(Boolean(on))));
+  ipcMain.handle('updates:seen', () => upd((u) => u.seen()));
+  ipcMain.handle('updates:show-dmg', () => upd((u) => u.showDmg()));
+  ipcMain.handle('updates:open-dmg', () => upd((u) => u.openDmg()));
   createWindow();
+  void updatesReady.then((u) => u.start());
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

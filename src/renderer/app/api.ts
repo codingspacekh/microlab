@@ -1,4 +1,5 @@
 import type { OpenResult, ProjectDoc, SaveResult } from '@lib/project';
+import type { UpdateState } from '@lib/updates';
 import type { BoardListing, ConsoleAction, ConsoleKind, SendRequest, SendResult } from '@lib/repl';
 
 /** A recent project (F-05): where it is from the home folder, and whether it is still there. */
@@ -55,6 +56,20 @@ export interface MicrolabApi {
   /** Open a project… on the Start page (screen 31): a .mlab, or a Python project (its folder, or a .py file's). */
   file: {
     open(): Promise<({ kind: 'mlab' } & OpenResult) | ({ kind: 'py' } & PyProjectOpen) | { ok: false; canceled: true }>;
+  };
+  /** Updates (M11, F-109; screens 34, 34b), as the gradebook and OneEditor: the main process looks; the window is told. */
+  updates: {
+    get(): Promise<UpdateState>;
+    check(): Promise<UpdateState>;
+    download(): Promise<UpdateState>;
+    /** Restart and update (only once the work is saved). */
+    install(): Promise<UpdateState>;
+    setAuto(on: boolean): Promise<UpdateState>;
+    /** "Updated to …" read. */
+    seen(): Promise<UpdateState>;
+    showDmg(): Promise<UpdateState>;
+    openDmg(): Promise<UpdateState>;
+    onChange(handler: (state: UpdateState) => void): () => void;
   };
   /** Projects as folders (M12 Rev 11, F-100, F-101; screens 31e, 31b). Paths in a project use forward slashes. */
   projects: {
@@ -191,6 +206,11 @@ export function getApi(): MicrolabApi {
     },
     recovery: { get: async () => null, write: async () => {}, clear: async () => {} },
     pyfile: { save: async () => ({ ok: false, message: 'Saving a file needs the MicroLab app.' }) },
+    updates: (() => {
+      // outside the installed app updates are off: the window says so
+      const off = async (): Promise<UpdateState> => ({ mode: 'off', current: '0.0.0', status: 'idle', version: null, notes: [], percent: 0, checkedAt: null, error: null, autoDownload: false, updatedTo: null, updatedNotes: [], dmg: null });
+      return { get: off, check: off, download: off, install: off, setAuto: off, seen: off, showDmg: off, openDmg: off, onChange: () => () => {} };
+    })(),
     projects: {
       home: async () => 'Documents/MicroLab', choose: async () => null,
       newPython: async () => ({ ok: false, message: 'Python projects need the MicroLab app.' }),
