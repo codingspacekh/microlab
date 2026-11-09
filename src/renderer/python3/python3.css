@@ -83,3 +83,30 @@
 .newproj .made .ico { flex: none; margin-top: 2px; color: var(--accent); }
 .newproj .made b { word-break: break-all; }
 .newproj .tip { margin: 0; }
+/* Rev 12 (F-102, screens 31b, 31g): the panels' buttons beside Aa; the strip a hidden tree leaves */
+.pytabs .lay { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; background: var(--bg); flex: none; }
+.pytabs .lay .btn.on { background: var(--panel); color: var(--accent-ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+.pyrail { width: 40px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 6px; border-right: 1px solid var(--line); background: var(--panel); }
+.pylogo { flex: none; }
+/* Rev 12 (F-104, screen 31g): the theme chosen in Aa colours the whole Python 3 screen — the tree, the tabs, the
+   editor, the shell — not only the code; the top bar and the status bar stay as they are */
+.pyscreen[data-theme="dark"] {
+  --bg: #151922; --panel: #1b202a; --bg-2: #232a37; --bg-3: #2b3341; --line: #2b3241; --line-strong: #3a4354;
+  --tx-1: #e3e8f2; --tx-2: #aab4c6; --tx-3: #7c879b;
+  --accent: #82aaff; --accent-soft: rgba(130, 170, 255, .16); --accent-line: rgba(130, 170, 255, .4); --accent-ink: #a9c4ff;
+  --danger: #ff6b6b; --danger-soft: rgba(255, 107, 107, .14); --danger-line: rgba(255, 107, 107, .4); --danger-ink: #ffb3b3;
+  --warn: #f2b84b; --warn-soft: rgba(242, 184, 75, .14); --warn-ink: #f6cf85;
+  --code-bg: #1e2430; --code-kw: #c792ea; --code-fn: #82aaff; --code-str: #c3e88d; --code-num: #f78c6c; --code-com: #7d889c; --code-err: #4a2328;
+  color: var(--tx-1); color-scheme: dark;
+}
+.pyscreen[data-theme="contrast"] {
+  --bg: #000; --panel: #000; --bg-2: #111; --bg-3: #1a1a1a; --line: #ffffff; --line-strong: #ffffff;
+  --tx-1: #ffffff; --tx-2: #ffffff; --tx-3: #d0d0d0;
+  --accent: #ffd700; --accent-soft: rgba(255, 215, 0, .2); --accent-line: #ffd700; --accent-ink: #ffd700;
+  --danger: #ff6b6b; --danger-soft: #3a0000; --danger-line: #ff6b6b; --danger-ink: #ffb3b3;
+  --warn: #ffd700; --warn-soft: #332b00; --warn-ink: #ffd700;
+  --code-bg: #000; --code-kw: #ffd700; --code-fn: #7fdbff; --code-str: #7cfc00; --code-num: #ffa64d; --code-com: #d0d0d0; --code-err: #5a0000;
+  color: var(--tx-1); color-scheme: dark;
+}
+.pyscreen[data-theme="dark"] .pyshell .console, .pyscreen[data-theme="contrast"] .pyshell .console,
+.pyscreen[data-theme="dark"] .ptree, .pyscreen[data-theme="contrast"] .ptree { background: var(--panel); }

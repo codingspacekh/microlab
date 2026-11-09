@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { printNames } from '@lib/plot';
 import { Console, type ConsoleTab } from '../console/Console';
 import { CodeEditor } from '../editor/CodeEditor';
@@ -6,8 +6,9 @@ import { useEditorLook, lookAttrs, EditorPrefs } from '../editor/EditorPrefs';
 import { Icon } from '../ui/Icon';
 import type { MicrolabApi } from '../app/api';
 import type { PyRunState } from './usePython';
-import { SHELL_MAX, SHELL_MIN, useShellPlace, type ShellLayout } from './useShellPlace';
+import { SHELL_MAX, SHELL_MIN, usePyPanels, useShellPlace, type ShellLayout } from './useShellPlace';
 import { python3Assist } from './assist';
+import { isPython, PyLogo } from './PyLogo';
 import './python3.css';
 
 /**
@@ -31,8 +32,8 @@ export const fileName = (t: Pick<PyTab, 'path'>) => t.path.split(/[\\/]/).pop() 
 
 export function PythonScreen({ api, side, tabs, at, onAt, onText, onClose, run, running, onType, onRerun, onClear, onClearPlot }: {
   api: MicrolabApi;
-  /** The project's tree (Rev 11). */
-  side?: ReactNode;
+  /** The project's tree (Rev 11); `hide` puts it away (Rev 12). */
+  side?: (hide: () => void) => ReactNode;
   tabs: PyTab[]; at: number; onAt: (i: number) => void; onText: (text: string) => void;
   onClose: (i: number) => void;
   run: PyRunState; running: boolean; onType: (text: string) => void; onRerun: () => void;
@@ -44,6 +45,25 @@ export function PythonScreen({ api, side, tabs, at, onAt, onText, onClose, run, 
   // help while typing (F-97): asked for the file shown, by its path
   const where = useRef('');
   const [layout, setLayout] = useShellPlace(api);
+  // the tree and the shell, shown or hidden (Rev 12, F-102): Ctrl+B and Ctrl+J (⌘ on the Mac), as in VS Code
+  const [panels, setPanels] = usePyPanels(api);
+  const panelsRef = useRef(panels);
+  panelsRef.current = panels;
+  useEffect(() => {
+    const keys = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+      const k = e.key.toLowerCase();
+      const p = panelsRef.current;
+      if (k === 'b') { e.preventDefault(); setPanels({ ...p, tree: !p.tree }); }
+      else if (k === 'j') { e.preventDefault(); setPanels({ ...p, shell: !p.shell }); }
+    };
+    window.addEventListener('keydown', keys);
+    return () => window.removeEventListener('keydown', keys);
+  }, [setPanels]);
+  // Run brings a hidden shell back: what the program prints is never out of sight
+  useEffect(() => {
+    if (run.startedAt && !panelsRef.current.shell) setPanels({ ...panelsRef.current, shell: true });
+  }, [run.startedAt, setPanels]);
   const assist = useMemo(() => python3Assist(api, () => where.current), [api]);
   const shown = tabs[at];
   const label = shown ? fileName(shown) : '';
@@ -55,20 +75,35 @@ export function PythonScreen({ api, side, tabs, at, onAt, onText, onClose, run, 
   return (
     <main className="pyscreen" aria-label="Python 3" {...lookAttrs(look)}>
       <div className="pybody">
-      {side}
-      <ShellSplit layout={layout} onLayout={setLayout}>
+      {panels.tree
+        ? side?.(() => setPanels({ ...panels, tree: false }))
+        : (
+          <div className="pyrail">
+            <button type="button" className="btn ghost sm icon" aria-label="Show the project's files" title="Show the project's files (Ctrl+B)"
+              onClick={() => setPanels({ ...panels, tree: true })}><Icon name="folder" size={14} /></button>
+          </div>
+        )}
+      <ShellSplit layout={layout} onLayout={setLayout} shown={panels.shell}>
       <div className="pycol">
       <div className="pytabs">
       <div className="pytablist" role="tablist" aria-label="Python files">
         {tabs.map((t, i) => (
           <span key={t.key} className={i === at ? 'pytab on' : 'pytab'}>
             <button type="button" role="tab" aria-selected={i === at} title={t.path} onClick={() => onAt(i)}>
-              <Icon name="file" size={14} /> {fileName(t)}{t.text !== t.saved && <span className="dirty" title="Not saved" />}
+              {isPython(fileName(t)) ? <PyLogo /> : <Icon name="file" size={14} />} {fileName(t)}{t.text !== t.saved && <span className="dirty" title="Not saved" />}
             </button>
             <button type="button" className="btn ghost icon sm close" aria-label={`Close ${fileName(t)}`} onClick={() => onClose(i)}><Icon name="x" size={12} /></button>
           </span>
         ))}
       </div>
+        <span className="lay" role="group" aria-label="Panels">
+          <button type="button" className={`btn ghost sm icon${panels.tree ? ' on' : ''}`} aria-pressed={panels.tree} aria-label="The project's files"
+            title={`${panels.tree ? 'Hide' : 'Show'} the project's files (Ctrl+B)`} onClick={() => setPanels({ ...panels, tree: !panels.tree })}><Icon name="sidebar" size={14} /></button>
+          <button type="button" className={`btn ghost sm icon${panels.shell ? ' on' : ''}`} aria-pressed={panels.shell} aria-label="The shell"
+            title={`${panels.shell ? 'Hide' : 'Show'} the shell (Ctrl+J)`} onClick={() => setPanels({ ...panels, shell: !panels.shell })}>
+            <Icon name={layout.place === 'right' ? 'shellright' : 'shellbelow'} size={14} />
+          </button>
+        </span>
         {/* outside the tabs' scrolling strip: its panel opens over the editor, never cut off (the teacher: "the change theme is not working") */}
         <EditorPrefs look={look} onLook={setLook} />
       </div>
@@ -100,6 +135,10 @@ export function PythonScreen({ api, side, tabs, at, onAt, onText, onClose, run, 
                 </button>
               ))}
             </span>
+          )}
+          headEnd={(
+            <button type="button" className="btn ghost sm icon" aria-label="Hide the shell" title="Hide the shell (Ctrl+J)"
+              onClick={() => setPanels({ ...panels, shell: false })}><Icon name="x" size={14} /></button>
           )} />
       </div>
       </ShellSplit>
@@ -113,10 +152,12 @@ export function PythonScreen({ api, side, tabs, at, onAt, onText, onClose, run, 
  * dragged with the mouse, or moved with the arrow keys (Home / End: the smallest and largest shell). Its first child
  * is the editor's column, its last the shell; the edge goes between.
  */
-function ShellSplit({ layout, onLayout, children }: { layout: ShellLayout; onLayout: (l: ShellLayout, save?: boolean) => void; children: React.ReactNode[] }) {
+function ShellSplit({ layout, onLayout, shown, children }: { layout: ShellLayout; onLayout: (l: ShellLayout, save?: boolean) => void; shown: boolean; children: React.ReactNode[] }) {
   const box = useRef<HTMLDivElement>(null);
   const right = layout.place === 'right';
   const [editor, shell] = children;
+  // the shell hidden (Rev 12): the editor takes the room
+  if (!shown) return <div className={`pymain ${layout.place}`}>{editor}</div>;
   const sizeAt = (e: React.PointerEvent) => {
     const r = box.current!.getBoundingClientRect();
     return right ? (r.right - e.clientX) / r.width : (r.bottom - e.clientY) / r.height;

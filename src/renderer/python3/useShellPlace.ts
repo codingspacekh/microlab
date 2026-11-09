@@ -36,3 +36,24 @@ export function useShellPlace(api: MicrolabApi): [ShellLayout, (next: ShellLayou
   }, [api]);
   return [layout, update];
 }
+
+/** Which of the Python 3 screen's panels are shown (Rev 12, F-102, screens 31b, 31g): the project's tree, the shell. */
+export interface PyPanels { tree: boolean; shell: boolean }
+export const PANELS_DEFAULT: PyPanels = { tree: true, shell: true };
+
+export function usePyPanels(api: MicrolabApi): [PyPanels, (next: PyPanels) => void] {
+  const [panels, setPanels] = useState<PyPanels>(PANELS_DEFAULT);
+  useEffect(() => {
+    let live = true;
+    void api.settings.get('pyPanels').then((saved) => {
+      const s = saved as Partial<PyPanels> | undefined;
+      if (live && s) setPanels({ tree: s.tree !== false, shell: s.shell !== false });
+    });
+    return () => { live = false; };
+  }, [api]);
+  const update = useCallback((next: PyPanels) => {
+    setPanels(next);
+    void api.settings.set('pyPanels', next);
+  }, [api]);
+  return [panels, update];
+}

@@ -8,7 +8,7 @@
 <!--@MODE_PY: on-->
 <!--@PY_FILE: <div class="pyfile"><b>guessing_game · main.py</b><span>Documents/MicroLab/guessing_game · saved</span></div>-->
 <!--@TOP_RIGHT: <div class="runbox"><button class="btn run">{{i:play:s14}} Run main.py <span class="tiny" style="opacity:.75;margin-left:2px">F5</span></button><button class="btn icon disabled" title="Stop">{{i:stop:s14}}</button></div><button class="btn">{{i:grid:s14}} Libraries</button>-->
-<p class="frame-label"><b>31h · Aa: the code font; the app's size</b> (M12 design, <b>Rev 12</b>, the teacher: <i>"include a few more font to be used in the app"</i> — for the code; <i>"a button/label to show the size of the app whether it's 75%, 100% or bigger and reset back to default"</i>) — <b>Aa</b> has the text size, now <b>the code font</b>, and the theme. The fonts are shipped inside MicroLab (it works offline), all free (SIL Open Font License): <b>JetBrains Mono</b> (to start), <b>Fira Code</b>, <b>Source Code Pro</b>, <b>IBM Plex Mono</b> and <b>Atkinson Hyperlegible Mono</b> — made to tell look-alike letters apart (<code>0 O</code>, <code>1 l I</code>), for young readers. Each is shown in itself; the font is for the editor and the shell, in the boards' editor too, and remembered. The <b>status bar</b>'s size (100 %) opens a menu: 75 % to 150 %, the one now ticked, and <b>Back to 100 %</b>; ⌘− / ⌘+ / ⌘0 (Ctrl on Windows) do the same, and the number follows. The size is the whole app's, remembered for next time</p>
+<p class="frame-label"><b>31h · Aa: the code font; the app's size</b> (M12 design, <b>Rev 12</b>, the teacher: <i>"include a few more font to be used in the app"</i> — for the code; <i>"a button/label to show the size of the app whether it's 75%, 100% or bigger and reset back to default"</i>) — <b>Aa</b> has the text size, now <b>the code font</b>, and the theme. The fonts are shipped inside MicroLab (it works offline), all free (SIL Open Font License): <b>JetBrains Mono</b> (to start), <b>Fira Code</b>, <b>Source Code Pro</b>, <b>IBM Plex Mono</b> and <b>Atkinson Hyperlegible Mono</b> — made to tell look-alike letters apart (<code>0 O</code>, <code>1 l I</code>), for young readers. <b>Approved with changes (the teacher): the size goes up to 36 px; more fonts, chosen from a dropdown, no previews</b> — thirteen: JetBrains Mono, Fira Code, Source Code Pro, Cascadia Code, IBM Plex Mono, Atkinson Hyperlegible Mono, Roboto Mono, Inconsolata, Noto Sans Mono, Red Hat Mono, Space Mono, Courier Prime, Anonymous Pro. The font is for the editor and the shell, in the boards' editor too, and remembered. The <b>status bar</b>'s size (100 %) opens a menu: 75 % to 150 %, the one now ticked, and <b>Back to 100 %</b>; ⌘− / ⌘+ / ⌘0 (Ctrl on Windows) do the same, and the number follows. The size is the whole app's, remembered for next time</p>
 <div class="frame" style="position:relative">
   {{include:topbar-py}}
   <div class="pyscreen">
@@ -24,15 +24,9 @@
           <div class="ed" style="font-family:'Atkinson Hyperlegible Mono',monospace">{{code:guess}}</div>
           <div class="float aa-pop" style="position:absolute;right:10px;top:42px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-l);padding:6px 16px 16px">
             <div class="lbl">Text size</div>
-            <div class="row" style="gap:10px"><span class="stepper" style="display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;height:30px"><button class="btn ghost icon sm">{{i:minus:s12}}</button><b style="padding:0 10px">14 px</b><button class="btn ghost icon sm">{{i:plus:s12}}</button></span><span class="tiny muted">13 px to start</span></div>
+            <div class="row" style="gap:10px"><span class="stepper" style="display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;height:30px"><button class="btn ghost icon sm">{{i:minus:s12}}</button><b style="padding:0 10px">14 px</b><button class="btn ghost icon sm">{{i:plus:s12}}</button></span><span class="tiny muted">13 px to start · up to 36 px</span></div>
             <div class="lbl">Code font</div>
-            <div class="fonts" role="radiogroup">
-              <div class="f"><code style="font-family:'JetBrains Mono'">print("Hi") 0O 1lI</code><span>JetBrains Mono</span></div>
-              <div class="f"><code style="font-family:'Fira Code'">print("Hi") 0O 1lI</code><span>Fira Code</span></div>
-              <div class="f"><code style="font-family:'Source Code Pro'">print("Hi") 0O 1lI</code><span>Source Code Pro</span></div>
-              <div class="f"><code style="font-family:'IBM Plex Mono'">print("Hi") 0O 1lI</code><span>IBM Plex Mono</span></div>
-              <div class="f on"><code style="font-family:'Atkinson Hyperlegible Mono'">print("Hi") 0O 1lI</code><span>Atkinson Hyperlegible Mono</span></div>
-            </div>
+            <div class="field" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 10px">Atkinson Hyperlegible Mono {{i:chevd:s14}}</div>
             <div class="lbl">Theme</div>
             <div class="row" style="gap:8px"><span class="pill info">Light</span><span class="pill">Dark</span><span class="pill">High contrast</span></div>
           </div>

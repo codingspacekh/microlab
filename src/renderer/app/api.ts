@@ -158,6 +158,8 @@ export interface MicrolabApi {
     openDriverPage(chip: UsbChip): Promise<void>;
     /** Shows a firmware file in Finder / File Explorer, to drag onto the board's drive by hand. */
     showFirmware(kind: 'pico' | 'microbit'): Promise<void>;
+    /** The app's size (M12 Rev 12, F-106): the window's zoom factor (1 = 100 %). */
+    zoom: { get(): number; set(factor: number): void };
   };
 }
 
@@ -220,6 +222,6 @@ export function getApi(): MicrolabApi {
       },
       console: { open: async () => ({ ok: false, message: 'A board needs the MicroLab app.' }), close: async () => {}, do: async () => {}, onOutput: () => () => {} },
       onChange: () => () => {} },
-    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close(), copy: async (t) => navigator.clipboard?.writeText(t), openDriverPage: async () => {}, showFirmware: async () => {} },
+    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close(), copy: async (t) => navigator.clipboard?.writeText(t), openDriverPage: async () => {}, showFirmware: async () => {}, zoom: { get: () => 1, set: () => {} } },
   };
 }

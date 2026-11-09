@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import './file-tree.css';
 
@@ -70,9 +70,11 @@ export interface FileTreeProps {
   sizes?: boolean;
   /** A right-click on a row (it is selected first): the caller's menu. */
   onContext?: (n: FileNode) => void;
+  /** A file's own icon (M12 Rev 12: the Python logo on a .py), else the file's. */
+  fileIcon?: (n: FileNode) => ReactNode;
 }
 
-export function FileTree({ label, nodes, status = () => '', selected, onSelect, opened, onOpened, onActivate, empty = 'No files.', sizes = true, onContext }: FileTreeProps) {
+export function FileTree({ label, nodes, status = () => '', selected, onSelect, opened, onOpened, onActivate, empty = 'No files.', sizes = true, onContext, fileIcon }: FileTreeProps) {
   const rows: { n: FileNode; level: number }[] = [];
   const walk = (ns: FileNode[], level: number) => {
     for (const n of ns) {
@@ -122,7 +124,7 @@ export function FileTree({ label, nodes, status = () => '', selected, onSelect, 
                   <Icon name={open ? 'chevd' : 'chevr'} size={12} />
                 </button>
               : <span className="tw" />}
-            <span className="nm"><Icon name={n.dir ? 'folder' : 'file'} size={14} />{n.name}</span>
+            <span className="nm">{n.dir ? <Icon name="folder" size={14} /> : fileIcon?.(n) ?? <Icon name="file" size={14} />}{n.name}</span>
             {sizes && <span className="sz">{n.dir ? holds(n) : fileSize(n.size ?? 0)}</span>}
             {sizes && <span className={`diff ${st.replace(/ /g, '-')}`}>{st}</span>}
           </div>

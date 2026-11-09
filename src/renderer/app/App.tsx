@@ -13,6 +13,7 @@ import { PYTHON3, StartPage } from './StartPage';
 import { fileName, PythonScreen, type PyTab } from '../python3/PythonScreen';
 import { ProjectTree } from '../python3/ProjectTree';
 import { NewProject, shortPath, type NewKind } from './NewProject';
+import { ZoomControl } from './Zoom';
 import { usePython, type PyRunState } from '../python3/usePython';
 import { Libraries } from '../python3/Libraries';
 import '../python3/python3.css';
@@ -512,8 +513,8 @@ export function App({ api, width, startRun, audio }: AppProps) {
   const page = controls ? <ControlsPage />
     : mode === 'python' ? (pyProject ? (
       <PythonScreen api={api} tabs={py.tabs} at={py.at} onAt={(i) => setPy((cur) => ({ ...cur, at: i }))}
-        side={<ProjectTree api={api} root={pyProject.root} name={pyProject.name} entries={pyTree} current={pyTab ? relOf(pyTab.path) : undefined}
-          onOpen={(rel) => void openInProject(rel)} onRenamed={pyRenamed} onDeleted={pyDeleted} onChanged={() => void readTree()} />}
+        side={(hide) => <ProjectTree api={api} root={pyProject.root} name={pyProject.name} entries={pyTree} current={pyTab ? relOf(pyTab.path) : undefined}
+          onOpen={(rel) => void openInProject(rel)} onRenamed={pyRenamed} onDeleted={pyDeleted} onChanged={() => void readTree()} onHide={hide} />}
         onText={(text) => setPy((cur) => ({ ...cur, tabs: cur.tabs.map((t, i) => (i === cur.at ? { ...t, text } : t)) }))}
         onClose={closePy} run={pyRun.state} running={pyRunning} onType={pyRun.type}
         onRerun={() => runPy(true)} onClear={pyRun.clear} onClearPlot={pyRun.clearPlot} />
@@ -568,7 +569,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
         } : undefined} />
       {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
       {page}
-      {mode === 'python' ? <PyStatusBar run={pyRun.state} libraries={libCount} /> : <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} board={boardRuns} sound={sound}
+      {mode === 'python' ? <PyStatusBar api={api} run={pyRun.state} libraries={libCount} /> : <StatusBar api={api} project={open && mode === 'workspace' ? open : null} run={sim.state} board={boardRuns} sound={sound}
         check={{ count: checkItems.length, asking: !!checking && !running }} />}
       <div className="toasts">
         {sent && (
@@ -797,7 +798,7 @@ function Notice({ text, onDismiss }: { text: string; onDismiss: () => void }) {
   );
 }
 
-function StatusBar({ project, run, board, sound, check }: { project: OpenProject | null; run: RunState; board?: string; sound: { muted: boolean; toggle: () => void }; check?: { count: number; asking: boolean } }) {
+function StatusBar({ api, project, run, board, sound, check }: { api: MicrolabApi; project: OpenProject | null; run: RunState; board?: string; sound: { muted: boolean; toggle: () => void }; check?: { count: number; asking: boolean } }) {
   const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
   const p = project?.doc.project;
   const e = run.ended;
@@ -839,7 +840,8 @@ function StatusBar({ project, run, board, sound, check }: { project: OpenProject
   // screen 06: while running, what can be heard says so, and a click turns it off (M6.2)
   const audible = run.status !== 'idle' && !!p && (p.board === 'microbit-v2' || p.parts.some((x) => x.type === 'buzzer'));
   return (
-    <footer className="statusbar" role="status">
+    <footer className="statusbar">
+      <div className="sbtext" role="status">
       {left}
       {neo}
       {uart}
@@ -854,13 +856,15 @@ function StatusBar({ project, run, board, sound, check }: { project: OpenProject
         {summary && <span className={hurt ? 'st bad faults' : 'st warn faults'}><Icon name={hurt ? 'alert' : 'warn'} size={12} /> {summary}</span>}
         <span>{p ? `${BOARD_NAMES[p.board as keyof typeof BOARD_NAMES] ?? p.board}${onGpioBoard(p) ? ' + GPIO board' : ''} + ${count(p.parts.length, 'part')} · ${count(p.wires.length, 'wire')}` : 'MicroLab'}</span>
       </span>
+      </div>
+      <ZoomControl api={api} />
     </footer>
   );
 }
 
 /** Learn, until M8 builds it. */
 /** The status bar in Python 3 (screen 31b): how the run is, and which Python runs it. */
-function PyStatusBar({ run, libraries }: { run: PyRunState; libraries: number | null }) {
+function PyStatusBar({ api, run, libraries }: { api: MicrolabApi; run: PyRunState; libraries: number | null }) {
   const e = run.ended;
   const left = run.status === 'running' ? <span className="st running"><span className="dot" />Running {run.file}</span>
     : run.status === 'stopping' ? <span className="st">Stopping…</span>
@@ -868,12 +872,15 @@ function PyStatusBar({ run, libraries }: { run: PyRunState; libraries: number | 
     : e?.ended === 'error' ? <span className="st bad">Stopped: an error{e.error?.line ? ` on line ${e.error.line}` : ''}</span>
     : <span>Ready</span>;
   return (
-    <footer className="statusbar" role="status">
+    <footer className="statusbar">
+      <div className="sbtext" role="status">
       {left}
       <span className="r">
         {libraries !== null && <span>{libraries === 0 ? 'No libraries installed' : `${libraries} ${libraries === 1 ? 'library' : 'libraries'} installed`}</span>}
         <span>{run.version ? `Python ${run.version} (MicroLab)` : 'Python 3 (MicroLab)'}</span>
       </span>
+      </div>
+      <ZoomControl api={api} />
     </footer>
   );
 }

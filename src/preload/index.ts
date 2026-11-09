@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webFrame } from 'electron';
 
 /** The only bridge from the window to Node (architecture §2.2): the app version, the settings file, project files. */
 /** What the main process passed the window (webPreferences.additionalArguments): --microlab-<name>=<value>. */
@@ -121,5 +121,7 @@ contextBridge.exposeInMainWorld('microlab', {
     copy: (text: string): Promise<void> => ipcRenderer.invoke('app:copy', text),
     openDriverPage: (chip: string): Promise<void> => ipcRenderer.invoke('app:open-driver-page', chip),
     showFirmware: (kind: string): Promise<void> => ipcRenderer.invoke('app:show-firmware', kind),
+    // the app's size (M12 Rev 12, F-106): the window's zoom
+    zoom: { get: (): number => webFrame.getZoomFactor(), set: (f: number): void => webFrame.setZoomFactor(f) },
   },
 });

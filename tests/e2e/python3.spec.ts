@@ -250,3 +250,36 @@ test('M12 slice 6b: a new board project is saved as its .mlab file where it was 
   await expect(win.getByRole('group', { name: 'Project' })).toContainText('Traffic lights');
   expect(existsSync(join(home, 'Documents', 'MicroLab', 'Traffic lights.mlab'))).toBe(true);
 });
+
+test('M12 slice 7 (Rev 12; screens 31b, 31g, 31h): panels hidden and shown; the code font; the theme on the whole screen; the app\'s size', async () => {
+  const win = await app.firstWindow();
+  await newProject(win, 'New Python project');
+  // the tree and the shell, with the keyboard
+  await win.getByRole('textbox', { name: 'main.py' }).click();
+  await win.keyboard.press(`${MOD}+b`);
+  await expect(win.getByRole('complementary', { name: 'Project' })).toHaveCount(0);
+  await win.keyboard.press(`${MOD}+j`);
+  await expect(win.getByRole('log', { name: 'Shell' })).toHaveCount(0);
+  await win.getByRole('button', { name: 'Show the project\'s files' }).click();
+  await win.getByRole('button', { name: 'The shell' }).click();
+  await expect(win.getByRole('log', { name: 'Shell' })).toBeVisible();
+  // Aa: a code font from the list; the Dark theme colours the shell too
+  await win.getByRole('button', { name: 'Text size and theme' }).click();
+  const pop = win.getByRole('dialog', { name: 'Text size and theme' });
+  await pop.getByRole('combobox', { name: 'Code font' }).click();
+  await win.getByRole('option', { name: 'Fira Code' }).click();
+  await expect.poll(() => win.locator('.cm-scroller').evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(/^"Fira Code Variable"/);
+  await expect.poll(() => win.evaluate(() => document.fonts.check('13px "Fira Code Variable"'))).toBe(true);   // shipped, not missing
+  await pop.getByRole('radio', { name: 'Dark' }).click();
+  await expect.poll(() => win.locator('.pyshell .console').evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(27, 32, 42)');
+  await win.keyboard.press('Escape');
+  // the app's size
+  const size = win.getByRole('group', { name: 'The app\'s size' });
+  await expect(size).toContainText('100 %');
+  await size.getByRole('button', { name: 'Bigger' }).click();
+  await expect(size).toContainText('110 %');
+  expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.webContents.getZoomFactor())).toBeCloseTo(1.1, 2);
+  await size.getByRole('button', { name: /The app's size/ }).click();
+  await win.getByRole('menuitem', { name: /Back to 100 %/ }).click();
+  await expect(size).toContainText('100 %');
+});

@@ -31,9 +31,13 @@ export interface MenuButtonProps {
   /** Opens under the button's right edge, leftwards (at the right of the top bar). */
   alignRight?: boolean;
   disabled?: boolean;
+  /** Words on the button instead of an icon (M12 Rev 12: the app's size, "100 %"). */
+  text?: string;
+  /** Opens upwards (in the status bar). */
+  up?: boolean;
 }
 
-export function MenuButton({ label, icon = 'chevd', items, className, alignRight, disabled }: MenuButtonProps) {
+export function MenuButton({ label, icon = 'chevd', items, className, alignRight, disabled, text, up }: MenuButtonProps) {
   const [open, setOpen] = useState(false);
   const [hl, setHl] = useState(0);
   const wrap = useRef<HTMLDivElement>(null);
@@ -93,7 +97,7 @@ export function MenuButton({ label, icon = 'chevd', items, className, alignRight
       <button
         ref={button}
         type="button"
-        className={cls('btn ghost sm icon', open && 'on', className)}
+        className={cls('btn ghost sm', !text && 'icon', open && 'on', className)}
         title={label}
         aria-label={label}
         aria-haspopup="menu"
@@ -102,10 +106,10 @@ export function MenuButton({ label, icon = 'chevd', items, className, alignRight
         onClick={() => (open ? close(false) : show(first()))}
         onKeyDown={onButtonKey}
       >
-        <Icon name={icon} size={14} />
+        {text ?? <Icon name={icon} size={14} />}
       </button>
       {open && (
-        <ul className={cls('menu', alignRight && 'right', items.some((x) => x.description) && 'described')} role="menu" aria-label={label} onKeyDown={onMenuKey}>
+        <ul className={cls('menu', alignRight && 'right', up && 'up', items.some((x) => x.description) && 'described')} role="menu" aria-label={label} onKeyDown={onMenuKey}>
           {items.map((it, i) => (
             <li
               key={it.label}

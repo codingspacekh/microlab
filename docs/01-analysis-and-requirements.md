@@ -228,7 +228,7 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 | F-102 | *(Rev 12)* The Python 3 screen's **tree and shell can each be hidden and shown again** (buttons beside Aa, the tree's ‹, the shell's ×; Ctrl+B, Ctrl+J); remembered; Run shows a hidden shell | M |
 | F-103 | *(Rev 12)* **The Python logo** (the Python Software Foundation's, unaltered) on every `.py` file — the project's tree, the tabs | S |
 | F-104 | *(Rev 12)* **The editor's theme colours the whole Python 3 screen** — the tree, the tabs, the editor, the shell | M |
-| F-105 | *(Rev 12)* **The code font** chosen in Aa: JetBrains Mono, Fira Code, Source Code Pro, IBM Plex Mono, Atkinson Hyperlegible Mono — shipped inside MicroLab (SIL OFL), for the editors and the shell; remembered | S |
+| F-105 | *(Rev 12)* **The code font** chosen in Aa from a dropdown — thirteen, shipped inside MicroLab (SIL OFL): JetBrains Mono, Fira Code, Source Code Pro, Cascadia Code, IBM Plex Mono, Atkinson Hyperlegible Mono, Roboto Mono, Inconsolata, Noto Sans Mono, Red Hat Mono, Space Mono, Courier Prime, Anonymous Pro — for the editors and the shell; the text size 11–36 px; remembered | S |
 | F-106 | *(Rev 12)* **The app's size** in the status bar: − and +, a menu of 75–150 %, **Back to 100 %**; ⌘− ⌘+ ⌘0 / Ctrl+ do the same and the number follows; remembered | S |
 
 ### Teacher

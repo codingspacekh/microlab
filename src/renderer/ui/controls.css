@@ -38,6 +38,7 @@
 .select.open { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .select.open > .ico:last-child { transform: rotate(180deg); color: var(--accent); }
 .select.dis { cursor: default; }
+.menu.up { top: auto; bottom: calc(100% + 4px); }
 .menu { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 50; background: var(--panel); border: 1px solid var(--line);
   border-radius: 9px; box-shadow: var(--shadow-l); padding: 4px; list-style: none; overflow-y: auto; }
 .menu .mi { height: 30px; padding: 0 8px; border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--tx-1); cursor: pointer; white-space: nowrap; }

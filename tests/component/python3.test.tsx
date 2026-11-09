@@ -529,3 +529,58 @@ describe('M12 slice 6b (Rev 11, F-100, F-101; screens 31e, 31b): projects as fol
     await waitFor(() => expect(within(tree).getByRole('treeitem', { name: 'notes.txt' })).toBeInTheDocument());
   });
 });
+
+describe('M12 slice 7 (Rev 12; screens 31b, 31g, 31h)', () => {
+  it('F-103: the Python logo on every .py file — its tab, its row in the tree; a text file keeps the file\'s icon', async () => {
+    setup(fakeApi({}, {}, { disk: { [`${HOME}/Test project/scores.txt`]: '3\n' } }));
+    await newFile();
+    const tree = await screen.findByRole('tree', { name: 'The files of Test project' });
+    await waitFor(() => expect(within(tree).getByRole('treeitem', { name: 'scores.txt' })).toBeInTheDocument());
+    expect(within(tree).getByRole('treeitem', { name: 'main.py' }).querySelector('svg.pylogo')).not.toBeNull();
+    expect(within(tree).getByRole('treeitem', { name: 'scores.txt' }).querySelector('svg.pylogo')).toBeNull();
+    expect(screen.getByRole('tab', { name: /main\.py/ }).querySelector('svg.pylogo')).not.toBeNull();
+  });
+
+  it('F-102: the tree and the shell hidden and shown — the buttons beside Aa, the tree\'s ‹, the shell\'s ×, Ctrl+B, Ctrl+J; Run brings the shell back; remembered', async () => {
+    const api = fakeApi();
+    const s = setup(api);
+    await newFile();
+    const files = screen.getByRole('button', { name: 'The project\'s files' });
+    const shellButton = screen.getByRole('button', { name: 'The shell' });
+    expect(files).toHaveAttribute('aria-pressed', 'true');
+    expect(shellButton).toHaveAttribute('aria-pressed', 'true');
+    // the tree: hidden by its own ‹, shown by the strip's button; Ctrl+B both ways
+    fireEvent.click(screen.getByRole('button', { name: 'Hide the project\'s files' }));
+    expect(screen.queryByRole('complementary', { name: 'Project' })).toBeNull();
+    expect(files).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Show the project\'s files' }));
+    expect(screen.getByRole('complementary', { name: 'Project' })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true });
+    expect(screen.queryByRole('complementary', { name: 'Project' })).toBeNull();
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true });
+    expect(screen.getByRole('complementary', { name: 'Project' })).toBeInTheDocument();
+    // the shell: its ×, then the button beside Aa; Ctrl+J; the editor takes the room
+    fireEvent.click(screen.getByRole('button', { name: 'Hide the shell' }));
+    expect(screen.queryByRole('log', { name: 'Shell' })).toBeNull();
+    expect(screen.queryByRole('separator', { name: 'The shell\'s size' })).toBeNull();
+    expect(shellButton).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(shellButton);
+    expect(s.shell()).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'j', ctrlKey: true });
+    expect(screen.queryByRole('log', { name: 'Shell' })).toBeNull();
+    await waitFor(() => expect(api.settings.set).toHaveBeenLastCalledWith('pyPanels', { tree: true, shell: false }));
+    // Run: what the program prints is never out of sight
+    fireEvent.keyDown(window, { key: 'F5' });
+    expect(s.shell()).toBeInTheDocument();
+  });
+
+  it('F-102: hidden panels stay hidden the next time', async () => {
+    const api = fakeApi();
+    await api.settings.set('pyPanels', { tree: false, shell: false });
+    setup(api);
+    await newFile();
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Project' })).toBeNull());
+    expect(screen.queryByRole('log', { name: 'Shell' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show the project\'s files' })).toBeInTheDocument();
+  });
+});

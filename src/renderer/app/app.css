@@ -200,6 +200,13 @@ h3 { font-size: 13px; font-weight: 650; }
 /* ---------- status bar ---------- */
 .statusbar { height: 28px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--panel); border-top: 1px solid var(--line); font-size: 11.5px; color: var(--tx-2); }
 .statusbar .st { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+/* M12 Rev 12 (F-106): the text (a live region) and, after it, the app's size */
+.statusbar .sbtext { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 16px; }
+.statusbar .zoom { flex: none; display: inline-flex; align-items: center; gap: 1px; height: 22px; padding: 0 2px; border: 1px solid var(--line); border-radius: 7px; }
+.statusbar .zoom > .btn.icon { width: 18px; height: 18px; padding: 0; }
+.statusbar .zoom .zoom-now { height: 18px; min-width: 50px; padding: 0 6px; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.statusbar .zoom .menuwrap { position: relative; }
+.statusbar .zoom .menu { left: auto; right: 0; min-width: 170px; }
 .statusbar .r { margin-left: auto; display: flex; gap: 16px; align-items: center; }
 
 /* ---------- the controls page (#controls, screen 12b): cards share the width at any size (N-13) ---------- */

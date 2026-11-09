@@ -52,6 +52,7 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       copy: vi.fn(async () => {}),
       openDriverPage: vi.fn(async () => {}),
       showFirmware: vi.fn(async () => {}),
+      zoom: { get: vi.fn(() => 1), set: vi.fn() },
     },
   } satisfies MicrolabApi;
   return { api, requestClose: () => act(() => closeRequest?.()) };

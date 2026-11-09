@@ -62,13 +62,15 @@ export interface ConsoleProps {
   onSoftReset?: () => void;
   /** More buttons in the bar, before Clear (M12 Rev 11: where the Python 3 shell sits). */
   headExtra?: ReactNode;
+  /** At the bar's very end, after Clear (M12 Rev 12: the shell's ×). */
+  headEnd?: ReactNode;
   /** "Go to line 5": the editor shows the error's line (M9, screen 05). */
   onGoTo?: (file: string, line: number) => void;
   /** Tab: the names the line could go on with, as the editor offers them. */
   complete?: (line: string, pos: number) => Completed | Promise<Completed>;
 }
 
-export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete, problems, plot, name = 'Console', idleText, headExtra }: ConsoleProps) {
+export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete, problems, plot, name = 'Console', idleText, headExtra, headEnd }: ConsoleProps) {
   const showBoard = !!board && tab === 'board';
   const showProblems = !!problems && tab === 'problems';
   const showPlot = !!plot && tab === 'plot';
@@ -141,6 +143,7 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
           : showProblems
           ? <button type="button" className="btn ghost sm" onClick={problems.onClear} disabled={count === 0}>Clear</button>
           : <button type="button" className="btn ghost sm" onClick={showBoard ? board.onClear : onClear} disabled={shown.length === 0}>Clear</button>}
+        {headEnd}
       </div>
       {showPlot ? (
         <div className="cbody plot-body" role="region" aria-label="Plotter">

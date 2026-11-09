@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MicrolabApi, TreeEntry } from '../app/api';
 import { shortPath } from '../app/NewProject';
+import { isPython, PyLogo } from './PyLogo';
 import { buildTree, Dialog, FileTree, Icon, MenuButton, TextField, type FileNode } from '../ui';
 
 /**
@@ -17,7 +18,7 @@ const SHOW = MAC ? 'Show in Finder' : 'Show in Explorer';
 const parent = (p: string) => p.split('/').slice(0, -1).join('/');
 const base = (p: string) => p.split('/').pop() ?? p;
 
-export function ProjectTree({ api, root, name, entries, current, onOpen, onRenamed, onDeleted, onChanged }: {
+export function ProjectTree({ api, root, name, entries, current, onOpen, onRenamed, onDeleted, onChanged, onHide }: {
   api: MicrolabApi;
   root: string;
   name: string;
@@ -29,6 +30,8 @@ export function ProjectTree({ api, root, name, entries, current, onOpen, onRenam
   onDeleted: (rel: string) => void;
   /** Something was made, renamed or deleted here: read the tree again. */
   onChanged: () => void;
+  /** Rev 12 (F-102): the tree put away; the editor takes the room. */
+  onHide?: () => void;
 }) {
   const nodes = useMemo(() => buildTree(entries.filter((e) => !e.dir).map((e) => ({ path: e.path, size: 0 })), entries.filter((e) => e.dir).map((e) => e.path)), [entries]);
   const [selected, setSelected] = useState<string | null>(current ?? null);
@@ -103,6 +106,7 @@ export function ProjectTree({ api, root, name, entries, current, onOpen, onRenam
           { label: `Delete (to the ${BIN})…`, disabled: !chosen, onSelect: () => act('delete', chosen) },
           { label: SHOW, onSelect: () => act('show', chosen) },
         ]} />
+        {onHide && <button type="button" className="btn ghost sm icon" aria-label="Hide the project's files" title="Hide the project's files (Ctrl+B)" onClick={onHide}><Icon name="chevl" size={14} /></button>}
       </div>
       {ask && ask.kind !== 'delete' && (
         <div className="pask">
@@ -120,7 +124,7 @@ export function ProjectTree({ api, root, name, entries, current, onOpen, onRenam
       {!ask && problem && <p className="small pbad" role="alert">{problem}</p>}
       <div className="pt">
         <FileTree label={`The files of ${name}`} nodes={nodes} sizes={false} selected={selected} onSelect={setSelected} opened={opened} onOpened={setOpened}
-          onActivate={(n) => onOpen(n.path)} onContext={(n) => void onContext(n)} empty="No files yet: New file makes one." />
+          onActivate={(n) => onOpen(n.path)} onContext={(n) => void onContext(n)} fileIcon={(n) => (isPython(n.name) ? <PyLogo /> : undefined)} empty="No files yet: New file makes one." />
       </div>
       <div className="pf" title={root}>{shortPath(root)}</div>
       {ask?.kind === 'delete' && (
