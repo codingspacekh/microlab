@@ -11,7 +11,9 @@ if the student turned that on), and puts it in on **Restart and update** or when
 1. **The releases repo** — public, empty: `codingspacekh/microlab-releases`.
 2. **The code repo** — public, all rights reserved (no licence): `codingspacekh/microlab` (any name); push `main`, `dev` and the tags.
 3. **A token for the workflow** — a fine-grained personal access token with *Contents: read and write* on
-   `codingspacekh/microlab-releases` only. Save it in the code repo as the Actions secret **`RELEASES_TOKEN`**.
+   `codingspacekh/microlab-releases` only (*Contents* starts as Read-only when added: set it to **Read and write**). Save it
+   in the code repo as the Actions secret **`RELEASES_TOKEN`** — on GitHub (Settings ▸ Secrets and variables ▸ Actions),
+   or with `gh secret set RELEASES_TOKEN -R codingspacekh/microlab` in a terminal of your own, where it can ask for it.
 4. **The Mac certificate** — the same self-made code-signing certificate the gradebook and OneEditor use (Keychain
    Access ▸ Certificate Assistant ▸ Create a Certificate…, type *Code Signing*). Name it in
    `~/.microlab/release.env` on the Mac (never in the project):
@@ -32,7 +34,8 @@ if the student turned that on), and puts it in on **Restart and update** or when
 2. `npm run check` and `npm run e2e` green; merge `dev` into `main`; tag it `v0.13.0`; push the tag.
 3. **Windows**: the *Release* workflow makes a **draft** release `v0.13.0` in `microlab-releases` and builds the
    Windows installer into it (with Python 3.13 for Windows; the packaged app checks itself).
-4. **Macs**: on the Mac with the certificate, at the tag: `npm run release:mac` builds the Apple-chip and Intel
+4. **Macs**: on the Mac with the certificate, at the tag (`git checkout v0.13.0 && npm run release:mac && git checkout dev`;
+   macOS may ask to let codesign use the certificate: **Always Allow**): `npm run release:mac` builds the Apple-chip and Intel
    installers (each with its own Python, signed with `CSC_NAME`; the Mac's own chip checks itself), merges their
    update feeds into one `latest-mac.yml`, and adds everything to the same draft. `npm run release:mac -- --dry`
    builds only.
