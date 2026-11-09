@@ -32,6 +32,10 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      # Electron's binary before the tests (as the Release workflow): its Info.plist is what the oldest-macOS test reads
+      - name: Download the Electron binary, up to 3 tries
+        shell: bash
+        run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
       - name: The Python 3.13 and Jedi MicroLab ships (checked by hash)
         id: deps
         run: npm run fetch:python
