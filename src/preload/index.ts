@@ -17,6 +17,26 @@ contextBridge.exposeInMainWorld('microlab', {
     openPath: (path: string): Promise<unknown> => ipcRenderer.invoke('project:open-path', path),
     forget: (path: string): Promise<void> => ipcRenderer.invoke('project:forget', path),
   },
+  // Python 3 (M12): .py files, and the session that runs them
+  pyfile: {
+    open: (): Promise<unknown> => ipcRenderer.invoke('py:open'),
+    openPath: (path: string): Promise<unknown> => ipcRenderer.invoke('py:open-path', path),
+    save: (text: string, opts: unknown): Promise<unknown> => ipcRenderer.invoke('py:save', text, opts),
+  },
+  file: {
+    open: (): Promise<unknown> => ipcRenderer.invoke('file:open'),
+  },
+  python3: {
+    run: (code: string, file: string): Promise<unknown> => ipcRenderer.invoke('py:run', code, file),
+    line: (text: string): Promise<void> => ipcRenderer.invoke('py:line', text),
+    interrupt: (): Promise<void> => ipcRenderer.invoke('py:interrupt'),
+    stop: (): Promise<void> => ipcRenderer.invoke('py:stop'),
+    onEvent: (handler: (e: unknown) => void): (() => void) => {
+      const listener = (_e: unknown, ev: unknown) => handler(ev);
+      ipcRenderer.on('py:event', listener);
+      return () => { ipcRenderer.removeListener('py:event', listener); };
+    },
+  },
   recovery: {
     get: (): Promise<unknown> => ipcRenderer.invoke('recovery:get'),
     write: (doc: unknown, about: unknown): Promise<void> => ipcRenderer.invoke('recovery:write', doc, about),

@@ -44,6 +44,10 @@ export interface ConsoleProps {
   tab?: ConsoleTab;
   onTab?: (tab: ConsoleTab) => void;
   /** Problems (M9 slice 2, F-24): the circuit's faults in the last run, each with Show; Clear empties them. */
+  /** Its name, on its tab and for screen readers: "Console" (the simulator's), "Shell" (Python 3, screen 31b). */
+  name?: string;
+  /** What it says before anything has run. */
+  idleText?: string;
   /** The Plotter (M9 slice 5, F-26, screen 07): what the run printed as numbers. */
   plot?: { data: Plot; names: PlotNames | null; startedAt?: number; onClear: () => void };
   problems?: { cards: ProblemItem[]; onShow: (item: ProblemItem) => void; onReplace?: (led: string) => void; onClear: () => void };
@@ -59,7 +63,7 @@ export interface ConsoleProps {
   complete?: (line: string, pos: number) => { from: number; options: string[] } | null;
 }
 
-export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete, problems, plot }: ConsoleProps) {
+export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete, problems, plot, name = 'Console', idleText }: ConsoleProps) {
   const showBoard = !!board && tab === 'board';
   const showProblems = !!problems && tab === 'problems';
   const showPlot = !!plot && tab === 'plot';
@@ -94,7 +98,7 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
         {board || problems || plot ? (
           <div role="tablist" aria-label="Consoles" className="ctabs">
             <button type="button" role="tab" aria-selected={!showBoard && !showProblems && !showPlot} className={`ctab${showBoard || showProblems || showPlot ? '' : ' on'}`} onClick={() => onTab?.('sim')}>
-              <Icon name="term" size={14} /> {board ? 'Simulator' : 'Console'}
+              <Icon name="term" size={14} /> {board ? 'Simulator' : name}
             </button>
             {board && (
               <button type="button" role="tab" aria-selected={showBoard} className={`ctab board${showBoard ? ' on' : ''}${board.state ? ' live' : ''}`} onClick={() => onTab?.('board')}>
@@ -113,7 +117,7 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
             )}
           </div>
         ) : (
-          <span className="ctab on"><Icon name="term" size={14} /> Console</span>
+          <span className="ctab on"><Icon name="term" size={14} /> {name}</span>
         )}
         <span className="spacer" />
         {showBoard && board.state && (
@@ -141,10 +145,10 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
           <ProblemsList cards={problems.cards} onShow={problems.onShow} onReplace={problems.onReplace} />
         </div>
       ) : (<>
-      <div className="cbody" ref={body} role="log" aria-label={showBoard ? `Console of the ${board.name}` : 'Console'} aria-live="polite" tabIndex={showBoard ? 0 : undefined}
+      <div className="cbody" ref={body} role="log" aria-label={showBoard ? `Console of the ${board.name}` : name} aria-live="polite" tabIndex={showBoard ? 0 : undefined}
         onScroll={(e) => { const el = e.currentTarget; atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24; }}>
         {shown.length === 0
-          ? <span className="sys">{showBoard ? `What the ${board.name} prints appears here.` : 'Press Run to start the simulation. print() output and errors appear here.'}</span>
+          ? <span className="sys">{showBoard ? `What the ${board.name} prints appears here.` : idleText ?? 'Press Run to start the simulation. print() output and errors appear here.'}</span>
           : shown.map((c, i) => (c.kind === 'why' && 'why' in c && c.why
             ? <Why key={i} why={c.why as Explanation} onGoTo={onGoTo} />
             : <span key={i} className={c.kind === 'out' ? undefined : c.kind}>{c.kind === 'sent' ? `✓ ${c.text}` : c.text}</span>))}

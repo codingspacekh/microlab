@@ -11,6 +11,15 @@ export type Result<T> = ({ ok: true } & T) | { ok: false; message: string };
 import type { Detection, FoundBoard, InstallResult, InstallStep, UsbChip } from '@lib/usb';
 
 /** What the preload gives the window (src/preload/index.ts): the only way to Node (architecture §2.2). */
+/** A .py file opened (M12, F-91). */
+export type PyOpen = { ok: true; path: string; name: string; text: string } | { ok: false; message: string } | { ok: false; canceled: true };
+export type PySave = { ok: true; path: string; name: string } | { ok: false; message: string } | { ok: false; canceled: true };
+/** What the Python 3 session tells the window (src/main/python3/session.ts). */
+export interface PyError { type: string; message: string; file: string; line: number | null }
+export type PyEvent =
+  | { ready: string } | { out: string } | { err: string } | { input: true } | { prompt: string }
+  | { ended: 'done' | 'stopped' } | { ended: 'error'; error: PyError } | { replError: PyError } | { exit: number | null };
+
 export interface MicrolabApi {
   /** The app's version; the system it runs on ("macOS 26.0"), when the app gives it. */
   versions: { app: string; electron: string; system?: string };
@@ -29,6 +38,28 @@ export interface MicrolabApi {
     openPath(path: string): Promise<OpenResult>;
     /** Takes a project off the recent list. */
     forget(path: string): Promise<void>;
+  };
+  /** .py files (M12, F-91): opened and saved as IDLE does; they join the recent list (board "python3"). */
+  pyfile: {
+    open(): Promise<PyOpen>;
+    openPath(path: string): Promise<PyOpen>;
+    /** To its file, or asking where (Documents/Python) when it has none. */
+    save(text: string, opts: { path?: string; name: string }): Promise<PySave>;
+  };
+  /** Open… on the Start page (screen 31): a project or a .py file, whichever is chosen. */
+  file: {
+    open(): Promise<({ kind: 'mlab' } & OpenResult) | ({ kind: 'py' } & PyOpen) | { ok: false; canceled: true }>;
+  };
+  /** Python 3 (M12, F-92): a file run in the bundled CPython; its events come through onEvent. */
+  python3: {
+    run(code: string, file: string): Promise<{ ok: true; version: string } | { ok: false; message: string }>;
+    /** input()'s answer, or a line for the shell. */
+    line(text: string): Promise<void>;
+    /** Ctrl+C. */
+    interrupt(): Promise<void>;
+    /** Stop: the program ends, its windows close. */
+    stop(): Promise<void>;
+    onEvent(handler: (e: PyEvent) => void): () => void;
   };
   /** The copy of a project with unsaved changes (F-03): offered back if the app ended without saving or giving
    *  the changes up. */
@@ -104,6 +135,16 @@ export function getApi(): MicrolabApi {
       forget: async () => {},
     },
     recovery: { get: async () => null, write: async () => {}, clear: async () => {} },
+    pyfile: {
+      open: async () => ({ ok: false, message: 'Opening a file needs the MicroLab app.' }),
+      openPath: async () => ({ ok: false, message: 'Opening a file needs the MicroLab app.' }),
+      save: async () => ({ ok: false, message: 'Saving a file needs the MicroLab app.' }),
+    },
+    file: { open: async () => ({ ok: false, canceled: true }) },
+    python3: {
+      run: async () => ({ ok: false, message: 'Python 3 needs the MicroLab app.' }),
+      line: async () => {}, interrupt: async () => {}, stop: async () => {}, onEvent: () => () => {},
+    },
     boards: { get: async () => ({ boards: [], drives: [] }), check: async () => {}, send: async () => ({ ok: false, message: 'Sending to a board needs the MicroLab app.' }),
       install: async () => ({ ok: false, message: 'Installing MicroPython needs the MicroLab app.' }),
       cancelInstall: async () => {},

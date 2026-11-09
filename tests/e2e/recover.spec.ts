@@ -68,7 +68,7 @@ test('F-05: a project saved is in Recent projects on the next start, and opens f
   await app!.close();
 
   win = await launch();
-  const row = win.getByRole('region', { name: 'Recent projects' }).getByRole('button', { name: /Lamp/ });
+  const row = win.getByRole('region', { name: 'Recent' }).getByRole('button', { name: /Lamp/ });
   await expect(row).toContainText('Pico W');
   await expect(row).toContainText(/Today \d\d:\d\d/);
   await row.click();

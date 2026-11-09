@@ -21,7 +21,7 @@ test.afterAll(async () => {
 test('the built app opens a window titled MicroLab, on the Start screen (M4.2)', async () => {
   const win = await app.firstWindow();
   await expect(win).toHaveTitle('MicroLab');
-  await expect(win.getByRole('heading', { name: 'Start a new project' })).toBeVisible();
+  await expect(win.getByRole('heading', { name: 'Start something new' })).toBeVisible();
 });
 
 test('the window is cross-origin isolated, so the simulation worker can share memory (architecture §2.2)', async () => {

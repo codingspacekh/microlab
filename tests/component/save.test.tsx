@@ -20,6 +20,9 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       forget: vi.fn(async () => {}),
     },
     recovery: { get: vi.fn(async () => null), write: vi.fn(async () => {}), clear: vi.fn(async () => {}) },
+    pyfile: { open: vi.fn(async () => ({ ok: false as const, canceled: true as const })), openPath: vi.fn(async () => ({ ok: false as const, message: 'gone' })), save: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
+    file: { open: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
+    python3: { run: vi.fn(async () => ({ ok: false as const, message: 'no' })), line: vi.fn(async () => {}), interrupt: vi.fn(async () => {}), stop: vi.fn(async () => {}), onEvent: vi.fn(() => () => {}) },
     boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(async () => {}), send: vi.fn(async () => ({ ok: false as const, message: 'no' })),
       install: vi.fn(async () => ({ ok: false as const, message: 'no' })),
       cancelInstall: vi.fn(async () => {}),
@@ -145,7 +148,7 @@ describe('M4.6 "Save your changes?" before a project is closed', () => {
     expect(screen.getByRole('application', { name: 'Circuit canvas' })).toBeInTheDocument();
     menu('New project…');
     fireEvent.click(screen.getByRole('button', { name: "Don't save" }));
-    expect(screen.getByRole('heading', { name: 'Start a new project' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Start something new' })).toBeInTheDocument();
   });
 
   it('Save in it saves, then goes on; a cancelled save stays', async () => {
@@ -162,7 +165,7 @@ describe('M4.6 "Save your changes?" before a project is closed', () => {
     setup();
     menu('New project…');
     expect(screen.queryByRole('alertdialog')).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Start a new project' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Start something new' })).toBeInTheDocument();
   });
 
   it('closing the window: asked only when there are changes; Don\'t save closes it — after the recovery copy is gone', async () => {

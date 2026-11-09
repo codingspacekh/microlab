@@ -5,7 +5,7 @@ import type { MicrolabApi } from '../../src/renderer/app/api';
 
 function fakeApi(stored: Record<string, unknown> = {}): MicrolabApi & { set: ReturnType<typeof vi.fn> } {
   const set = vi.fn(async (key: string, value: unknown) => { stored[key] = value; });
-  return { versions: { app: '0.4.0', electron: '0' }, settings: { get: async (key: string) => stored[key], set }, project: { open: vi.fn(), save: vi.fn(), recent: vi.fn(async () => []), openPath: vi.fn(), forget: vi.fn() }, recovery: { get: vi.fn(async () => null), write: vi.fn(async () => {}), clear: vi.fn(async () => {}) }, boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(), send: vi.fn(), files: {}, console: { open: vi.fn(), close: vi.fn(), do: vi.fn(), onOutput: vi.fn(() => () => {}) }, onChange: vi.fn(() => () => {}) }, app: { setDirty: vi.fn(), onCloseRequest: vi.fn(() => () => {}), close: vi.fn() }, set } as never;
+  return { versions: { app: '0.4.0', electron: '0' }, settings: { get: async (key: string) => stored[key], set }, project: { open: vi.fn(), save: vi.fn(), recent: vi.fn(async () => []), openPath: vi.fn(), forget: vi.fn() }, recovery: { get: vi.fn(async () => null), write: vi.fn(async () => {}), clear: vi.fn(async () => {}) }, boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(), send: vi.fn(), files: {}, console: { open: vi.fn(), close: vi.fn(), do: vi.fn(), onOutput: vi.fn(() => () => {}) }, onChange: vi.fn(() => () => {}) }, app: { setDirty: vi.fn(), onCloseRequest: vi.fn(() => () => {}), close: vi.fn() }, pyfile: { open: vi.fn(), openPath: vi.fn(), save: vi.fn() }, file: { open: vi.fn() }, python3: { run: vi.fn(), line: vi.fn(), interrupt: vi.fn(), stop: vi.fn(), onEvent: vi.fn(() => () => {}) }, set } as never;
 }
 
 /** The workspace needs a project (M4.2): start one on the Pico W. */
@@ -16,10 +16,10 @@ function renderWorkspace(api: MicrolabApi, width: number) {
 }
 
 describe('M4.1 the shell (screens 01–03): top bar, modes, panels, status bar', () => {
-  it('has the brand, the two modes and a status bar (the Examples tab taken out — the teacher, 2026-11-09)', async () => {
+  it('has the brand, the modes — Workspace, Python 3 (M12), Learn — and a status bar', async () => {
     renderWorkspace(fakeApi(), 1440);
     expect(screen.getByText('Lab')).toBeInTheDocument();
-    expect(within(screen.getByRole('tablist', { name: 'Mode' })).getAllByRole('tab').map((t) => t.textContent!.trim())).toEqual(['Workspace', 'Learn']);
+    expect(within(screen.getByRole('tablist', { name: 'Mode' })).getAllByRole('tab').map((t) => t.textContent!.trim())).toEqual(['Workspace', 'Python 3', 'Learn']);
     expect(screen.getByRole('tab', { name: 'Workspace' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('status')).toBeInTheDocument();
   });

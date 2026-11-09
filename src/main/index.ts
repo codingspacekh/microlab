@@ -14,6 +14,8 @@ import { BoardWatcher, listUsbWindows, listVolumes } from './board-watcher';
 import { whoHolds } from './port-holder';
 import { openSerial, type SerialLink } from './serial-link';
 import { openProjectFile, saveProjectFile } from './project-files';
+import { openPyFile, savePyFile } from './python3/files';
+import { findPython, startPython, type PythonSession } from './python3/session';
 import { Recent, Recovery } from './recent';
 import { SettingsStore } from './settings';
 import pkg from '../../package.json';
@@ -140,6 +142,73 @@ app.whenReady().then(() => {
     const path = r.filePaths[0];
     return r.canceled || !path ? { ok: false, canceled: true } : opened(path);
   });
+  // Python 3 (M12, F-90–F-92): .py files as IDLE has them; a run is a session of the bundled CPython with MicroLab's
+  // runner, one per window — a new Run ends the one before; closing the window ends it
+  const pyFolder = () => {
+    const folder = join(app.getPath('documents'), 'Python');
+    mkdirSync(folder, { recursive: true });
+    return folder;
+  };
+  const pyOpened = async (path: string) => {
+    const r = await openPyFile(path);
+    return r.ok ? remember(r, 'python3') : r;
+  };
+  ipcMain.handle('py:open', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const options = { title: 'Open a Python file', defaultPath: pyFolder(), filters: [{ name: 'Python file', extensions: ['py'] }], properties: ['openFile' as const] };
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    const path = r.filePaths[0];
+    return r.canceled || !path ? { ok: false, canceled: true } : pyOpened(path);
+  });
+  ipcMain.handle('py:open-path', (_e, path: string) => pyOpened(path));
+  ipcMain.handle('py:save', async (e, text: string, opts: { path?: string; name: string }) => {
+    let path = opts.path;
+    if (!path) {
+      const win = BrowserWindow.fromWebContents(e.sender);
+      const options = { title: 'Save the Python file', defaultPath: join(pyFolder(), `${opts.name}.py`), filters: [{ name: 'Python file', extensions: ['py'] }] };
+      const r = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+      if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+      path = r.filePath;
+    }
+    return remember(await savePyFile(path, text), 'python3');
+  });
+  // Open… on the Start page takes a project or a .py file (screen 31)
+  ipcMain.handle('file:open', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const options = {
+      title: 'Open a project or a Python file',
+      filters: [{ name: 'MicroLab project or Python file', extensions: ['mlab', 'py'] }, { name: 'MicroLab project', extensions: ['mlab'] }, { name: 'Python file', extensions: ['py'] }],
+      properties: ['openFile' as const],
+    };
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    const path = r.filePaths[0];
+    if (r.canceled || !path) return { ok: false, canceled: true };
+    return path.toLowerCase().endsWith('.py') ? { kind: 'py', ...(await pyOpened(path)) } : { kind: 'mlab', ...(await opened(path)) };
+  });
+  const pySessions = new Map<number, PythonSession>();
+  const pyLibs = join(app.getPath('userData'), 'python', 'site-packages');
+  ipcMain.handle('py:run', (e, code: string, file: string) => {
+    const id = e.sender.id;
+    pySessions.get(id)?.kill();
+    const s = startPython({ python: findPython(), libs: pyLibs });
+    pySessions.set(id, s);
+    const sender = e.sender;
+    s.on((ev) => {
+      // only the window's current session speaks: a run replaced by a new one (Restart) is ended quietly
+      if (pySessions.get(id) !== s) return;
+      if (!sender.isDestroyed()) sender.send('py:event', ev);
+      if ('exit' in ev) pySessions.delete(id);
+    });
+    // the file's own folder; a file not saved yet runs in Documents/Python
+    const cwd = /[\\/]/.test(file) ? dirname(file) : pyFolder();
+    s.run({ code, file, cwd });
+    sender.once('destroyed', () => s.kill());
+    return s.ready.then((v) => ({ ok: true, version: v }), (err: Error) => ({ ok: false, message: err.message }));
+  });
+  ipcMain.handle('py:line', (e, text: string) => pySessions.get(e.sender.id)?.line(text));
+  ipcMain.handle('py:interrupt', (e) => pySessions.get(e.sender.id)?.interrupt());
+  ipcMain.handle('py:stop', async (e) => { await pySessions.get(e.sender.id)?.stop(); });
+  app.on('before-quit', () => { for (const s of pySessions.values()) s.kill(); });
   // Real boards (F-55): the USB ports, looked at about once a second; every window is told what changed.
   const user = userInfo().username;
   // Windows' drives come from PowerShell (slow): read at most every 3 s

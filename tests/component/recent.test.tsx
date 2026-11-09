@@ -12,7 +12,7 @@ const RECENT: RecentItem[] = [
   { path: '/Users/s/Documents/MicroLab/Traffic lights.mlab', name: 'Traffic lights', board: 'pico-w', at: today(10, 42), where: 'Documents/MicroLab/Traffic lights.mlab', missing: false },
   { path: '/Users/s/Desktop/Night light.mlab', name: 'Night light', board: 'microbit-v2', at: today(9, 5) - 86_400_000, where: 'Desktop/Night light.mlab', missing: true },
 ];
-const recentList = () => within(screen.getByRole('region', { name: 'Recent projects' }));
+const recentList = () => within(screen.getByRole('region', { name: 'Recent' }));
 const typeIn = (name: string, text: string) => {
   const view = EditorView.findFromDOM(screen.getByRole('textbox', { name }).closest('.cm-editor') as HTMLElement)!;
   act(() => { view.dispatch({ changes: { from: view.state.doc.length, insert: text }, userEvent: 'input.type' }); });
@@ -45,7 +45,7 @@ describe('M5.7 F-05 recent projects (screen 01)', () => {
 
   it('none yet: it says where they will be, and Open a project… is there', async () => {
     render(<App api={fakeApi()} width={1440} />);
-    expect(await waitFor(() => recentList().getByText(/The projects you open or save show here/))).toBeInTheDocument();
+    expect(await waitFor(() => recentList().getByText(/The projects and Python files you open or save show here/))).toBeInTheDocument();
     expect(recentList().getByRole('button', { name: /Open a project/ })).toBeInTheDocument();
   });
 });

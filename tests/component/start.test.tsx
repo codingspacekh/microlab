@@ -14,14 +14,14 @@ const projectBar = () => screen.getByRole('group', { name: 'Project' });
 describe('M4.2 the Start screen', () => {
   it('is where the app opens: three boards to start from, and a way to open a file; no mode is chosen', () => {
     render(<App api={fakeApi()} width={1440} />);
-    expect(screen.getByRole('heading', { name: 'Start a new project' })).toBeInTheDocument();
-    for (const name of ['New micro:bit project', 'New Pico W project', 'New ESP32 project']) {
+    expect(screen.getByRole('heading', { name: 'Start something new' })).toBeInTheDocument();
+    for (const name of ['New Python file', 'New micro:bit project', 'New Pico W project', 'New ESP32 project']) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument();
     }
     for (const board of ['BBC micro:bit V2', 'Raspberry Pi Pico W', 'ESP32 DevKit V1']) {
       expect(screen.getByRole('img', { name: board })).toBeInTheDocument();
     }
-    expect(screen.getAllByRole('button', { name: 'Open a project…' }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('button', { name: 'Open…' })).toBeInTheDocument();
     for (const tab of screen.getAllByRole('tab')) expect(tab).toHaveAttribute('aria-selected', 'false');
     expect(screen.queryByRole('region', { name: 'Circuit' })).not.toBeInTheDocument();
   });
@@ -43,7 +43,7 @@ describe('M4.2 the Start screen', () => {
   it('F-02 “Open a project…” opens the chosen file in the workspace, named as the file', async () => {
     const api = fakeApi(async () => ({ ok: true, path: '/s/Night light.mlab', name: 'Night light', doc: newProject('esp32-devkit-v1') }));
     render(<App api={api} width={1440} />);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Open a project…' })[0]!);
+    fireEvent.click(screen.getByRole('button', { name: 'Open…' }));
     await screen.findByRole('region', { name: 'Circuit' });
     expect(api.project.open).toHaveBeenCalledOnce();
     expect(within(projectBar()).getByText('Night light')).toBeInTheDocument();
@@ -52,9 +52,9 @@ describe('M4.2 the Start screen', () => {
 
   it('a file that can\'t be opened: its message is shown, and the start screen stays', async () => {
     render(<App api={fakeApi(async () => ({ ok: false, message: '“photo.mlab” isn\'t a MicroLab project.' }))} width={1440} />);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Open a project…' })[0]!);
+    fireEvent.click(screen.getByRole('button', { name: 'Open…' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('“photo.mlab” isn\'t a MicroLab project.');
-    expect(screen.getByRole('heading', { name: 'Start a new project' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Start something new' })).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Dismiss' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
@@ -62,24 +62,25 @@ describe('M4.2 the Start screen', () => {
   it('cancelling the file chooser changes nothing', async () => {
     const api = fakeApi();
     render(<App api={api} width={1440} />);
-    await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: 'Open a project…' })[0]!); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Open…' })); });
     expect(api.project.open).toHaveBeenCalledOnce();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Start a new project' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Start something new' })).toBeInTheDocument();
   });
 
   it('with no project, Workspace is the start screen; Learn and back', () => {
     render(<App api={fakeApi()} width={1440} />);
     fireEvent.click(screen.getByRole('tab', { name: 'Learn' }));
-    expect(screen.queryByRole('heading', { name: 'Start a new project' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Start something new' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Workspace' }));
-    expect(screen.getByRole('heading', { name: 'Start a new project' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Start something new' })).toBeInTheDocument();
   });
 
-  it('the Learn card leads to Learn; there is no Examples card (the teacher, 2026-11-09)', () => {
+  it('no Examples card, no Learn card (the teacher, 2026-11-09): Learn is reached from its tab', () => {
     render(<App api={fakeApi()} width={1440} />);
     expect(screen.queryByRole('button', { name: 'See the examples' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Open Learn' }));
+    expect(screen.queryByRole('button', { name: 'Open Learn' })).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Learn' }));
     expect(screen.getByRole('tab', { name: 'Learn' })).toHaveAttribute('aria-selected', 'true');
   });
 });
@@ -95,7 +96,7 @@ describe('M4.2 the project menu in the workspace', () => {
     openWorkspace();
     fireEvent.click(screen.getByRole('button', { name: 'Project menu' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'New project…' }));
-    expect(screen.getByRole('heading', { name: 'Start a new project' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Start something new' })).toBeInTheDocument();
   });
 
   it('“Open a project…” asks for a file', async () => {
