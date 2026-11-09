@@ -206,11 +206,10 @@ describe('the shell after the program (>>>, as IDLE\'s Run Module)', () => {
   it('Tab while the program runs: its names so far; a session gone: nothing', async () => {
     const s = session();
     s.run({ code: 'counter = 0\nwhile True:\n    counter += 1\n', file: 'main.py', cwd: tmpdir() });
-    await new Promise((r) => setTimeout(r, 200));
-    expect(await s.complete('coun')).toEqual(['counter']);
+    // asked again until the program has made counter (a Python can take longer than 200 ms to start: Windows CI)
+    await expect.poll(() => s.complete('coun'), { timeout: 10_000 }).toEqual(['counter']);
     s.kill();
-    await new Promise((r) => setTimeout(r, 100));
-    expect(await s.complete('coun')).toEqual([]);
+    await expect.poll(() => s.complete('coun'), { timeout: 5000 }).toEqual([]);
   });
 });
 

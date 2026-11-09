@@ -12,7 +12,7 @@
 
 | Decision | Choice | Why |
 |---|---|---|
-| App type | **Electron** desktop app, Windows 11 + macOS (Intel, Apple Silicon) | Offline (N-04), USB serial for real boards, same as the other edutools apps (Q9, Q14) |
+| App type | **Electron** desktop app, Windows 10 (64-bit) and 11 + macOS (Intel, Apple Silicon) | Offline (N-04), USB serial for real boards, same as the other edutools apps (Q9, Q14) |
 | Language | **TypeScript** everywhere; Python only for the simulated board modules | One language and one test runner for one maintainer (Q14) |
 | Build | **electron-vite** (main · preload · renderer · worker), `electron-builder` for installers | One config for the four bundles; installers as in the gradebook (Q11) |
 | UI | **React 19** | As the gradebook |

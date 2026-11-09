@@ -18,6 +18,8 @@
 
 *Revision 9 (2026-11-09): **Learn is about the components, for children** — the teacher: "I don't want it to be about specific board … electronics for kids perspective where we tell students how the component operate behind the scene, how it work, how it use or connect, what the principle idea behind it, not about code, it's more about specification of the component." A part page is now **what it is, how it works inside (a picture to play with), the idea behind it, its specifications, how to connect it, and the mistakes it shows** — for students of **10–13** (Q20): short sentences, everyday comparisons, real units explained; **no code and no particular board** (F-40). **Board pages stay**, about the board as a component — what is on it, its pins and power, its limits — with no code (F-41). **Ideas pages** (voltage, current, resistance, a circuit, the breadboard, digital and analog, PWM) and the **glossary** stay (F-42, F-45). The **Examples tab is taken out** (F-04: the example projects stay as the acceptance suite and as `.mlab` files a teacher opens); code snippets per part (F-25) leave Learn. The first Learn slice is the **Basics** group (Q21).*
 
+*Revision 14 (2026-11-09): **Windows 10 too, and the slowest school computer** — the teacher: most school computers run **Windows 10**, 64-bit; the weakest is an **Intel Core i5 with 4 GB** (some 8 GB), every one a **24-inch full-HD (1920 × 1080) desktop**, most with an SSD. MicroLab runs on Windows 10 (22H2, 64-bit) and Windows 11 (N-06, Q9); the speed budgets are met on that i5 with 4 GB (N-05, M11.5). GitHub's CI has no Windows 10 — the installer is checked on a real school computer.*
+
 *Revision 13 (2026-11-09): **M11 begins; an icon, About, and updates** — the teacher: *"please create the app icon, and prepare for auto update when the next feature is released to download just the same way we did in the gradebook and OneEditor app. also in about microlab please add all right 2026 CodingSpaceKH, visit codingspacekh.dev for contribution etc"*. The app icon (F-107, screen 32); About MicroLab (F-108, screen 33); updates as the gradebook and OneEditor have them — a GitHub release feed, looked for when MicroLab opens and every 6 hours, a note to download and to restart, *Download updates by itself* off to start, What's new from `whats-new.json`, Macs signed with the teacher's own certificate (F-109, screens 34, 34b).*
 
 *Revision 12 (2026-11-09): **The Python 3 screen, finished by the teacher's trial** — (1) the project's tree and the shell can each be hidden and shown again (F-102); (2) New file / New folder's button says *Create*; (3) the Python logo on every `.py` file (F-103); (4) the theme in Aa *"is not working yet"*: its panel was cut off by the tabs' strip — fixed — and the theme now colours the whole Python 3 screen (F-104); (5) more fonts — for the code: five, shipped inside MicroLab (F-105); (6) completions of turtle and tkinter came without their `( )`: names that are another name for a function (`pack = pack_configure`, `title = wm_title`, `fd = forward`) are now followed to it (F-97); (7) the app's size shown, 75–150 %, with *Back to 100 %* (F-106). Screens 31b updated; 31g, 31h new.*
@@ -70,7 +72,7 @@ The teacher teaches electronics and robotics with **Python**, on three boards: *
 | Boards | BBC micro:bit V2 · Raspberry Pi Pico W · ESP32 DevKit V1 (30-pin). *Later phase:* Arduino (Q13). |
 | Programming language | **MicroPython only** — the same language and libraries as on the real boards. |
 | App language | English only. |
-| Platforms | Windows 11 and macOS (Intel and Apple Silicon), like the other edutools apps. |
+| Platforms | Windows 10 (22H2, 64-bit) and Windows 11, macOS (Intel and Apple Silicon) — *(Rev 14)* most school computers run Windows 10. |
 | Scale | One student, one project at a time; a project has up to ~40 parts and ~100 wires. |
 | Out of scope (v1) | Arduino (a later phase, Q13), C++, block coding, other boards, PCB design, AC / RF / high-voltage circuits, full SPICE accuracy, mains electricity, cloud accounts, live collaboration, a 3D workspace. |
 
@@ -265,8 +267,8 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 | N-02 | **Correct electronics for teaching.** The circuit solver gives hand-checked answers (voltage divider, LED current, series / parallel resistors) within 1 %. |
 | N-03 | **Never freezes.** Student code runs apart from the window; Stop works within 0.5 s whatever the code does. |
 | N-04 | Works fully offline; no account, no internet. |
-| N-05 | Runs smoothly on ordinary student laptops: start ≤ 5 s, a 40-part circuit runs at full speed, ≤ 500 MB RAM. |
-| N-06 | Windows 11 and macOS (Intel + Apple Silicon) with the same features. |
+| N-05 | Runs smoothly on ordinary student laptops: start ≤ 5 s, a 40-part circuit runs at full speed, ≤ 500 MB RAM. *(Rev 14)* Measured on the slowest school computer: an Intel Core i5, 4 GB, SSD, 1920 × 1080, Windows 10 64-bit. |
+| N-06 | Windows 10 (22H2, 64-bit) *(Rev 14)*, Windows 11 and macOS (Intel + Apple Silicon) with the same features. |
 | N-07 | Plain language for students; every error and warning says what to do next. |
 | N-08 | Private: no tracking or analytics; projects are files the student owns. |
 | N-09 | A project file from an older version always opens in a newer one. |
@@ -391,7 +393,7 @@ The **content is the largest piece of work** in the project (about 30 parts × 3
 | Q6b | Students' age / grades (for the wording of part pages) | Grades 7–12 |
 | Q7 | Guided projects (F-43) in v1? | After v1.0 (part pages and examples first) |
 | Q8 | Schematic view (F-19)? | Later (C) |
-| Q9 | Windows 11 + macOS, as the other apps? | Yes |
+| Q9 | Windows 11 + macOS, as the other apps? | Yes — *(Rev 14)* and Windows 10 (64-bit): most school computers run it |
 | Q11 | Installers and updates as in the gradebook (v1.21 updates by themselves)? | Yes, at the end, one final build |
 | Q12 | Is the source public (GPL-3.0 like EasyMedia) or private? | Private at first; **public since 2026-11-09**, all rights reserved (no licence) — CI is free for a public repo |
 | Q13 | *(Rev 2)* Arduino in a later phase: which boards, and in which language? The classic **Uno / Nano (AVR) cannot run MicroPython** — they need C++ and a separate engine. Arduino's **Nano ESP32** and **Nano RP2040 Connect** do run MicroPython and would fit the current engine with little extra work | Decided when that phase starts; until then the board layer is kept open to new boards (R8) |

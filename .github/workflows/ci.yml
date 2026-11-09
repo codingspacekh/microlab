@@ -32,20 +32,23 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - name: The Python 3.13 and Jedi MicroLab ships (checked by hash)
+        id: deps
         run: npm run fetch:python
       - run: npm run check
         if: runner.os != 'Windows'
-      # Windows: the same check without coverage — its 2-core runner runs the test files one at a time, and the coverage
-      # gate is the Mac's (the same code)
+      # Windows: the same check without coverage — its runner is several times slower, and the coverage gate is the
+      # Mac's (the same code)
       - run: npm run check:no-coverage
         if: runner.os == 'Windows'
       # Windows: a 1920 × 1080 screen for the e2e window — the runner's is smaller than MicroLab's (1280 × 720 at least,
-      # the tests' 1440 × 900), and Windows keeps a shown window no bigger than its screen
+      # the tests' 1440 × 900), and Windows keeps a shown window no bigger than its screen. This step and the e2e tests
+      # run even when the check failed: one run shows everything that fails
       - name: A 1920 × 1080 screen (Windows)
-        if: runner.os == 'Windows'
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
         shell: pwsh
         run: |
           Get-CimInstance Win32_VideoController | Format-Table Name, CurrentHorizontalResolution, CurrentVerticalResolution
           Set-DisplayResolution -Width 1920 -Height 1080 -Force
           Get-CimInstance Win32_VideoController | Format-Table Name, CurrentHorizontalResolution, CurrentVerticalResolution
-      - run: npx playwright test
+      - run: npm run e2e   # builds first (the check's build is skipped when a test before it failed)
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}

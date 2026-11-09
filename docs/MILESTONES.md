@@ -592,8 +592,10 @@ connection problem says how to fix it.
 **Goal:** fast, accessible, licensed and installable.
 
 **Build order**
-1. Performance budgets on the slowest school laptop: start ≤ 5 s, ≤ 500 MB, a 40-part circuit at full speed (N-05).
-2. The same features on Windows 11 and macOS Intel / Apple Silicon (N-06).
+1. Performance budgets on the slowest school computer — an Intel Core i5, 4 GB, SSD, 1920 × 1080, Windows 10 64-bit
+   (Rev 14): start ≤ 5 s, ≤ 500 MB, a 40-part circuit at full speed (N-05).
+2. The same features on Windows 10 (64-bit) and 11 and macOS Intel / Apple Silicon (N-06); CI runs Windows Server, so
+   the installer is checked on a real Windows 10 school computer.
 3. Keyboard use of the main actions; contrast (design system); every screen checked at 1280, 1440 and 1920 wide
    and only our own controls on screen (N-13, N-14).
 4. Licences of everything bundled listed in the app, checked by a script (N-11).
