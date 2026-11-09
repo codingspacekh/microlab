@@ -45,7 +45,7 @@ export function StartPage({ onNew, onNewPython, onOpen, recent = [], onOpenRecen
         <div className="bcards">
           <div className="card bcard">
             <div className="art"><PyCardArt /></div>
-            <div className="about"><b><span className="pyicon" aria-hidden="true">&gt;_</span> Python 3</b><span className="small muted">As in IDLE: turtle, tkinter, libraries</span></div>
+            <div className="about"><b>Python 3</b><span className="small muted">As in IDLE: turtle, tkinter, libraries</span></div>
             <span className="small muted mono">print("Hello!")</span>
             <button type="button" className="btn" onClick={onNewPython}><Icon name="plus" size={14} /> New Python file</button>
           </div>
@@ -71,7 +71,7 @@ export function StartPage({ onNew, onNewPython, onOpen, recent = [], onOpenRecen
                 <li key={r.path} className={r.missing ? 'missing' : undefined}>
                   <button type="button" className="row-btn" disabled={r.missing} title={r.missing ? `${r.where} is no longer there` : r.path}
                     onClick={() => onOpenRecent?.(r)}>
-                    <span className="pic">{r.board === PYTHON3 ? <span className="pyicon big" aria-hidden="true">&gt;_</span> : <img src={BOARD_ART[r.board as BoardId]} alt="" draggable={false} />}</span>
+                    <span className="pic">{r.board === PYTHON3 ? <PySpiral /> : <img src={BOARD_ART[r.board as BoardId]} alt="" draggable={false} />}</span>
                     <span className="nm"><b>{r.board === PYTHON3 ? `${r.name}.py` : r.name}</b><span className="mono tiny muted">{r.missing ? `${r.where} — no longer there` : r.where}</span></span>
                     <span className={r.board === PYTHON3 ? 'chip py' : 'chip'}>{r.board === PYTHON3 ? 'Python 3' : BOARD_CHIPS[r.board as BoardId] ?? r.board}</span>
                     <span className="small muted when">{whenText(r.at)}</span>
@@ -91,6 +91,20 @@ export function StartPage({ onNew, onNewPython, onOpen, recent = [], onOpenRecen
 export const PYTHON3 = 'python3';
 
 /** The Python 3 card's picture (screen 31): a small editor with a few lines of turtle, and the spiral they draw. */
+/** A Python project in Recent: the spiral the card's program draws, small — as boards show their picture there. */
+function PySpiral() {
+  const colours = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#32ade6', '#af52de'];
+  const segs: React.ReactNode[] = [];
+  let [x, y, a] = [15, 15, 0];
+  for (let i = 0; i < 40; i++) {
+    const nx = x + i * 0.37 * Math.cos((a * Math.PI) / 180);
+    const ny = y - i * 0.37 * Math.sin((a * Math.PI) / 180);
+    segs.push(<line key={i} x1={x.toFixed(1)} y1={y.toFixed(1)} x2={nx.toFixed(1)} y2={ny.toFixed(1)} stroke={colours[i % 6]} strokeWidth={1.1} />);
+    [x, y, a] = [nx, ny, a + 59];
+  }
+  return <svg className="pyspiral" viewBox="0 0 30 30" width="30" height="30" role="img" aria-label="Python 3">{segs}</svg>;
+}
+
 function PyCardArt() {
   const colours = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#32ade6', '#af52de'];
   const segs: React.ReactNode[] = [];

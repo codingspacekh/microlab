@@ -60,13 +60,15 @@ export interface ConsoleProps {
   onType?: (text: string) => void;
   /** Ctrl+D on an empty line at the REPL: a soft reset — the program runs again. */
   onSoftReset?: () => void;
+  /** More buttons in the bar, before Clear (M12 Rev 11: where the Python 3 shell sits). */
+  headExtra?: ReactNode;
   /** "Go to line 5": the editor shows the error's line (M9, screen 05). */
   onGoTo?: (file: string, line: number) => void;
   /** Tab: the names the line could go on with, as the editor offers them. */
   complete?: (line: string, pos: number) => Completed | Promise<Completed>;
 }
 
-export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete, problems, plot, name = 'Console', idleText }: ConsoleProps) {
+export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete, problems, plot, name = 'Console', idleText, headExtra }: ConsoleProps) {
   const showBoard = !!board && tab === 'board';
   const showProblems = !!problems && tab === 'problems';
   const showPlot = !!plot && tab === 'plot';
@@ -123,6 +125,7 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
           <span className="ctab on"><Icon name="term" size={14} /> {name}</span>
         )}
         <span className="spacer" />
+        {headExtra}
         {showBoard && board.state && (
           <>
             <button type="button" className="btn ghost sm" onClick={board.onRestart} aria-label="Restart the board" title="Restart the board: it runs main.py again, as when it is switched on">

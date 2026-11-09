@@ -333,3 +333,81 @@ describe('M12 slice 5b (F-97, F-92): help while typing — Jedi\'s names and a c
     expect(api.python3.shellComplete).toHaveBeenLastCalledWith('math.sq');
   });
 });
+
+describe('M12 slice 6a (Rev 11; screens 31, 31b, 31f): no >_ badge; brackets and quotes in pairs; the shell below or on the right, resized', () => {
+  const viewOf = (s: ReturnType<typeof setup>, name: string) => EditorView.findFromDOM(s.editor(name).closest('.cm-editor') as HTMLElement)!;
+  /** Types as a keyboard does: through the editor's input handlers (where pairs are made). */
+  const key = (view: EditorView, text: string) => act(() => {
+    const { from, to } = view.state.selection.main;
+    const handled = view.state.facet(EditorView.inputHandler).some((h) => h(view, from, to, text, () => view.state.update({ changes: { from, to, insert: text }, selection: { anchor: from + text.length } })));
+    if (!handled) view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length }, userEvent: 'input.type' });
+  });
+
+  it('the Start page has no >_ badge: the card is named as the boards are; a .py in Recent shows the spiral', async () => {
+    const api = fakeApi({}, { recent: [{ path: '/u/Documents/MicroLab/guess.py', name: 'guess', board: 'python3', where: 'Documents/MicroLab', at: Date.now() } as never] });
+    render(<App api={api} width={1440} />);
+    expect(document.body.textContent).not.toContain('>_');
+    expect(document.querySelector('.pyicon')).toBeNull();
+    const recent = screen.getByRole('region', { name: 'Recent' });
+    expect(await within(recent).findByRole('img', { name: 'Python 3' })).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain('>_');
+  });
+
+  it('( [ { " \' put their pair after the cursor; the closing one steps over it; Backspace after an opening one takes both', () => {
+    const s = setup();
+    newFile();
+    s.type('untitled.py', '');
+    const view = viewOf(s, 'untitled.py');
+    act(() => { view.focus(); });
+    key(view, 'print');
+    key(view, '(');
+    expect(view.state.doc.toString()).toBe('print()');
+    key(view, '"');
+    expect(view.state.doc.toString()).toBe('print("")');
+    key(view, 'Hi');
+    key(view, '"');
+    key(view, ')');
+    expect(view.state.doc.toString()).toBe('print("Hi")');
+    expect(view.state.selection.main.head).toBe(view.state.doc.length);
+    key(view, '\nx = ');
+    key(view, '[');
+    expect(view.state.doc.toString()).toBe('print("Hi")\nx = []');
+    fireEvent.keyDown(view.contentDOM, { key: 'Backspace', code: 'Backspace', keyCode: 8 });
+    expect(view.state.doc.toString()).toBe('print("Hi")\nx = ');
+    act(() => { view.dispatch({ selection: { anchor: 0, head: 5 } }); });   // "print" selected
+    key(view, '{');
+    expect(view.state.doc.toString().startsWith('{print}')).toBe(true);
+  });
+
+  it('the shell below to start; its second button puts it on the right; remembered; the edge resizes it (keyboard too)', async () => {
+    const api = fakeApi();
+    const s = setup(api);
+    newFile();
+    const below = screen.getByRole('button', { name: 'Shell below the editor' });
+    const right = screen.getByRole('button', { name: 'Shell on the right' });
+    expect(below).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelector('.pymain')).toHaveClass('below');
+    fireEvent.click(right);
+    expect(right).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelector('.pymain')).toHaveClass('right');
+    expect(api.settings.set).toHaveBeenLastCalledWith('pyShell', { place: 'right', size: 0.4 });
+    const edge = screen.getByRole('separator', { name: 'The shell\'s size' });
+    expect(edge).toHaveAttribute('aria-orientation', 'vertical');
+    expect(edge).toHaveAttribute('aria-valuenow', '40');
+    fireEvent.keyDown(edge, { key: 'ArrowLeft' });   // the edge goes left: the shell wider
+    expect(edge).toHaveAttribute('aria-valuenow', '45');
+    expect((s.shell().closest('.pyshell') as HTMLElement).style.flexBasis).toBe('45%');
+    fireEvent.keyDown(edge, { key: 'End' });
+    expect(edge).toHaveAttribute('aria-valuenow', '75');
+    expect(api.settings.set).toHaveBeenLastCalledWith('pyShell', { place: 'right', size: 0.75 });
+  });
+
+  it('where the shell was, and how big, come back from the settings', async () => {
+    const api = fakeApi();
+    await api.settings.set('pyShell', { place: 'right', size: 0.3 });
+    setup(api);
+    newFile();
+    await waitFor(() => expect(document.querySelector('.pymain')).toHaveClass('right'));
+    expect(screen.getByRole('separator', { name: 'The shell\'s size' })).toHaveAttribute('aria-valuenow', '30');
+  });
+});

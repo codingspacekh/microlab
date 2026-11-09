@@ -171,3 +171,38 @@ test('M12 slice 5b (F-97, F-92): Jedi offers turtle\'s names as they are typed, 
   await prompt.press('Tab');
   await expect(prompt).toHaveValue('secret');
 });
+
+test('M12 slice 6a (Rev 11; screens 31b, 31f): brackets and quotes typed in pairs; the shell put on the right and dragged wider — remembered', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: /New Python (file|project)/ }).click();
+  const editor = win.getByRole('textbox', { name: 'untitled.py' });
+  await editor.click();
+  await win.keyboard.press(`${MOD}+A`);
+  await win.keyboard.press('Backspace');
+  await win.keyboard.type('print(');
+  await expect(win.locator('.cm-line').first()).toHaveText('print()');
+  await win.keyboard.type('"Hi');
+  await expect(win.locator('.cm-line').first()).toHaveText('print("Hi")');
+  await win.keyboard.type('")');
+  await expect(win.locator('.cm-line').first()).toHaveText('print("Hi")');   // the closing ones stepped over
+  // the shell: below, then on the right; its edge dragged with the mouse
+  const main = win.locator('.pymain');
+  await expect(main).toHaveClass(/below/);
+  await win.getByRole('button', { name: 'Shell on the right' }).click();
+  await expect(main).toHaveClass(/right/);
+  const box = (await main.boundingBox())!;
+  const shell = win.locator('.pyshell');
+  const before = (await shell.boundingBox())!.width;
+  expect(Math.abs(before - box.width * 0.4)).toBeLessThan(box.width * 0.03);
+  const grip = (await win.getByRole('separator', { name: 'The shell\'s size' }).boundingBox())!;
+  await win.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await win.mouse.down();
+  await win.mouse.move(box.x + box.width * 0.4, grip.y + grip.height / 2, { steps: 6 });
+  await win.mouse.up();
+  const after = (await shell.boundingBox())!.width;
+  expect(Math.abs(after - box.width * 0.6)).toBeLessThan(box.width * 0.03);
+  // remembered: a new window has it on the right, as wide
+  const saved = JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8'));
+  expect(saved.pyShell.place).toBe('right');
+  expect(saved.pyShell.size).toBeCloseTo(0.6, 1);
+});

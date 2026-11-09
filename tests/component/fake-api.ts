@@ -18,7 +18,7 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}, start: { 
   let recent: RecentItem[] = start.recent ?? [];
   return {
     versions: { app: '0.4.0', electron: '0' },
-    settings: { get: async (k) => stored[k], set: async (k, v) => { stored[k] = v; } },
+    settings: { get: vi.fn(async (k: string) => stored[k]), set: vi.fn(async (k: string, v: unknown) => { stored[k] = v; }) },
     project: {
       open: projectOpen,
       save: vi.fn(async () => ({ ok: false as const, canceled: true as const })),

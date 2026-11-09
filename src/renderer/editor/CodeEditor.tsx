@@ -1,3 +1,4 @@
+import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { python } from '@codemirror/lang-python';
 import { bracketMatching, HighlightStyle, indentOnInput, indentUnit, syntaxHighlighting } from '@codemirror/language';
@@ -96,13 +97,15 @@ export function CodeEditor({ label, value, onChange, board, size, errorLine: err
           drawSelection(),
           indentOnInput(),
           bracketMatching(),
+          // ( [ { " ' typed in pairs; the closing one steps over; Backspace takes both (Rev 11, F-99, screen 31f)
+          closeBrackets(),
           python(),
           errorLine,
           ...(board ? [boardAssist(board)] : assist ? [assist] : []),
           syntaxHighlighting(colours),
           indentUnit.of('    '),
           EditorState.tabSize.of(4),
-          keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+          keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
           EditorView.contentAttributes.of({ 'aria-label': label, spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off' }),
           EditorView.updateListener.of((u) => {
             if (u.docChanged && !u.transactions.every((tr) => tr.annotation(fromOutside))) changed.current(u.state.doc.toString());
