@@ -6,3 +6,4 @@ export { newProject } from './starter';
 export { addFile, deletePath, fileNameProblem, MICROBIT_SPACE, renamePath, runTarget, spaceNote } from './files';
 export { checkBeforeRun, legName } from './check';
 export type { CheckItem } from './check';
+export { projectNameProblem, PROJECT_NAME_MAX } from './project-name';

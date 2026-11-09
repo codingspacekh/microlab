@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { newProject } from '@lib/project';
 import { App } from '../../src/renderer/app/App';
 import type { RecentItem } from '../../src/renderer/app/api';
-import { fakeApi } from './fake-api';
+import { fakeApi, HOME } from './fake-api';
+import { newProjectFromStart } from './new-project';
 
 /** M5.7 F-05 recent projects on the Start screen (screen 01); F-03 autosave and the project offered back. */
 const today = (h: number, m: number) => { const d = new Date(); d.setHours(h, m, 0, 0); return d.getTime(); };
@@ -45,7 +46,7 @@ describe('M5.7 F-05 recent projects (screen 01)', () => {
 
   it('none yet: it says where they will be, and Open a project… is there', async () => {
     render(<App api={fakeApi()} width={1440} />);
-    expect(await waitFor(() => recentList().getByText(/The projects and Python files you open or save show here/))).toBeInTheDocument();
+    expect(await waitFor(() => recentList().getByText(/The projects you make or open show here/))).toBeInTheDocument();
     expect(recentList().getByRole('button', { name: /Open a project/ })).toBeInTheDocument();
   });
 });
@@ -55,14 +56,14 @@ describe('M5.7 F-03 autosave and the project offered back', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const api = fakeApi({ save: vi.fn(async (_d, o) => ({ ok: true as const, path: `/s/${o.name}.mlab`, name: o.name })) });
     render(<App api={api} width={1440} startRun={() => ({ stop: vi.fn(), setInput: vi.fn() })} />);
-    fireEvent.click(screen.getByRole('button', { name: 'New micro:bit project' }));
+    await newProjectFromStart('New micro:bit project');
     typeIn('main.py', '\n# my change\n');
     expect(api.recovery.write).not.toHaveBeenCalled();
     await act(async () => { vi.advanceTimersByTime(3100); });
     expect(api.recovery.write).toHaveBeenCalledTimes(1);
     const [doc, about] = vi.mocked(api.recovery.write).mock.calls[0]!;
     expect(doc.files['main.py']).toMatch(/# my change/);
-    expect(about).toEqual({ name: 'Untitled project' });
+    expect(about).toEqual({ name: 'Test project', path: `${HOME}/Test project.mlab` });   // Rev 11: saved where it was made
     typeIn('main.py', '# more\n');
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     expect(api.recovery.write).toHaveBeenCalledTimes(2);

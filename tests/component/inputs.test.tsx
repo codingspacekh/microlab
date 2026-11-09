@@ -7,6 +7,7 @@ import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
 import { addGpioBoard, startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M6.1 the inputs pack (screens 17, 17b): the slide switch, the light sensor, the RGB LED and the battery pack in
  *  the parts panel, drawn and set in the inspector; while running a switch is clicked, a knob dragged, the light on
@@ -23,10 +24,10 @@ function fakeSim() {
   return { start, runs, say };
 }
 
-function setup(board = 'New Pico W project') {
+async function setup(board = 'New Pico W project') {
   const sim = fakeSim();
   render(<App api={fakeApi()} width={1440} startRun={sim.start} />);
-  fireEvent.click(screen.getByRole('button', { name: board }));
+  await newProjectFromStart(board);
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
@@ -54,15 +55,15 @@ function setup(board = 'New Pico W project') {
 }
 
 describe('M6.1 the inputs pack in the parts panel (screen 17)', () => {
-  it('lists the RGB LED, the slide switch, the light sensor and the battery pack with the basics', () => {
-    const s = setup();
+  it('lists the RGB LED, the slide switch, the light sensor and the battery pack with the basics', async () => {
+    const s = await setup();
     for (const name of [/^Resistor/, /^LED/, /^RGB LED(?! module)/, /^Push button/, /^Slide switch/, /^Potentiometer(?! module)/, /^Light sensor \(LDR\)/, /^Battery pack/]) {
       expect(s.item(name)).toBeInTheDocument();
     }
   });
 
-  it('each is drawn where it is dropped, legs in holes', () => {
-    const s = setup();
+  it('each is drawn where it is dropped, legs in holes', async () => {
+    const s = await setup();
     s.place(/^Slide switch/, 'slide-switch', 'bb1.e21');
     s.place(/^Light sensor/, 'ldr', 'bb1.a26');
     s.place(/^RGB LED(?! module)/, 'rgb-led', 'bb1.h20');
@@ -77,8 +78,8 @@ describe('M6.1 the inputs pack in the parts panel (screen 17)', () => {
 });
 
 describe('M6.1 the inspector (screens 17, 17b)', () => {
-  it('an RGB LED: common cathode or anode; its legs R, −, G, B — + for a common anode', () => {
-    const s = setup();
+  it('an RGB LED: common cathode or anode; its legs R, −, G, B — + for a common anode', async () => {
+    const s = await setup();
     s.place(/^RGB LED(?! module)/, 'rgb-led', 'bb1.h20');
     const common = within(s.inspector()).getByRole('radiogroup', { name: 'Common leg' });
     expect(within(common).getByRole('radio', { name: /cathode/ })).toHaveAttribute('aria-checked', 'true');
@@ -90,8 +91,8 @@ describe('M6.1 the inspector (screens 17, 17b)', () => {
     expect(within(s.part('rgb1') as HTMLElement).getByText('+')).toBeInTheDocument();
   });
 
-  it('a battery pack: 2×AA, 4×AA or 9 V; its red lead in +, its black lead in −', () => {
-    const s = setup();
+  it('a battery pack: 2×AA, 4×AA or 9 V; its red lead in +, its black lead in −', async () => {
+    const s = await setup();
     s.place(/^Battery pack/, 'battery', 'bb1.B+20');
     const pack = within(s.inspector()).getByRole('radiogroup', { name: 'Battery pack' });
     expect(within(pack).getByRole('radio', { name: '2×AA · 3 V' })).toHaveAttribute('aria-checked', 'true');
@@ -104,8 +105,8 @@ describe('M6.1 the inspector (screens 17, 17b)', () => {
 });
 
 describe('M6.1 while running (screen 17)', () => {
-  it('a slide switch is clicked to slide it: position 1, then 0 again; a new run starts it at 0', () => {
-    const s = setup();
+  it('a slide switch is clicked to slide it: position 1, then 0 again; a new run starts it at 0', async () => {
+    const s = await setup();
     s.place(/^Slide switch/, 'slide-switch', 'bb1.e21');
     s.run();
     expect(s.part('sw1')).toHaveAttribute('data-position', '0');
@@ -120,8 +121,8 @@ describe('M6.1 while running (screen 17)', () => {
     expect(s.part('sw1')).toHaveAttribute('data-position', '0');
   });
 
-  it('a knob is turned by dragging up (more) or down (less) from the middle', () => {
-    const s = setup();
+  it('a knob is turned by dragging up (more) or down (less) from the middle', async () => {
+    const s = await setup();
     s.place(/^Potentiometer(?! module)/, 'potentiometer', 'bb1.e21');
     s.run();
     expect(s.part('pot1')).toHaveAttribute('data-position', '0.5');
@@ -138,8 +139,8 @@ describe('M6.1 while running (screen 17)', () => {
     expect(s.part('pot1')).toHaveAttribute('data-position', '0');
   });
 
-  it('the light sensor\'s row on the Inputs card (screen 18) sets the light on it, from dark to daylight, and says its resistance', () => {
-    const s = setup();
+  it('the light sensor\'s row on the Inputs card (screen 18) sets the light on it, from dark to daylight, and says its resistance', async () => {
+    const s = await setup();
     s.place(/^Light sensor/, 'ldr', 'bb1.a24');
     expect(screen.queryByRole('group', { name: 'Inputs' })).toBeNull();
     s.run();
@@ -161,8 +162,8 @@ describe('M6.1 while running (screen 17)', () => {
     expect(screen.queryByRole('group', { name: 'Inputs' })).toBeNull();
   });
 
-  it('an RGB LED mixes its three dies; hovering it shows each one\'s current', () => {
-    const s = setup();
+  it('an RGB LED mixes its three dies; hovering it shows each one\'s current', async () => {
+    const s = await setup();
     s.place(/^RGB LED(?! module)/, 'rgb-led', 'bb1.h20');
     s.run();
     expect(s.part('rgb1')).toHaveAttribute('data-lit', '0');
@@ -182,8 +183,8 @@ describe('M6.1 while running (screen 17)', () => {
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
 
-  it('an LED says its current on hover too (screen 03)', () => {
-    const s = setup();
+  it('an LED says its current on hover too (screen 03)', async () => {
+    const s = await setup();
     s.place(/^LED/, 'led', 'bb1.c10');
     s.run();
     s.sim.say((e) => e.onParts({ led1: { kind: 'led', amps: 0.0059, brightness: 0.295 } }));
@@ -191,8 +192,8 @@ describe('M6.1 while running (screen 17)', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent('LED1 · 5.9 mA');
   });
 
-  it('the note in the parts panel says what can be done while running', () => {
-    const s = setup();
+  it('the note in the parts panel says what can be done while running', async () => {
+    const s = await setup();
     s.run();
     if (!screen.queryByRole('region', { name: 'Parts' })) fireEvent.click(screen.getByRole('button', { name: 'Parts' }));   // folded when it ran (M6.8)
     expect(screen.getByRole('note')).toHaveTextContent(/click a slide switch/);
@@ -201,8 +202,8 @@ describe('M6.1 while running (screen 17)', () => {
 });
 
 describe('M6.1 the micro:bit GPIO board\'s micro-USB (screen 17b)', () => {
-  it('a new micro:bit project has it plugged in; a click takes it out (an undo step) and puts it back', () => {
-    const s = setup('New micro:bit project');
+  it('a new micro:bit project has it plugged in; a click takes it out (an undo step) and puts it back', async () => {
+    const s = await setup('New micro:bit project');
     addGpioBoard();   // M6.9: a new micro:bit project is the micro:bit alone
     const usb = () => s.svg.querySelector('[data-usb]')!;
     expect(usb()).toHaveAttribute('data-usb', 'in');
@@ -217,8 +218,8 @@ describe('M6.1 the micro:bit GPIO board\'s micro-USB (screen 17b)', () => {
     expect(usb()).toHaveAttribute('data-usb', 'in');
   });
 
-  it('the run is told: unplugged, the project says usb: false', () => {
-    const s = setup('New micro:bit project');
+  it('the run is told: unplugged, the project says usb: false', async () => {
+    const s = await setup('New micro:bit project');
     addGpioBoard();
     fireEvent.click(s.svg.querySelector('[data-usb]')!);
     s.run();
@@ -227,8 +228,8 @@ describe('M6.1 the micro:bit GPIO board\'s micro-USB (screen 17b)', () => {
     expect(s.svg.querySelector('[data-usb]')).toHaveAttribute('data-usb', 'out');
   });
 
-  it('the Pico W has no such socket', () => {
-    const s = setup();
+  it('the Pico W has no such socket', async () => {
+    const s = await setup();
     expect(s.svg.querySelector('[data-usb]')).toBeNull();
   });
 });

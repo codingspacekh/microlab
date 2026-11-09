@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
+import { newProject } from './new-project';
 
 /** M5.7 with the real app: killed while editing, the project is offered back on the next start (F-03); a project
  *  saved is in the recent list on the next start, and opens from there (F-05, screen 01). */
@@ -28,7 +29,7 @@ test.afterEach(async () => {
 
 test('F-03: the app is killed while editing; on restart the project is offered back, its changes in it', async () => {
   let win = await launch();
-  await win.getByRole('button', { name: 'New micro:bit project' }).click();
+  await newProject(win, 'New micro:bit project');
   await win.getByRole('textbox', { name: 'main.py' }).click();
   await win.keyboard.press(`${MOD}+End`);
   await win.keyboard.insertText('\n# kept after a crash\n');
@@ -39,7 +40,7 @@ test('F-03: the app is killed while editing; on restart the project is offered b
 
   win = await launch();
   const card = win.getByRole('alert');
-  await expect(card).toContainText('Your changes to “Untitled project” were kept');
+  await expect(card).toContainText('Your changes to “Test project” were kept');
   await card.getByRole('button', { name: 'Get them back' }).click();
   await expect(win.getByRole('textbox', { name: 'main.py' })).toContainText('# kept after a crash');
   await expect(win.getByTitle('Not saved')).toBeVisible();
@@ -47,7 +48,7 @@ test('F-03: the app is killed while editing; on restart the project is offered b
 
 test('F-03: changes given up (Don\'t save) are not offered back', async () => {
   const win = await launch();
-  await win.getByRole('button', { name: 'New micro:bit project' }).click();
+  await newProject(win, 'New micro:bit project');
   await win.getByRole('textbox', { name: 'main.py' }).click();
   await win.keyboard.insertText('# not wanted\n');
   await expect.poll(() => existsSync(join(home, 'recovery', 'project.mlab')), { timeout: 10_000 }).toBe(true);
@@ -58,12 +59,9 @@ test('F-03: changes given up (Don\'t save) are not offered back', async () => {
 
 test('F-05: a project saved is in Recent projects on the next start, and opens from there', async () => {
   let win = await launch();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
-  const file = join(home, 'Lamp.mlab');
-  await app!.evaluate(({ dialog }, p) => {
-    dialog.showSaveDialog = (async () => ({ canceled: false, filePath: p })) as typeof dialog.showSaveDialog;
-  }, file);
-  await win.keyboard.press(`${MOD}+s`);
+  // Rev 11: a new project is named, and saved where it was made, before it opens
+  await newProject(win, 'New Pico W project', 'Lamp');
+  const file = join(home, 'Documents', 'MicroLab', 'Lamp.mlab');
   await expect.poll(() => existsSync(file)).toBe(true);
   await app!.close();
 

@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
+import { newProject } from './new-project';
 
 /** M6.8: a new project is the board alone and the parts panel is folded — put down a half breadboard (where new
  *  projects had theirs) and open the panel, as building a circuit starts. */
@@ -70,7 +71,7 @@ const BOARDS = [
 for (const b of BOARDS) {
   test(`Blink built by hand on ${b.example}: run it, the LED blinks; Stop ends it`, async () => {
     const win = await app.firstWindow();
-    await win.getByRole('button', { name: b.button }).click();
+    await newProject(win, b.button);
     await startBuilding(win);
     // the circuit of library/examples/blink: GP15 → 220 Ω (a5–a8) → LED (b8–b10) → GND
     await drag(win, await centre(win, '.parts .pitem:has-text("Resistor")'), await between(win, 'bb1.a5', 'bb1.a8'));
@@ -101,7 +102,7 @@ test('the starter programs light the board itself: the Pico W\'s LED, the micro:
       await menu.click();
       await win.getByRole('menuitem', { name: 'New project…' }).click();
     }
-    await win.getByRole('button', { name: button }).click();
+    await newProject(win, button);
     await win.getByRole('button', { name: 'Run main.py' }).click();
     await expect(win.locator(sel)).toHaveCount(1, { timeout: 5000 });
     await expect(win.locator(sel)).toHaveCount(0, { timeout: 2000 });   // it blinks: off again
@@ -110,7 +111,7 @@ test('the starter programs light the board itself: the Pico W\'s LED, the micro:
 
 test('print() reaches the console; an error says where; the button can be pressed while running', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   await drag(win, await centre(win, '.parts .pitem:has-text("Push button")'), await between(win, 'bb1.e20', 'bb1.f22'));
   await drag(win, await centre(win, '[data-point="board.GP14"]'), await centre(win, '[data-point="bb1.d20"]'));
@@ -130,7 +131,7 @@ test('print() reaches the console; an error says where; the button can be presse
 
 test('M5.6 (Q19): a second file, made with +, runs with Run led_test.py; it imports a library from lib/; Run main.py from the menu', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   const make = async (name: string, code: string) => {
     await win.getByRole('button', { name: 'Add a file or a library' }).click();
@@ -157,7 +158,7 @@ test('M5.6 (Q19): a second file, made with +, runs with Run led_test.py; it impo
 
 test('M6.1 (screen 17): while running a slide switch is clicked, a knob dragged, the light on a light sensor set on the Inputs card', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   // slide switch e20–e22: leg 1 (e20) to GND, leg 2 (e21) to GP14; knob e10–e14: GND, GP26, 3V3 (up = more); a light sensor
   await drag(win, await centre(win, '.parts .pitem:has-text("Slide switch")'), await centre(win, '[data-point="bb1.e21"]'));
@@ -199,7 +200,7 @@ test('M6.1 (screen 17): while running a slide switch is clicked, a knob dragged,
 
 test('M6.2: a passive buzzer plays the PWM\'s note with the real worker; the status bar turns the sound off', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   await drag(win, await centre(win, '.parts .pitem:has-text("Buzzer")'), await between(win, 'bb1.a10', 'bb1.a13'));
   await win.getByRole('complementary', { name: 'Inspector' }).getByRole('radio', { name: 'Passive' }).click();
@@ -219,7 +220,7 @@ test('M6.2: a passive buzzer plays the PWM\'s note with the real worker; the sta
 
 test('M6.3 (screen 18): a TMP36 set on the Inputs card and a PIR held with the mouse, read by the real worker', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   // TMP36 in f2–f4 (+Vs 3V3, Vout GP26, GND); PIR in f8–f10 (VCC VBUS, OUT GP14, GND)
   await drag(win, await centre(win, '.parts .pitem:has-text("TMP36 · LM35")'), await centre(win, '[data-point="bb1.f3"]'));
@@ -255,7 +256,7 @@ test('M6.3 (screen 18): a TMP36 set on the Inputs card and a PIR held with the m
 
 test('M6.4 (screen 19): a DHT22 and an HC-SR04 behind its divider, set on the Inputs card, read by the real worker', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   // DHT in f2–f4: VCC 3V3, DATA GP16, GND
   await drag(win, await centre(win, '.parts .pitem:has-text("DHT11 / DHT22")'), await centre(win, '[data-point="bb1.f3"]'));
@@ -295,7 +296,7 @@ test('M6.4 (screen 19): a DHT22 and an HC-SR04 behind its divider, set on the In
 
 test('M6.5a (screen 20): a joystick dragged and an IR obstacle sensor clicked, read by the real worker', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   // joystick in f2–f6: GND, VCC 3V3, VRx GP26; IR obstacle in f10–f12: OUT GP14, GND, VCC 3V3 (the Modules group is
   // far down the parts panel: each item is scrolled into view first)
@@ -330,7 +331,7 @@ test('M6.5a (screen 20): a joystick dragged and an IR obstacle sensor clicked, r
 
 test('M6.5b (screen 21): a DS18B20 read with onewire and ds18x20 by the real worker, its temperature set on the Inputs card', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   await win.locator('.parts .pitem:has-text("DS18B20")').scrollIntoViewIfNeeded();
   await drag(win, await centre(win, '.parts .pitem:has-text("DS18B20")'), await centre(win, '[data-point="bb1.f3"]'));
@@ -355,7 +356,7 @@ test('M6.5b (screen 21): a DS18B20 read with onewire and ds18x20 by the real wor
 
 test('M6.6 (screen 06): the micro:bit inputs card — button A held, the temperature and the tilt set, read by the real worker', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New micro:bit project' }).click();
+  await newProject(win, 'New micro:bit project');
   await startBuilding(win);
   await setCode(win, [
     'from microbit import *', 'while True:',
@@ -380,7 +381,7 @@ test('M6.6 (screen 06): the micro:bit inputs card — button A held, the tempera
 
 test('M6.7 (screen 22): Add a library from the + menu puts bmp280 in lib/ with its licence; main.py imports it in the real worker', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   await win.getByRole('button', { name: 'Add a file or a library' }).click();
   await win.getByRole('menuitem', { name: 'Add a library…' }).click();
@@ -405,7 +406,7 @@ test('M6.7 (screen 22): Add a library from the + menu puts bmp280 in lib/ with i
 
 test('M7.1 (screens 25, 25c): a TT motor dropped beside the breadboard, wired at its tabs — through an L9110S it turns; straight on GP15 the pin is damaged', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   // the L9110S in f8–f13: GND, VCC VBUS, A-IA GP17, A-IB GP16; the motor below the breadboard, on MOTOR A
   await win.locator('.parts .pitem:has-text("L9110S")').scrollIntoViewIfNeeded();
@@ -448,7 +449,7 @@ test('M7.1 (screens 25, 25c): a TT motor dropped beside the breadboard, wired at
 
 test('M7.2 (screens 26, 26c): a 16×2 LCD dropped beside the breadboard, wired at its backpack\'s pins, its library added from the inspector — it shows what putstr wrote; on 3V3 it is too faint', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   const below = await centre(win, '[data-point="bb1.B-20"]');
   await drag(win, await centre(win, '.parts .pitem:has-text("LCD 16×2")'), { x: below.x, y: below.y + 110 });
@@ -485,7 +486,7 @@ test('M7.2 (screens 26, 26c): a 16×2 LCD dropped beside the breadboard, wired a
 
 test('M7.3 (screens 27, 27c): a NeoPixel dropped beside the breadboard, made a ring of 12 in its inspector, wired at its pads — its LEDs show what write() sent; hovered, an LED says its colour; data on DOUT lights nothing', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   const below = await centre(win, '[data-point="bb1.B-20"]');
   await drag(win, await centre(win, '.parts .pitem:has-text("NeoPixel")'), { x: below.x, y: below.y + 120 });
@@ -527,7 +528,7 @@ test('M7.3 (screens 27, 27c): a NeoPixel dropped beside the breadboard, made a r
 
 test('M7.4 (screen 06): the micro:bit\'s speaker in the real worker — a built-in sound, a sine sound effect, and silence once the program turns the speaker off', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New micro:bit project' }).click();
+  await newProject(win, 'New micro:bit project');
   await setCode(win, ['from microbit import *', 'import audio, music', 'audio.play(Sound.HELLO)',
     'audio.play(audio.SoundEffect(freq_start=400, freq_end=400, duration=1500, waveform=audio.SoundEffect.WAVEFORM_SINE, shape=audio.SoundEffect.SHAPE_LINEAR))',
     'speaker.off()', 'music.pitch(440, 5000)', ''].join('\n'));
@@ -542,7 +543,7 @@ test('M7.4 (screen 06): the micro:bit\'s speaker in the real worker — a built-
 
 test('M7.5 (screens 28, 28d): a USB-serial adapter dropped below the Pico W, wired to UART0 — its terminal shows what the board sends and sends it a line; at the wrong baud rate, garbage and why', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   const gp0 = await centre(win, '[data-point="board.GP0"]');
   await drag(win, await centre(win, '.parts .pitem:has-text("USB-serial adapter")'), { x: gp0.x + 40, y: gp0.y + 110 });
@@ -576,7 +577,7 @@ test('M7.5 (screens 28, 28d): a USB-serial adapter dropped below the Pico W, wir
 
 test('M9 slice 1 (screens 05, 29c): input() answered in the console; an error explained, its line marked; then the REPL in the program\'s names lights the LED', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await setCode(win, ['from machine import Pin', 'led = Pin("LED", Pin.OUT)', 'name = input("What\'s your name? ")', "print('Hello, ' + name + '!')", 'led.vlaue(1)', ''].join('\n'));
   await win.getByRole('button', { name: 'Run main.py' }).click();
   const field = win.getByRole('textbox', { name: /input\(\) reads it/ });
@@ -617,7 +618,7 @@ test('M9 slice 1 (screens 05, 29c): input() answered in the console; an error ex
 
 test('M9 slice 2 (screen 04): an LED straight on GP13 burns out in the real worker — its card, Problems, dead in the next run until replaced', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   await drag(win, await centre(win, '.parts .pitem:has-text("red, 5 mm")'), await between(win, 'bb1.b8', 'bb1.b10'));
   await drag(win, await centre(win, '[data-point="board.GP13"]'), await centre(win, '[data-point="bb1.e8"]'));
@@ -657,7 +658,7 @@ test('M9 slice 2 (screen 04): an LED straight on GP13 burns out in the real work
 
 test('M9 slice 4 (screen 29): the multimeter with the real mouse and worker — a PWM pin at 50 % reads its average, 1.65 V; the resistor 220 Ω with the power off', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await startBuilding(win);
   // Blink: GP15 → 220 Ω (a5–a8) → LED (b8–b10) → GND
   await drag(win, await centre(win, '.parts .pitem:has-text("Resistor")'), await between(win, 'bb1.a5', 'bb1.a8'));
@@ -688,7 +689,7 @@ test('M9 slice 4 (screen 29): the multimeter with the real mouse and worker — 
 
 test('M9 slice 5 (screen 07): the Plotter draws what the real worker prints — a sine as it comes, named by its print', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await newProject(win, 'New Pico W project');
   await setCode(win, ['import math, time', 'for i in range(60):', '    wave = math.sin(i / 4) * 10', '    print(wave)', '    time.sleep(0.05)', ''].join('\n'));
   await win.getByRole('button', { name: 'Run main.py' }).click();
   await win.getByRole('tab', { name: /Plotter/ }).click();

@@ -19,9 +19,27 @@ contextBridge.exposeInMainWorld('microlab', {
   },
   // Python 3 (M12): .py files, and the session that runs them
   pyfile: {
-    open: (): Promise<unknown> => ipcRenderer.invoke('py:open'),
-    openPath: (path: string): Promise<unknown> => ipcRenderer.invoke('py:open-path', path),
     save: (text: string, opts: unknown): Promise<unknown> => ipcRenderer.invoke('py:save', text, opts),
+  },
+  // projects as folders (M12 Rev 11): made, opened, their tree and its files
+  projects: {
+    home: (): Promise<unknown> => ipcRenderer.invoke('projects:home'),
+    choose: (from: string): Promise<unknown> => ipcRenderer.invoke('projects:choose', from),
+    newPython: (location: string, name: string): Promise<unknown> => ipcRenderer.invoke('projects:new-python', location, name),
+    newBoard: (location: string, name: string, doc: unknown): Promise<unknown> => ipcRenderer.invoke('projects:new-board', location, name, doc),
+    openPython: (path: string): Promise<unknown> => ipcRenderer.invoke('projects:open-python', path),
+    tree: (root: string): Promise<unknown> => ipcRenderer.invoke('projects:tree', root),
+    newEntry: (root: string, rel: string, kind: string): Promise<unknown> => ipcRenderer.invoke('projects:new-entry', root, rel, kind),
+    rename: (root: string, from: string, to: string): Promise<unknown> => ipcRenderer.invoke('projects:rename', root, from, to),
+    trash: (root: string, rel: string): Promise<unknown> => ipcRenderer.invoke('projects:trash', root, rel),
+    reveal: (root: string, rel: string): Promise<unknown> => ipcRenderer.invoke('projects:reveal', root, rel),
+    read: (root: string, rel: string): Promise<unknown> => ipcRenderer.invoke('projects:read', root, rel),
+    context: (items: unknown): Promise<unknown> => ipcRenderer.invoke('projects:context', items),
+    onChanged: (handler: (root: string) => void): (() => void) => {
+      const listener = (_e: unknown, root: string) => handler(root);
+      ipcRenderer.on('projects:changed', listener);
+      return () => { ipcRenderer.removeListener('projects:changed', listener); };
+    },
   },
   file: {
     open: (): Promise<unknown> => ipcRenderer.invoke('file:open'),

@@ -4,6 +4,7 @@ import { parseUname, type SendResult } from '@lib/repl';
 import type { Detection, FoundBoard } from '@lib/usb';
 import { App } from '../../src/renderer/app/App';
 import { fakeApi } from './fake-api';
+import { newProjectFromStart } from './new-project';
 
 /** M10.3 F-50 (screens 08, 13b): Send to board — which board, which files, what happens; its progress; its result. */
 const PICO: FoundBoard = { id: 'e661', kind: 'pico', port: '/dev/cu.usbmodem14201', usb: '2e8a:0005' };
@@ -11,7 +12,7 @@ const MB: FoundBoard = { id: '9906', kind: 'microbit', port: '/dev/cu.usbmodem14
 const W = parseUname("(sysname='rp2', nodename='rp2', release='1.29.0', version='v1.29.0 on 2026-08-24', machine='Raspberry Pi Pico W with RP2040')")!;
 const ready: Detection = { boards: [PICO], drives: [], checks: { e661: { state: 'micropython', uname: W } } };
 
-function setup(start: Detection, result: SendResult = { ok: true, board: 'Pico W', sent: [{ path: 'main.py', size: 612 }], same: [], kept: [] }) {
+async function setup(start: Detection, result: SendResult = { ok: true, board: 'Pico W', sent: [{ path: 'main.py', size: 612 }], same: [], kept: [] }) {
   const api = fakeApi();
   let push: (now: Detection, changes: { plugged: FoundBoard[]; unplugged: FoundBoard[] }) => void = () => {};
   let finish: (r: SendResult) => void = () => {};
@@ -19,7 +20,7 @@ function setup(start: Detection, result: SendResult = { ok: true, board: 'Pico W
   api.boards.onChange = vi.fn((h) => { push = h; return () => {}; });
   api.boards.send = vi.fn(() => new Promise<SendResult>((r) => { finish = r; }));
   render(<App api={api} width={1440} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   return {
     api,
     change: (now: Detection) => act(() => push(now, { plugged: [], unplugged: [] })),
@@ -37,14 +38,14 @@ async function openDialog() {
 
 describe('M10.3 F-50 the Send to board button', () => {
   it('with no board, it can\'t be pressed and says why', async () => {
-    setup({ boards: [], drives: [] });
+    await setup({ boards: [], drives: [] });
     await screen.findByRole('button', { name: /^Board:/ });
     expect(sendButton()).toBeDisabled();
     expect(sendButton()).toHaveAttribute('title', 'Plug a board in to send to it');
   });
 
   it('with a board: the dialog, as screen 08 — the board, the files, what will happen', async () => {
-    setup(ready);
+    await setup(ready);
     const d = await openDialog();
     const board = within(d).getByRole('radio', { name: /Raspberry Pi Pico W/ });
     expect(board).toHaveAttribute('aria-checked', 'true');
@@ -58,14 +59,14 @@ describe('M10.3 F-50 the Send to board button', () => {
   });
 
   it('a board for another project is shown as such', async () => {
-    setup({ boards: [PICO, MB], drives: [], checks: { e661: { state: 'micropython', uname: W } } });
+    await setup({ boards: [PICO, MB], drives: [], checks: { e661: { state: 'micropython', uname: W } } });
     const d = await openDialog();
     const mb = within(d).getByRole('radio', { name: /micro:bit/ });
     expect(mb.closest('.crow')).toHaveTextContent('this project is for a Pico W');
   });
 
   it('Cancel or Esc: nothing is sent', async () => {
-    const s = setup(ready);
+    const s = await setup(ready);
     await openDialog();
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Cancel' }));
     fireEvent.keyDown(await openDialog(), { key: 'Escape' });
@@ -76,7 +77,7 @@ describe('M10.3 F-50 the Send to board button', () => {
 
 describe('M10.3 F-50 sending', () => {
   it('Send and run: the project\'s files go to the chosen board; the chip counts them; the result says what was sent', async () => {
-    const s = setup(ready, { ok: true, board: 'Pico W', sent: [{ path: 'main.py', size: 612 }], same: ['lib/ssd1306.py'], kept: [] });
+    const s = await setup(ready, { ok: true, board: 'Pico W', sent: [{ path: 'main.py', size: 612 }], same: ['lib/ssd1306.py'], kept: [] });
     await openDialog();
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Send and run' }));
     expect(s.api.boards.send).toHaveBeenCalledWith('e661', expect.objectContaining({ 'main.py': expect.any(String) }), { run: true, keep: true });
@@ -92,7 +93,7 @@ describe('M10.3 F-50 sending', () => {
   });
 
   it('not run, nothing kept: as asked; the button says Send', async () => {
-    const s = setup(ready);
+    const s = await setup(ready);
     await openDialog();
     fireEvent.click(within(dialog()).getByRole('checkbox', { name: 'Run it when copied' }));
     fireEvent.click(within(dialog()).getByRole('checkbox', { name: /Keep a copy/ }));
@@ -103,7 +104,7 @@ describe('M10.3 F-50 sending', () => {
   });
 
   it('nothing changed: says so; an old main.py kept: says where', async () => {
-    const s = setup(ready);
+    const s = await setup(ready);
     await openDialog();
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Send and run' }));
     await s.finish({ ok: true, board: 'Pico W', sent: [], same: ['main.py'], kept: [] });
@@ -115,7 +116,7 @@ describe('M10.3 F-50 sending', () => {
   });
 
   it('a send that fails says why', async () => {
-    const s = setup(ready);
+    const s = await setup(ready);
     await openDialog();
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Send and run' }));
     await s.finish({ ok: false, message: 'The board is used by Thonny. Close Thonny, or press Stop/Disconnect in it, then send again.' });

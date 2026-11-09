@@ -7,11 +7,12 @@ import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
 import { partsPanel, startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M7 slice 5 in the editor (screens 28, 28b, 28c, 28d): the Communication group; a USB-serial adapter, an HC-05 and
  *  a GPS lie beside the board, their header pins points to wire; while running, a terminal, a phone and a GPS card
  *  send the sim what the student does there. The simulation is a fake: the test says what the worker says. */
-function setup() {
+async function setup() {
   const runs: { doc: ProjectDoc; events: RunEvents }[] = [];
   const inputs: [string, number][] = [];
   const start: StartRun = (req, events) => {
@@ -19,7 +20,7 @@ function setup() {
     return { stop: vi.fn(), setInput: (name: string, v: number) => { inputs.push([name, v]); } };
   };
   render(<App api={fakeApi()} width={1440} startRun={start} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
@@ -57,8 +58,8 @@ function setup() {
 
 
 describe('M7 the UART parts on the canvas (screens 28, 28b, 28c)', () => {
-  it('a Communication group of three; each lies where it is let go, its header pins points; the terminal\'s baud rate in its inspector', () => {
-    const s = setup();
+  it('a Communication group of three; each lies where it is let go, its header pins points; the terminal\'s baud rate in its inspector', async () => {
+    const s = await setup();
     const group = screen.getByRole('group', { name: 'Communication' });
     expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual([
       expect.stringMatching(/^USB-serial adapter/), expect.stringMatching(/^Bluetooth HC-05/), expect.stringMatching(/^GPS NEO-6M/),
@@ -76,8 +77,8 @@ describe('M7 the UART parts on the canvas (screens 28, 28b, 28c)', () => {
     for (const t of ['gnd', 'tx', 'rx', 'vcc']) expect(s.point(`gps1.${t}`)).toBeDefined();
   });
 
-  it('while running, the terminal shows what reached it (control bytes as \ufffd) and sends a line with its ending; at another baud rate it says why it is garbled', () => {
-    const s = setup();
+  it('while running, the terminal shows what reached it (control bytes as \ufffd) and sends a line with its ending; at another baud rate it says why it is garbled', async () => {
+    const s = await setup();
     s.drop(/^USB-serial adapter/, { x: 760, y: 120 });
     s.run();
     s.say((e) => e.onParts({ usb1: { kind: 'serial', text: 'Hello!\r\n', sent: 0, received: 8, baud: 9600, heardBaud: 9600 } }));
@@ -92,8 +93,8 @@ describe('M7 the UART parts on the canvas (screens 28, 28b, 28c)', () => {
     expect(term).toHaveTextContent('Garbled? The board sends at 9600 baud; this terminal reads 115200.');
   });
 
-  it('the phone connects, its messages are the sim\'s; the GPS card sets the fix and the place', () => {
-    const s = setup();
+  it('the phone connects, its messages are the sim\'s; the GPS card sets the fix and the place', async () => {
+    const s = await setup();
     s.drop(/^Bluetooth HC-05/, { x: 760, y: 120 });
     s.drop(/^GPS NEO-6M/, { x: 760, y: 400 });
     s.run();

@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
+import { newProject as newProjectFromStart } from './new-project';
 
 /** M4.1 (N-13): the panels fill the window at every size; a divider moved stays where it was left. */
 const launch = (home: string) => electron.launch({ args: ['out/main/index.js'], env: { ...process.env, MICROLAB_USER_DATA: home } });
@@ -12,11 +13,11 @@ async function resize(app: ElectronApplication, win: Page, width: number, height
 }
 
 /** The workspace needs a project (M4.2): start one on the Pico W, from the start screen. */
-async function newProject(win: Page) {
+async function openProject(win: Page) {
   const button = win.getByRole('button', { name: 'New Pico W project' });
   const circuit = win.getByRole('region', { name: 'Circuit' });
   await button.or(circuit).first().waitFor();   // the window has drawn: the start screen, or a project already open
-  if (await button.isVisible()) await button.click();
+  if (await button.isVisible()) await newProjectFromStart(win, 'New Pico W project');
   await circuit.waitFor();
 }
 
@@ -35,7 +36,7 @@ test.describe('the window fills its width', () => {
     test(`at ${w} × ${h}: no horizontal scroll, the panels share the whole width`, async () => {
       const win = await app.firstWindow();
       await resize(app, win, w, h);
-      await newProject(win);
+      await openProject(win);
       // the layout settles first (the saved panel widths load, the window's new size is drawn): two frames alike
       let m = await widths(win);
       await expect.poll(async () => {
@@ -64,7 +65,7 @@ test('a divider dragged to a new width is still there after a restart', async ()
     let app = await launch(home);
     let win = await app.firstWindow();
     await resize(app, win, 1440, 900);
-    await newProject(win);
+    await openProject(win);
     await win.getByRole('button', { name: 'Parts', exact: true }).click();
     const before = (await widths(win)).parts;
     const sep = win.getByRole('separator', { name: 'Parts panel width' });
@@ -80,7 +81,7 @@ test('a divider dragged to a new width is still there after a restart', async ()
     app = await launch(home);
     win = await app.firstWindow();
     await resize(app, win, 1440, 900);
-    await newProject(win);
+    await openProject(win);
     await win.getByRole('button', { name: 'Parts', exact: true }).click();
     await expect.poll(async () => Math.round((await widths(win)).parts)).toBe(Math.round(moved));
     await app.close();

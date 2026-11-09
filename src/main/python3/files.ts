@@ -28,7 +28,11 @@ export async function openPyFile(path: string): Promise<PyOpen> {
 export interface SaveFs { writeFile: typeof writeFile; rename: typeof rename; rm: typeof rm }
 
 export async function savePyFile(path: string, text: string, fs: SaveFs = { writeFile, rename, rm }): Promise<PySave> {
-  const target = extname(path).toLowerCase() === '.py' ? path : `${path}.py`;
+  return saveTextFile(extname(path).toLowerCase() === '.py' ? path : `${path}.py`, text, fs);
+}
+
+/** A project's text file (M12 Rev 11: .py, and data such as scores.txt) saved whole, as it is named. */
+export async function saveTextFile(target: string, text: string, fs: SaveFs = { writeFile, rename, rm }): Promise<PySave> {
   const tmp = `${target}.saving`;
   try {
     await fs.writeFile(tmp, text, 'utf8');

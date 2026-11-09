@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { NewProjectBoard } from '@lib/boards';
-import { checkBeforeRun, newProject, onGpioBoard, runTarget, type ProjectDoc } from '@lib/project';
+import { checkBeforeRun, onGpioBoard, runTarget, type ProjectDoc } from '@lib/project';
 import { boardData, EMPTY_HISTORY, redo, undo, type History } from '@lib/editor';
 import { faultCards, faultSummary, stoppedBy } from '@lib/circuit';
 import { Icon, Logo } from '../ui/Icon';
 import { Dialog } from '../ui/Dialog';
 import { MenuButton } from '../ui/Menu';
-import type { MicrolabApi, RecentItem, Recovered } from './api';
-import { BOARD_NAMES, boardName } from './boards';
+import type { MicrolabApi, PyProjectOpen, RecentItem, Recovered, TreeEntry } from './api';
+import { BOARD_CARDS, BOARD_NAMES, boardName } from './boards';
 import { ControlsPage } from './ControlsPage';
 import { PYTHON3, StartPage } from './StartPage';
 import { fileName, PythonScreen, type PyTab } from '../python3/PythonScreen';
+import { ProjectTree } from '../python3/ProjectTree';
+import { NewProject, shortPath, type NewKind } from './NewProject';
 import { usePython, type PyRunState } from '../python3/usePython';
 import { Libraries } from '../python3/Libraries';
 import '../python3/python3.css';
@@ -150,7 +152,8 @@ export function App({ api, width, startRun, audio }: AppProps) {
     setNotice(null);
     setMode('workspace');
   };
-  const start = (board: NewProjectBoard) => show({ doc: newProject(board), name: 'Untitled project' });
+  /** A new board project (Rev 11, screen 31e): its name and place asked first; it is saved from the start. */
+  const start = (board: NewProjectBoard) => setNewKind({ board, title: BOARD_CARDS.find((b) => b.id === board)?.short ?? 'board' });
   const openFile = async () => {
     const r = await api.project.open();
     if (r.ok) show({ doc: r.doc, name: r.name, path: r.path });
@@ -170,11 +173,11 @@ export function App({ api, width, startRun, audio }: AppProps) {
   const openAny = async () => {
     const r = await api.file.open();
     if (!r.ok) { if ('message' in r) setNotice(r.message); return; }
-    if ('kind' in r && r.kind === 'py') pyOpened(r);
+    if ('kind' in r && r.kind === 'py') pyProjectOpened(r);
     else if ('doc' in r) show({ doc: r.doc, name: r.name, path: r.path });
   };
   const openRecent = async (item: RecentItem) => {
-    if (item.board === PYTHON3) { pyOpened(await api.pyfile.openPath(item.path)); return; }
+    if (item.board === PYTHON3) { pyProjectOpened(await api.projects.openPython(item.path)); return; }
     const r = await api.project.openPath(item.path);
     if (r.ok) show({ doc: r.doc, name: r.name, path: r.path });
     else if ('message' in r) { setNotice(r.message); setRecent(await api.project.recent()); }
@@ -241,7 +244,8 @@ export function App({ api, width, startRun, audio }: AppProps) {
     setAsk({ name: o.name, then });
   };
 
-  // Python 3 (M12, F-90–F-92, screens 31, 31b): the .py files open in tabs, run with the bundled CPython
+  // Python 3 (M12, F-90–F-92, screens 31, 31b): a project's files open in tabs, run with the bundled CPython.
+  // Rev 11 (F-100, F-101): a Python project is a folder, chosen or made first; its tree is beside the editor.
   const pyRun = usePython(api);
   const [py, setPy] = useState<{ tabs: PyTab[]; at: number }>({ tabs: [], at: 0 });
   const pyLatest = useRef(py);
@@ -249,35 +253,66 @@ export function App({ api, width, startRun, audio }: AppProps) {
   const pyTab = py.tabs[py.at];
   const pyRunning = pyRun.state.status !== 'idle';
   const pyDirtyTabs = py.tabs.filter((t) => t.text !== t.saved);
-  const addPyTab = (t: Omit<PyTab, 'key'>) => {
-    setPy((cur) => {
-      const i = t.path ? cur.tabs.findIndex((x) => x.path === t.path) : -1;
-      return i >= 0 ? { ...cur, at: i } : { tabs: [...cur.tabs, { ...t, key: ++pyKeys }], at: cur.tabs.length };
-    });
-    setMode('python');
+  const [pyProject, setPyProject] = useState<{ root: string; name: string } | null>(null);
+  const projectRef = useRef(pyProject);
+  projectRef.current = pyProject;
+  const [pyTree, setPyTree] = useState<TreeEntry[]>([]);
+  /** New project (screen 31e): Python, or a board — asked before it opens. */
+  const [newKind, setNewKind] = useState<NewKind | null>(null);
+  const relOf = (path: string) => (pyProject ? path.slice(pyProject.root.length + 1).replace(/\\/g, '/') : path);
+  const readTree = async (root = projectRef.current?.root) => {
+    if (!root) return;
+    const entries = await api.projects.tree(root);
+    if (projectRef.current?.root === root) setPyTree(entries);
   };
-  const newPy = () => {
-    const taken = new Set(pyLatest.current.tabs.map((t) => t.name));
-    let name = 'untitled';
-    for (let n = 2; taken.has(name); n++) name = `untitled ${n}`;
-    addPyTab({ name, text: NEW_PY, saved: NEW_PY });
-  };
+  useEffect(() => api.projects.onChanged((root) => { if (root === projectRef.current?.root) void readTree(root); }), [api]);
   const refreshRecent = async () => setRecent(await api.project.recent());
-  const pyOpened = (r: Awaited<ReturnType<MicrolabApi['pyfile']['open']>>) => {
-    if (r.ok) { addPyTab({ name: r.name, path: r.path, text: r.text, saved: r.text }); void refreshRecent(); }
-    else if ('message' in r) setNotice(r.message);
+  /** A Python project opened or made: its tree, and the file to show (main.py, or the .py file chosen). */
+  const pyProjectOpened = (r: PyProjectOpen) => {
+    if (!r.ok) { setNotice(r.message); return; }
+    projectRef.current = { root: r.root, name: r.name };
+    setPyProject(projectRef.current);
+    setPy({ tabs: r.file ? [{ key: ++pyKeys, path: r.file.path, text: r.file.text, saved: r.file.text }] : [], at: 0 });
+    setPyTree([]);
+    void readTree(r.root);
+    setNotice(null);
+    setMode('python');
+    void refreshRecent();
   };
-  const openPy = async () => pyOpened(await api.pyfile.open());
-  /** Saves a tab (the one shown) to its file, or asks where; true when it was saved. */
+  /** Before another Python project replaces this one: its files' changes. */
+  const guardPy = (then: () => void) => {
+    const dirtyTab = pyLatest.current.tabs.findIndex((t) => t.text !== t.saved);
+    if (dirtyTab < 0) { then(); return; }
+    const t = pyLatest.current.tabs[dirtyTab]!;
+    setAsk({ name: fileName(t), save: () => savePy(false, dirtyTab), then: () => {
+      setPy((cur) => ({ ...cur, tabs: cur.tabs.map((x) => (x.key === t.key ? { ...x, saved: x.text } : x)) }));
+      setTimeout(() => guardPyRef.current(then), 0);
+    } });
+  };
+  const guardPyRef = useRef(guardPy);
+  guardPyRef.current = guardPy;
+  const newPython = () => setNewKind({ python: true });
+  /** A file of the project opened in a tab (or shown, if it is open). */
+  const openInProject = async (rel: string) => {
+    const p = projectRef.current;
+    if (!p) return;
+    const r = await api.projects.read(p.root, rel);
+    if (!r.ok) { if ('message' in r) setNotice(r.message); return; }
+    setPy((cur) => {
+      const i = cur.tabs.findIndex((x) => x.path === r.path);
+      return i >= 0 ? { ...cur, at: i } : { tabs: [...cur.tabs, { key: ++pyKeys, path: r.path, text: r.text, saved: r.text }], at: cur.tabs.length };
+    });
+  };
+  /** Saves a tab (the one shown) to its file — or, Save as, where the student chooses; true when it was saved. */
   const savePy = async (asNew = false, i = pyLatest.current.at): Promise<boolean> => {
     const t = pyLatest.current.tabs[i];
     if (!t) return false;
     const text = t.text;
-    const r = await api.pyfile.save(text, asNew || !t.path ? { name: t.name } : { path: t.path, name: t.name });
+    const r = await api.pyfile.save(text, asNew ? { name: fileName(t), from: t.path.replace(/[\\/][^\\/]*$/, '') } : { path: t.path, name: fileName(t) });
     if (!r.ok) { if ('message' in r) setNotice(r.message); return false; }
     setNotice(null);
-    setPy((cur) => ({ ...cur, tabs: cur.tabs.map((x) => (x.key === t.key ? { ...x, path: r.path, name: r.name, saved: text } : x)) }));
-    void refreshRecent();
+    setPy((cur) => ({ ...cur, tabs: cur.tabs.map((x) => (x.key === t.key ? { ...x, path: r.path, saved: text } : x)) }));
+    void readTree();
     return true;
   };
   const closePy = (i: number) => {
@@ -290,11 +325,31 @@ export function App({ api, width, startRun, audio }: AppProps) {
     if (t.text === t.saved) close();
     else setAsk({ name: fileName(t), then: close, save: () => savePy(false, i) });
   };
+  /** A file or folder renamed in the tree: its open tabs follow it. */
+  const pyRenamed = (from: string, to: string) => {
+    const p = projectRef.current;
+    if (!p) return;
+    const sep = p.root.includes('\\') ? '\\' : '/';
+    const a = p.root + sep + from.split('/').join(sep);
+    const b = p.root + sep + to.split('/').join(sep);
+    setPy((cur) => ({ ...cur, tabs: cur.tabs.map((t) => (t.path === a || t.path.startsWith(a + sep) ? { ...t, path: b + t.path.slice(a.length) } : t)) }));
+  };
+  /** Deleted in the tree (to the Bin): its tabs close. */
+  const pyDeleted = (rel: string) => {
+    const p = projectRef.current;
+    if (!p) return;
+    const sep = p.root.includes('\\') ? '\\' : '/';
+    const a = p.root + sep + rel.split('/').join(sep);
+    setPy((cur) => {
+      const tabs = cur.tabs.filter((t) => !(t.path === a || t.path.startsWith(a + sep)));
+      return { tabs, at: Math.max(0, Math.min(cur.at, tabs.length - 1)) };
+    });
+  };
   /** Runs the file shown; `again` (Restart, Ctrl+D) replaces a run still going — the main process ends it. */
   const runPy = (again = false) => {
     const t = pyLatest.current.tabs[pyLatest.current.at];
     if (!t || (!again && pyRun.state.status !== 'idle')) return;
-    pyRun.run(t.text, t.path ?? fileName(t), fileName(t));
+    pyRun.run(t.text, t.path, fileName(t));
   };
   // Libraries (screen 31d): the window, and how many are installed (the status bar)
   const [libsOpen, setLibsOpen] = useState(false);
@@ -305,8 +360,6 @@ export function App({ api, width, startRun, audio }: AppProps) {
     void api.python3.libs.list().then((l) => { if (live) setLibCount(l.length); });
     return () => { live = false; };
   }, [api, mode]);
-  // the Python 3 mode always has a file: a new one when it has none
-  useEffect(() => { if (mode === 'python' && py.tabs.length === 0) newPy(); }, [mode, py.tabs.length]);
   /** Before the window closes: the project's changes, then each Python file's. */
   const guardAll = (then: () => void) => guard(() => {
     const dirtyTab = pyLatest.current.tabs.findIndex((t) => t.text !== t.saved);
@@ -328,9 +381,9 @@ export function App({ api, width, startRun, audio }: AppProps) {
   useEffect(() => api.app.onCloseRequest(() => guardRef.current(() => { void api.recovery.clear().finally(() => api.app.close()); })), [api]);
   useEffect(() => { api.app.setDirty(dirty || pyDirtyTabs.length > 0); }, [api, dirty, pyDirtyTabs.length]);
   useEffect(() => {
-    document.title = mode === 'python' && pyTab ? `${fileName(pyTab)}${pyTab.text !== pyTab.saved ? ' •' : ''} — MicroLab`
+    document.title = mode === 'python' && pyProject ? `${pyProject.name}${pyTab ? ` · ${fileName(pyTab)}${pyTab.text !== pyTab.saved ? ' •' : ''}` : ''} — MicroLab`
       : open ? `${open.name}${dirty ? ' •' : ''} — MicroLab` : 'MicroLab';
-  }, [open, dirty, mode, pyTab]);
+  }, [open, dirty, mode, pyTab, pyProject]);
 
   // the circuit's undo / redo (M5.1): the top bar's buttons (screen 02b) and ⌘Z / Ctrl+Z on the canvas
   const step = (go: typeof undo) => setOpen((cur) => {
@@ -349,7 +402,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === 's') { e.preventDefault(); void savePy(e.shiftKey); }
-      else if (k === 'o') { e.preventDefault(); void openPy(); }
+      else if (k === 'o') { e.preventDefault(); guardPy(() => void openAny()); }
       return;
     }
     if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
@@ -457,12 +510,14 @@ export function App({ api, width, startRun, audio }: AppProps) {
   };
 
   const page = controls ? <ControlsPage />
-    : mode === 'python' ? (pyTab ? (
+    : mode === 'python' ? (pyProject ? (
       <PythonScreen api={api} tabs={py.tabs} at={py.at} onAt={(i) => setPy((cur) => ({ ...cur, at: i }))}
+        side={<ProjectTree api={api} root={pyProject.root} name={pyProject.name} entries={pyTree} current={pyTab ? relOf(pyTab.path) : undefined}
+          onOpen={(rel) => void openInProject(rel)} onRenamed={pyRenamed} onDeleted={pyDeleted} onChanged={() => void readTree()} />}
         onText={(text) => setPy((cur) => ({ ...cur, tabs: cur.tabs.map((t, i) => (i === cur.at ? { ...t, text } : t)) }))}
-        onNew={newPy} onClose={closePy} run={pyRun.state} running={pyRunning} onType={pyRun.type}
+        onClose={closePy} run={pyRun.state} running={pyRunning} onType={pyRun.type}
         onRerun={() => runPy(true)} onClear={pyRun.clear} onClearPlot={pyRun.clearPlot} />
-    ) : null)
+    ) : <NoPythonProject onNew={newPython} onOpen={() => void openAny()} />)
     : mode !== 'workspace' ? <Later />
     : open ? <Workspace key={open.key} api={api} width={width} doc={open.doc} onChange={(doc) => setOpen((cur) => (cur ? { ...cur, doc, savedNote: undefined } : cur))}
         history={open.history ?? EMPTY_HISTORY} onHistory={(h) => setOpen((cur) => (cur ? { ...cur, history: h } : cur))}
@@ -492,7 +547,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
             <button type="button" className="btn sm" onClick={() => consoleDo({ do: 'interrupt' })}><Icon name="stop" size={14} /> Stop the board</button>
           </>
         ) : undefined} />
-    : <StartPage onNew={start} onNewPython={newPy} onOpen={() => guard(() => void openAny())}
+    : <StartPage onNew={(b) => guard(() => start(b))} onNewPython={() => guardPy(newPython)} onOpen={() => guard(() => void openAny())}
         recent={recent} onOpenRecent={(r) => guard(() => void openRecent(r))}
         onForget={(r) => void api.project.forget(r.path).then(async () => setRecent(await api.project.recent()))}
         recovered={recovered} onRecover={recover} onDiscard={discard} />;
@@ -501,10 +556,11 @@ export function App({ api, width, startRun, audio }: AppProps) {
     <div className="app">
       <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} dirty={dirty} run={runControls} chip={chip} {...actions}
         onOpenAny={() => guard(() => void openAny())}
-        py={pyTab ? {
-          tab: pyTab, onNew: newPy, onOpen: () => void openPy(), onSave: () => void savePy(), onSaveAs: () => void savePy(true), onLibraries: () => setLibsOpen(true),
-          run: { state: pyRun.state, target: fileName(pyTab), keys: 'F5', onRun: () => runPy(), onStop: pyRun.stop,
-            onRestart: () => runPy(true) },
+        py={pyProject ? {
+          project: pyProject, ...(pyTab ? { tab: pyTab } : {}),
+          onNew: () => guardPy(newPython), onOpen: () => guardPy(() => void openAny()), onSave: () => void savePy(), onSaveAs: () => void savePy(true),
+          onShow: () => void api.projects.reveal(pyProject.root, ''), onLibraries: () => setLibsOpen(true),
+          ...(pyTab ? { run: { state: pyRun.state, target: fileName(pyTab), keys: 'F5', onRun: () => runPy(), onStop: pyRun.stop, onRestart: () => runPy(true) } } : {}),
         } : undefined}
         edit={open && mode === 'workspace' ? {
           canUndo: !running && (open.history?.past.length ?? 0) > 0, canRedo: !running && (open.history?.future.length ?? 0) > 0,
@@ -543,6 +599,11 @@ export function App({ api, width, startRun, audio }: AppProps) {
           onClose={() => { void api.boards.files.done(filesOf.id); setFilesOf(null); }} />
       )}
       {libsOpen && <Libraries api={api} onClose={() => setLibsOpen(false)} onChanged={(l) => setLibCount(l.length)} />}
+      {newKind && (
+        <NewProject api={api} kind={newKind} onCancel={() => setNewKind(null)}
+          onPython={(r) => { setNewKind(null); pyProjectOpened(r); }}
+          onBoard={({ doc, path, name }) => { setNewKind(null); show({ doc, name, path }); void refreshRecent(); }} />
+      )}
       {ask && (
         <Dialog title={`Save your changes to “${ask.name}”?`} onCancel={() => setAsk(null)} actions={[
           { label: 'Save', primary: true, onClick: () => { const then = ask.then; const saving = ask.save ?? (() => save()); setAsk(null); void saving().then((ok) => ok && then()); } },
@@ -568,7 +629,6 @@ function useHash() {
 }
 
 /** A new .py file's text (screen 31's card). */
-const NEW_PY = 'print("Hello!")\n';
 let pyKeys = 0;
 
 const MODES: { id: Mode; label: string; icon: string }[] = [
@@ -595,7 +655,7 @@ interface TopBarProps {
   /** Open… with nothing open (screen 31): a project or a .py file. */
   onOpenAny: () => void;
   /** The Python 3 mode (M12, screen 31b): the file shown, its menu, its Run. */
-  py?: { tab: PyTab; run: RunControls; onNew: () => void; onOpen: () => void; onSave: () => void; onSaveAs: () => void; onLibraries: () => void };
+  py?: { project: { root: string; name: string }; tab?: PyTab; run?: RunControls; onNew: () => void; onOpen: () => void; onSave: () => void; onSaveAs: () => void; onShow: () => void; onLibraries: () => void };
 }
 
 interface RunControls {
@@ -631,18 +691,19 @@ function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, o
       {mode === 'python' && py ? (
         <>
           <div className="vsep" />
-          <div className="pyfile" role="group" aria-label="Python file">
-            <b>{fileName(py.tab)}{py.tab.text !== py.tab.saved && <span className="unsaved" title="Not saved" />}</b>
-            <span>{py.tab.path ? `${py.tab.path.split(/[\\/]/).slice(-2, -1)[0] ?? ''} · ${py.tab.text === py.tab.saved ? 'saved' : 'not saved'}` : 'not saved yet'}</span>
+          <div className="pyfile" role="group" aria-label="Python project">
+            <b>{py.project.name}{py.tab && <> · {fileName(py.tab)}</>}{py.tab && py.tab.text !== py.tab.saved && <span className="unsaved" title="Not saved" />}</b>
+            <span title={py.project.root}>{shortPath(py.project.root)}{py.tab ? ` · ${py.tab.text === py.tab.saved ? 'saved' : 'not saved'}` : ''}</span>
           </div>
-          <MenuButton label="Python file menu" items={[
-            { label: 'New Python file', icon: 'plus', onSelect: py.onNew },
-            { label: 'Open a .py file…', icon: 'folder', hint: `${MOD}O`, keys: 'Meta+O Control+O', onSelect: py.onOpen },
-            { label: 'Save', icon: 'file', hint: `${MOD}S`, keys: 'Meta+S Control+S', onSelect: py.onSave },
-            { label: 'Save as…', icon: 'copy', hint: MOD === '⌘' ? '⇧⌘S' : 'Ctrl+Shift+S', keys: 'Shift+Meta+S Shift+Control+S', onSelect: py.onSaveAs },
+          <MenuButton label="Python project menu" items={[
+            { label: 'New Python project…', icon: 'plus', onSelect: py.onNew },
+            { label: 'Open a project…', icon: 'folder', hint: `${MOD}O`, keys: 'Meta+O Control+O', onSelect: py.onOpen },
+            { label: 'Save', icon: 'file', hint: `${MOD}S`, keys: 'Meta+S Control+S', disabled: !py.tab, onSelect: py.onSave },
+            { label: 'Save as…', icon: 'copy', hint: MOD === '⌘' ? '⇧⌘S' : 'Ctrl+Shift+S', keys: 'Shift+Meta+S Shift+Control+S', disabled: !py.tab, onSelect: py.onSaveAs },
+            { label: MOD === '⌘' ? 'Show the project in Finder' : 'Show the project in Explorer', icon: 'folder', onSelect: py.onShow },
           ]} />
           <span className="spacer" />
-          <RunBox run={py.run} />
+          {py.run && <RunBox run={py.run} />}
           <button type="button" className="btn" onClick={py.onLibraries} title="Libraries for Python 3: install from PyPI, or a .whl file"><Icon name="grid" size={14} /> Libraries</button>
         </>
       ) : project && mode !== 'python' ? (
@@ -814,6 +875,22 @@ function PyStatusBar({ run, libraries }: { run: PyRunState; libraries: number | 
         <span>{run.version ? `Python ${run.version} (MicroLab)` : 'Python 3 (MicroLab)'}</span>
       </span>
     </footer>
+  );
+}
+
+/** The Python 3 mode with no project open (Rev 11): a project is made, or opened, first. */
+function NoPythonProject({ onNew, onOpen }: { onNew: () => void; onOpen: () => void }) {
+  return (
+    <main className="pynone" aria-label="Python 3">
+      <div>
+        <h2>No Python project is open</h2>
+        <p className="muted">Each program lives in a project: a folder with its files, as in PyCharm. Make one — MicroLab asks its name and where it goes — or open one.</p>
+        <div className="row">
+          <button type="button" className="btn primary" onClick={onNew}><Icon name="plus" size={14} /> New Python project</button>
+          <button type="button" className="btn" onClick={onOpen}><Icon name="folder" size={14} /> Open a project…</button>
+        </div>
+      </div>
+    </main>
   );
 }
 

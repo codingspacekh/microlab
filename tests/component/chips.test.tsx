@@ -7,9 +7,10 @@ import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
 import { startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M6.5b (screen 21, approved 2026-11-07): the kit's chips in the editor and while running. */
-function setup() {
+async function setup() {
   const runs: { doc: ProjectDoc; events: RunEvents; setInput: ReturnType<typeof vi.fn> }[] = [];
   const start: StartRun = (req, events) => {
     const r = { ...req, events, setInput: vi.fn() };
@@ -17,7 +18,7 @@ function setup() {
     return { stop: vi.fn(), setInput: r.setInput };
   };
   render(<App api={fakeApi()} width={1440} startRun={start} audio={() => null} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
@@ -39,8 +40,8 @@ function setup() {
 }
 
 describe('M6.5b the kit\'s chips in the editor (screen 21)', () => {
-  it('a Chips group of six; each drawn from its pins, named as printed', () => {
-    const s = setup();
+  it('a Chips group of six; each drawn from its pins, named as printed', async () => {
+    const s = await setup();
     const group = within(s.panel).getByRole('group', { name: 'Chips' });
     expect(within(group).getAllByRole('button')).toHaveLength(6);
     s.place(/^VL53L0X/, 'vl53l0x', 'bb1.f2');
@@ -52,8 +53,8 @@ describe('M6.5b the kit\'s chips in the editor (screen 21)', () => {
 });
 
 describe('M6.5b while running (screen 21)', () => {
-  it('the Inputs card: the air (temperature, pressure), the DS18B20\'s temperature, the distance, the pulse', () => {
-    const s = setup();
+  it('the Inputs card: the air (temperature, pressure), the DS18B20\'s temperature, the distance, the pulse', async () => {
+    const s = await setup();
     s.place(/^BMP280/, 'bmp280', 'bb1.f2');
     s.place(/^DS18B20/, 'ds18b20', 'bb1.f9');
     s.place(/^VL53L0X/, 'vl53l0x', 'bb1.f13');
@@ -78,8 +79,8 @@ describe('M6.5b while running (screen 21)', () => {
     expect(s.input()).toHaveBeenLastCalledWith('bpm:pulse1', 73);
   });
 
-  it('the DS1302\'s tip says its time; the VL53L0X\'s laser shows while it is powered', () => {
-    const s = setup();
+  it('the DS1302\'s tip says its time; the VL53L0X\'s laser shows while it is powered', async () => {
+    const s = await setup();
     s.place(/^DS1302/, 'ds1302', 'bb1.f2');
     s.place(/^VL53L0X/, 'vl53l0x', 'bb1.f10');
     s.run();

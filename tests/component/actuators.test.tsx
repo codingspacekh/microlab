@@ -7,18 +7,19 @@ import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
 import { startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M7 slice 1 in the editor (screens 25, 25b): the Actuators and Output modules groups; a motor, a pump, an L298N lie
  *  where they are let go, their tabs and screws points to wire; a ULN2003 brings its stepper; the power supply's
  *  jumpers clicked; while running each says what it does. The simulation is a fake: the test says what the worker says. */
-function setup() {
+async function setup() {
   const runs: { doc: ProjectDoc; events: RunEvents }[] = [];
   const start: StartRun = (req, events) => {
     runs.push({ ...req, events });
     return { stop: vi.fn(), setInput: vi.fn() };
   };
   render(<App api={fakeApi()} width={1440} startRun={start} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
@@ -56,8 +57,8 @@ function setup() {
 }
 
 describe('M7 the parts panel (screens 25, 25b)', () => {
-  it('an Actuators group and an Output modules group; the stepper comes with its ULN2003', () => {
-    setup();
+  it('an Actuators group and an Output modules group; the stepper comes with its ULN2003', async () => {
+    await setup();
     const panel = screen.getByRole('region', { name: 'Parts' });
     const names = (group: string) => within(within(panel).getByRole('group', { name: group })).getAllByRole('button').map((b) => b.querySelector('.nm')!.firstChild!.textContent);
     expect(names('Actuators')).toEqual(['Servo SG90', 'TT motor', 'L9110S driver', 'L298N driver', 'Relay module', 'Water pump', 'Stepper 28BYJ-48']);
@@ -66,8 +67,8 @@ describe('M7 the parts panel (screens 25, 25b)', () => {
 });
 
 describe('M7 a motor beside the breadboard, wired at its tabs', () => {
-  it('let go anywhere on the canvas, it lies there; its tabs are points; a wire goes from a tab to a hole', () => {
-    const s = setup();
+  it('let go anywhere on the canvas, it lies there; its tabs are points; a wire goes from a tab to a hole', async () => {
+    const s = await setup();
     s.drop(/^TT motor/, { x: 700, y: 120 });
     expect(s.part('motor1')).toHaveAttribute('data-at', '680,120');
     expect(s.part('motor1').querySelector('.tt-motor')).not.toBeNull();
@@ -83,8 +84,8 @@ describe('M7 a motor beside the breadboard, wired at its tabs', () => {
     expect(within(s.inspector()).getByRole('button', { name: /Rotate/ })).toBeInTheDocument();
   });
 
-  it('dragged, it moves on the grid; deleted, the wire on its tab goes too', () => {
-    const s = setup();
+  it('dragged, it moves on the grid; deleted, the wire on its tab goes too', async () => {
+    const s = await setup();
     s.drop(/^TT motor/, { x: 700, y: 120 });
     s.wire('motor1.-', 'bb1.a7');
     fireEvent.mouseDown(s.part('motor1'), { clientX: 0, clientY: 0, button: 0 });
@@ -98,8 +99,8 @@ describe('M7 a motor beside the breadboard, wired at its tabs', () => {
 });
 
 describe('M7 drivers in the breadboard, their screws to wire', () => {
-  it('an L9110S in row f: its MOTOR A screws are points; a wire from a screw to the motor\'s tab', () => {
-    const s = setup();
+  it('an L9110S in row f: its MOTOR A screws are points; a wire from a screw to the motor\'s tab', async () => {
+    const s = await setup();
     s.place(/^L9110S/, 'l9110s', 'bb1.f8');
     s.drop(/^TT motor/, { x: 700, y: 120 });
     s.wire('drv1.a1', 'motor1.+');
@@ -109,8 +110,8 @@ describe('M7 drivers in the breadboard, their screws to wire', () => {
     expect(s.inspector()).toHaveTextContent(/B-IA bb1\.f8|B-IA f8/);
   });
 
-  it('the ULN2003 brings the 28BYJ-48, its cable in the socket — one undo takes both away', () => {
-    const s = setup();
+  it('the ULN2003 brings the 28BYJ-48, its cable in the socket — one undo takes both away', async () => {
+    const s = await setup();
     s.place(/^Stepper 28BYJ-48/, 'uln2003', 'bb1.f4');
     expect(s.part('uln1')).not.toBeNull();
     expect(s.part('step1').querySelector('.stepper')).not.toBeNull();
@@ -120,15 +121,15 @@ describe('M7 drivers in the breadboard, their screws to wire', () => {
     expect(s.svg.querySelector('[data-part="uln1"]')).toBeNull();
   });
 
-  it('a relay module: what turns it on, in its inspector', () => {
-    const s = setup();
+  it('a relay module: what turns it on, in its inspector', async () => {
+    const s = await setup();
     s.place(/^Relay module/, 'relay', 'bb1.f19');
     fireEvent.click(within(s.inspector()).getByRole('radio', { name: 'S low' }));
     expect(s.part('relay1')).toHaveAttribute('data-props', '{"trigger":"low"}');
   });
 
-  it('an L298N\'s jumpers, in its inspector: ENB off', () => {
-    const s = setup();
+  it('an L298N\'s jumpers, in its inspector: ENB off', async () => {
+    const s = await setup();
     s.drop(/^L298N/, { x: 760, y: 200 });
     const row = within(s.inspector()).getByRole('radiogroup', { name: 'ENB jumper' });
     fireEvent.click(within(row).getByRole('radio', { name: 'Off' }));
@@ -139,8 +140,8 @@ describe('M7 drivers in the breadboard, their screws to wire', () => {
 });
 
 describe('M7 the breadboard power supply (screen 25b)', () => {
-  it('on the rails at the left end; its jumpers clicked on the canvas set 5 V or 3.3 V; its inspector too', () => {
-    const s = setup();
+  it('on the rails at the left end; its jumpers clicked on the canvas set 5 V or 3.3 V; its inspector too', async () => {
+    const s = await setup();
     s.place(/^Breadboard power supply/, 'power-supply', 'bb1.T-1');
     expect(s.part('psu1')).toHaveAttribute('data-legs', 'bb1.T-1 bb1.T-2 bb1.T+1 bb1.T+2 bb1.B+1 bb1.B+2 bb1.B-1 bb1.B-2');
     fireEvent.click(s.svg.querySelector('[data-jumper="psu1.top"]')!);
@@ -155,8 +156,8 @@ describe('M7 the breadboard power supply (screen 25b)', () => {
 });
 
 describe('M7 while running (screens 25, 25b)', () => {
-  it('a motor\'s rpm and way, a servo\'s arm, a relay\'s contact, a pump running, a driver\'s LED; hovered, what each does', () => {
-    const s = setup();
+  it('a motor\'s rpm and way, a servo\'s arm, a relay\'s contact, a pump running, a driver\'s LED; hovered, what each does', async () => {
+    const s = await setup();
     s.place(/^Servo SG90/, 'servo', 'bb1.a2');
     s.place(/^L9110S/, 'l9110s', 'bb1.f8');
     s.place(/^Relay module/, 'relay', 'bb1.f19');
@@ -182,8 +183,8 @@ describe('M7 while running (screens 25, 25b)', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent(/RELAY1 · on · COM to NO/);
   });
 
-  it('a servo on 3V3 says it can\'t turn; a stepper its steps and coils', () => {
-    const s = setup();
+  it('a servo on 3V3 says it can\'t turn; a stepper its steps and coils', async () => {
+    const s = await setup();
     s.place(/^Servo SG90/, 'servo', 'bb1.a2');
     s.place(/^Stepper 28BYJ-48/, 'uln2003', 'bb1.f10');
     s.run();

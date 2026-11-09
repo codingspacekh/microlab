@@ -6,6 +6,7 @@ import { App } from '../../src/renderer/app/App';
 import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
+import { newProjectFromStart } from './new-project';
 
 /** M9 slice 4 (F-38, screen 29): Meter takes out the multimeter; its probes dragged onto holes read V and Ω, a wire
  *  clicked reads A; with a program running it follows the board's pins. */
@@ -26,7 +27,7 @@ async function setup(d: ProjectDoc) {
   const start: StartRun = (_req, events) => { runs.push({ events }); return { stop: vi.fn(), setInput: vi.fn() }; };
   const api = fakeApi({ open: vi.fn(async () => ({ ok: true as const, path: '/s/p.mlab', name: d.project.title ?? 'p', doc: d })) });
   render(<App api={api} width={1440} startRun={start} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   fireEvent.click(screen.getByRole('button', { name: 'Project menu' }));
   fireEvent.click(screen.getByRole('menuitem', { name: 'Open a project…' }));
   await waitFor(() => expect(screen.getByRole('group', { name: 'Project' })).toHaveTextContent(d.project.title ?? ''));

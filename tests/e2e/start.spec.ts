@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import { newProject, writeMlab } from '../../src/lib/project';
+import { newProject as newProjectFromStart } from './new-project';
 
 /** M4.2 the Start screen (01): it fills the window (N-13); a new project from a board (F-01); open a .mlab (F-02). */
 let app: ElectronApplication;
@@ -54,7 +55,7 @@ test('at 1280, 1440 and 1920 wide the start screen fills the window: no horizont
 
 test('F-01 a new ESP32 project: the workspace, the board named in the top bar, the starter main.py', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New ESP32 project' }).click();
+  await newProjectFromStart(win, 'New ESP32 project');
   await expect(win.getByRole('region', { name: 'Circuit' })).toBeVisible();
   await expect(win.getByRole('group', { name: 'Project' })).toContainText('ESP32 DevKit V1 (30 pins)');
   await expect(win.getByRole('region', { name: 'Code' })).toContainText('Pin(2, Pin.OUT)');

@@ -1,8 +1,9 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { strToU8, zipSync } from 'fflate';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
+import { newProject } from './new-project';
 
 /** M12 slice 2 (F-90–F-92, screens 31, 31b): the Python 3 screen in the real app — a real CPython (the bundled one,
  *  or in development the computer's python3) runs the file: input() answered, >>> after it, Ctrl+C, Save. */
@@ -33,8 +34,8 @@ async function setCode(win: Page, name: string, code: string) {
 
 test('a new Python file runs in real CPython: input() answered in the shell, then >>> in its names; Ctrl+C stops a loop', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Python file' }).click();
-  await setCode(win, 'untitled.py', ['secret = 7', 'name = input("Name? ")', 'print(f"Hello {name}!")', ''].join('\n'));
+  await newProject(win, 'New Python project');
+  await setCode(win, 'main.py', ['secret = 7', 'name = input("Name? ")', 'print(f"Hello {name}!")', ''].join('\n'));
   await win.keyboard.press('F5');
   const shell = win.getByRole('log', { name: 'Shell' });
   const prompt = win.locator('.pyshell .prompt').getByRole('textbox');
@@ -42,7 +43,7 @@ test('a new Python file runs in real CPython: input() answered in the shell, the
   await prompt.fill('Sok');
   await prompt.press('Enter');
   await expect(shell).toContainText('Hello Sok!', { timeout: 5000 });
-  await expect(shell).toContainText('untitled.py ended. Its names are still here');
+  await expect(shell).toContainText('main.py ended. Its names are still here');
   await expect(win.getByRole('status')).toContainText(/Python 3\.\d+\.\d+ \(MicroLab\)/);
   await prompt.fill('secret * 6');
   await prompt.press('Enter');
@@ -61,35 +62,34 @@ test('a new Python file runs in real CPython: input() answered in the shell, the
   await expect(win.locator('.pyshell .prompt')).toContainText('>>>');
 });
 
-test('Stop ends a program that runs on; Save writes the .py file where the student chose', async () => {
+test('Stop ends a program that runs on; ⌘S saves main.py in its project\'s folder on disk', async () => {
   const win = await app.firstWindow();
-  const file = join(home, 'loop.py');
-  await app.evaluate(({ dialog }, p) => {
-    dialog.showSaveDialog = (async () => ({ canceled: false, filePath: p })) as typeof dialog.showSaveDialog;
-  }, file);
-  await win.getByRole('button', { name: 'New Python file' }).click();
-  await setCode(win, 'untitled.py', ['import time', 'n = 0', 'while True:', '    n += 1', '    print(n)', '    time.sleep(0.1)', ''].join('\n'));
+  const file = join(home, 'Documents', 'MicroLab', 'Test project', 'main.py');
+  await newProject(win, 'New Python project');
+  expect(readFileSync(file, 'utf8')).toBe('print("Hello!")\n');   // made with the project
+  await setCode(win, 'main.py', ['import time', 'n = 0', 'while True:', '    n += 1', '    print(n)', '    time.sleep(0.1)', ''].join('\n'));
   await win.keyboard.press(`${MOD}+s`);
-  await expect(win.getByRole('group', { name: 'Python file' })).toContainText('loop.py');
+  await expect(win.getByRole('group', { name: 'Python project' })).toContainText('Test project · main.py');
+  await expect(win.getByRole('group', { name: 'Python project' })).toContainText('saved');
   expect(readFileSync(file, 'utf8')).toContain('time.sleep(0.1)');
-  await win.getByRole('button', { name: /Run loop\.py/ }).click();
+  await win.getByRole('button', { name: /Run main\.py/ }).click();
   await expect(win.getByRole('log', { name: 'Shell' })).toContainText('3', { timeout: 10_000 });
   await win.getByRole('button', { name: 'Stop' }).click();
-  await expect(win.getByRole('button', { name: /Run loop\.py/ })).toBeVisible({ timeout: 2000 });
+  await expect(win.getByRole('button', { name: /Run main\.py/ })).toBeVisible({ timeout: 2000 });
   await expect(win.getByRole('log', { name: 'Shell' })).toContainText('Stopped.');
 });
 
 test('M12 slice 3 (screen 31c): a turtle program in real CPython — its window (hidden in tests) is said to be open; Stop ends it', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Python file' }).click();
-  await setCode(win, 'untitled.py', ['import turtle', 't = turtle.Turtle()', 't.speed(0)', 'for i in range(36):', '    t.forward(i * 3)', '    t.left(59)', 'print("drawn")', 'turtle.done()', ''].join('\n'));
+  await newProject(win, 'New Python project');
+  await setCode(win, 'main.py', ['import turtle', 't = turtle.Turtle()', 't.speed(0)', 'for i in range(36):', '    t.forward(i * 3)', '    t.left(59)', 'print("drawn")', 'turtle.done()', ''].join('\n'));
   await win.keyboard.press('F5');
   const shell = win.getByRole('log', { name: 'Shell' });
-  await expect(shell).toContainText('A window from untitled.py is open beside MicroLab.', { timeout: 15_000 });
+  await expect(shell).toContainText('A window from main.py is open beside MicroLab.', { timeout: 15_000 });
   await expect(shell).toContainText('drawn', { timeout: 10_000 });
-  await expect(win.getByRole('status')).toContainText('Running untitled.py');
+  await expect(win.getByRole('status')).toContainText('Running main.py');
   await win.getByRole('button', { name: 'Stop' }).click();
-  await expect(win.getByRole('button', { name: /Run untitled\.py/ })).toBeVisible({ timeout: 2000 });
+  await expect(win.getByRole('button', { name: /Run main\.py/ })).toBeVisible({ timeout: 2000 });
   await expect(shell).toContainText('Stopped.');
 });
 
@@ -107,7 +107,7 @@ test('M12 slice 4 (screen 31d): a teacher\'s .whl file installs with real pip in
   await app.evaluate(({ dialog }, p) => {
     dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [p] })) as typeof dialog.showOpenDialog;
   }, whl);
-  await win.getByRole('button', { name: 'New Python file' }).click();
+  await newProject(win, 'New Python project');
   await win.getByRole('button', { name: 'Libraries' }).click();
   const d = win.getByRole('dialog', { name: 'Libraries for Python 3' });
   await d.getByRole('button', { name: 'Install from a .whl file…' }).click();
@@ -116,7 +116,7 @@ test('M12 slice 4 (screen 31d): a teacher\'s .whl file installs with real pip in
   await d.getByRole('button', { name: 'Done' }).click();
   await expect(win.getByRole('status')).toContainText('1 library installed');
 
-  await setCode(win, 'untitled.py', 'import greet\nprint(greet.hello("Sok"))\n');
+  await setCode(win, 'main.py', 'import greet\nprint(greet.hello("Sok"))\n');
   await win.keyboard.press('F5');
   await expect(win.getByRole('log', { name: 'Shell' })).toContainText('Hello Sok from greet', { timeout: 10_000 });
 
@@ -128,8 +128,8 @@ test('M12 slice 4 (screen 31d): a teacher\'s .whl file installs with real pip in
 
 test('M12 slice 5 (F-94): a real CPython error explained in the shell, its line marked; Go to line; an error at >>> too', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Python file' }).click();
-  await setCode(win, 'untitled.py', ['guess = input("Guess: ")', 'if guess < 7:', '    print("higher")', ''].join('\n'));
+  await newProject(win, 'New Python project');
+  await setCode(win, 'main.py', ['guess = input("Guess: ")', 'if guess < 7:', '    print("higher")', ''].join('\n'));
   await win.keyboard.press('F5');
   const shell = win.getByRole('log', { name: 'Shell' });
   const prompt = win.locator('.pyshell .prompt').getByRole('textbox');
@@ -150,15 +150,15 @@ test('M12 slice 5 (F-94): a real CPython error explained in the shell, its line 
 test('M12 slice 5b (F-97, F-92): Jedi offers turtle\'s names as they are typed, with what each does; a call\'s arguments; Tab at >>>', async () => {
   test.skip(!existsSync(join('vendor', 'python-tools', 'jedi')), 'Jedi not fetched: npm run fetch:python -- --tools');
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: 'New Python file' }).click();
-  await setCode(win, 'untitled.py', 'import turtle\nturtle.fo');
+  await newProject(win, 'New Python project');
+  await setCode(win, 'main.py', 'import turtle\nturtle.fo');
   await win.keyboard.press('Control+Space');
   const list = win.locator('.cm-tooltip-autocomplete');
   await expect(list.getByRole('option', { name: /forward/ })).toBeVisible({ timeout: 10_000 });   // the helper's first start
   await expect(win.locator('.cm-completionInfo')).toContainText('Move the turtle forward');
   await win.keyboard.press('Enter');
   await win.keyboard.type('10, ');
-  await expect(win.getByRole('textbox', { name: 'untitled.py' })).toContainText('turtle.forward(10, )');
+  await expect(win.getByRole('textbox', { name: 'main.py' })).toContainText('turtle.forward(10, )');
   await win.keyboard.press(`${MOD}+A`);
   await win.keyboard.insertText('import turtle\nturtle.goto(10, ');
   await expect(win.locator('.ml-signature b')).toHaveText(/^y/, { timeout: 5000 });
@@ -174,8 +174,8 @@ test('M12 slice 5b (F-97, F-92): Jedi offers turtle\'s names as they are typed, 
 
 test('M12 slice 6a (Rev 11; screens 31b, 31f): brackets and quotes typed in pairs; the shell put on the right and dragged wider — remembered', async () => {
   const win = await app.firstWindow();
-  await win.getByRole('button', { name: /New Python (file|project)/ }).click();
-  const editor = win.getByRole('textbox', { name: 'untitled.py' });
+  await newProject(win, 'New Python project');
+  const editor = win.getByRole('textbox', { name: 'main.py' });
   await editor.click();
   await win.keyboard.press(`${MOD}+A`);
   await win.keyboard.press('Backspace');
@@ -205,4 +205,48 @@ test('M12 slice 6a (Rev 11; screens 31b, 31f): brackets and quotes typed in pair
   const saved = JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8'));
   expect(saved.pyShell.place).toBe('right');
   expect(saved.pyShell.size).toBeCloseTo(0.6, 1);
+});
+
+test('M12 slice 6b (Rev 11; screens 31e, 31b): a Python project made on disk where the student chose; its tree; a new file; it opens again from Recent', async () => {
+  const win = await app.firstWindow();
+  const mine = join(home, 'Documents', 'MicroLab', 'Sokha');
+  mkdirSync(mine, { recursive: true });
+  await app.evaluate(({ dialog }, p) => {
+    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [p] })) as typeof dialog.showOpenDialog;
+  }, mine);
+  await win.getByRole('button', { name: 'New Python project' }).click();
+  const d = win.getByRole('dialog', { name: 'New Python project' });
+  await expect(d.getByRole('textbox', { name: 'Location' })).toHaveValue('Documents/MicroLab');
+  await d.getByRole('button', { name: 'Choose…' }).click();
+  await expect(d.getByRole('textbox', { name: 'Location' })).toHaveValue('Documents/MicroLab/Sokha');
+  await d.getByRole('textbox', { name: 'Project name' }).fill('guessing_game');
+  await expect(d.getByRole('status')).toContainText('Documents/MicroLab/Sokha/guessing_game');
+  await d.getByRole('button', { name: 'Create project' }).click();
+  const root = join(mine, 'guessing_game');
+  await expect(win.getByRole('textbox', { name: 'main.py' })).toContainText('print("Hello!")');
+  expect(existsSync(join(root, 'main.py'))).toBe(true);
+  const tree = win.getByRole('tree', { name: 'The files of guessing_game' });
+  await expect(tree.getByRole('treeitem', { name: 'main.py' })).toBeVisible();
+  // a new file from the tree: on disk at once, open in its tab
+  await win.getByRole('button', { name: 'New file' }).click();
+  await win.getByRole('textbox', { name: 'New file\'s name' }).fill('helpers');
+  await win.keyboard.press('Enter');
+  await expect(win.getByRole('textbox', { name: 'helpers.py' })).toBeVisible();
+  expect(existsSync(join(root, 'helpers.py'))).toBe(true);
+  // a file made by another program shows in the tree by itself (the folder is watched)
+  writeFileSync(join(root, 'scores.txt'), '3\n');
+  await expect(tree.getByRole('treeitem', { name: 'scores.txt' })).toBeVisible({ timeout: 5000 });
+  await tree.getByRole('treeitem', { name: 'scores.txt' }).dblclick();
+  await expect(win.getByRole('textbox', { name: 'scores.txt' })).toContainText('3');
+  // Recent has the project; it opens again from there
+  await win.getByRole('tab', { name: 'Workspace' }).click();
+  const recent = win.getByRole('region', { name: 'Recent' });
+  await expect(recent.getByRole('button', { name: /guessing_game/ })).toContainText('Python 3');
+});
+
+test('M12 slice 6b: a new board project is saved as its .mlab file where it was asked, before it opens', async () => {
+  const win = await app.firstWindow();
+  await newProject(win, 'New Pico W project', 'Traffic lights');
+  await expect(win.getByRole('group', { name: 'Project' })).toContainText('Traffic lights');
+  expect(existsSync(join(home, 'Documents', 'MicroLab', 'Traffic lights.mlab'))).toBe(true);
 });

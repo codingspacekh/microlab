@@ -3,12 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { App } from '../../src/renderer/app/App';
 import { fakeApi } from './fake-api';
 import { addGpioBoard, startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M6.9 (screens 24, 24b): a new micro:bit project is the micro:bit alone, wired at its five rings; the GPIO board
  *  from the parts panel puts it into its slot, and its inspector takes it out again — one undo step each way. */
-function setup(board = 'New micro:bit project') {
+async function setup(board = 'New micro:bit project') {
   render(<App api={fakeApi()} width={1440} />);
-  fireEvent.click(screen.getByRole('button', { name: board }));
+  await newProjectFromStart(board);
   startBuilding();
   const svg = () => screen.getByRole('application', { name: 'Circuit canvas' }) as unknown as SVGSVGElement;
   const client = (x: number, y: number) => {
@@ -42,35 +43,35 @@ function setup(board = 'New micro:bit project') {
 const microbitGroup = () => screen.queryByRole('group', { name: 'micro:bit' });
 
 describe('M6.9 the micro:bit alone (screen 24)', () => {
-  it('is drawn alone, with five rings to wire, and named as the micro:bit', () => {
-    const s = setup();
+  it('is drawn alone, with five rings to wire, and named as the micro:bit', async () => {
+    const s = await setup();
     expect(s.boardPins()).toBe(5);
     expect(within(s.svg() as unknown as HTMLElement).getByRole('img', { name: 'BBC micro:bit V2' })).toHaveClass('alone');
-    expect(within(screen.getByRole('group', { name: 'Project' })).getByText(/^BBC micro:bit V2 · not saved$/)).toBeInTheDocument();
+    expect(within(screen.getByRole('group', { name: 'Project' })).getByText(/^BBC micro:bit V2$/)).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent(/BBC micro:bit V2 \+ 0 parts/);
     expect(screen.getByRole('status')).not.toHaveTextContent(/GPIO board/);
   });
 
-  it('a wire goes straight to a ring', () => {
-    const s = setup();
+  it('a wire goes straight to a ring', async () => {
+    const s = await setup();
     s.wire('board.P0', 'bb1.e5');
     expect(s.wires()).toEqual(['board.P0 bb1.e5']);
   });
 
-  it('the parts panel has the micro:bit\'s group first, with its GPIO board; not for the other boards', () => {
-    setup();
+  it('the parts panel has the micro:bit\'s group first, with its GPIO board; not for the other boards', async () => {
+    await setup();
     const groups = within(screen.getByRole('region', { name: 'Parts' })).getAllByRole('group');
     expect(groups[0]).toHaveAccessibleName('micro:bit');
     expect(within(groups[0]!).getByRole('button', { name: /^GPIO board.*30 pins/ })).toBeInTheDocument();
   });
 
-  it('a Pico W project has no micro:bit group', () => {
-    setup('New Pico W project');
+  it('a Pico W project has no micro:bit group', async () => {
+    await setup('New Pico W project');
     expect(microbitGroup()).toBeNull();
   });
 
-  it('clicked, the micro:bit alone shows its inspector: only Rotate (M7, the teacher\'s request: the board turns)', () => {
-    const s = setup();
+  it('clicked, the micro:bit alone shows its inspector: only Rotate (M7, the teacher\'s request: the board turns)', async () => {
+    const s = await setup();
     s.clickBoard();
     const inspector = screen.getByRole('complementary', { name: 'Inspector' });
     expect(inspector).toHaveTextContent(/micro:bit/);
@@ -79,8 +80,8 @@ describe('M6.9 the micro:bit alone (screen 24)', () => {
 });
 
 describe('M6.9 the GPIO board added (screen 24b)', () => {
-  it('the micro:bit goes into it: every pin, the wires on the same pins, the canvas says so; its inspector shows', () => {
-    const s = setup();
+  it('the micro:bit goes into it: every pin, the wires on the same pins, the canvas says so; its inspector shows', async () => {
+    const s = await setup();
     s.wire('board.P0', 'bb1.e5');
     s.wire('board.GND', 'bb1.e10');
     addGpioBoard();
@@ -97,8 +98,8 @@ describe('M6.9 the GPIO board added (screen 24b)', () => {
     expect(s.svg().querySelector('[data-usb="in"]')).not.toBeNull();
   });
 
-  it('one undo takes it back out, as it was', () => {
-    const s = setup();
+  it('one undo takes it back out, as it was', async () => {
+    const s = await setup();
     s.wire('board.P0', 'bb1.e5');
     addGpioBoard();
     s.undo();
@@ -108,8 +109,8 @@ describe('M6.9 the GPIO board added (screen 24b)', () => {
     expect(microbitGroup()).not.toBeNull();
   });
 
-  it('dragged from the panel and let go on the canvas, it goes in too', () => {
-    const s = setup();
+  it('dragged from the panel and let go on the canvas, it goes in too', async () => {
+    const s = await setup();
     const item = within(microbitGroup()!).getByRole('button', { name: /^GPIO board/ });
     fireEvent.mouseDown(item, { clientX: 5, clientY: 5, button: 0 });
     fireEvent.mouseMove(s.svg(), { clientX: 400, clientY: 300 });
@@ -117,8 +118,8 @@ describe('M6.9 the GPIO board added (screen 24b)', () => {
     expect(s.boardPins()).toBe(30);
   });
 
-  it('clicked, the GPIO board shows its inspector: its micro-USB is plugged in or taken out there', () => {
-    const s = setup();
+  it('clicked, the GPIO board shows its inspector: its micro-USB is plugged in or taken out there', async () => {
+    const s = await setup();
     addGpioBoard();
     fireEvent.click(screen.getByRole('button', { name: 'Close the inspector' }));
     s.clickBoard();
@@ -130,8 +131,8 @@ describe('M6.9 the GPIO board added (screen 24b)', () => {
     expect(s.svg().querySelector('[data-usb="in"]')).not.toBeNull();
   });
 
-  it('Take the micro:bit out: the wires on pins it has no ring for go, the canvas says how many; one undo brings them back', () => {
-    const s = setup();
+  it('Take the micro:bit out: the wires on pins it has no ring for go, the canvas says how many; one undo brings them back', async () => {
+    const s = await setup();
     addGpioBoard();
     s.wire('board.P0', 'bb1.e5');
     s.wire('board.P8', 'bb1.e7');

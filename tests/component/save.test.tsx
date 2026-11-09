@@ -4,6 +4,7 @@ import { legsCentre } from '@lib/editor';
 import { newProject, type ProjectDoc, type SaveResult } from '@lib/project';
 import { App } from '../../src/renderer/app/App';
 import type { MicrolabApi } from '../../src/renderer/app/api';
+import { newProjectFromStart } from './new-project';
 
 /** M4.6 F-02, F-60: Save, Save as, the unsaved mark, "Save your changes?" before the project is closed. */
 function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) => Promise<SaveResult> = async (_d, o) => ({ ok: true, path: o.path ?? `/s/${o.name} 2.mlab`, name: o.path ? o.name : `${o.name} 2` })) {
@@ -20,7 +21,12 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       forget: vi.fn(async () => {}),
     },
     recovery: { get: vi.fn(async () => null), write: vi.fn(async () => {}), clear: vi.fn(async () => {}) },
-    pyfile: { open: vi.fn(async () => ({ ok: false as const, canceled: true as const })), openPath: vi.fn(async () => ({ ok: false as const, message: 'gone' })), save: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
+    pyfile: { save: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
+    projects: { home: vi.fn(async () => '/u/Documents/MicroLab'), choose: vi.fn(async () => null), newPython: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+      newBoard: vi.fn(async (location: string, name: string) => ({ ok: true as const, path: `${location}/${name}.mlab`, name })), openPython: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+      tree: vi.fn(async () => []), newEntry: vi.fn(async () => ({ ok: false as const, message: 'no' })), rename: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+      trash: vi.fn(async () => ({ ok: false as const, message: 'no' })), reveal: vi.fn(async () => {}), read: vi.fn(async () => ({ ok: false as const, message: 'no' })),
+      context: vi.fn(async () => null), onChanged: vi.fn(() => () => {}) },
     file: { open: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
     python3: { run: vi.fn(async () => ({ ok: false as const, message: 'no' })), line: vi.fn(async () => {}), interrupt: vi.fn(async () => {}), stop: vi.fn(async () => {}), onEvent: vi.fn(() => () => {}),
       shellComplete: vi.fn(async () => []), complete: vi.fn(async () => []), signature: vi.fn(async () => null),
@@ -51,9 +57,9 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
   return { api, requestClose: () => act(() => closeRequest?.()) };
 }
 
-function setup(f = fakeApi()) {
+async function setup(f = fakeApi()) {
   render(<App api={f.api} width={1440} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   return f;
 }
 
@@ -78,52 +84,46 @@ function change() {
 }
 
 describe('M4.6 the unsaved mark', () => {
-  it('a new project is "not saved" but has no changes yet; a change marks it, and the window is told', () => {
-    const f = setup();
-    expect(bar()).toHaveTextContent('Raspberry Pi Pico W · not saved');
+  it('Rev 11: a new project is saved from the start, where it was made — no mark; a change marks it, and the window is told', async () => {
+    const f = await setup();
+    expect(f.api.projects.newBoard).toHaveBeenCalledWith('/u/Documents/MicroLab', 'Test project', expect.anything());
+    expect(bar()).toHaveTextContent('Raspberry Pi Pico W');
+    expect(bar()).not.toHaveTextContent('not saved');
     expect(within(bar()).queryByTitle('Not saved')).toBeNull();
     change();
     expect(within(bar()).getByTitle('Not saved')).toBeInTheDocument();
     expect(f.api.app.setDirty).toHaveBeenLastCalledWith(true);
-    expect(document.title).toBe('Untitled project • — MicroLab');
+    expect(document.title).toBe('Test project • — MicroLab');
   });
 });
 
 describe('M4.6 F-02 Save and Save as', () => {
-  it('Save on a new project asks where (no path given); it is then named as its file, with no mark', async () => {
-    const f = setup();
+  it('Save (menu or ⌘S / Ctrl+S) writes to the project\'s file without asking; the mark goes', async () => {
+    const f = await setup();
     change();
     menu('Save');
-    await waitFor(() => expect(within(bar()).getByText('Untitled project 2')).toBeInTheDocument());
-    expect(f.api.project.save).toHaveBeenCalledWith(expect.objectContaining({ project: expect.objectContaining({ board: 'pico-w' }) }), { name: 'Untitled project' });
-    expect(within(bar()).queryByTitle('Not saved')).toBeNull();
-    expect(bar()).not.toHaveTextContent('not saved');
+    await waitFor(() => expect(f.api.project.save).toHaveBeenCalledOnce());
+    expect(f.api.project.save).toHaveBeenCalledWith(expect.objectContaining({ project: expect.objectContaining({ board: 'pico-w' }) }), { path: '/u/Documents/MicroLab/Test project.mlab', name: 'Test project' });
+    await waitFor(() => expect(within(bar()).queryByTitle('Not saved')).toBeNull());
     // the window tells the main process from an effect, run just after the screen changes: wait for it too
     await waitFor(() => expect(f.api.app.setDirty).toHaveBeenLastCalledWith(false));
-    expect(screen.getByRole('status')).toHaveTextContent('Saved “Untitled project 2.mlab”');
-  });
-
-  it('once saved, ⌘S / Ctrl+S saves to the same file without asking', async () => {
-    const f = setup();
-    menu('Save');
-    await waitFor(() => expect(within(bar()).getByText('Untitled project 2')).toBeInTheDocument());
+    expect(screen.getByRole('status')).toHaveTextContent('Saved “Test project.mlab”');
     change();
     fireEvent.keyDown(window, { key: 's', ctrlKey: true });
     await waitFor(() => expect(f.api.project.save).toHaveBeenCalledTimes(2));
-    expect(f.api.project.save).toHaveBeenLastCalledWith(expect.anything(), { path: '/s/Untitled project 2.mlab', name: 'Untitled project 2' });
+    expect(f.api.project.save).toHaveBeenLastCalledWith(expect.anything(), { path: '/u/Documents/MicroLab/Test project.mlab', name: 'Test project' });
   });
 
-  it('Save as (or ⇧⌘S) always asks', async () => {
-    const f = setup();
-    menu('Save');
-    await waitFor(() => expect(f.api.project.save).toHaveBeenCalledTimes(1));
+  it('Save as (or ⇧⌘S) always asks; the project is then named as its new file', async () => {
+    const f = await setup();
     fireEvent.keyDown(window, { key: 's', metaKey: true, shiftKey: true });
-    await waitFor(() => expect(f.api.project.save).toHaveBeenCalledTimes(2));
-    expect(f.api.project.save).toHaveBeenLastCalledWith(expect.anything(), { name: 'Untitled project 2' });
+    await waitFor(() => expect(f.api.project.save).toHaveBeenCalledTimes(1));
+    expect(f.api.project.save).toHaveBeenLastCalledWith(expect.anything(), { name: 'Test project' });
+    await waitFor(() => expect(within(bar()).getByText('Test project 2')).toBeInTheDocument());
   });
 
   it('cancelled: nothing changes; failed: the message is shown and the mark stays', async () => {
-    const cancel = setup(fakeApi(async () => ({ ok: false, canceled: true })));
+    const cancel = await setup(fakeApi(async () => ({ ok: false, canceled: true })));
     change();
     menu('Save');
     await waitFor(() => expect(cancel.api.project.save).toHaveBeenCalled());
@@ -132,7 +132,7 @@ describe('M4.6 F-02 Save and Save as', () => {
   });
 
   it('a save that fails says why', async () => {
-    setup(fakeApi(async () => ({ ok: false, message: '“x.mlab” can\'t be saved: the disk is full.' })));
+    await setup(fakeApi(async () => ({ ok: false, message: '“x.mlab” can\'t be saved: the disk is full.' })));
     change();
     menu('Save');
     expect(await screen.findByRole('alert')).toHaveTextContent('the disk is full');
@@ -141,11 +141,11 @@ describe('M4.6 F-02 Save and Save as', () => {
 });
 
 describe('M4.6 "Save your changes?" before a project is closed', () => {
-  it('New project with changes: Cancel keeps it, Don\'t save drops them', () => {
-    setup();
+  it('New project with changes: Cancel keeps it, Don\'t save drops them', async () => {
+    await setup();
     change();
     menu('New project…');
-    const ask = screen.getByRole('alertdialog', { name: 'Save your changes to “Untitled project”?' });
+    const ask = screen.getByRole('alertdialog', { name: 'Save your changes to “Test project”?' });
     fireEvent.click(within(ask).getByRole('button', { name: 'Cancel' }));
     expect(screen.getByRole('application', { name: 'Circuit canvas' })).toBeInTheDocument();
     menu('New project…');
@@ -154,7 +154,7 @@ describe('M4.6 "Save your changes?" before a project is closed', () => {
   });
 
   it('Save in it saves, then goes on; a cancelled save stays', async () => {
-    const f = setup();
+    const f = await setup();
     change();
     menu('Open a project…');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -163,15 +163,15 @@ describe('M4.6 "Save your changes?" before a project is closed', () => {
     expect(f.api.project.open).toHaveBeenCalledOnce();
   });
 
-  it('with no changes, nothing is asked', () => {
-    setup();
+  it('with no changes, nothing is asked', async () => {
+    await setup();
     menu('New project…');
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(screen.getByRole('heading', { name: 'Start something new' })).toBeInTheDocument();
   });
 
   it('closing the window: asked only when there are changes; Don\'t save closes it — after the recovery copy is gone', async () => {
-    const f = setup();
+    const f = await setup();
     f.requestClose();
     await waitFor(() => expect(f.api.app.close).toHaveBeenCalledTimes(1));
     change();

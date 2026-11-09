@@ -7,6 +7,7 @@ import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
 import { startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M6.4c (screen 19, approved 2026-11-07): the DHT11 / DHT22, the HC-SR04 and the GY-521 (MPU6050) in the editor;
  *  while running the Inputs card sets the DHT's air, the object's distance and the MPU6050's tilt. */
@@ -21,10 +22,10 @@ function fakeSim() {
   return { start, runs, say };
 }
 
-function setup() {
+async function setup() {
   const sim = fakeSim();
   render(<App api={fakeApi()} width={1440} startRun={sim.start} audio={() => null} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
@@ -45,8 +46,8 @@ function setup() {
 }
 
 describe('M6.4c the modules in the editor (screen 19)', () => {
-  it('a DHT11 to start with, a DHT22 chosen in the inspector; its pins VCC, DATA, GND', () => {
-    const s = setup();
+  it('a DHT11 to start with, a DHT22 chosen in the inspector; its pins VCC, DATA, GND', async () => {
+    const s = await setup();
     s.place(/^DHT11 \/ DHT22/, 'dht', 'bb1.f2');
     expect(s.part('dht1')).toHaveAttribute('data-legs', 'bb1.f2 bb1.f3 bb1.f4');
     expect(within(s.inspector()).getByText('VCC f2, DATA f3, GND f4')).toBeInTheDocument();
@@ -56,8 +57,8 @@ describe('M6.4c the modules in the editor (screen 19)', () => {
     expect(within(s.inspector()).getByText(/has its pull-up/)).toBeInTheDocument();
   });
 
-  it('an HC-SR04 in row j; the inspector says its Echo needs a divider', () => {
-    const s = setup();
+  it('an HC-SR04 in row j; the inspector says its Echo needs a divider', async () => {
+    const s = await setup();
     s.place(/^Ultrasonic HC-SR04/, 'hc-sr04', 'bb1.j20');
     expect(s.part('sonar1')).toHaveAttribute('data-legs', 'bb1.j20 bb1.j21 bb1.j22 bb1.j23');
     expect(within(s.inspector()).getByText('VCC j20, Trig j21, Echo j22, GND j23')).toBeInTheDocument();
@@ -65,8 +66,8 @@ describe('M6.4c the modules in the editor (screen 19)', () => {
     expect(within(s.part('sonar1') as HTMLElement).getByText('HC-SR04')).toBeInTheDocument();
   });
 
-  it('a GY-521: its 8 pins as printed; the inspector says how to wake it', () => {
-    const s = setup();
+  it('a GY-521: its 8 pins as printed; the inspector says how to wake it', async () => {
+    const s = await setup();
     s.place(/^MPU6050 motion/, 'mpu6050', 'bb1.f7');
     expect(within(s.inspector()).getByText('VCC f7, GND f8, SCL f9, SDA f10, XDA f11, XCL f12, AD0 f13, INT f14')).toBeInTheDocument();
     expect(within(s.inspector()).getByText(/0x68.*0x6B/)).toBeInTheDocument();
@@ -74,8 +75,8 @@ describe('M6.4c the modules in the editor (screen 19)', () => {
 });
 
 describe('M6.4c while running (screen 19)', () => {
-  it('the Inputs card: the DHT\'s temperature and humidity, the distance with its echo, the tilt with its g', () => {
-    const s = setup();
+  it('the Inputs card: the DHT\'s temperature and humidity, the distance with its echo, the tilt with its g', async () => {
+    const s = await setup();
     s.place(/^DHT11 \/ DHT22/, 'dht', 'bb1.f2');
     s.place(/^MPU6050 motion/, 'mpu6050', 'bb1.f7');
     s.place(/^Ultrasonic HC-SR04/, 'hc-sr04', 'bb1.j20');
@@ -99,8 +100,8 @@ describe('M6.4c while running (screen 19)', () => {
     expect(card).toHaveTextContent('x 0.50 g · y 0.00 g');
   });
 
-  it('the HC-SR04 shows its sound waves while it is powered and running; the GY-521\'s level follows its tilt', () => {
-    const s = setup();
+  it('the HC-SR04 shows its sound waves while it is powered and running; the GY-521\'s level follows its tilt', async () => {
+    const s = await setup();
     s.place(/^Ultrasonic HC-SR04/, 'hc-sr04', 'bb1.j20');
     s.place(/^MPU6050 motion/, 'mpu6050', 'bb1.f7');
     s.run();

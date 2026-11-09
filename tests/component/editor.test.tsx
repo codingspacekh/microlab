@@ -9,6 +9,7 @@ import type { MicrolabApi } from '../../src/renderer/app/api';
 import { CodeEditor } from '../../src/renderer/editor/CodeEditor';
 import { fakeApi } from './fake-api';
 import { startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M4.4 F-20 (basic): main.py in a CodeMirror editor with Python — as on screens 02 and 03. */
 const viewOf = (el: HTMLElement) => EditorView.findFromDOM(el.closest('.cm-editor') as HTMLElement)!;
@@ -16,7 +17,7 @@ const type = (view: EditorView, text: string, at = view.state.doc.length) =>
   act(() => { view.dispatch({ changes: { from: at, insert: text }, selection: { anchor: at + text.length }, userEvent: 'input.type' }); });
 
 describe('M4.4 the code editor', () => {
-  it('shows the code, labelled, with line numbers, and Python is understood', () => {
+  it('shows the code, labelled, with line numbers, and Python is understood', async () => {
     render(<CodeEditor label="main.py" value={'from machine import Pin\nled = Pin(15, Pin.OUT)\n'} onChange={() => {}} />);
     const box = screen.getByRole('textbox', { name: 'main.py' });
     expect(box.textContent).toContain('led = Pin(15, Pin.OUT)');
@@ -25,14 +26,14 @@ describe('M4.4 the code editor', () => {
     expect(document.querySelector('.cm-lineNumbers')).not.toBeNull();
   });
 
-  it('every change is passed on as the whole text', () => {
+  it('every change is passed on as the whole text', async () => {
     const onChange = vi.fn();
     render(<CodeEditor label="main.py" value={"x = 1\n"} onChange={onChange} />);
     type(viewOf(screen.getByRole('textbox', { name: 'main.py' })), 'print(x)\n');
     expect(onChange).toHaveBeenLastCalledWith('x = 1\nprint(x)\n');
   });
 
-  it('a new line after a colon is indented four spaces (MicroPython style); undo takes back a change', () => {
+  it('a new line after a colon is indented four spaces (MicroPython style); undo takes back a change', async () => {
     const onChange = vi.fn();
     render(<CodeEditor label="main.py" value="while True:" onChange={onChange} />);
     const view = viewOf(screen.getByRole('textbox', { name: 'main.py' }));
@@ -42,7 +43,7 @@ describe('M4.4 the code editor', () => {
     expect(view.state.doc.toString()).toBe('while True:');
   });
 
-  it('a new value from outside (another project opened) replaces the text, and is not echoed back', () => {
+  it('a new value from outside (another project opened) replaces the text, and is not echoed back', async () => {
     const onChange = vi.fn();
     const { rerender } = render(<CodeEditor label="main.py" value={"a = 1\n"} onChange={onChange} />);
     rerender(<CodeEditor label="main.py" value={"b = 2\n"} onChange={onChange} />);
@@ -54,18 +55,18 @@ describe('M4.4 the code editor', () => {
 describe('M4.4 main.py in the workspace', () => {
   const api = (): MicrolabApi => fakeApi();
 
-  it('the code side has a main.py tab and the starter program in the editor', () => {
+  it('the code side has a main.py tab and the starter program in the editor', async () => {
     render(<App api={api()} width={1440} />);
-    fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+    await newProjectFromStart('New Pico W project');
     startBuilding();
     const side = screen.getByRole('region', { name: 'Code' });
     expect(within(side).getByRole('tab', { name: 'main.py' })).toHaveAttribute('aria-selected', 'true');
     expect(within(side).getByRole('textbox', { name: 'main.py' }).textContent).toContain('led = Pin("LED", Pin.OUT)');
   });
 
-  it('what is typed is kept in the project: it is still there after Learn and back', () => {
+  it('what is typed is kept in the project: it is still there after Learn and back', async () => {
     render(<App api={api()} width={1440} />);
-    fireEvent.click(screen.getByRole('button', { name: 'New micro:bit project' }));
+    await newProjectFromStart('New micro:bit project');
     startBuilding();
     type(viewOf(screen.getByRole('textbox', { name: 'main.py' })), '# my change\n', 0);
     fireEvent.click(screen.getByRole('tab', { name: 'Learn' }));
@@ -73,9 +74,9 @@ describe('M4.4 main.py in the workspace', () => {
     expect(screen.getByRole('textbox', { name: 'main.py' }).textContent).toMatch(/^# my change/);
   });
 
-  it('keys typed in the editor never reach the canvas: Backspace there deletes text, not the selected part', () => {
+  it('keys typed in the editor never reach the canvas: Backspace there deletes text, not the selected part', async () => {
     render(<App api={api()} width={1440} />);
-    fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+    await newProjectFromStart('New Pico W project');
     startBuilding();
     const panel = screen.getByRole('region', { name: 'Parts' });
     fireEvent.mouseDown(within(panel).getByRole('button', { name: /^Resistor/ }), { clientX: 5, clientY: 5, button: 0 });
@@ -151,7 +152,7 @@ describe('M5.5 F-20 help while typing (screen 02b)', () => {
     expect(offered(view).filter((l) => l.startsWith('pin0'))).toEqual([]);
   });
 
-  it('typing a call shows its arguments, the one being typed in bold, and what it does', () => {
+  it('typing a call shows its arguments, the one being typed in bold, and what it does', async () => {
     const view = setup('pico-w', 'from machine import Pin\n');
     type(view, 'led = Pin(15, ');
     const tip = document.querySelector('.ml-signature')!;

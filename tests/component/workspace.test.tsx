@@ -4,13 +4,14 @@ import { legsCentre, partKind } from '@lib/editor';
 import { App } from '../../src/renderer/app/App';
 import { fakeApi } from './fake-api';
 import { partsPanel, startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M4.3 the workspace (screens 02, 03): the board and breadboard drawn, parts dragged in (F-10), moved (F-11),
  *  wires from pin to pin (F-13, basic). In jsdom the canvas has no screen matrix: client = world − viewBox corner. */
 
-function setup(board = 'New Pico W project') {
+async function setup(board = 'New Pico W project') {
   render(<App api={fakeApi()} width={1440} />);
-  fireEvent.click(screen.getByRole('button', { name: board }));
+  await newProjectFromStart(board);
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' }) as unknown as SVGSVGElement;
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
@@ -28,7 +29,7 @@ function setup(board = 'New Pico W project') {
 }
 
 /** Drag a part from the panel and let go with its legs' middle at `at` (world). */
-function dragIn(s: ReturnType<typeof setup>, name: RegExp, type: string, firstLeg: { x: number; y: number }) {
+function dragIn(s: Awaited<ReturnType<typeof setup>>, name: RegExp, type: string, firstLeg: { x: number; y: number }) {
   const [cx, cy] = legsCentre(type);
   const at = s.client(firstLeg.x + cx + 3, firstLeg.y + cy - 2);   // a little off: it snaps
   fireEvent.mouseDown(s.item(name), { clientX: 5, clientY: 5, button: 0 });
@@ -37,7 +38,7 @@ function dragIn(s: ReturnType<typeof setup>, name: RegExp, type: string, firstLe
 }
 
 /** Put a part with its first leg in `hole`, by dragging it in. */
-function place(s: ReturnType<typeof setup>, name: RegExp, type: string, hole: string) {
+function place(s: Awaited<ReturnType<typeof setup>>, name: RegExp, type: string, hole: string) {
   dragIn(s, name, type, s.point(hole));
 }
 
@@ -46,61 +47,61 @@ describe('M4.3 the workspace draws the project', () => {
     ['New Pico W project', 'Raspberry Pi Pico W', 40],
     ['New micro:bit project', 'BBC micro:bit V2', 5],   // M6.9: the micro:bit alone, its five rings
     ['New ESP32 project', 'ESP32 DevKit V1 (30 pins)', 30],
-  ])('%s: the board\'s picture and a half breadboard, every pin and hole free to wire', (button, name, pins) => {
-    const s = setup(button);
+  ])('%s: the board\'s picture and a half breadboard, every pin and hole free to wire', async (button, name, pins) => {
+    const s = await setup(button);
     expect(within(s.svg as unknown as HTMLElement).getByRole('img', { name })).toBeInTheDocument();
     expect(within(s.svg as unknown as HTMLElement).getByRole('img', { name: 'Breadboard bb1 (half)' })).toBeInTheDocument();
     expect(s.svg.querySelectorAll('[data-point^="bb1."]')).toHaveLength(400);   // 300 holes + 100 rail holes
     expect(s.svg.querySelectorAll('[data-point^="board."]')).toHaveLength(pins);
   });
 
-  it('the rail names the board; the parts panel lists the parts of M4', () => {
-    const s = setup();
+  it('the rail names the board; the parts panel lists the parts of M4', async () => {
+    const s = await setup();
     expect(within(screen.getByRole('navigation', { name: 'Board and parts' })).getByTitle('Raspberry Pi Pico W')).toBeInTheDocument();
     for (const name of [/^Resistor/, /^LED/, /^Push button/, /^Potentiometer(?! module)/]) expect(s.item(name)).toBeInTheDocument();
   });
 });
 
 describe('M4.3 F-10 parts from the parts panel', () => {
-  it('a part dropped on the breadboard snaps to holes', () => {
-    const s = setup();
+  it('a part dropped on the breadboard snaps to holes', async () => {
+    const s = await setup();
     dragIn(s, /^LED/, 'led', s.point('bb1.c10'));
     expect(s.parts()).toEqual(['led1 bb1.c10 bb1.c12']);
     expect(s.svg.querySelector('[data-point="bb1.c10"]')).toBeNull();   // the hole is used now
   });
 
-  it('a push button dropped across the channel takes e and f', () => {
-    const s = setup();
+  it('a push button dropped across the channel takes e and f', async () => {
+    const s = await setup();
     dragIn(s, /^Push button/, 'button', s.point('bb1.e20'));
     expect(s.parts()).toEqual(['btn1 bb1.e20 bb1.e22 bb1.f20 bb1.f22']);
   });
 
-  it('a part dropped where it can\'t go is not added, and the canvas says why', () => {
-    const s = setup();
+  it('a part dropped where it can\'t go is not added, and the canvas says why', async () => {
+    const s = await setup();
     dragIn(s, /^Resistor/, 'resistor', { x: -900, y: -900 });
     dragIn(s, /^Resistor/, 'resistor', s.point('bb1.a29'));   // its second leg would be off the end
     expect(s.parts()).toEqual([]);
     expect(screen.getByText(/every leg needs an empty hole/)).toBeInTheDocument();
   });
 
-  it('let go outside the canvas: nothing is added', () => {
-    const s = setup();
+  it('let go outside the canvas: nothing is added', async () => {
+    const s = await setup();
     fireEvent.mouseDown(s.item(/^Resistor/), { clientX: 5, clientY: 5, button: 0 });
     fireEvent.mouseMove(s.svg, s.client(100, 100));
     fireEvent.mouseUp(document.body, { clientX: 5, clientY: 5 });
     expect(s.parts()).toEqual([]);
   });
 
-  it('the status bar counts the parts and wires', () => {
-    const s = setup();
+  it('the status bar counts the parts and wires', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a1');
     place(s, /^Resistor/, 'resistor', 'bb1.b1');
     expect(s.parts()).toEqual(['r1 bb1.a1 bb1.a4', 'r2 bb1.b1 bb1.b4']);
     expect(within(screen.getByRole('status')).getByText(/2 parts · 0 wires/)).toBeInTheDocument();
   });
 
-  it('while dragged over the canvas, the part is shown where it would go', () => {
-    const s = setup();
+  it('while dragged over the canvas, the part is shown where it would go', async () => {
+    const s = await setup();
     const a5 = s.point('bb1.a5');
     const [cx, cy] = legsCentre('resistor');
     fireEvent.mouseDown(s.item(/^Resistor/), { clientX: 5, clientY: 5, button: 0 });
@@ -114,8 +115,8 @@ describe('M4.3 F-10 parts from the parts panel', () => {
 });
 
 describe('M4.3 F-11 moving', () => {
-  it('a part dragged moves by whole holes, its legs staying in holes', () => {
-    const s = setup();
+  it('a part dragged moves by whole holes, its legs staying in holes', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a1');
     const part = s.svg.querySelector('[data-part="r1"]')!;
     fireEvent.mouseDown(part, s.client(100, 100));
@@ -124,8 +125,8 @@ describe('M4.3 F-11 moving', () => {
     expect(s.parts()).toEqual(['r1 bb1.c5 bb1.c8']);
   });
 
-  it('a part dragged onto used holes goes back where it was', () => {
-    const s = setup();
+  it('a part dragged onto used holes goes back where it was', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a1');
     place(s, /^Resistor/, 'resistor', 'bb1.b1');
     const part = s.svg.querySelector('[data-part="r2"]')!;
@@ -135,8 +136,8 @@ describe('M4.3 F-11 moving', () => {
     expect(s.parts()).toEqual(['r1 bb1.a1 bb1.a4', 'r2 bb1.b1 bb1.b4']);
   });
 
-  it('the breadboard dragged takes its parts with it (they stay in their holes)', () => {
-    const s = setup();
+  it('the breadboard dragged takes its parts with it (they stay in their holes)', async () => {
+    const s = await setup();
     place(s, /^LED/, 'led', 'bb1.a1');
     const before = s.point('bb1.j30');
     const body = within(s.svg as unknown as HTMLElement).getByRole('img', { name: 'Breadboard bb1 (half)' });
@@ -147,8 +148,8 @@ describe('M4.3 F-11 moving', () => {
     expect(s.point('bb1.j30')).toEqual({ x: before.x + 40, y: before.y + 40 });
   });
 
-  it('the board dragged moves, and its pins with it', () => {
-    const s = setup();
+  it('the board dragged moves, and its pins with it', async () => {
+    const s = await setup();
     const before = s.point('board.GP15');
     const board = within(s.svg as unknown as HTMLElement).getByRole('img', { name: 'Raspberry Pi Pico W' });
     fireEvent.mouseDown(board, s.client(100, 50));
@@ -159,8 +160,8 @@ describe('M4.3 F-11 moving', () => {
 });
 
 describe('M4.3 F-13 wires from pin to pin', () => {
-  it('dragged from a board pin to a hole, a wire joins them', () => {
-    const s = setup();
+  it('dragged from a board pin to a hole, a wire joins them', async () => {
+    const s = await setup();
     const from = s.point('board.GP15');
     const to = s.point('bb1.a5');
     fireEvent.mouseDown(s.svg.querySelector('[data-point="board.GP15"]')!, s.client(from.x, from.y));
@@ -171,8 +172,8 @@ describe('M4.3 F-13 wires from pin to pin', () => {
     expect(s.svg.querySelector('[data-drawing-wire]')).toBeNull();
   });
 
-  it('a wire dropped on empty space is not created', () => {
-    const s = setup();
+  it('a wire dropped on empty space is not created', async () => {
+    const s = await setup();
     const from = s.point('bb1.a5');
     fireEvent.mouseDown(s.svg.querySelector('[data-point="bb1.a5"]')!, s.client(from.x, from.y));
     fireEvent.mouseMove(s.svg, s.client(from.x + 900, from.y + 900));
@@ -181,8 +182,8 @@ describe('M4.3 F-13 wires from pin to pin', () => {
     expect(screen.getByText(/A wire must end on a hole or a pin/)).toBeInTheDocument();
   });
 
-  it('a wire to the hole it started from, or to a used hole, is not created', () => {
-    const s = setup();
+  it('a wire to the hole it started from, or to a used hole, is not created', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a1');
     const from = s.point('bb1.c9');
     const a1 = { x: from.x - 8 * 16, y: from.y - 32 };
@@ -193,8 +194,8 @@ describe('M4.3 F-13 wires from pin to pin', () => {
     expect(screen.getByText(/each hole holds one leg or one wire/)).toBeInTheDocument();
   });
 
-  it('a wire to ground is black, to a supply red, others coloured', () => {
-    const s = setup();
+  it('a wire to ground is black, to a supply red, others coloured', async () => {
+    const s = await setup();
     const wire = (a: string, b: string) => {
       const p = s.point(a);
       const q = s.point(b);
@@ -211,8 +212,8 @@ describe('M4.3 F-13 wires from pin to pin', () => {
 });
 
 describe('M4.3b placing like Tinkercad', () => {
-  it('a part clicked in the panel follows the mouse, and a click on the breadboard places it', () => {
-    const s = setup();
+  it('a part clicked in the panel follows the mouse, and a click on the breadboard places it', async () => {
+    const s = await setup();
     fireEvent.mouseDown(s.item(/^LED/), { clientX: 5, clientY: 5, button: 0 });
     fireEvent.mouseUp(s.item(/^LED/), { clientX: 5, clientY: 5, button: 0 });
     expect(screen.getByText(/Click on the breadboard to place it/)).toBeInTheDocument();
@@ -226,8 +227,8 @@ describe('M4.3b placing like Tinkercad', () => {
     expect(s.svg.querySelector('[data-ghost]')).toBeNull();
   });
 
-  it('a carried part: a click where it can\'t go keeps it; Esc puts it back', () => {
-    const s = setup();
+  it('a carried part: a click where it can\'t go keeps it; Esc puts it back', async () => {
+    const s = await setup();
     fireEvent.mouseDown(s.item(/^LED/), { clientX: 5, clientY: 5, button: 0 });
     fireEvent.mouseUp(s.item(/^LED/), { clientX: 5, clientY: 5, button: 0 });
     fireEvent.mouseDown(s.svg, s.client(-900, -900));
@@ -238,8 +239,8 @@ describe('M4.3b placing like Tinkercad', () => {
     expect(s.parts()).toEqual([]);
   });
 
-  it('from the keyboard: Enter picks it up at the first free place, arrows move it hole by hole, Enter places it', () => {
-    const s = setup();
+  it('from the keyboard: Enter picks it up at the first free place, arrows move it hole by hole, Enter places it', async () => {
+    const s = await setup();
     fireEvent.click(s.item(/^Resistor/), { detail: 0 });   // Enter on a button clicks it with detail 0
     expect(s.svg).toHaveFocus();
     expect(screen.getByText(/Arrow keys move it/)).toBeInTheDocument();
@@ -250,8 +251,8 @@ describe('M4.3b placing like Tinkercad', () => {
     expect(s.parts()).toEqual(['r1 bb1.b3 bb1.b6']);
   });
 
-  it('from the keyboard, Esc puts it back', () => {
-    const s = setup();
+  it('from the keyboard, Esc puts it back', async () => {
+    const s = await setup();
     fireEvent.click(s.item(/^Resistor/), { detail: 0 });
     fireEvent.keyDown(s.svg, { key: 'Escape' });
     fireEvent.keyDown(s.svg, { key: 'Enter' });
@@ -260,13 +261,13 @@ describe('M4.3b placing like Tinkercad', () => {
 });
 
 describe('M4.3b wires with bend points', () => {
-  const click = (s: ReturnType<typeof setup>, el: Element, x: number, y: number) => {
+  const click = (s: Awaited<ReturnType<typeof setup>>, el: Element, x: number, y: number) => {
     fireEvent.mouseDown(el, s.client(x, y));
     fireEvent.mouseUp(el, s.client(x, y));
   };
 
-  it('click a pin, click twice on the canvas, click a hole: a wire through two bends on the grid', () => {
-    const s = setup();
+  it('click a pin, click twice on the canvas, click a hole: a wire through two bends on the grid', async () => {
+    const s = await setup();
     const gp15 = s.point('board.GP15');
     const a5 = s.point('bb1.a5');
     click(s, s.svg.querySelector('[data-point="board.GP15"]')!, gp15.x, gp15.y);
@@ -281,8 +282,8 @@ describe('M4.3b wires with bend points', () => {
     expect(s.svg.querySelector('[data-wire="w1"]')!.getAttribute('data-via')).toBe(`${snap(gp15.x + 1)},${snap(gp15.y + 61)} ${snap(a5.x - 2)},${snap(gp15.y + 59)}`);
   });
 
-  it('Backspace takes back the last bend; Esc drops the wire', () => {
-    const s = setup();
+  it('Backspace takes back the last bend; Esc drops the wire', async () => {
+    const s = await setup();
     const p = s.point('bb1.a5');
     click(s, s.svg.querySelector('[data-point="bb1.a5"]')!, p.x, p.y);
     click(s, s.svg, p.x, p.y - 80);
@@ -303,14 +304,14 @@ describe('M4.3b wires with bend points', () => {
 
 describe('M4.3b the inspector (screen 02b) and Delete', () => {
   const inspector = () => screen.getByRole('complementary', { name: 'Inspector' });
-  const props = (s: ReturnType<typeof setup>, id: string) => JSON.parse(s.svg.querySelector(`[data-part="${id}"]`)!.getAttribute('data-props')!);
-  const select = (s: ReturnType<typeof setup>, sel: string) => {
+  const props = (s: Awaited<ReturnType<typeof setup>>, id: string) => JSON.parse(s.svg.querySelector(`[data-part="${id}"]`)!.getAttribute('data-props')!);
+  const select = (s: Awaited<ReturnType<typeof setup>>, sel: string) => {
     fireEvent.mouseDown(s.svg.querySelector(sel)!, s.client(100, 100));
     fireEvent.mouseUp(s.svg, s.client(100, 100));
   };
 
-  it('a part placed is selected; its inspector sets a resistor\'s value with the quick values or the stepper', () => {
-    const s = setup();
+  it('a part placed is selected; its inspector sets a resistor\'s value with the quick values or the stepper', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a1');
     expect(within(inspector()).getByText('R1 · Resistor')).toBeInTheDocument();
     fireEvent.click(within(inspector()).getByRole('button', { name: '1k' }));
@@ -320,8 +321,8 @@ describe('M4.3b the inspector (screen 02b) and Delete', () => {
     expect(within(inspector()).getByLabelText('Colour bands for 1.2k Ω')).toBeInTheDocument();
   });
 
-  it('an LED shows which leg is which: + anode, − cathode, on the canvas and in the inspector', () => {
-    const s = setup();
+  it('an LED shows which leg is which: + anode, − cathode, on the canvas and in the inspector', async () => {
+    const s = await setup();
     place(s, /^LED/, 'led', 'bb1.c10');
     const led = s.svg.querySelector('[data-part="led1"]')!;
     expect(led.querySelector('.leg.anode title')!.textContent).toMatch(/^Anode \(\+\)/);
@@ -331,8 +332,8 @@ describe('M4.3b the inspector (screen 02b) and Delete', () => {
     expect(within(inspector()).getByText(/cathode/, { selector: 'span' }).textContent).toMatch(/− cathode c12/);
   });
 
-  it('an LED\'s colour, a potentiometer\'s value', () => {
-    const s = setup();
+  it('an LED\'s colour, a potentiometer\'s value', async () => {
+    const s = await setup();
     place(s, /^LED/, 'led', 'bb1.a1');
     fireEvent.click(within(inspector()).getByRole('radio', { name: 'Green' }));
     expect(props(s, 'led1')).toEqual({ color: 'green' });
@@ -341,8 +342,8 @@ describe('M4.3b the inspector (screen 02b) and Delete', () => {
     expect(props(s, 'pot1')).toEqual({ ohms: 100_000 });
   });
 
-  it('a click selects; a click on empty canvas, Esc or × closes the inspector', () => {
-    const s = setup();
+  it('a click selects; a click on empty canvas, Esc or × closes the inspector', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a1');
     fireEvent.mouseDown(s.svg.querySelector('.bg')!, s.client(-500, -500));
     expect(screen.queryByRole('complementary', { name: 'Inspector' })).toBeNull();
@@ -355,8 +356,8 @@ describe('M4.3b the inspector (screen 02b) and Delete', () => {
     expect(screen.queryByRole('complementary', { name: 'Inspector' })).toBeNull();
   });
 
-  it('a wire\'s colour; what it joins', () => {
-    const s = setup();
+  it('a wire\'s colour; what it joins', async () => {
+    const s = await setup();
     const p = s.point('board.GP15');
     const q = s.point('bb1.a5');
     fireEvent.mouseDown(s.svg.querySelector('[data-point="board.GP15"]')!, s.client(p.x, p.y));
@@ -367,8 +368,8 @@ describe('M4.3b the inspector (screen 02b) and Delete', () => {
     expect(s.svg.querySelector('[data-wire="w1"]')!.getAttribute('data-colour')).toBe('purple');
   });
 
-  it('starting a wire or picking up a part closes the inspector, so it never covers the canvas', () => {
-    const s = setup();
+  it('starting a wire or picking up a part closes the inspector, so it never covers the canvas', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a1');
     expect(inspector()).toBeInTheDocument();
     const p = s.point('bb1.c9');
@@ -380,8 +381,8 @@ describe('M4.3b the inspector (screen 02b) and Delete', () => {
     expect(screen.queryByRole('complementary', { name: 'Inspector' })).toBeNull();
   });
 
-  it('Delete removes the selected part; the inspector\'s Delete removes a wire', () => {
-    const s = setup();
+  it('Delete removes the selected part; the inspector\'s Delete removes a wire', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a1');
     fireEvent.keyDown(window, { key: 'Delete' });
     expect(s.parts()).toEqual([]);
@@ -394,15 +395,15 @@ describe('M4.3b the inspector (screen 02b) and Delete', () => {
     expect(s.wires()).toEqual([]);
   });
 
-  it('typing in the inspector\'s number field never deletes the part', () => {
-    const s = setup();
+  it('typing in the inspector\'s number field never deletes the part', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a1');
     fireEvent.keyDown(within(inspector()).getByRole('spinbutton', { name: 'Resistance' }), { key: 'Backspace' });
     expect(s.parts()).toHaveLength(1);
   });
 
-  it('the breadboard: full has 63 columns; back to half is refused while a part uses column 40', () => {
-    const s = setup();
+  it('the breadboard: full has 63 columns; back to half is refused while a part uses column 40', async () => {
+    const s = await setup();
     select(s, '[aria-label="Breadboard bb1 (half)"]');
     fireEvent.click(within(inspector()).getByRole('radio', { name: 'Full · 63' }));
     expect(s.svg.querySelector('[data-point="bb1.a63"]')).not.toBeNull();
@@ -415,7 +416,7 @@ describe('M4.3b the inspector (screen 02b) and Delete', () => {
 });
 
 describe('M4.3 the part kinds', () => {
-  it('the LED is drawn with its anode in the first hole', () => {
+  it('the LED is drawn with its anode in the first hole', async () => {
     expect(Object.keys(partKind('led').legs)).toEqual(['a', 'k']);
   });
 });
@@ -426,15 +427,15 @@ describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', ()
     ? within(screen.getByRole('group', { name: 'Undo and redo' })).getByRole('button', { name })   // the top bar (screen 02b)
     : within(tools()).getByRole('button', { name }));
   const hint = () => document.querySelector('.canvas-hint')?.textContent ?? '';
-  const pick = (s: ReturnType<typeof setup>, id: string, shift = false) => {
+  const pick = (s: Awaited<ReturnType<typeof setup>>, id: string, shift = false) => {
     const g = s.svg.querySelector(`[data-part="${id}"]`)!;
     fireEvent.mouseDown(g, { ...s.client(0, 0), shiftKey: shift });
     fireEvent.mouseUp(s.svg, s.client(0, 0));
   };
   const key = (k: string, more: Partial<KeyboardEventInit> = {}) => fireEvent.keyDown(window, { key: k, ...more });
 
-  it('R turns the selected resistor upright; Undo and Redo, by key and by the toolbar', () => {
-    const s = setup();
+  it('R turns the selected resistor upright; Undo and Redo, by key and by the toolbar', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a5');
     expect(s.parts()).toEqual(['r1 bb1.a5 bb1.a8']);
     key('r');
@@ -456,8 +457,8 @@ describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', ()
     expect(s.parts()).toEqual(['r1 bb1.a6 bb1.d6']);
   });
 
-  it('every kind of edit undoes: a wire, a colour, a value, a delete, moving the breadboard', () => {
-    const s = setup();
+  it('every kind of edit undoes: a wire, a colour, a value, a delete, moving the breadboard', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a5');
     fireEvent.click(within(screen.getByRole('complementary', { name: 'Inspector' })).getByRole('button', { name: '1k' }));
     const a = s.point('bb1.c20');
@@ -475,8 +476,8 @@ describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', ()
     expect(JSON.parse(s.svg.querySelector('[data-part="r1"]')!.getAttribute('data-props')!)).toEqual({ ohms: 220 });
   });
 
-  it('shift-click selects a second part: no inspector, a note, Delete removes both, Undo brings both back', () => {
-    const s = setup();
+  it('shift-click selects a second part: no inspector, a note, Delete removes both, Undo brings both back', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a5');
     place(s, /^LED/, 'led', 'bb1.c10');
     pick(s, 'r1', true);
@@ -492,8 +493,8 @@ describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', ()
     expect(s.parts()).toEqual(['r1 bb1.a5 bb1.a8', 'led1 bb1.c10 bb1.c12']);
   });
 
-  it('a box drawn on the empty canvas selects the parts and wires inside it, and only those', () => {
-    const s = setup();
+  it('a box drawn on the empty canvas selects the parts and wires inside it, and only those', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a5');
     place(s, /^LED/, 'led', 'bb1.c10');
     place(s, /^Resistor/, 'resistor', 'bb1.a25');
@@ -506,8 +507,8 @@ describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', ()
     expect([...s.svg.querySelectorAll('[aria-selected="true"]')].map((g) => g.getAttribute('data-part'))).toEqual(['r1', 'led1']);
   });
 
-  it('dragging one of the selected parts moves them all, hole by hole', () => {
-    const s = setup();
+  it('dragging one of the selected parts moves them all, hole by hole', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a5');
     place(s, /^LED/, 'led', 'bb1.c10');
     pick(s, 'r1', true);
@@ -520,8 +521,8 @@ describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', ()
     expect(s.svg.querySelectorAll('[aria-selected="true"]')).toHaveLength(2);
   });
 
-  it('Ctrl+D (⌘D) copies the selection beside it, with its values; the copy is selected', () => {
-    const s = setup();
+  it('Ctrl+D (⌘D) copies the selection beside it, with its values; the copy is selected', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a5');
     fireEvent.click(within(screen.getByRole('complementary', { name: 'Inspector' })).getByRole('button', { name: '4.7k' }));
     key('d', { ctrlKey: true });
@@ -532,8 +533,8 @@ describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', ()
     expect(s.parts()).toHaveLength(3);
   });
 
-  it('R while a part is carried turns it before it is placed', () => {
-    const s = setup();
+  it('R while a part is carried turns it before it is placed', async () => {
+    const s = await setup();
     fireEvent.mouseDown(s.item(/^Resistor/), { clientX: 5, clientY: 5, button: 0 });
     fireEvent.mouseUp(s.item(/^Resistor/), { clientX: 5, clientY: 5, button: 0 });   // a click: now it is carried
     key('r');
@@ -544,8 +545,8 @@ describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', ()
     expect(s.parts()).toEqual(['r1 bb1.a5 bb1.d5']);
   });
 
-  it('nothing selected: Rotate, Duplicate and Delete are off; a part with no room to turn says so', () => {
-    const s = setup();
+  it('nothing selected: Rotate, Duplicate and Delete are off; a part with no room to turn says so', async () => {
+    const s = await setup();
     for (const name of ['Rotate', 'Duplicate', 'Delete', 'Redo']) expect(tool(name)).toBeDisabled();   // Undo: the breadboard put down
     place(s, /^LED/, 'led', 'bb1.T-1');
     expect(s.parts()).toEqual(['led1 bb1.T-1 bb1.T-3']);
@@ -554,15 +555,15 @@ describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', ()
     expect(s.parts()).toEqual(['led1 bb1.T-1 bb1.T-3']);
   });
 
-  it('undo in the code editor is the editor\'s: Ctrl+Z there never takes back a part', () => {
-    const s = setup();
+  it('undo in the code editor is the editor\'s: Ctrl+Z there never takes back a part', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a5');
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'main.py' }), { key: 'z', ctrlKey: true });
     expect(s.parts()).toHaveLength(1);
   });
 
-  it('the history outlives a visit to Learn', () => {
-    const s = setup();
+  it('the history outlives a visit to Learn', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a5');
     fireEvent.click(screen.getByRole('tab', { name: /Learn/ }));
     fireEvent.click(screen.getByRole('tab', { name: /Workspace/ }));
@@ -574,10 +575,10 @@ describe('M5.1 rotate, duplicate, select several (F-11), undo / redo (F-16)', ()
 
 describe('M5.2 zoom, pan and fit (F-17); everything joined to a hole lights up (F-12)', () => {
   const tool = (name: string) => within(screen.getByRole('toolbar', { name: 'Circuit tools' })).getByRole('button', { name });
-  const vb = (s: ReturnType<typeof setup>) => s.svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number, number, number];
+  const vb = (s: Awaited<ReturnType<typeof setup>>) => s.svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number, number, number];
 
-  it('Zoom in shows less of the drawing about its middle, Zoom out more, Fit goes back to the whole circuit', () => {
-    const s = setup();
+  it('Zoom in shows less of the drawing about its middle, Zoom out more, Fit goes back to the whole circuit', async () => {
+    const s = await setup();
     const [x, y, w, h] = vb(s);
     fireEvent.click(tool('Zoom in'));
     const [x1, y1, w1, h1] = vb(s);
@@ -592,8 +593,8 @@ describe('M5.2 zoom, pan and fit (F-17); everything joined to a hole lights up (
     expect(tool('Zoom to 100 %')).toHaveTextContent('%');
   });
 
-  it('+, − and 0 on the canvas; typed in the code editor they are code', () => {
-    const s = setup();
+  it('+, − and 0 on the canvas; typed in the code editor they are code', async () => {
+    const s = await setup();
     const w = vb(s)[2];
     fireEvent.keyDown(window, { key: '+' });
     expect(vb(s)[2]).toBeCloseTo(w / 1.25);
@@ -603,8 +604,8 @@ describe('M5.2 zoom, pan and fit (F-17); everything joined to a hole lights up (
     expect(vb(s)[2]).toBe(w);
   });
 
-  it('the wheel zooms at the pointer, as in Tinkercad (the M5 gate), and so does Ctrl + wheel / a pinch; Shift + wheel pans', () => {
-    const s = setup();
+  it('the wheel zooms at the pointer, as in Tinkercad (the M5 gate), and so does Ctrl + wheel / a pinch; Shift + wheel pans', async () => {
+    const s = await setup();
     const [x, y, w] = vb(s);
     fireEvent.wheel(s.svg, { ...s.client(x, y), deltaY: -100 });
     const [x1, y1, w1] = vb(s);
@@ -620,8 +621,8 @@ describe('M5.2 zoom, pan and fit (F-17); everything joined to a hole lights up (
     expect(y3 - y2).toBeCloseTo(50);
   });
 
-  it('a drag with the middle button, or with Space held, moves the view and changes nothing', () => {
-    const s = setup();
+  it('a drag with the middle button, or with Space held, moves the view and changes nothing', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a5');
     const before = s.parts();
     const [x, y] = vb(s);
@@ -639,8 +640,8 @@ describe('M5.2 zoom, pan and fit (F-17); everything joined to a hole lights up (
     expect(s.svg.querySelector('[data-marquee]')).toBeNull();
   });
 
-  it('hovering a hole lights its strip and every hole in it; leaving puts it out', () => {
-    const s = setup();
+  it('hovering a hole lights its strip and every hole in it; leaving puts it out', async () => {
+    const s = await setup();
     fireEvent.mouseEnter(s.svg.querySelector('[data-point="bb1.c5"]')!);
     expect(s.svg.querySelector('[data-lit-strip]')?.getAttribute('data-lit-strip')).toBe('bb1.a5 bb1.e5');
     expect([...s.svg.querySelectorAll('[data-lit-point]')].map((c) => c.getAttribute('data-lit-point')).sort())
@@ -649,8 +650,8 @@ describe('M5.2 zoom, pan and fit (F-17); everything joined to a hole lights up (
     expect(s.svg.querySelector('[data-lit-strip]')).toBeNull();
   });
 
-  it('through a wire: the strip at its other end and the board pin light too', () => {
-    const s = setup();
+  it('through a wire: the strip at its other end and the board pin light too', async () => {
+    const s = await setup();
     const a = s.point('board.GP15');
     const b = s.point('bb1.e5');
     fireEvent.mouseDown(s.svg.querySelector('[data-point="board.GP15"]')!, s.client(a.x, a.y));
@@ -666,7 +667,7 @@ describe('M5.2 zoom, pan and fit (F-17); everything joined to a hole lights up (
 describe('M5.3 a wire\'s bends (F-13); the pin and hole cards (F-15, F-12; screen 02)', () => {
   const inspector = () => screen.getByRole('complementary', { name: 'Inspector' });
   /** A wire GP15 → a5 drawn with one bend, then selected. */
-  function bentWire(s: ReturnType<typeof setup>) {
+  function bentWire(s: Awaited<ReturnType<typeof setup>>) {
     const a = s.point('board.GP15');
     const b = s.point('bb1.a5');
     const bend = { x: Math.round(a.x / 8) * 8, y: Math.round((a.y + 64) / 8) * 8 };   // below the board, clear of every hole
@@ -679,10 +680,10 @@ describe('M5.3 a wire\'s bends (F-13); the pin and hole cards (F-15, F-12; scree
     click(s.svg.querySelector('[data-point="bb1.a5"]')!, b.x, b.y);
     return bend;
   }
-  const via = (s: ReturnType<typeof setup>) => s.svg.querySelector('[data-wire="w1"]')!.getAttribute('data-via');
+  const via = (s: Awaited<ReturnType<typeof setup>>) => s.svg.querySelector('[data-wire="w1"]')!.getAttribute('data-via');
 
-  it('the selected wire\'s bend is dragged to a new place on the grid, then double-clicked away', () => {
-    const s = setup();
+  it('the selected wire\'s bend is dragged to a new place on the grid, then double-clicked away', async () => {
+    const s = await setup();
     const bend = bentWire(s);
     expect(via(s)).toBe(`${bend.x},${bend.y}`);
     const h = s.svg.querySelector('[data-bend="0"]')!;
@@ -695,8 +696,8 @@ describe('M5.3 a wire\'s bends (F-13); the pin and hole cards (F-15, F-12; scree
     expect(s.wires()).toEqual(['w1 board.GP15 bb1.a5']);
   });
 
-  it('a dot in the middle of a stretch dragged out adds a bend there; Straighten takes them all away; undo puts them back', () => {
-    const s = setup();
+  it('a dot in the middle of a stretch dragged out adds a bend there; Straighten takes them all away; undo puts them back', async () => {
+    const s = await setup();
     const bend = bentWire(s);
     const dot = s.svg.querySelector('[data-insert="1"]')!;
     const at = { x: Number(dot.getAttribute('cx')), y: Number(dot.getAttribute('cy')) };
@@ -713,8 +714,8 @@ describe('M5.3 a wire\'s bends (F-13); the pin and hole cards (F-15, F-12; scree
     expect(via(s)!.split(' ')).toHaveLength(2);
   });
 
-  it('hovering GP15 on the Pico W shows its card: name, pin, what it can do, logic and current', () => {
-    const s = setup();
+  it('hovering GP15 on the Pico W shows its card: name, pin, what it can do, logic and current', async () => {
+    const s = await setup();
     fireEvent.mouseEnter(s.svg.querySelector('[data-point="board.GP15"]')!);
     const card = screen.getByRole('tooltip');
     expect(card).toHaveTextContent('GP15 · pin 20');
@@ -724,8 +725,8 @@ describe('M5.3 a wire\'s bends (F-13); the pin and hole cards (F-15, F-12; scree
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
 
-  it('hovering a hole shows its strip and what is in it; while a wire is drawn from GP15 both cards show', () => {
-    const s = setup();
+  it('hovering a hole shows its strip and what is in it; while a wire is drawn from GP15 both cards show', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.e18');
     fireEvent.mouseEnter(s.svg.querySelector('[data-point="bb1.c18"]')!);
     expect(screen.getByRole('tooltip')).toHaveTextContent('Column 18, rows a–eThese 5 holes are joined inside the breadboard.R1 is already in row e.');
@@ -739,8 +740,8 @@ describe('M5.3 a wire\'s bends (F-13); the pin and hole cards (F-15, F-12; scree
     expect(cards[1]).toMatch(/^Column 18, rows a–e/);
   });
 
-  it('the micro:bit\'s pins and the ESP32\'s say what they are too', () => {
-    const s = setup('New micro:bit project');
+  it('the micro:bit\'s pins and the ESP32\'s say what they are too', async () => {
+    const s = await setup('New micro:bit project');
     fireEvent.mouseEnter(s.svg.querySelector('[data-point="board.P0"]')!);
     expect(screen.getByRole('tooltip')).toHaveTextContent(/^P0 · pin/);
     expect([...screen.getByRole('tooltip').querySelectorAll('.fn')].map((c) => c.textContent)).toContain('Digital in/out');
@@ -749,7 +750,7 @@ describe('M5.3 a wire\'s bends (F-13); the pin and hole cards (F-15, F-12; scree
 
 describe('M5.4 the inspector (screen 02b): Joins, Rotate, Duplicate, Delete', () => {
   const inspector = () => screen.getByRole('complementary', { name: 'Inspector' });
-  const wire = (s: ReturnType<typeof setup>, from: string, to: string) => {
+  const wire = (s: Awaited<ReturnType<typeof setup>>, from: string, to: string) => {
     const a = s.point(from);
     const b = s.point(to);
     fireEvent.mouseDown(s.svg.querySelector(`[data-point="${from}"]`)!, s.client(a.x, a.y));
@@ -757,8 +758,8 @@ describe('M5.4 the inspector (screen 02b): Joins, Rotate, Duplicate, Delete', ()
     fireEvent.mouseUp(s.svg, s.client(b.x, b.y));
   };
 
-  it('Blink: the resistor joins GP15 ↔ LED1, the LED joins R1 ↔ GND', () => {
-    const s = setup();
+  it('Blink: the resistor joins GP15 ↔ LED1, the LED joins R1 ↔ GND', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a5');
     place(s, /^LED/, 'led', 'bb1.b8');
     wire(s, 'board.GP15', 'bb1.e5');
@@ -771,8 +772,8 @@ describe('M5.4 the inspector (screen 02b): Joins, Rotate, Duplicate, Delete', ()
     expect(within(inspector()).getByText('R1 ↔ GND')).toBeInTheDocument();
   });
 
-  it('Rotate turns it; Duplicate copies it and shows the copy; Delete removes it', () => {
-    const s = setup();
+  it('Rotate turns it; Duplicate copies it and shows the copy; Delete removes it', async () => {
+    const s = await setup();
     place(s, /^Resistor/, 'resistor', 'bb1.a5');
     fireEvent.click(within(inspector()).getByRole('button', { name: 'Rotate' }));
     expect(s.parts()).toEqual(['r1 bb1.a6 bb1.d6']);
@@ -784,8 +785,8 @@ describe('M5.4 the inspector (screen 02b): Joins, Rotate, Duplicate, Delete', ()
     expect(screen.queryByRole('complementary', { name: 'Inspector' })).toBeNull();
   });
 
-  it('no room to turn: the inspector says so', () => {
-    const s = setup();
+  it('no room to turn: the inspector says so', async () => {
+    const s = await setup();
     place(s, /^LED/, 'led', 'bb1.T-1');
     fireEvent.click(within(inspector()).getByRole('button', { name: 'Rotate' }));
     expect(within(inspector()).getByRole('alert')).toHaveTextContent('No room to turn it');
@@ -793,8 +794,8 @@ describe('M5.4 the inspector (screen 02b): Joins, Rotate, Duplicate, Delete', ()
 });
 
 describe('M5.4 a card never outlives its hole', () => {
-  it('a wire ended on the hovered hole: its card goes', () => {
-    const s = setup();
+  it('a wire ended on the hovered hole: its card goes', async () => {
+    const s = await setup();
     const a = s.point('board.GP15');
     const b = s.point('bb1.e5');
     fireEvent.mouseEnter(s.svg.querySelector('[data-point="bb1.e5"]')!);

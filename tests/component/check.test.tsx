@@ -7,15 +7,16 @@ import { App } from '../../src/renderer/app/App';
 import type { StartRun } from '../../src/renderer/app/useRun';
 import { fakeApi } from './fake-api';
 import { partsPanel, startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M9 slice 3 (F-18, screen 29b): Run looks over the circuit and the code first; with something to look at it asks —
  *  Show / Line N, Run anyway, Cancel, the setting — and Problems lists it until it is fixed. */
-function setup() {
+async function setup() {
   const runs: { doc: ProjectDoc; entry: string }[] = [];
   const start: StartRun = (req) => { runs.push(req); return { stop: vi.fn(), setInput: vi.fn() }; };
   const api = fakeApi();
   render(<App api={api} width={1440} startRun={start} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const place = (name: RegExp, type: string, hole: string) => {
@@ -39,8 +40,8 @@ function setup() {
 const GP12 = 'from machine import Pin\nimport time\nbutton = Pin(12, Pin.IN, Pin.PULL_UP)\n';
 
 describe('M9 slice 3: the check before running (screen 29b)', () => {
-  it('a pin the code uses with nothing wired: Run asks first — nothing runs yet; the status bar says so', () => {
-    const s = setup();
+  it('a pin the code uses with nothing wired: Run asks first — nothing runs yet; the status bar says so', async () => {
+    const s = await setup();
     s.setCode(GP12);
     s.run();
     expect(s.runs).toHaveLength(0);
@@ -50,8 +51,8 @@ describe('M9 slice 3: the check before running (screen 29b)', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Wiring check: 1 to look at');
   });
 
-  it('Line 3 puts the editor on the line; Run anyway runs it as it is', () => {
-    const s = setup();
+  it('Line 3 puts the editor on the line; Run anyway runs it as it is', async () => {
+    const s = await setup();
     s.setCode(GP12);
     s.run();
     fireEvent.click(within(s.card()!).getByRole('button', { name: 'Line 3' }));
@@ -62,8 +63,8 @@ describe('M9 slice 3: the check before running (screen 29b)', () => {
     expect(s.card()).toBeNull();
   });
 
-  it('Cancel goes back to fix it; Problems lists it until it is fixed, then Run just runs', () => {
-    const s = setup();
+  it('Cancel goes back to fix it; Problems lists it until it is fixed, then Run just runs', async () => {
+    const s = await setup();
     s.setCode(GP12);
     s.run();
     fireEvent.click(within(s.card()!).getByRole('button', { name: 'Cancel' }));
@@ -82,8 +83,8 @@ describe('M9 slice 3: the check before running (screen 29b)', () => {
     expect(s.runs).toHaveLength(1);
   });
 
-  it('a leg alone: Show rings it on the canvas', () => {
-    const s = setup();
+  it('a leg alone: Show rings it on the canvas', async () => {
+    const s = await setup();
     s.setCode('from machine import Pin\nled = Pin("LED", Pin.OUT)\n');
     s.place(/^Resistor/, 'resistor', 'bb1.e20');
     const r1 = s.svg.querySelector('[data-part="r1"]')!.getAttribute('data-legs')!.split(' ');
@@ -100,7 +101,7 @@ describe('M9 slice 3: the check before running (screen 29b)', () => {
   });
 
   it('"Check each time I press Run" off: Run runs at once, and it is remembered', async () => {
-    const s = setup();
+    const s = await setup();
     s.setCode(GP12);
     s.run();
     fireEvent.click(within(s.card()!).getByRole('checkbox', { name: 'Check each time I press Run' }));
@@ -111,8 +112,8 @@ describe('M9 slice 3: the check before running (screen 29b)', () => {
     expect(s.card()).toBeNull();
   });
 
-  it("Run's menu shows the setting and turns it on again", () => {
-    const s = setup();
+  it("Run's menu shows the setting and turns it on again", async () => {
+    const s = await setup();
     s.setCode(GP12);
     const menuItem = () => {
       if (!screen.queryByRole('menu')) fireEvent.click(screen.getByRole('button', { name: 'More ways to run' }));

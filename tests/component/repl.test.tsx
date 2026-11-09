@@ -8,6 +8,7 @@ import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
 import { partsPanel, startBuilding } from './start-building';
 import { legsCentre } from '@lib/editor';
+import { newProjectFromStart } from './new-project';
 
 /** M9 slice 1 (screens 05, 29c): an error explained beside MicroPython's message, its line marked and Go to line;
  *  input() answered in the console; the REPL after the program. The worker is a fake: the test says what it says. */
@@ -25,10 +26,10 @@ function fakeSim() {
 
 const CODE = 'from machine import Pin\nimport time\n\nled = Pin(15, Pin.OUT)\npin.on()\n';
 
-function setup() {
+async function setup() {
   const sim = fakeSim();
   render(<App api={fakeApi()} width={1440} startRun={sim.start} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   startBuilding();
   // these programs use GP15 with nothing on it: the check before running (M9 slice 3) is turned off from Run's menu
   fireEvent.click(screen.getByRole('button', { name: 'More ways to run' }));
@@ -63,8 +64,8 @@ function placeLed() {
 const prompt = () => screen.getByRole('textbox', { name: /Python for the simulated board|input\(\) reads it/ });
 
 describe('M9 an error explained (screen 05)', () => {
-  it('beside the traceback: what it means, Go to line 5 — and the line marked in the editor, a note on the canvas', () => {
-    const s = setup();
+  it('beside the traceback: what it means, Go to line 5 — and the line marked in the editor, a note on the canvas', async () => {
+    const s = await setup();
     s.run();
     s.sim.say((e) => e.onOutput('Traceback (most recent call last):\n  File "main.py", line 5, in <module>\nNameError: name \'pin\' isn\'t defined\n'));
     s.sim.end('error', { error: { type: 'NameError', message: "name 'pin' isn't defined", file: 'main.py', line: 5 } });
@@ -84,8 +85,8 @@ describe('M9 an error explained (screen 05)', () => {
     expect(document.querySelector('.cbanner.error')).toBeNull();
   });
 
-  it('a fault in the run too: the note doesn\'t say the circuit is fine', () => {
-    const s = setup();
+  it('a fault in the run too: the note doesn\'t say the circuit is fine', async () => {
+    const s = await setup();
     s.run();
     s.sim.end('error', { error: { type: 'ZeroDivisionError', message: 'divide by zero', file: 'main.py', line: 2 }, faults: [{ kind: 'floating', severity: 'warning', on: 'GP14', message: 'x' }] });
     expect(document.querySelector('.cbanner.error')).toHaveTextContent('an error in main.py, line 2.');
@@ -94,8 +95,8 @@ describe('M9 an error explained (screen 05)', () => {
 });
 
 describe('M9 typing to the simulated board (screen 29c)', () => {
-  it('input(): its prompt is where to type; Enter sends the line; the echo shows as typed', () => {
-    const s = setup();
+  it('input(): its prompt is where to type; Enter sends the line; the echo shows as typed', async () => {
+    const s = await setup();
     s.run('name = input("What\'s your name? ")\n');
     s.sim.say((e) => e.onOutput("What's your name? "));
     const row = prompt().closest('.prompt')!;
@@ -110,8 +111,8 @@ describe('M9 typing to the simulated board (screen 29c)', () => {
     expect(s.log()).toHaveTextContent("What's your name? Sok Hello, Sok!");
   });
 
-  it('after the program: the note, >>> and a line for it; ↑ brings back what was typed; Ctrl+C is sent', () => {
-    const s = setup();
+  it('after the program: the note, >>> and a line for it; ↑ brings back what was typed; Ctrl+C is sent', async () => {
+    const s = await setup();
     s.run();
     s.sim.end('done', { repl: true });
     expect(s.log()).toHaveTextContent('main.py ended. Its names are still here: type Python and press Enter.');
@@ -131,8 +132,8 @@ describe('M9 typing to the simulated board (screen 29c)', () => {
     expect(s.sim.runs[0]!.type).toHaveBeenCalledWith('\x03');
   });
 
-  it('a block: after "for …:" the ... line starts indented', () => {
-    const s = setup();
+  it('a block: after "for …:" the ... line starts indented', async () => {
+    const s = await setup();
     s.run();
     s.sim.end('done', { repl: true });
     s.sim.say((e) => e.onOutput('>>> '));
@@ -144,8 +145,8 @@ describe('M9 typing to the simulated board (screen 29c)', () => {
     expect(prompt().closest('.prompt')!.querySelector('b')).toHaveTextContent('...');
   });
 
-  it('Tab completes a name as the editor does: led. after main.py made led = Pin(…)', () => {
-    const s = setup();
+  it('Tab completes a name as the editor does: led. after main.py made led = Pin(…)', async () => {
+    const s = await setup();
     s.run();
     s.sim.end('done', { repl: true });
     s.sim.say((e) => e.onOutput('>>> '));
@@ -155,8 +156,8 @@ describe('M9 typing to the simulated board (screen 29c)', () => {
     expect(prompt()).toHaveValue('led.toggle');
   });
 
-  it('an error at the REPL is explained too (no line to go to: it was typed)', () => {
-    const s = setup();
+  it('an error at the REPL is explained too (no line to go to: it was typed)', async () => {
+    const s = await setup();
     s.run();
     s.sim.end('done', { repl: true });
     s.sim.say((e) => e.onOutput('>>> '));
@@ -168,8 +169,8 @@ describe('M9 typing to the simulated board (screen 29c)', () => {
     expect(within(why).queryByRole('button')).toBeNull();
   });
 
-  it('Stop at the REPL switches the board off; Run starts afresh, ending the REPL', () => {
-    const s = setup();
+  it('Stop at the REPL switches the board off; Run starts afresh, ending the REPL', async () => {
+    const s = await setup();
     s.run();
     s.sim.end('done', { repl: true });
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
@@ -177,8 +178,8 @@ describe('M9 typing to the simulated board (screen 29c)', () => {
     expect(s.sim.runs).toHaveLength(2);
   });
 
-  it('a changed circuit ends the REPL, saying so', () => {
-    const s = setup();
+  it('a changed circuit ends the REPL, saying so', async () => {
+    const s = await setup();
     s.run();
     s.sim.end('done', { repl: true });
     placeLed();

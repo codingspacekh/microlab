@@ -6,15 +6,16 @@ import { App } from '../../src/renderer/app/App';
 import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
+import { newProjectFromStart } from './new-project';
 
 /** M5.6 F-21 the project's files (tabs, the files panel, the micro:bit's flat list and space); F-22 / Q19 Run runs
  *  the open file. The simulation is a fake: the test sees which file each run starts. */
-function setup(board = 'New Pico W project') {
+async function setup(board = 'New Pico W project') {
   const runs: { doc: ProjectDoc; entry: string; events: RunEvents }[] = [];
   const start: StartRun = (req, events) => { runs.push({ ...req, events }); return { stop: vi.fn(), setInput: vi.fn() }; };
   const end = () => act(() => runs.at(-1)!.events.onEnd({ output: '', trace: [], pwm: [], analog: [], display: [], sound: [], bus: [], parts: [], faults: [], ended: 'done' } as never));
   render(<App api={fakeApi()} width={1440} startRun={start} />);
-  fireEvent.click(screen.getByRole('button', { name: board }));
+  await newProjectFromStart(board);
   const panel = () => screen.getByRole('complementary', { name: 'Project files' });
   const tabs = () => within(screen.getByRole('tablist', { name: 'Files' })).getAllByRole('tab').map((t) => t.getAttribute('title'));
   const editorFor = (name: string) => screen.queryByRole('textbox', { name });
@@ -30,8 +31,8 @@ function setup(board = 'New Pico W project') {
 }
 
 describe('M5.6 F-21 the project\'s files', () => {
-  it('+ makes a file, opens it in a tab and in the editor; a library goes in lib/', () => {
-    const s = setup();
+  it('+ makes a file, opens it in a tab and in the editor; a library goes in lib/', async () => {
+    const s = await setup();
     s.newFile('led_test.py');
     expect(s.tabs()).toEqual(['main.py', 'led_test.py']);
     expect(s.editorFor('led_test.py')).not.toBeNull();
@@ -43,23 +44,23 @@ describe('M5.6 F-21 the project\'s files', () => {
     expect(within(s.panel()).getByRole('treeitem', { name: 'lib' })).toHaveAttribute('aria-expanded', 'true');
   });
 
-  it('a name already used, or not allowed, is refused with the reason; nothing is made', () => {
-    const s = setup();
+  it('a name already used, or not allowed, is refused with the reason; nothing is made', async () => {
+    const s = await setup();
     s.newFile('main.py');
     expect(within(s.panel()).getByText('There is already a file called main.py.')).toBeInTheDocument();
     expect(s.tabs()).toEqual(['main.py']);
   });
 
-  it('on the micro:bit a folder is refused with a message: its files sit next to main.py', () => {
-    const s = setup('New micro:bit project');
+  it('on the micro:bit a folder is refused with a message: its files sit next to main.py', async () => {
+    const s = await setup('New micro:bit project');
     s.newFile('lib/ssd1306.py');
     expect(within(s.panel()).getByText('The micro:bit has no folders: its files sit next to main.py. Call it ssd1306.py.')).toBeInTheDocument();
     expect(s.tabs()).toEqual(['main.py']);
     expect(within(s.panel()).getByText(/KB of about 20 KB/)).toBeInTheDocument();
   });
 
-  it('a file renamed: its tab follows; deleted: its tab closes and main.py is shown', () => {
-    const s = setup();
+  it('a file renamed: its tab follows; deleted: its tab closes and main.py is shown', async () => {
+    const s = await setup();
     s.newFile('a.py');
     fireEvent.click(screen.getByRole('button', { name: 'Project files' }));
     const tree = within(s.panel()).getByRole('tree');
@@ -77,8 +78,8 @@ describe('M5.6 F-21 the project\'s files', () => {
     expect(s.editorFor('main.py')).not.toBeNull();
   });
 
-  it('a tab closed shows the one before it; a file opened from the panel with Enter gets a tab again', () => {
-    const s = setup();
+  it('a tab closed shows the one before it; a file opened from the panel with Enter gets a tab again', async () => {
+    const s = await setup();
     s.newFile('a.py');
     fireEvent.click(screen.getByRole('button', { name: 'Close a.py' }));
     expect(s.tabs()).toEqual(['main.py']);
@@ -88,8 +89,8 @@ describe('M5.6 F-21 the project\'s files', () => {
     expect(s.tabs()).toEqual(['main.py', 'a.py']);
   });
 
-  it('the micro:bit nearly full: a warning above the code', () => {
-    const s = setup('New micro:bit project');
+  it('the micro:bit nearly full: a warning above the code', async () => {
+    const s = await setup('New micro:bit project');
     s.newFile('big.txt');
     const ed = s.editorFor('big.txt')!;
     // type a big text through the editor's own document
@@ -100,24 +101,24 @@ describe('M5.6 F-21 the project\'s files', () => {
 });
 
 describe('M5.6 F-22 (Q19) Run runs the open file, as Thonny does', () => {
-  it('with led_test.py open, Run says Run led_test.py and starts it', () => {
-    const s = setup();
+  it('with led_test.py open, Run says Run led_test.py and starts it', async () => {
+    const s = await setup();
     s.newFile('led_test.py');
     fireEvent.click(screen.getByRole('button', { name: 'Run led_test.py' }));
     expect(s.runs.at(-1)!.entry).toBe('led_test.py');
     expect(s.runs.at(-1)!.doc.files['led_test.py']).toBe('');
   });
 
-  it('Run main.py from its menu starts main.py', () => {
-    const s = setup();
+  it('Run main.py from its menu starts main.py', async () => {
+    const s = await setup();
     s.newFile('led_test.py');
     fireEvent.click(screen.getByRole('button', { name: 'More ways to run' }));
     fireEvent.click(screen.getByRole('menuitem', { name: /Run main\.py/ }));
     expect(s.runs.at(-1)!.entry).toBe('main.py');
   });
 
-  it('with index.html open, Run runs the last Python file run — or main.py', () => {
-    const s = setup();
+  it('with index.html open, Run runs the last Python file run — or main.py', async () => {
+    const s = await setup();
     s.newFile('www/index.html');
     expect(screen.getByRole('button', { name: 'Run main.py' })).toBeInTheDocument();
     s.newFile('led_test.py');

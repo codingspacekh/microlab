@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { dirname, join, resolve, sep } from 'node:path';
-import { app, BrowserWindow, clipboard, dialog, ipcMain, protocol, session, shell } from 'electron';
+import { basename, dirname, extname, join, resolve, sep } from 'node:path';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, protocol, session, shell } from 'electron';
 import { APP_SCHEME, APP_URL, isolationHeaders, resolveAppPath, responseHeaders } from './app-protocol';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, watch, type FSWatcher } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { SerialPort } from 'serialport';
@@ -14,7 +14,8 @@ import { BoardWatcher, listUsbWindows, listVolumes } from './board-watcher';
 import { whoHolds } from './port-holder';
 import { openSerial, type SerialLink } from './serial-link';
 import { openProjectFile, saveProjectFile } from './project-files';
-import { openPyFile, savePyFile } from './python3/files';
+import { openPyFile, saveTextFile } from './python3/files';
+import { insideProject, newBoardProjectPath, newEntry, newPythonProject, projectOf, projectTree, renameEntry, textFile } from './projects';
 import { findPython, startPython, type PythonSession } from './python3/session';
 import { Assistant, findTools, type Place } from './python3/assist';
 import { installLibrary, listLibraries, lookUp, removeLibrary } from './python3/libraries';
@@ -37,6 +38,8 @@ const rendererDir = join(here, '../renderer');
 
 // Tests and spikes get their own settings folder, so they never touch a student's own.
 if (process.env.MICROLAB_USER_DATA) app.setPath('userData', process.env.MICROLAB_USER_DATA);
+// the tests' own Documents too (M12 Rev 11): projects made in a test never reach the computer's real Documents
+if (process.env.MICROLAB_USER_DATA) app.setPath('documents', join(process.env.MICROLAB_USER_DATA, 'Documents'));
 
 // E2E runs hidden (the teacher's request, 2026-11-06): the window is never shown, the app has no Dock icon and never
 // takes focus from what the teacher is doing; its page still lays out, draws and runs timers at full speed. Nor is it
@@ -144,48 +147,108 @@ app.whenReady().then(() => {
     const path = r.filePaths[0];
     return r.canceled || !path ? { ok: false, canceled: true } : opened(path);
   });
-  // Python 3 (M12, F-90–F-92): .py files as IDLE has them; a run is a session of the bundled CPython with MicroLab's
-  // runner, one per window — a new Run ends the one before; closing the window ends it
-  const pyFolder = () => {
-    const folder = join(app.getPath('documents'), 'Python');
+  // Projects as folders (M12 Rev 11, F-100, F-101; screens 31e, 31b): a new project asks its name and place first;
+  // a Python project is a folder, its tree beside the editor. A window may touch only the project it opened.
+  const projectHome = () => {
+    const folder = join(app.getPath('documents'), 'MicroLab');
     mkdirSync(folder, { recursive: true });
     return folder;
   };
-  const pyOpened = async (path: string) => {
-    const r = await openPyFile(path);
-    return r.ok ? remember(r, 'python3') : r;
+  const roots = new Map<number, string>();
+  const watchers = new Map<number, FSWatcher>();
+  const own = (e: Electron.IpcMainInvokeEvent, root: string) => roots.get(e.sender.id) === root;
+  /** The project a window now has: watched, so files changed outside MicroLab show at once (debounced). */
+  const useProject = (sender: Electron.WebContents, root: string) => {
+    roots.set(sender.id, root);
+    watchers.get(sender.id)?.close();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const w = watch(root, { recursive: true }, () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => { if (!sender.isDestroyed()) sender.send('projects:changed', root); }, 150);
+      });
+      w.on('error', () => w.close());
+      watchers.set(sender.id, w);
+    } catch { /* a folder that can't be watched: the tree is read again after each change made here */ }
+    sender.once('destroyed', () => { watchers.get(sender.id)?.close(); watchers.delete(sender.id); roots.delete(sender.id); });
   };
-  ipcMain.handle('py:open', async (e) => {
+  /** A Python project opened (a folder, or a .py file's folder) for a window: its root, name, and the file to show. */
+  const openPython = async (sender: Electron.WebContents, path: string) => {
+    const p = projectOf(path);
+    if (!existsSync(p.root)) return { ok: false as const, message: `“${basename(p.root)}” isn't there any more.` };
+    useProject(sender, p.root);
+    recent.add({ path: p.root, name: basename(p.root), board: 'python3' });
+    const file = p.file && textFile(p.file) ? await openPyFile(p.file) : undefined;
+    return { ok: true as const, root: p.root, name: basename(p.root), ...(file?.ok ? { file: { path: file.path, text: file.text } } : {}) };
+  };
+  ipcMain.handle('projects:home', () => projectHome());
+  ipcMain.handle('projects:choose', async (e, from: string) => {
     const win = BrowserWindow.fromWebContents(e.sender);
-    const options = { title: 'Open a Python file', defaultPath: pyFolder(), filters: [{ name: 'Python file', extensions: ['py'] }], properties: ['openFile' as const] };
+    const options = { title: 'Where the project goes', defaultPath: from || projectHome(), buttonLabel: 'Choose', properties: ['openDirectory' as const, 'createDirectory' as const, 'promptToCreate' as const] };
     const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-    const path = r.filePaths[0];
-    return r.canceled || !path ? { ok: false, canceled: true } : pyOpened(path);
+    return r.canceled ? null : r.filePaths[0] ?? null;
   });
-  ipcMain.handle('py:open-path', (_e, path: string) => pyOpened(path));
-  ipcMain.handle('py:save', async (e, text: string, opts: { path?: string; name: string }) => {
+  ipcMain.handle('projects:new-python', async (e, location: string, name: string) => {
+    const r = newPythonProject(location, name);
+    return r.ok ? openPython(e.sender, r.root) : r;
+  });
+  ipcMain.handle('projects:new-board', async (_e, location: string, name: string, doc: ProjectDoc) => {
+    const where = newBoardProjectPath(location, name);
+    if (!where.ok) return where;
+    mkdirSync(location, { recursive: true });
+    return remember(await saveProjectFile(where.path, doc), doc.project.board);
+  });
+  ipcMain.handle('projects:open-python', (e, path: string) => openPython(e.sender, path));
+  ipcMain.handle('projects:tree', (e, root: string) => (own(e, root) ? projectTree(root) : []));
+  ipcMain.handle('projects:new-entry', (e, root: string, rel: string, kind: 'file' | 'folder') => (own(e, root) ? newEntry(root, rel, kind) : { ok: false, message: 'Not this window\'s project.' }));
+  ipcMain.handle('projects:rename', (e, root: string, from: string, to: string) => (own(e, root) ? renameEntry(root, from, to) : { ok: false, message: 'Not this window\'s project.' }));
+  ipcMain.handle('projects:trash', async (e, root: string, rel: string) => {
+    const full = own(e, root) ? insideProject(root, rel) : null;
+    if (!full) return { ok: false, message: 'Not this window\'s project.' };
+    try { await shell.trashItem(full); return { ok: true }; } catch (err) { return { ok: false, message: `“${basename(rel)}” couldn't be deleted: ${(err as Error).message}` }; }
+  });
+  ipcMain.handle('projects:reveal', (e, root: string, rel: string) => {
+    const full = rel ? insideProject(root, rel) : root;
+    if (own(e, root) && full) shell.showItemInFolder(full);
+  });
+  ipcMain.handle('projects:read', async (e, root: string, rel: string) => {
+    const full = own(e, root) ? insideProject(root, rel) : null;
+    if (!full) return { ok: false, message: 'Not this window\'s project.' };
+    if (!textFile(full)) return { ok: false, message: `“${basename(rel)}” isn't a text file: open it with the computer's own app (right-click → Show in ${process.platform === 'darwin' ? 'Finder' : 'Explorer'}).` };
+    return openPyFile(full);
+  });
+  /** The right-click menu on a file or folder in the tree: the computer's own; the item chosen, or null. */
+  ipcMain.handle('projects:context', (e, items: { id: string; label: string }[]) => new Promise<string | null>((done) => {
+    let chosen: string | null = null;
+    const menu = Menu.buildFromTemplate(items.map((i) => (i.id === '-' ? { type: 'separator' as const } : { label: i.label, click: () => { chosen = i.id; } })));
+    const win = BrowserWindow.fromWebContents(e.sender);
+    menu.popup({ ...(win ? { window: win } : {}), callback: () => setTimeout(() => done(chosen), 0) });
+  }));
+  // a file of the project saved (to its path); Save as asks where, starting in its project's folder
+  ipcMain.handle('py:save', async (e, text: string, opts: { path?: string; name: string; from?: string }) => {
     let path = opts.path;
     if (!path) {
       const win = BrowserWindow.fromWebContents(e.sender);
-      const options = { title: 'Save the Python file', defaultPath: join(pyFolder(), `${opts.name}.py`), filters: [{ name: 'Python file', extensions: ['py'] }] };
+      const options = { title: 'Save as', defaultPath: join(opts.from ?? roots.get(e.sender.id) ?? projectHome(), opts.name) };
       const r = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
       if (r.canceled || !r.filePath) return { ok: false, canceled: true };
-      path = r.filePath;
+      path = extname(r.filePath) ? r.filePath : `${r.filePath}.py`;
     }
-    return remember(await savePyFile(path, text), 'python3');
+    return saveTextFile(path, text);
   });
-  // Open… on the Start page takes a project or a .py file (screen 31)
+  // Open a project… on the Start page: a .mlab, a Python project's folder (macOS), or a .py file — its folder (screen 31)
   ipcMain.handle('file:open', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const options = {
-      title: 'Open a project or a Python file',
-      filters: [{ name: 'MicroLab project or Python file', extensions: ['mlab', 'py'] }, { name: 'MicroLab project', extensions: ['mlab'] }, { name: 'Python file', extensions: ['py'] }],
-      properties: ['openFile' as const],
+      title: 'Open a project',
+      defaultPath: projectHome(),
+      filters: [{ name: 'MicroLab project or Python file', extensions: ['mlab', 'py'] }],
+      properties: process.platform === 'darwin' ? ['openFile' as const, 'openDirectory' as const] : ['openFile' as const],
     };
     const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     const path = r.filePaths[0];
     if (r.canceled || !path) return { ok: false, canceled: true };
-    return path.toLowerCase().endsWith('.py') ? { kind: 'py', ...(await pyOpened(path)) } : { kind: 'mlab', ...(await opened(path)) };
+    return path.toLowerCase().endsWith('.mlab') ? { kind: 'mlab', ...(await opened(path)) } : { kind: 'py', ...(await openPython(e.sender, path)) };
   });
   const pySessions = new Map<number, PythonSession>();
   const pyLibs = join(app.getPath('userData'), 'python', 'site-packages');
@@ -201,8 +264,8 @@ app.whenReady().then(() => {
       if (!sender.isDestroyed()) sender.send('py:event', ev);
       if ('exit' in ev) pySessions.delete(id);
     });
-    // the file's own folder; a file not saved yet runs in Documents/Python
-    const cwd = /[\\/]/.test(file) ? dirname(file) : pyFolder();
+    // the file's own folder (in its project)
+    const cwd = /[\\/]/.test(file) ? dirname(file) : roots.get(id) ?? projectHome();
     s.run({ code, file, cwd });
     sender.once('destroyed', () => s.kill());
     return s.ready.then((v) => ({ ok: true, version: v }), (err: Error) => ({ ok: false, message: err.message }));

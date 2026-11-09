@@ -8,6 +8,7 @@ import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
 import { partsPanel, startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M9 slice 2 (F-37, F-24; screens 04, 25c, 27c): a fault's card on the canvas, Problems, the status bar, a burnt LED
  *  dead until replaced. The worker is a fake: the test says which faults it tells. */
@@ -24,10 +25,10 @@ function fakeSim() {
   return { start, runs, fault, end };
 }
 
-function setup() {
+async function setup() {
   const sim = fakeSim();
   render(<App api={fakeApi()} width={1440} startRun={sim.start} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
@@ -48,8 +49,8 @@ const PIN13: Fault = { kind: 'pin-over-current', severity: 'warning', on: 'GP13'
 const problems = () => screen.getByRole('region', { name: 'Problems in the circuit' });
 
 describe('M9 slice 2: an LED with no resistor burns out (screen 04)', () => {
-  it('its card beside it — why, the numbers, the fix — Problems open with both, the status bar says so', () => {
-    const s = setup();
+  it('its card beside it — why, the numbers, the fix — Problems open with both, the status bar says so', async () => {
+    const s = await setup();
     s.place(/^LED/, 'led', 'bb1.e20');
     s.run();
     s.sim.fault(BURNT);
@@ -74,8 +75,8 @@ describe('M9 slice 2: an LED with no resistor burns out (screen 04)', () => {
     expect(s.svg.querySelector('[data-part="led1"]')).toHaveAttribute('data-burnt', '1');
   });
 
-  it('it stays dead in the next run until it is replaced; Replace the LED lights it again', () => {
-    const s = setup();
+  it('it stays dead in the next run until it is replaced; Replace the LED lights it again', async () => {
+    const s = await setup();
     s.place(/^LED/, 'led', 'bb1.e20');
     s.run();
     s.sim.fault(BURNT);
@@ -96,8 +97,8 @@ describe('M9 slice 2: an LED with no resistor burns out (screen 04)', () => {
     expect(s.sim.runs.at(-1)!.burnt).toBeUndefined();
   });
 
-  it('the card closes with its ×, and stays in Problems; Clear empties Problems but for the LED still dead', () => {
-    const s = setup();
+  it('the card closes with its ×, and stays in Problems; Clear empties Problems but for the LED still dead', async () => {
+    const s = await setup();
     s.place(/^LED/, 'led', 'bb1.e20');
     s.run();
     s.sim.end('fault', [BURNT], { fault: { ...BURNT, message: '' } });
@@ -110,8 +111,8 @@ describe('M9 slice 2: an LED with no resistor burns out (screen 04)', () => {
     expect(problems()).toHaveTextContent('No problems in the circuit.');
   });
 
-  it('Show selects the LED and rings it', () => {
-    const s = setup();
+  it('Show selects the LED and rings it', async () => {
+    const s = await setup();
     s.place(/^LED/, 'led', 'bb1.e20');
     s.run();
     s.sim.end('fault', [BURNT], { fault: { ...BURNT, message: '' } });
@@ -122,8 +123,8 @@ describe('M9 slice 2: an LED with no resistor burns out (screen 04)', () => {
 });
 
 describe('M9 slice 2: a pin damaged (screen 25c), warnings while running (screen 27c)', () => {
-  it('a motor on GP15: GP15 was damaged, ringed; Undo takes back the last edit', () => {
-    const s = setup();
+  it('a motor on GP15: GP15 was damaged, ringed; Undo takes back the last edit', async () => {
+    const s = await setup();
     s.place(/^LED/, 'led', 'bb1.e20');
     const motor: Fault = { kind: 'motor-on-pin', severity: 'damage', on: 'GP15', part: 'motor1', amps: 0.046, limitA: 0.012, atMs: 200 };
     s.run();
@@ -139,8 +140,8 @@ describe('M9 slice 2: a pin damaged (screen 25c), warnings while running (screen
     expect(s.svg.querySelector('[data-part="led1"]')).toBeNull();
   });
 
-  it('a warning while running: a note beside the pin, counted in Problems and the status bar; the console stays', () => {
-    const s = setup();
+  it('a warning while running: a note beside the pin, counted in Problems and the status bar; the console stays', async () => {
+    const s = await setup();
     s.run();
     s.sim.fault({ kind: 'floating', severity: 'warning', on: 'GP14', atMs: 50 });
     const note = screen.getByRole('note', { name: 'GP14 reads chance' });

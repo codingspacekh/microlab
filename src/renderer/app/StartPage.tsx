@@ -12,7 +12,7 @@ export interface StartPageProps {
   onNew: (board: NewProjectBoard) => void;
   /** A new Python 3 file (M12, F-90, screen 31): the first card in the row. */
   onNewPython: () => void;
-  /** Open…: a project or a .py file, whichever is chosen. */
+  /** Open a project…: a .mlab, or a Python project (its folder, or a .py file in it). */
   onOpen: () => void;
   recent?: RecentItem[];
   onOpenRecent?: (item: RecentItem) => void;
@@ -47,7 +47,7 @@ export function StartPage({ onNew, onNewPython, onOpen, recent = [], onOpenRecen
             <div className="art"><PyCardArt /></div>
             <div className="about"><b>Python 3</b><span className="small muted">As in IDLE: turtle, tkinter, libraries</span></div>
             <span className="small muted mono">print("Hello!")</span>
-            <button type="button" className="btn" onClick={onNewPython}><Icon name="plus" size={14} /> New Python file</button>
+            <button type="button" className="btn" onClick={onNewPython}><Icon name="plus" size={14} /> New Python project</button>
           </div>
           {BOARD_CARDS.map((b) => (
             <div key={b.id} className="card bcard">
@@ -61,10 +61,10 @@ export function StartPage({ onNew, onNewPython, onOpen, recent = [], onOpenRecen
         <section className="card recent-card" aria-label="Recent">
           <div className="rh">
             <h2>Recent</h2>
-            <button type="button" className="btn ghost sm link" onClick={onOpen}><Icon name="folder" size={14} /> Open a project or a .py file…</button>
+            <button type="button" className="btn ghost sm link" onClick={onOpen}><Icon name="folder" size={14} /> Open a project…</button>
           </div>
           {recent.length === 0 ? (
-            <p className="small muted empty">The projects and Python files you open or save show here. A <code>.mlab</code> project or a <code>.py</code> file — yours, or your teacher's — opens with <b>Open a project or a .py file…</b></p>
+            <p className="small muted empty">The projects you make or open show here. A board's <code>.mlab</code>, or a Python project — its folder, or a <code>.py</code> file in it — opens with <b>Open a project…</b></p>
           ) : (
             <ul>
               {recent.map((r) => (

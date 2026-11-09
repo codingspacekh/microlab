@@ -13,6 +13,9 @@ import type { Detection, FoundBoard, InstallResult, InstallStep, UsbChip } from 
 /** What the preload gives the window (src/preload/index.ts): the only way to Node (architecture §2.2). */
 /** A .py file opened (M12, F-91). */
 export type PyOpen = { ok: true; path: string; name: string; text: string } | { ok: false; message: string } | { ok: false; canceled: true };
+export type PyProjectOpen = { ok: true; root: string; name: string; file?: { path: string; text: string } } | { ok: false; message: string };
+export interface TreeEntry { path: string; dir: boolean }
+export type Made = { ok: true; path: string } | { ok: false; message: string };
 export type PySave = { ok: true; path: string; name: string } | { ok: false; message: string } | { ok: false; canceled: true };
 /** A library installed in MicroLab's folder (src/main/python3/libraries.ts). */
 export interface PyLibrary { name: string; version: string; summary: string }
@@ -46,14 +49,35 @@ export interface MicrolabApi {
   };
   /** .py files (M12, F-91): opened and saved as IDLE does; they join the recent list (board "python3"). */
   pyfile: {
-    open(): Promise<PyOpen>;
-    openPath(path: string): Promise<PyOpen>;
-    /** To its file, or asking where (Documents/Python) when it has none. */
-    save(text: string, opts: { path?: string; name: string }): Promise<PySave>;
+    /** A project's file saved to its path; or (Save as) asking where, from its project's folder. */
+    save(text: string, opts: { path?: string; name: string; from?: string }): Promise<PySave>;
   };
-  /** Open… on the Start page (screen 31): a project or a .py file, whichever is chosen. */
+  /** Open a project… on the Start page (screen 31): a .mlab, or a Python project (its folder, or a .py file's). */
   file: {
-    open(): Promise<({ kind: 'mlab' } & OpenResult) | ({ kind: 'py' } & PyOpen) | { ok: false; canceled: true }>;
+    open(): Promise<({ kind: 'mlab' } & OpenResult) | ({ kind: 'py' } & PyProjectOpen) | { ok: false; canceled: true }>;
+  };
+  /** Projects as folders (M12 Rev 11, F-100, F-101; screens 31e, 31b). Paths in a project use forward slashes. */
+  projects: {
+    /** MicroLab's folder in Documents: where every new project's location starts. */
+    home(): Promise<string>;
+    /** The computer's folder window; the folder chosen, or null. */
+    choose(from: string): Promise<string | null>;
+    newPython(location: string, name: string): Promise<PyProjectOpen>;
+    newBoard(location: string, name: string, doc: ProjectDoc): Promise<SaveResult | { ok: false; message: string }>;
+    /** A Python project's folder, or a .py file's (that file shown). */
+    openPython(path: string): Promise<PyProjectOpen>;
+    tree(root: string): Promise<TreeEntry[]>;
+    newEntry(root: string, rel: string, kind: 'file' | 'folder'): Promise<Made>;
+    rename(root: string, from: string, to: string): Promise<Made>;
+    /** To the Recycle Bin / Bin. */
+    trash(root: string, rel: string): Promise<{ ok: true } | { ok: false; message: string }>;
+    /** Shows it in Explorer / Finder ('' : the project's folder). */
+    reveal(root: string, rel: string): Promise<void>;
+    read(root: string, rel: string): Promise<PyOpen>;
+    /** The computer's right-click menu; the id chosen, or null. '-' is a line between. */
+    context(items: { id: string; label: string }[]): Promise<string | null>;
+    /** Files changed in the project (here or outside MicroLab). */
+    onChanged(handler: (root: string) => void): () => void;
   };
   /** Python 3 (M12, F-92): a file run in the bundled CPython; its events come through onEvent. */
   python3: {
@@ -158,10 +182,15 @@ export function getApi(): MicrolabApi {
       forget: async () => {},
     },
     recovery: { get: async () => null, write: async () => {}, clear: async () => {} },
-    pyfile: {
-      open: async () => ({ ok: false, message: 'Opening a file needs the MicroLab app.' }),
-      openPath: async () => ({ ok: false, message: 'Opening a file needs the MicroLab app.' }),
-      save: async () => ({ ok: false, message: 'Saving a file needs the MicroLab app.' }),
+    pyfile: { save: async () => ({ ok: false, message: 'Saving a file needs the MicroLab app.' }) },
+    projects: {
+      home: async () => 'Documents/MicroLab', choose: async () => null,
+      newPython: async () => ({ ok: false, message: 'Python projects need the MicroLab app.' }),
+      newBoard: async () => ({ ok: false, message: 'Saving a project needs the MicroLab app.' }),
+      openPython: async () => ({ ok: false, message: 'Python projects need the MicroLab app.' }),
+      tree: async () => [], newEntry: async () => ({ ok: false, message: 'Needs the MicroLab app.' }), rename: async () => ({ ok: false, message: 'Needs the MicroLab app.' }),
+      trash: async () => ({ ok: false, message: 'Needs the MicroLab app.' }), reveal: async () => {}, read: async () => ({ ok: false, message: 'Needs the MicroLab app.' }),
+      context: async () => null, onChanged: () => () => {},
     },
     file: { open: async () => ({ ok: false, canceled: true }) },
     python3: {

@@ -4,6 +4,7 @@ import { parseUname, type BoardListing } from '@lib/repl';
 import type { Detection, FoundBoard } from '@lib/usb';
 import { App } from '../../src/renderer/app/App';
 import { fakeApi } from './fake-api';
+import { newProjectFromStart } from './new-project';
 
 /**
  * M10.5 F-53 (screen 15): Board files — the board's files beside the project's, which are the same, differ or are
@@ -26,7 +27,7 @@ const LISTING: BoardListing = {
   flat: false,
 };
 
-function setup(listing: BoardListing = LISTING, detection: Detection = ready) {
+async function setup(listing: BoardListing = LISTING, detection: Detection = ready) {
   const api = fakeApi();
   api.boards.get = vi.fn(async () => detection);
   api.boards.files.list = vi.fn(async () => ({ ok: true as const, listing, board: 'Pico W' }));
@@ -40,7 +41,7 @@ function setup(listing: BoardListing = LISTING, detection: Detection = ready) {
   api.boards.files.delete = vi.fn(async () => ({ ok: true as const, keptIn: '/d/Pico W 2026-11-06 15-01-00' }));
   api.boards.files.mkdir = vi.fn(async () => ({ ok: true as const }));
   render(<App api={api} width={1440} />);
-  fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
+  await newProjectFromStart('New Pico W project');
   return { api };
 }
 
@@ -59,7 +60,7 @@ async function open() {
 
 describe('M10.5 F-53 the two sides', () => {
   it('the project and the board, each file\'s size and how it compares; the board\'s space', async () => {
-    const s = setup();
+    const s = await setup();
     await open();
     expect(s.api.boards.files.list).toHaveBeenCalledWith('e661', expect.objectContaining({ 'main.py': expect.any(String) }));
     expect(item(project(), 'main.py')).toHaveTextContent('differs');
@@ -71,7 +72,7 @@ describe('M10.5 F-53 the two sides', () => {
   });
 
   it('folders open and close (a click on the arrow, or → and ←)', async () => {
-    setup();
+    await setup();
     await open();
     expect(within(board()).queryByRole('treeitem', { name: /^door\.py/ })).toBeNull();
     fireEvent.click(within(item(board(), 'smarthome')).getByRole('button', { name: 'Open smarthome' }));
@@ -83,7 +84,7 @@ describe('M10.5 F-53 the two sides', () => {
 
 describe('M10.5 F-53 copying', () => {
   it('to the board, replacing its main.py: asked first, its old one kept on the laptop', async () => {
-    const s = setup();
+    const s = await setup();
     await open();
     fireEvent.click(item(project(), 'main.py'));
     fireEvent.click(within(dialog()).getByRole('button', { name: /Copy to the board/ }));
@@ -97,7 +98,7 @@ describe('M10.5 F-53 copying', () => {
   });
 
   it('to this laptop: a board folder goes into the project, all in it', async () => {
-    setup();
+    await setup();
     await open();
     fireEvent.click(item(board(), 'smarthome'));
     fireEvent.click(within(dialog()).getByRole('button', { name: /Copy to this laptop/ }));
@@ -108,7 +109,7 @@ describe('M10.5 F-53 copying', () => {
   });
 
   it('to this laptop, replacing the project\'s main.py: asked first; then it is the editor\'s', async () => {
-    setup();
+    await setup();
     await open();
     fireEvent.click(item(board(), 'main.py'));
     fireEvent.click(within(dialog()).getByRole('button', { name: /Copy to this laptop/ }));
@@ -122,7 +123,7 @@ describe('M10.5 F-53 copying', () => {
 
 describe('M10.5 F-53 open, folder, delete, done', () => {
   it('Open: a board file read-only, then back to the list', async () => {
-    setup();
+    await setup();
     await open();
     fireEvent.click(item(board(), 'main.py'));
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Open' }));
@@ -133,7 +134,7 @@ describe('M10.5 F-53 open, folder, delete, done', () => {
   });
 
   it('a new folder, inside the folder chosen', async () => {
-    const s = setup();
+    const s = await setup();
     await open();
     fireEvent.click(item(board(), 'lib'));
     fireEvent.click(within(dialog()).getByRole('button', { name: 'New folder' }));
@@ -144,7 +145,7 @@ describe('M10.5 F-53 open, folder, delete, done', () => {
   });
 
   it('Delete: asked first, says what goes, a copy kept', async () => {
-    const s = setup();
+    const s = await setup();
     await open();
     fireEvent.click(item(board(), 'smarthome'));
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Delete' }));
@@ -156,7 +157,7 @@ describe('M10.5 F-53 open, folder, delete, done', () => {
   });
 
   it('Cancel in a question: nothing done', async () => {
-    const s = setup();
+    const s = await setup();
     await open();
     fireEvent.click(item(board(), 'main.py'));
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Delete' }));
@@ -165,7 +166,7 @@ describe('M10.5 F-53 open, folder, delete, done', () => {
   });
 
   it('Done: closed, and the board\'s program runs again', async () => {
-    const s = setup();
+    const s = await setup();
     await open();
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Done' }));
     expect(screen.queryByRole('dialog', { name: 'Board files' })).toBeNull();
@@ -173,13 +174,13 @@ describe('M10.5 F-53 open, folder, delete, done', () => {
   });
 
   it('the micro:bit has no folders: New folder can\'t be pressed, and says why', async () => {
-    setup({ ...LISTING, files: [{ path: 'main.py', size: 10 }], dirs: [], flat: true, same: {} }, ready);
+    await setup({ ...LISTING, files: [{ path: 'main.py', size: 10 }], dirs: [], flat: true, same: {} }, ready);
     await open();
     expect(within(dialog()).getByRole('button', { name: 'New folder' })).toBeDisabled();
   });
 
   it('a board that can\'t be read says why', async () => {
-    const s = setup();
+    const s = await setup();
     s.api.boards.files.list = vi.fn(async () => ({ ok: false as const, message: 'The board is used by Thonny. Close Thonny, or press Stop/Disconnect in it, then try again.' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'More ways to send' })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: 'More ways to send' }));

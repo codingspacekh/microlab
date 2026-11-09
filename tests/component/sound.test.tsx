@@ -9,6 +9,7 @@ import type { AudioLike } from '../../src/renderer/audio';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
 import { startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M6.2 (F-33, F-36; screen 06): the active and the passive buzzer in the parts panel and the inspector; while running
  *  a buzzer that sounds shows its sound waves and its note, and is heard (Web Audio, a fake here) with the micro:bit's
@@ -42,11 +43,11 @@ function fakeAudio() {
   return { make: () => ctx as unknown as AudioLike, playing, types };
 }
 
-function setup(board = 'New Pico W project', api: MicrolabApi = fakeApi()) {
+async function setup(board = 'New Pico W project', api: MicrolabApi = fakeApi()) {
   const sim = fakeSim();
   const audio = fakeAudio();
   render(<App api={api} width={1440} startRun={sim.start} audio={audio.make} />);
-  fireEvent.click(screen.getByRole('button', { name: board }));
+  await newProjectFromStart(board);
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
@@ -65,8 +66,8 @@ function setup(board = 'New Pico W project', api: MicrolabApi = fakeApi()) {
 }
 
 describe('M6.2 the buzzer in the editor', () => {
-  it('from the panel its legs go three holes apart, + then −; the inspector chooses active or passive', () => {
-    const s = setup();
+  it('from the panel its legs go three holes apart, + then −; the inspector chooses active or passive', async () => {
+    const s = await setup();
     s.place('bb1.a10');
     expect(s.part('bz1')).toHaveAttribute('data-legs', 'bb1.a10 bb1.a13');
     const inspector = screen.getByRole('complementary', { name: 'Inspector' });
@@ -80,8 +81,8 @@ describe('M6.2 the buzzer in the editor', () => {
 });
 
 describe('M6.2 while running: seen and heard', () => {
-  it('a sounding buzzer shows its waves and its note on hover, and is heard; silent, it stops', () => {
-    const s = setup();
+  it('a sounding buzzer shows its waves and its note on hover, and is heard; silent, it stops', async () => {
+    const s = await setup();
     s.place('bb1.a10');
     s.run();
     expect(s.part('bz1')).toHaveAttribute('data-hz', '0');
@@ -99,7 +100,7 @@ describe('M6.2 while running: seen and heard', () => {
 
   it('the status bar turns the sound off and on, and the setting is kept', async () => {
     const api = fakeApi();
-    const s = setup('New Pico W project', api);
+    const s = await setup('New Pico W project', api);
     s.place('bb1.a10');
     s.run();
     s.sim.say((e) => e.onParts({ bz1: { kind: 'buzzer', hz: 2300, volume: 1 } }));
@@ -114,7 +115,7 @@ describe('M6.2 while running: seen and heard', () => {
   it('a muted setting is remembered for the next time', async () => {
     const api = fakeApi();
     await api.settings.set('sound', false);
-    const s = setup('New Pico W project', api);
+    const s = await setup('New Pico W project', api);
     s.place('bb1.a10');
     s.run();
     await screen.findByRole('button', { name: /Sound off/ });
@@ -122,8 +123,8 @@ describe('M6.2 while running: seen and heard', () => {
     expect(s.audio.playing()).toEqual([]);
   });
 
-  it('the micro:bit\'s speaker is heard, with no buzzer at all; the end of the run stops every sound', () => {
-    const s = setup('New micro:bit project');
+  it('the micro:bit\'s speaker is heard, with no buzzer at all; the end of the run stops every sound', async () => {
+    const s = await setup('New micro:bit project');
     s.run();
     expect(screen.getByRole('button', { name: /Sound on/ })).toBeInTheDocument();
     s.sim.say((e) => e.onBoard({ pins: {}, sound: 523.25 }));
@@ -132,8 +133,8 @@ describe('M6.2 while running: seen and heard', () => {
     expect(s.audio.playing()).toEqual([]);
   });
 
-  it('M7 slice 4: the speaker plays its sound effect\'s waveform; at volume 0 it is not heard; a later note is square again', () => {
-    const s = setup('New micro:bit project');
+  it('M7 slice 4: the speaker plays its sound effect\'s waveform; at volume 0 it is not heard; a later note is square again', async () => {
+    const s = await setup('New micro:bit project');
     s.run();
     s.sim.say((e) => e.onBoard({ pins: {}, sound: 600, tone: { volume: 0.5, wave: 'triangle' } }));
     expect(s.audio.playing()).toEqual([600]);
@@ -144,8 +145,8 @@ describe('M6.2 while running: seen and heard', () => {
     expect(s.audio.types()).toEqual(['square']);
   });
 
-  it('nothing to hear (a Pico W with no buzzer): no sound button', () => {
-    const s = setup();
+  it('nothing to hear (a Pico W with no buzzer): no sound button', async () => {
+    const s = await setup();
     s.run();
     expect(screen.queryByRole('button', { name: /Sound (on|off)/ })).toBeNull();
   });

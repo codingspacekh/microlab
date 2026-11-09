@@ -8,6 +8,7 @@ import type { StartRun } from '../../src/renderer/app/useRun';
 import type { RunEvents } from '../../src/renderer/sim-client';
 import { fakeApi } from './fake-api';
 import { partsPanel, startBuilding } from './start-building';
+import { newProjectFromStart } from './new-project';
 
 /** M4.5 F-22, F-23 (screen 03): Run, Stop, Restart, the console, LEDs glowing and buttons pressed while running.
  *  The simulation is a fake here (the real worker runs in the e2e tests): the test says what the worker says. */
@@ -27,10 +28,10 @@ function api(): MicrolabApi {
   return fakeApi();
 }
 
-function setup(board = 'New Pico W project') {
+async function setup(board = 'New Pico W project') {
   const sim = fakeSim();
   render(<App api={api()} width={1440} startRun={sim.start} />);
-  fireEvent.click(screen.getByRole('button', { name: board }));
+  await newProjectFromStart(board);
   startBuilding();
   const svg = screen.getByRole('application', { name: 'Circuit canvas' });
   const [vx, vy] = svg.getAttribute('viewBox')!.split(' ').map(Number) as [number, number];
@@ -48,8 +49,8 @@ function setup(board = 'New Pico W project') {
 }
 
 describe('M4.5 Run and Stop (F-22)', () => {
-  it('Run starts main.py with the project as it is; the top bar shows the time, Stop and Restart', () => {
-    const s = setup();
+  it('Run starts main.py with the project as it is; the top bar shows the time, Stop and Restart', async () => {
+    const s = await setup();
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     expect(s.sim.runs).toHaveLength(1);
     expect(s.sim.runs[0]!).toMatchObject({ entry: 'main.py', doc: { project: { board: 'pico-w' } } });
@@ -60,8 +61,8 @@ describe('M4.5 Run and Stop (F-22)', () => {
     expect(s.consoleText()).toMatch(/^MicroPython v1\.29\.0 on Raspberry Pi Pico W \(simulated\) — running main\.py/);
   });
 
-  it('Stop asks the run to stop; once it has, Run is back, the parts go dark, the console says so', () => {
-    const s = setup();
+  it('Stop asks the run to stop; once it has, Run is back, the parts go dark, the console says so', async () => {
+    const s = await setup();
     s.place(/^LED/, 'led', 'bb1.c10');
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     s.sim.say((e) => e.onParts({ led1: { kind: 'led', amps: 0.012, brightness: 0.6 } }));
@@ -78,7 +79,7 @@ describe('M4.5 Run and Stop (F-22)', () => {
   it('Restart: stops, then runs again with the code as it is now', async () => {
     vi.useFakeTimers();
     try {
-      const s = setup();
+      const s = await setup();
       fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
       fireEvent.click(screen.getByRole('button', { name: 'Restart' }));
       expect(s.sim.runs[0]!.stop).toHaveBeenCalled();
@@ -91,8 +92,8 @@ describe('M4.5 Run and Stop (F-22)', () => {
     }
   });
 
-  it('a new project stops what runs', () => {
-    const s = setup();
+  it('a new project stops what runs', async () => {
+    const s = await setup();
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     fireEvent.click(screen.getByRole('button', { name: 'Project menu' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'New project…' }));
@@ -103,8 +104,8 @@ describe('M4.5 Run and Stop (F-22)', () => {
 });
 
 describe('M4.5 the console (F-23)', () => {
-  it('shows what the board prints; the end of the program; Clear empties it', () => {
-    const s = setup();
+  it('shows what the board prints; the end of the program; Clear empties it', async () => {
+    const s = await setup();
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     s.sim.say((e) => e.onOutput('Hello\n'));
     s.sim.say((e) => e.onOutput('24 °C\n'));
@@ -115,8 +116,8 @@ describe('M4.5 the console (F-23)', () => {
     expect(s.consoleText()).toMatch(/^Press Run/);
   });
 
-  it('an error: the traceback as the board prints it, a red line saying where, and the status bar', () => {
-    const s = setup();
+  it('an error: the traceback as the board prints it, a red line saying where, and the status bar', async () => {
+    const s = await setup();
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     s.sim.say((e) => e.onOutput('Traceback (most recent call last):\n  File "main.py", line 3, in <module>\nNameError: name \'y\' isn\'t defined\n'));
     s.sim.end('error', { error: { type: 'NameError', message: "name 'y' isn't defined", file: 'main.py', line: 3 } });
@@ -125,8 +126,8 @@ describe('M4.5 the console (F-23)', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Stopped: an error on line 3');
   });
 
-  it('a damaged circuit: the fault\'s message, in red (M9: Problems opens; the console keeps the line)', () => {
-    const s = setup();
+  it('a damaged circuit: the fault\'s message, in red (M9: Problems opens; the console keeps the line)', async () => {
+    const s = await setup();
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     s.sim.end('fault', { fault: { kind: 'led-burnt', part: 'led1', message: 'LED1 burnt out: 95 mA through it (it takes 30 mA at most).' } });
     expect(screen.getByRole('tab', { name: /Problems/ })).toHaveAttribute('aria-selected', 'true');
@@ -137,8 +138,8 @@ describe('M4.5 the console (F-23)', () => {
 });
 
 describe('M4.5 while running (screen 03)', () => {
-  it('a push button is pressed by holding the mouse on it, and let go', () => {
-    const s = setup();
+  it('a push button is pressed by holding the mouse on it, and let go', async () => {
+    const s = await setup();
     s.place(/^Push button/, 'button', 'bb1.e20');
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     const btn = s.svg.querySelector('[data-part="btn1"]')!;
@@ -150,8 +151,8 @@ describe('M4.5 while running (screen 03)', () => {
     expect(s.svg.querySelector('[data-part="btn1"]')).toHaveAttribute('data-pressed', '0');
   });
 
-  it('the circuit can\'t be changed: no part moves, none is added, the inspector closes, holes take no wires', () => {
-    const s = setup();
+  it('the circuit can\'t be changed: no part moves, none is added, the inspector closes, holes take no wires', async () => {
+    const s = await setup();
     s.place(/^Resistor/, 'resistor', 'bb1.a1');
     expect(screen.getByRole('complementary', { name: 'Inspector' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
@@ -170,8 +171,8 @@ describe('M4.5 while running (screen 03)', () => {
     expect(s.svg.querySelectorAll('[data-part]')).toHaveLength(1);
   });
 
-  it('the Pico W\'s own LED lights from its LED pin', () => {
-    const s = setup();
+  it('the Pico W\'s own LED lights from its LED pin', async () => {
+    const s = await setup();
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     expect(s.svg.querySelector('[data-board-led]')).toBeNull();
     s.sim.say((e) => e.onBoard({ pins: { LED: 1 } }));
@@ -180,15 +181,15 @@ describe('M4.5 while running (screen 03)', () => {
     expect(s.svg.querySelector('[data-board-led]')).toBeNull();
   });
 
-  it('the ESP32\'s blue LED lights from its current (a part of the board\'s circuit)', () => {
-    const s = setup('New ESP32 project');
+  it('the ESP32\'s blue LED lights from its current (a part of the board\'s circuit)', async () => {
+    const s = await setup('New ESP32 project');
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     s.sim.say((e) => e.onParts({ 'board.LED': { kind: 'led', amps: 0.0012, brightness: 0.06 } }));
     expect(s.svg.querySelector('[data-board-led]')).not.toBeNull();
   });
 
-  it('the micro:bit\'s display shows each frame, each pixel as bright as it is', () => {
-    const s = setup('New micro:bit project');
+  it('the micro:bit\'s display shows each frame, each pixel as bright as it is', async () => {
+    const s = await setup('New micro:bit project');
     fireEvent.click(screen.getByRole('button', { name: 'Run main.py' }));
     expect(s.consoleText()).toMatch(/^micro:bit MicroPython v2\.1\.2 \(MicroPython v1\.18\) on BBC micro:bit V2 \(simulated\)/);
     s.sim.say((e) => e.onBoard({ pins: {}, display: '0909099999999990999000900' }));
