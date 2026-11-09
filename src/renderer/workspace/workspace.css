@@ -292,3 +292,24 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .check-card .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 .check-card .row .spacer { flex: 1; }
 .check-card .row .crow { padding: 0; }
+
+/* ---------- M9 slice 4: the multimeter (screen 29) ---------- */
+.canvas .meter-card { z-index: 6; width: 236px; padding: 10px 12px 12px; font-size: 12px; line-height: 1.45; }
+.meter-card .fh { display: flex; align-items: center; gap: 7px; }
+.meter-card .fh .spacer { flex: 1; }
+.meter-card .lcd { display: flex; align-items: baseline; justify-content: flex-end; gap: 4px; margin-top: 8px; padding: 8px 12px; border-radius: 7px;
+  background: #c9d4b8; border: 2px solid #4a5240; color: #1e2418; font-family: var(--mono); }
+.meter-card .lcd .v { font-size: 28px; font-weight: 700; letter-spacing: 0.04em; }
+.meter-card .lcd .u { font-size: 13px; font-weight: 700; min-width: 2.2em; }
+.meter-card .seg { display: flex; gap: 2px; margin-top: 8px; padding: 3px; border-radius: 8px; background: var(--bg); }
+.meter-card .seg button { flex: 1; height: 26px; border: 0; border-radius: 6px; background: none; font: inherit; font-weight: 700; color: var(--tx-2); cursor: pointer; }
+.meter-card .seg button.on { background: var(--panel); color: var(--tx-1); box-shadow: var(--shadow-s, 0 1px 2px rgba(0,0,0,.12)); }
+.meter-card .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.meter-card .probes { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; margin-top: 10px; }
+.meter-card .probes .lab { font-weight: 700; color: var(--tx-1); }
+.meter-card .probes .lab.red { color: #d94545; }
+.meter-card .hint { margin: 8px 0 0; color: var(--tx-3); font-size: 11.5px; }
+.ctools .meter-tool { gap: 5px; }
+.ctools .meter-tool.on { background: var(--accent-soft); color: var(--accent-ink); }
+.scene .probe { cursor: grab; pointer-events: all; }
+.scene .meter-through { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 4 3; }

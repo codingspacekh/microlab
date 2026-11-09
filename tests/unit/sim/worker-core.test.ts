@@ -132,3 +132,19 @@ describe('M9 slice 2: the worker tells each fault as it is seen', () => {
   });
 });
 
+describe('M9 slice 4: the circuit\'s state for the multimeter', () => {
+  it('the pins as the circuit has them reach the window: GP15 driven high, GP14 an input with its pull-up', async () => {
+    const control = new Control();
+    const posts: WorkerMessage[] = [];
+    let t = 0;
+    await handleStart({
+      type: 'start', board: 'pico-w', control: control.buffer, inputs: [],
+      files: { 'main.py': 'from machine import Pin\nimport time\nPin(14, Pin.IN, Pin.PULL_UP)\nPin(15, Pin.OUT).on()\ntime.sleep_ms(50)\n' },
+      circuit: { board: { data: parseBoard(picoJson) }, breadboards: [], parts: [{ id: 'r1', type: 'resistor', legs: { a: 'board.GP15', b: 'board.GP14' } }], wires: [] },
+    }, (m) => posts.push(m), await nodeLoader(), () => (t += 1));
+    const states = posts.flatMap((m) => (m.type === 'board' && m.state ? [m.state] : []));
+    expect(states.at(-1)!.pins).toMatchObject({ GP15: { mode: 'out', value: 1 }, GP14: { mode: 'in', pull: 'up' } });
+    // only when it changes: not once per frame
+    expect(new Set(states.map((x) => JSON.stringify(x))).size).toBe(states.length);
+  });
+});

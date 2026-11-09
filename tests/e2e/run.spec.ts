@@ -654,3 +654,34 @@ test('M9 slice 2 (screen 04): an LED straight on GP13 burns out in the real work
   await expect(win.getByRole('group', { name: 'LED1 burnt out' })).toBeVisible({ timeout: 5000 });
 });
 
+
+test('M9 slice 4 (screen 29): the multimeter with the real mouse and worker — a PWM pin at 50 % reads its average, 1.65 V; the resistor 220 Ω with the power off', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Pico W project' }).click();
+  await startBuilding(win);
+  // Blink: GP15 → 220 Ω (a5–a8) → LED (b8–b10) → GND
+  await drag(win, await centre(win, '.parts .pitem:has-text("Resistor")'), await between(win, 'bb1.a5', 'bb1.a8'));
+  await drag(win, await centre(win, '.parts .pitem:has-text("red, 5 mm")'), await between(win, 'bb1.b8', 'bb1.b10'));
+  await drag(win, await centre(win, '[data-point="board.GP15"]'), await centre(win, '[data-point="bb1.e5"]'));
+  await drag(win, await centre(win, '[data-point^="board.GND"]'), await centre(win, '[data-point="bb1.e10"]'));
+  await win.keyboard.press('Escape');
+  await setCode(win, ['from machine import Pin, PWM', 'import time', 'p = PWM(Pin(15), freq=1000, duty_u16=32768)', 'time.sleep(30)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  await expect(win.getByRole('status')).toContainText('Running at real speed');
+
+  await win.getByRole('button', { name: /Meter/ }).click();
+  const card = win.getByRole('group', { name: 'Multimeter' });
+  await drag(win, await centre(win, '[data-probe="red"] line:last-of-type'), await centre(win, '[data-point="bb1.d5"]'));
+  await drag(win, await centre(win, '[data-probe="black"] line:last-of-type'), await centre(win, '[data-point="bb1.d10"]'));
+  await expect(card).toContainText('column 5 — GP15');
+  await expect.poll(async () => Number((await card.getByRole('status', { name: 'Reading' }).textContent())!.replace(/[^\d.]/g, '')), { timeout: 5000 })
+    .toBeCloseTo(1.65, 0);
+
+  await win.getByRole('button', { name: 'Stop' }).click();
+  await expect(win.getByRole('button', { name: 'Run main.py' })).toBeEnabled({ timeout: 2000 });
+  await card.getByRole('radio', { name: 'Ohms' }).click();
+  await drag(win, await centre(win, '[data-probe="black"] line:last-of-type'), await centre(win, '[data-point="bb1.d8"]'));
+  await expect(card.getByRole('status', { name: 'Reading' })).toHaveText('220.0Ω');
+  await win.keyboard.press('Escape');
+  await expect(card).toHaveCount(0);
+});

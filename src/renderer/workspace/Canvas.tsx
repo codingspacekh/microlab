@@ -6,8 +6,9 @@ import {
   putInGpioBoard, RING_LABELS, setUsb, snapPart, snapToGrid, usedPoints, zoomAt, ZOOM, type Art, type Box, type Legs, type Point, type Scene,
   boardAt, boardBox, freeBox, freeTurn, isFree, kindTerminals, rotateBoard, setPartProp, terminalsOf,
 } from '@lib/editor';
-import type { BreadboardSize, FaultCard } from '@lib/circuit';
-import { microbitAlone, type Project } from '@lib/project';
+import { meterReading, probePlace, type BreadboardSize, type FaultCard } from '@lib/circuit';
+import type { BoardId } from '@lib/boards';
+import { legName, microbitAlone, toCircuit, type Project } from '@lib/project';
 import { boardName, boardPicture } from '../app/boards';
 import type { PartView } from '../../sim/circuit';
 import { GpsCard, PhoneCard, TerminalCard } from './serial-cards';
@@ -19,6 +20,7 @@ import { noteName } from '../audio';
 import { InputsCard, MicrobitCard, PartTip, SLIDER_PARTS, UsbSocket, UsbTip, useLive } from './live';
 import { psuJumpers, type ActLook } from './actuators';
 import { FaultCardView, FaultNote } from './faults';
+import { MeterCard, Probe, type MeterState } from './meter';
 
 /**
  * The circuit canvas (screens 02, 02b, 03; F-10–F-14). Everything is drawn from the project: the board's picture and
@@ -273,6 +275,88 @@ export function Canvas({
   const notes = faults.filter((c) => c.severity === 'warning' && !closed.includes(c.key)
     && !faults.some((d) => d.severity === 'damage' && c.show.pin && (d.via === c.show.pin || d.show.pin === c.show.pin))).slice(0, 2);
   const hurtPins = running ? [] : faults.flatMap((c) => (c.hurt?.pin ? [c.hurt.pin] : []));
+  // M9 slice 4 (F-38, screen 29): the multimeter — Meter takes it out, Esc or Meter puts it away; its probes stay where
+  // they were for the next time
+  const [meterOn, setMeterOn] = useState(false);
+  const [meter, setMeter] = useState<MeterState | null>(null);
+  const toggleMeter = () => {
+    if (!meterOn && !meter) {
+      // first time: the probes lie on the right of what can be seen, to be dragged where they measure
+      const at = (dx: number) => ({ x: viewBox.x + viewBox.w * 0.66 + dx, y: viewBox.y + viewBox.h * 0.62 });
+      setMeter({ mode: 'V', red: { at: at(0) }, black: { at: at(48) } });
+    }
+    setMeterOn(!meterOn);
+  };
+  useEffect(() => {
+    if (!meterOn) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('[role="dialog"], [role="menu"]')) setMeterOn(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [meterOn]);
+  const [probeDrag, setProbeDrag] = useState<'red' | 'black' | null>(null);
+  useEffect(() => {
+    if (!probeDrag) return;
+    const move = (e: MouseEvent) => setMeter((m) => (m ? { ...m, [probeDrag]: { at: toWorld(e) } } : m));
+    const up = (e: MouseEvent) => {
+      const at = toWorld(e);
+      const point = nearestPoint(sceneOf(project), at, 14);
+      setMeter((m) => (m ? { ...m, [probeDrag]: point ? { point, at: pointAt(sceneOf(project), point) ?? at } : { at } } : m));
+      setProbeDrag(null);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+    // toWorld reads the view as it is now
+  }, [probeDrag, project]);
+  const meterSpec = useMemo(() => {
+    if (!meterOn) return null;
+    try { return { ...toCircuit(project, boardData(project.board as BoardId)), ...(burnt.length ? { burnt } : {}) }; } catch { return null; }
+  }, [meterOn, project, burnt]);
+  const simState = outputs.board.state;
+  const reading = useMemo(() => (meterSpec && meter
+    ? meterReading(meterSpec, simState ?? {}, { mode: meter.mode, red: meter.red.point, black: meter.black.point, through: meter.through })
+    : { text: '- - - -', unit: 'V' }), [meterSpec, simState, meter?.mode, meter?.red.point, meter?.black.point, meter?.through]);
+  /** A: the wire or leg clicked takes the meter in its place. */
+  const meterA = meterOn && meter?.mode === 'A';
+  const placeName = (point: string) => (meterSpec ? probePlace(meterSpec, point).split(' — ')[0]! : point);
+  const throughText = (() => {
+    const t = meter?.through;
+    if (!t) return undefined;
+    if ('wire' in t) {
+      const w = project.wires.find((x) => x.id === t.wire);
+      return w ? `${w.id.toUpperCase()}, from ${placeName(w.a)} to ${placeName(w.b)}` : undefined;
+    }
+    const [id, leg] = t.leg.split('.') as [string, string];
+    const part = project.parts.find((x) => x.id === id);
+    return part ? `${id.toUpperCase()}'s ${legName(part.type, leg)}${part.legs[leg] ? ` (${placeName(part.legs[leg])})` : ''}` : undefined;
+  })();
+  const throughAt = (() => {
+    const t = meterA ? meter?.through : undefined;
+    if (!t) return undefined;
+    if ('leg' in t) {
+      const [id, leg] = t.leg.split('.') as [string, string];
+      const at = project.parts.find((x) => x.id === id)?.legs[leg];
+      return at ? pointAt(scene, at) : undefined;
+    }
+    const w = project.wires.find((x) => x.id === t.wire);
+    const a = w && pointAt(scene, w.a);
+    const b = w && pointAt(scene, w.b);
+    const mid = w?.via?.length ? w.via[Math.floor(w.via.length / 2)] : undefined;
+    return mid ?? (a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : undefined);
+  })();
+  const pickLeg = (e: ReactMouseEvent, p: Project['parts'][number]) => {
+    const at = toWorld(e);
+    let best: string | undefined;
+    let d = Infinity;
+    for (const [leg, ref] of Object.entries(p.legs)) {
+      const q = pointAt(scene, ref);
+      if (!q) continue;
+      const dd = (q.x - at.x) ** 2 + (q.y - at.y) ** 2;
+      if (dd < d) { d = dd; best = leg; }
+    }
+    if (best) setMeter((m) => (m ? { ...m, through: { leg: `${p.id}.${best}` } } : m));
+  };
+
   // Show: into view if it is out of it, and a ring for a moment
   const [ring, setRing] = useState<Point | null>(null);
   useEffect(() => {
@@ -668,6 +752,7 @@ export function Canvas({
             <g key={w.id} data-wire={w.id} data-ends={`${w.a} ${w.b}`} data-via={(w.via ?? []).map((p) => `${p.x},${p.y}`).join(' ')}
               data-colour={colour} className={on ? 'wirepick on' : 'wirepick'} aria-selected={on || undefined}
               onMouseDown={(e) => {
+                if (e.button === 0 && meterA) { e.stopPropagation(); setMeter((m) => (m ? { ...m, through: { wire: w.id } } : m)); return; }
                 if (e.button !== 0 || running) return;
                 e.stopPropagation();
                 say(null);
@@ -826,7 +911,7 @@ export function Canvas({
               } } : {})}
               aria-label={`${safeName(p.type)} ${p.id}`} className={['part', p.type, moving && preview.blocked && 'blocked'].filter(Boolean).join(' ')}
               aria-selected={on || undefined}
-              onMouseDown={running ? runInput(p.type, p.id) : (e) => {
+              onMouseDown={meterA ? (e) => { if (e.button === 0) { e.stopPropagation(); pickLeg(e, p); } } : running ? runInput(p.type, p.id) : (e) => {
                 if (e.button !== 0) return;
                 if (e.shiftKey) { e.preventDefault(); e.stopPropagation(); say(null); toggle('part', p.id); return; }
                 const group = on ? chosen(selection).parts : [p.id];
@@ -872,6 +957,17 @@ export function Canvas({
           return at ? <circle key={label} className="hurt-pin" data-hurt={label} cx={at.x} cy={at.y} r={9} /> : null;
         })}
         {ring && <circle className="focus-ring" cx={ring.x} cy={ring.y} r={22} />}
+        {meterOn && meter && (
+          <g className="meter-layer">
+            {throughAt && <circle className="meter-through" cx={throughAt.x} cy={throughAt.y} r={10} />}
+            {(['black', 'red'] as const).map((which) => {
+              const pr = meter[which];
+              const at = (pr.point && pointAt(scene, pr.point)) || pr.at;
+              return <Probe key={which} which={which} at={at} on={!!pr.point}
+                onMouseDown={(e) => { if (e.button !== 0) return; e.preventDefault(); e.stopPropagation(); setProbeDrag(which); }} />;
+            })}
+          </g>
+        )}
         {gesture?.kind === 'wire' && (
           <g data-drawing-wire="">
             <Wire points={[pointAt(scene, gesture.from)!, ...gesture.via, gesture.at]} colour={wireColour('w0', roles.get(gesture.from)?.role)} drawing />
@@ -932,6 +1028,13 @@ export function Canvas({
                 style={near(isFree(tipPart.type) ? Object.keys(terminalsOf(scene, tipPart)).map((t) => `${tipPart.id}.${t}`).concat(Object.values(tipPart.legs)) : Object.values(tipPart.legs), 46)}
                 values={{ x: live.value(`x:${tipPart.id}`), y: live.value(`y:${tipPart.id}`), steps: live.value(`steps:${tipPart.id}`), ...(tipLed !== undefined ? { led: tipLed } : {}) }} />
             )}
+            {meterOn && meter && (
+              <MeterCard reading={reading} mode={meter.mode} onMode={(mode) => setMeter((m) => (m ? { ...m, mode } : m))}
+                red={meter.red.point ? probePlace(meterSpec ?? { breadboards: [], parts: [], wires: [] }, meter.red.point) : 'not on anything yet'}
+                black={meter.black.point ? probePlace(meterSpec ?? { breadboards: [], parts: [], wires: [] }, meter.black.point) : 'not on anything yet'}
+                through={throughText} onClose={() => setMeterOn(false)}
+                style={{ right: running && boardOpen && project.board === 'microbit-v2' ? 300 : 14, top: 14 }} />
+            )}
             {/* M9 slice 2 (screens 04, 25c): the damage's card and the warnings' notes, beside what they are on */}
             {damage && !running && (() => {
               const led = damage.hurt?.led;
@@ -976,6 +1079,11 @@ export function Canvas({
         <ToolButton icon="rotate" label="Rotate" keys="R" disabled={!canEdit || (!some.parts.length && !selection.some((x) => x.kind === 'board'))} onClick={() => commands.rotate(project, selection)} />
         <ToolButton icon="copy" label="Duplicate" keys={`${MOD}D`} disabled={!canEdit || (!some.parts.length && !some.wires.length)} onClick={() => commands.duplicate(project, selection)} />
         <ToolButton icon="trash" label="Delete" keys="Delete" disabled={!canEdit || (!some.parts.length && !some.wires.length)} onClick={() => commands.remove(project, selection)} />
+        <span className="vsep" />
+        <button type="button" className={meterOn ? 'btn ghost sm meter-tool on' : 'btn ghost sm meter-tool'} aria-pressed={meterOn}
+          title="The multimeter: V, A and Ω (Esc puts it away)" onMouseDown={(e) => e.preventDefault()} onClick={toggleMeter}>
+          <Icon name="meter" size={14} /> Meter
+        </button>
       </div>
     </>
   );

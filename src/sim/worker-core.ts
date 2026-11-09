@@ -1,4 +1,4 @@
-import type { CircuitSpec, Fault } from '@lib/circuit';
+import type { CircuitSpec, Fault, SimState } from '@lib/circuit';
 import type { Wave } from './soundfx';
 import type { PartView } from './circuit';
 import { RealClock } from './clock';
@@ -30,7 +30,7 @@ export type WorkerMessage =
   | { type: 'parts'; states: Record<string, PartView> }
   /** The board's own outputs that changed (M4.5): pin levels ('LED' is the Pico W's own LED), the display, the
    *  micro:bit speaker's pitch (Hz, 0: silence; M6.2), its volume (0–1) and waveform (M7 slice 4). */
-  | { type: 'board'; pins: Record<string, number>; display?: string; sound?: number; tone?: Tone; radio?: string[] }
+  | { type: 'board'; pins: Record<string, number>; display?: string; sound?: number; tone?: Tone; radio?: string[]; state?: SimState }
   /** A fault first seen (M9 slice 2), warnings too, with its time: after what came before it. */
   | { type: 'fault'; fault: Fault }
   /** The program has ended and the REPL is ready (M9, F-23): the worker goes on until Stop. */
@@ -58,13 +58,15 @@ export async function handleStart(
   let sound: number | undefined;
   let tone: Tone | undefined;
   let radio: string[] = [];
+  let state: SimState | undefined;
   let last = -Infinity;
   const flush = () => {
     if (pending) post({ type: 'output', text: pending });
     if (Object.keys(parts).length) post({ type: 'parts', states: parts });
-    if (Object.keys(pins).length || display !== undefined || sound !== undefined || radio.length) {
-      post({ type: 'board', pins, ...(display !== undefined ? { display } : {}), ...(sound !== undefined ? { sound, ...(tone ? { tone } : {}) } : {}), ...(radio.length ? { radio } : {}) });
+    if (Object.keys(pins).length || display !== undefined || sound !== undefined || radio.length || state) {
+      post({ type: 'board', pins, ...(display !== undefined ? { display } : {}), ...(sound !== undefined ? { sound, ...(tone ? { tone } : {}) } : {}), ...(radio.length ? { radio } : {}), ...(state ? { state } : {}) });
     }
+    state = undefined;
     pending = '';
     parts = {};
     pins = {};
@@ -103,6 +105,10 @@ export async function handleStart(
     onReplError: (error) => {
       flush();
       post({ type: 'repl-error', error });
+    },
+    onState: (s) => {
+      state = s;
+      maybeFlush();
     },
     onFault: (fault) => {
       flush();

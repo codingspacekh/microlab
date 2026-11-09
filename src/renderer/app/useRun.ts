@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Fault } from '@lib/circuit';
+import type { Fault, SimState } from '@lib/circuit';
 import type { ProjectDoc } from '@lib/project';
 import { explain, type Explanation } from '@lib/errors';
 import type { PartView } from '../../sim/circuit';
@@ -19,7 +19,11 @@ export type StartRun = (req: { doc: ProjectDoc; entry: string }, events: RunEven
 export type ConsoleKind = 'out' | 'sys' | 'err' | 'me' | 'why';
 export interface ConsoleChunk { kind: ConsoleKind; text: string; why?: Explanation }
 /** The board's own outputs while running: pin levels, the micro:bit's display, its speaker's pitch (Hz; M6.2). */
-export interface BoardOutputs { pins: Record<string, number>; display?: string; sound?: number; tone?: Tone; radio?: string[] }
+export interface BoardOutputs {
+  pins: Record<string, number>; display?: string; sound?: number; tone?: Tone; radio?: string[];
+  /** The circuit's pins and parts as the board's run has them (M9 slice 4: the multimeter reads with them). */
+  state?: SimState;
+}
 
 export interface RunState {
   /** idle also while the REPL waits after the program (`repl`). */
@@ -73,7 +77,7 @@ export function useRun(start: StartRun = realStart) {
       onParts: (states) => setState((s) => ({ ...s, parts: { ...s.parts, ...states } })),
       // the radio's messages sent (M7): the last six, as hex
       onBoard: (b) => setState((s) => ({ ...s, board: { pins: { ...s.board.pins, ...b.pins }, display: b.display ?? s.board.display, sound: b.sound ?? s.board.sound, tone: b.sound !== undefined ? b.tone : s.board.tone,
-        radio: b.radio ? [...(s.board.radio ?? []), ...b.radio].slice(-6) : s.board.radio } })),
+        radio: b.radio ? [...(s.board.radio ?? []), ...b.radio].slice(-6) : s.board.radio, state: b.state ?? s.board.state } })),
       onFault: (f) => {
         if (handle.current !== session) return;
         setState((s) => (s.faults.some((x) => keyOf(x) === keyOf(f)) ? s : { ...s, faults: [...s.faults, f] }));

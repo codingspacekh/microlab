@@ -4,5 +4,5 @@ export { FORMAT, MlabError, isTextFile, readMlab, writeMlab } from './format';
 export type { OpenResult, ProjectDoc, SaveResult } from './format';
 export { newProject } from './starter';
 export { addFile, deletePath, fileNameProblem, MICROBIT_SPACE, renamePath, runTarget, spaceNote } from './files';
-export { checkBeforeRun } from './check';
+export { checkBeforeRun, legName } from './check';
 export type { CheckItem } from './check';

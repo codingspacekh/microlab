@@ -127,6 +127,9 @@ export class CircuitHost {
   onDamage?: (fault: Fault) => void;
   /** Told of each fault as it is first seen in the run, with its time (M9: the window's cards and Problems). */
   onFault?: (fault: Fault) => void;
+  /** Told of the pins' and parts' state after a solve, when it changed (M9 slice 4: the window's multimeter). */
+  onState?: (state: SimState) => void;
+  private lastState = '';
   private readonly connectivity: Connectivity;
   private readonly pinOfNet = new Map<string, string>();
   private readonly views = new Map<string, PartView>();
@@ -775,6 +778,14 @@ export class CircuitHost {
     }
     this.dirty = false;
     this.noteFaults();
+    if (this.onState) {
+      const st = this.state();
+      const json = JSON.stringify(st);
+      if (json !== this.lastState) {
+        this.lastState = json;
+        this.onState(st);
+      }
+    }
     this.traceSerial();   // a serial part's power may have changed with this solve
     for (const pin of this.netOfPin.keys()) this.pins.recheck(pin);
     this.traceViews();

@@ -35,7 +35,8 @@ function placeOf(point: string): string | undefined {
   return `the ${m[3] === 'T' ? 'top' : 'bottom'} ${m[4] === '-' ? '−' : '+'} rail`;
 }
 
-function legName(type: string, leg: string): string {
+/** A leg as a student names it: an LED's long leg, a motor's + tab, a module's VCC. */
+export function legName(type: string, leg: string): string {
   if (type === 'led') return leg === 'a' ? 'long leg' : 'short leg';
   if (type === 'rgb-led') return 'long leg (common)';
   if (type === 'seven-segment') return 'COM';

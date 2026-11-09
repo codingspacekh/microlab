@@ -1,5 +1,5 @@
 import type { BoardId } from '@lib/boards';
-import type { Fault } from '@lib/circuit';
+import type { Fault, SimState } from '@lib/circuit';
 import { boardData } from '@lib/editor';
 import { toCircuit, type Project, type ProjectDoc } from '@lib/project';
 import type { PartView } from '../sim/circuit';
@@ -25,7 +25,7 @@ export interface RunEvents {
   /** `echo`: what the student typed, as the board echoes it (M9). */
   onOutput: (text: string, echo?: boolean) => void;
   onParts: (states: Record<string, PartView>) => void;
-  onBoard: (outputs: { pins: Record<string, number>; display?: string; sound?: number; tone?: Tone; radio?: string[] }) => void;
+  onBoard: (outputs: { pins: Record<string, number>; display?: string; sound?: number; tone?: Tone; radio?: string[]; state?: SimState }) => void;
   /** The program ended: by itself, with an error, by Ctrl+C — the REPL follows when `result.repl` — or by Stop. */
   onEnd: (result: RunResult) => void;
   /** An error in a line typed at the REPL (M9). */
@@ -110,7 +110,7 @@ export function startRun(req: { doc: ProjectDoc; entry: string; burnt?: string[]
       else events.onOutput(m.text);
     }
     else if (m.type === 'parts') events.onParts(m.states);
-    else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}), ...(m.sound !== undefined ? { sound: m.sound, ...(m.tone ? { tone: m.tone } : {}) } : {}), ...(m.radio ? { radio: m.radio } : {}) });
+    else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}), ...(m.sound !== undefined ? { sound: m.sound, ...(m.tone ? { tone: m.tone } : {}) } : {}), ...(m.radio ? { radio: m.radio } : {}), ...(m.state ? { state: m.state } : {}) });
     else if (m.type === 'ended') {
       // M9: the program has ended; the worker goes on with the REPL
       ended = true;

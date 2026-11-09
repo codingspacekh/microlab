@@ -131,6 +131,14 @@ describe('M4.5 starting a run', () => {
     expect(e.onFault).toHaveBeenCalledWith({ kind: 'led-burnt', severity: 'damage', on: 'led2', atMs: 1400 });
   });
 
+  it('M9 slice 4: the circuit\'s state comes with the board\'s outputs (the multimeter reads with it)', () => {
+    const w = new FakeWorker();
+    const e = events();
+    startRun({ doc: doc(), entry: 'main.py' }, e, () => w);
+    w.say({ type: 'board', pins: { 15: 1 }, state: { pins: { GP15: { mode: 'out', value: 1 } } } });
+    expect(e.onBoard).toHaveBeenCalledWith({ pins: { 15: 1 }, state: { pins: { GP15: { mode: 'out', value: 1 } } } });
+  });
+
   it('a button pressed while running: its slot is set in the shared buffer', () => {
     const w = new FakeWorker();
     const run = startRun({ doc: doc(), entry: 'main.py' }, events(), () => w);

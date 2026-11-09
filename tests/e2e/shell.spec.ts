@@ -36,7 +36,14 @@ test.describe('the window fills its width', () => {
       const win = await app.firstWindow();
       await resize(app, win, w, h);
       await newProject(win);
-      const m = await widths(win);
+      // the layout settles first (the saved panel widths load, the window's new size is drawn): two frames alike
+      let m = await widths(win);
+      await expect.poll(async () => {
+        const before = m;
+        await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+        m = await widths(win);
+        return JSON.stringify(m) === JSON.stringify(before);
+      }).toBe(true);
       expect(m.scroll).toBeLessThanOrEqual(m.window);
       // M6.8: the parts panel is folded to a rail; it slides out over the canvas
       expect(Math.abs(m.rail + m.circuit + m.code + 1 /* the code's divider */ - m.window)).toBeLessThanOrEqual(4);
@@ -44,9 +51,8 @@ test.describe('the window fills its width', () => {
       expect(m.circuit).toBeGreaterThan(360);
       const parts = win.getByRole('button', { name: 'Parts', exact: true });
       if ((await parts.getAttribute('aria-expanded')) !== 'true') await parts.click();
-      const open = await widths(win);
-      expect(open.parts / open.window).toBeGreaterThan(0.12);
-      expect(open.circuit).toBe(m.circuit);   // over it, not squeezing it
+      await expect.poll(async () => (await widths(win)).parts / m.window).toBeGreaterThan(0.12);
+      await expect.poll(async () => (await widths(win)).circuit).toBe(m.circuit);   // over it, not squeezing it
       await parts.click();
     });
   }

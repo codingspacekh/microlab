@@ -1,4 +1,4 @@
-import { describeFault, type CircuitSpec, type Fault } from '@lib/circuit';
+import { describeFault, type CircuitSpec, type Fault, type SimState } from '@lib/circuit';
 import { CircuitHost, type PartChange, type PartTraceEntry } from './circuit';
 import { RealClock, type Clock } from './clock';
 import type { Control } from './control';
@@ -101,6 +101,8 @@ export interface RunOptions {
   onParts?: (entry: PartTraceEntry) => void;
   /** Each fault as it is first seen, warnings too, with its time (M9: the cards and Problems while running). */
   onFault?: (fault: Fault) => void;
+  /** The circuit's pins and parts as it solves them, when they change (M9 slice 4: the multimeter). */
+  onState?: (state: SimState) => void;
   /** Stop the run, quietly, when the clock reaches this (µs): the acceptance suite's `seconds` (M3.6). */
   maxUs?: number;
   /** The file Run runs (M4.5, requirements Rev 7, Q19): the one open in the editor; main.py when the board is
@@ -157,6 +159,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
     pins.attach(circuit);
     circuit.onChange = options.onParts;
     circuit.onFault = options.onFault;
+    circuit.onState = options.onState;
     circuit.onDamage = () => mp._module._mp_sched_keyboard_interrupt();   // stop at once, as Stop does
   }
   const timers = new TimerBank(now);
