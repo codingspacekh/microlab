@@ -154,7 +154,7 @@ describe('M12 the Python 3 screen (screen 31b)', () => {
     await newFile();
     fireEvent.click(screen.getByRole('button', { name: 'New file' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'New file\'s name' }), { target: { value: 'helpers' } });
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Make' })); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Create' })); });
     expect(s.api.projects.newEntry).toHaveBeenCalledWith(ROOT, 'helpers.py', 'file');
     expect(await screen.findByRole('textbox', { name: 'helpers.py' })).toBeInTheDocument();
     s.type('helpers.py', 'changed\n');

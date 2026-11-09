@@ -6,6 +6,8 @@ How MicroLab is built, **in what order**, and **how each part is proven to work*
 - System design (processes, engine, board layer, file format): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html)
 
+*Revision 12 (2026-11-09): **M12 slice 7** (requirements Rev 12, the teacher's trial): panels hidden and shown, the Python logo on `.py` files, the theme on the whole Python screen, five code fonts, the app's size in the status bar (F-102–F-106); turtle's and tkinter's completions with their brackets; design 31b updated, 31g, 31h new.*
+
 *Revision 11 (2026-11-09): **M12 slice 6** (requirements Rev 11, the teacher after trying M12): projects as folders with their tree, New project asking its name and place first (Python and boards), the shell below or beside and resizable, brackets and quotes in pairs (F-98–F-101); design 31, 31b updated, 31e, 31f new — before M12's gate.*
 
 *Revision 10 (2026-11-09): **M12 Python 3** (requirements Rev 10), built **before M11**: a Python 3 screen with an editor for `.py` files and a shell, real CPython 3.13 shipped inside MicroLab, turtle and tkinter, libraries from PyPI (F-90–F-97). M8 Learn waits until after the pilot (its design approved).*
@@ -569,6 +571,7 @@ connection problem says how to fix it.
 4. **Libraries**: the app's Python folder on every program's path; the Libraries window — the installed list (`pip list --path`), a library looked up by name (PyPI's JSON page for it; PyPI has no search API) or from a short list often used in class, Install / Remove with `pip`, a `.whl` file; what `pip` prints shown as it works; offline said plainly.
 5. **Friendly errors** for CPython's messages (M9's engine, new texts); the Plotter; completions with Jedi.
 6. *(Rev 11)* **Projects and the shell's place** (design 31, 31b, 31e, 31f): New project asks its name and location first (Python and boards); a Python project is a folder, its tree beside the editor (main-process file operations on that folder only; watched for changes); Open a project (a folder, a `.mlab`, or a `.py` file's folder); Recent lists projects; the shell below or on the right, resized by its edge, remembered; brackets and quotes in pairs in both editors; the Start page's `>_` badge taken out.
+7. *(Rev 12)* **The Python 3 screen finished** (design 31b, 31g, 31h): the tree and the shell hidden and shown (Ctrl+B, Ctrl+J); the Python logo on `.py` files; the theme on the whole screen; five code fonts in Aa; the app's size in the status bar.
 
 **Tests first**
 - The runner, headless with the bundled Python: a file's prints and traceback; `input()` answered; Stop interrupts a `while True` within 0.5 s (N-03); the shell's `>>>` has the file's names; a file's folder is its working folder.

@@ -602,3 +602,27 @@ textarea.area, .area { min-height: 72px; border: 1px solid var(--line-strong); b
 .pyscreen .ed .pair { background: var(--accent-soft); border-radius: 2px; outline: 1px solid var(--accent); }
 .pyscreen .ed .cur { display: inline-block; width: 1.5px; height: 16px; background: var(--tx-1); vertical-align: -3px; }
 .callout { position: absolute; font-family: var(--font, Inter, sans-serif); background: #fff7d6; border: 1px solid #f0d77a; border-radius: 8px; padding: 6px 9px; font-size: 11.5px; color: #5b4a00; box-shadow: var(--shadow-m); max-width: 230px; line-height: 1.35; }
+
+/* M12 Rev 12 (the teacher): panels shown or hidden; the Python logo on .py files; the theme on the whole Python screen; the code font; the app's size */
+.pylogo { flex: none; display: inline-block; vertical-align: -2px; }
+.pyscreen .tabs .lay { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; background: var(--bg, #f3f4f6); margin-right: 4px; }
+.pyscreen .tabs .lay .btn.on { background: var(--panel); color: var(--accent-ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.pyscreen .rail { width: 40px; flex: none; border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 6px; background: var(--panel); }
+.statusbar .zoom { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 7px; padding: 0 2px; height: 22px; }
+.statusbar .zoom b { font-weight: 600; font-size: 11.5px; padding: 0 6px; min-width: 44px; text-align: center; }
+.statusbar .zoom .btn { height: 18px; width: 18px; padding: 0; }
+.dark-py { --panel: #1b202a; --bg: #151922; --line: #2b3241; --tx-1: #e3e8f2; --tx-2: #aab4c6; --tx-3: #7c879b; --accent-soft: rgba(130,170,255,.16); --accent-ink: #9fbcff; --code-bg: #1e2430; --code-kw: #c792ea; --code-fn: #82aaff; --code-str: #c3e88d; --code-num: #f78c6c; --code-com: #7d889c; color: var(--tx-1); }
+.pyscreen.dark-py, .pyscreen.dark-py .shell, .pyscreen.dark-py .ptree, .pyscreen.dark-py .rail { background: var(--panel); }
+.pyscreen.dark-py .ed { background: var(--code-bg); color: #d6deeb; }
+.aa-pop { width: 360px; }
+.aa-pop .lbl { font-size: 11px; font-weight: 650; color: var(--tx-3); text-transform: uppercase; letter-spacing: .05em; margin: 12px 0 6px; }
+.aa-pop .fonts { display: flex; flex-direction: column; gap: 2px; }
+.aa-pop .fonts .f { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 7px; border: 1px solid transparent; }
+.aa-pop .fonts .f.on { border-color: var(--accent); background: var(--accent-soft); }
+.aa-pop .fonts .f code { font-size: 13px; flex: 1; }
+.aa-pop .fonts .f span { font-size: 11px; color: var(--tx-3); }
+.zmenu { position: absolute; right: 12px; bottom: 34px; width: 220px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-l, 0 8px 24px rgba(0,0,0,.14)); padding: 6px; }
+.zmenu .zi { display: flex; align-items: center; padding: 6px 10px; border-radius: 6px; font-size: 12.5px; }
+.zmenu .zi.on { background: var(--accent-soft); font-weight: 600; }
+.zmenu .zi .k { margin-left: auto; color: var(--tx-3); font-size: 11px; }
+.zmenu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }

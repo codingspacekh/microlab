@@ -58,7 +58,8 @@ export function PythonScreen({ api, side, tabs, at, onAt, onText, onClose, run, 
       {side}
       <ShellSplit layout={layout} onLayout={setLayout}>
       <div className="pycol">
-      <div className="pytabs" role="tablist" aria-label="Python files">
+      <div className="pytabs">
+      <div className="pytablist" role="tablist" aria-label="Python files">
         {tabs.map((t, i) => (
           <span key={t.key} className={i === at ? 'pytab on' : 'pytab'}>
             <button type="button" role="tab" aria-selected={i === at} title={t.path} onClick={() => onAt(i)}>
@@ -67,7 +68,8 @@ export function PythonScreen({ api, side, tabs, at, onAt, onText, onClose, run, 
             <button type="button" className="btn ghost icon sm close" aria-label={`Close ${fileName(t)}`} onClick={() => onClose(i)}><Icon name="x" size={12} /></button>
           </span>
         ))}
-        <span className="spacer" />
+      </div>
+        {/* outside the tabs' scrolling strip: its panel opens over the editor, never cut off (the teacher: "the change theme is not working") */}
         <EditorPrefs look={look} onLook={setLook} />
       </div>
       <div className="pyed">

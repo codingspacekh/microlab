@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>31h Python 3 — the code font; the app's size</title>
+{{include:head}}
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code&family=Source+Code+Pro&family=IBM+Plex+Mono&family=Atkinson+Hyperlegible+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+<!--@MODE_WS: -->
+<!--@MODE_PY: on-->
+<!--@PY_FILE: <div class="pyfile"><b>guessing_game · main.py</b><span>Documents/MicroLab/guessing_game · saved</span></div>-->
+<!--@TOP_RIGHT: <div class="runbox"><button class="btn run">{{i:play:s14}} Run main.py <span class="tiny" style="opacity:.75;margin-left:2px">F5</span></button><button class="btn icon disabled" title="Stop">{{i:stop:s14}}</button></div><button class="btn">{{i:grid:s14}} Libraries</button>-->
+<p class="frame-label"><b>31h · Aa: the code font; the app's size</b> (M12 design, <b>Rev 12</b>, the teacher: <i>"include a few more font to be used in the app"</i> — for the code; <i>"a button/label to show the size of the app whether it's 75%, 100% or bigger and reset back to default"</i>) — <b>Aa</b> has the text size, now <b>the code font</b>, and the theme. The fonts are shipped inside MicroLab (it works offline), all free (SIL Open Font License): <b>JetBrains Mono</b> (to start), <b>Fira Code</b>, <b>Source Code Pro</b>, <b>IBM Plex Mono</b> and <b>Atkinson Hyperlegible Mono</b> — made to tell look-alike letters apart (<code>0 O</code>, <code>1 l I</code>), for young readers. Each is shown in itself; the font is for the editor and the shell, in the boards' editor too, and remembered. The <b>status bar</b>'s size (100 %) opens a menu: 75 % to 150 %, the one now ticked, and <b>Back to 100 %</b>; ⌘− / ⌘+ / ⌘0 (Ctrl on Windows) do the same, and the number follows. The size is the whole app's, remembered for next time</p>
+<div class="frame" style="position:relative">
+  {{include:topbar-py}}
+  <div class="pyscreen">
+    <div class="pybody">
+      <div class="ptree" aria-label="Project">
+        <div class="ph"><b>{{i:folder:s14}} guessing_game</b><span class="spacer"></span><button class="btn ghost sm icon">{{i:fileplus:s14}}</button><button class="btn ghost sm icon">{{i:folderplus:s14}}</button><button class="btn ghost sm icon">{{i:chevl:s14}}</button></div>
+        <div class="pt"><div class="r">{{pyfig:logo:14}} helpers.py</div><div class="r sel">{{pyfig:logo:14}} main.py</div></div>
+        <div class="pf">Documents/MicroLab/guessing_game</div>
+      </div>
+      <div class="pmain">
+        <div class="pcol" style="position:relative">
+          <div class="tabs"><a class="on">{{pyfig:logo:14}} main.py</a><a>{{pyfig:logo:14}} helpers.py</a><span class="spacer"></span><span class="lay"><button class="btn ghost sm icon on">{{i:sidebar:s14}}</button><button class="btn ghost sm icon on">{{i:shellbelow:s14}}</button></span><button class="btn ghost sm icon on" title="Text, font and theme">Aa</button></div>
+          <div class="ed" style="font-family:'Atkinson Hyperlegible Mono',monospace">{{code:guess}}</div>
+          <div class="float aa-pop" style="position:absolute;right:10px;top:42px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-l);padding:6px 16px 16px">
+            <div class="lbl">Text size</div>
+            <div class="row" style="gap:10px"><span class="stepper" style="display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;height:30px"><button class="btn ghost icon sm">{{i:minus:s12}}</button><b style="padding:0 10px">14 px</b><button class="btn ghost icon sm">{{i:plus:s12}}</button></span><span class="tiny muted">13 px to start</span></div>
+            <div class="lbl">Code font</div>
+            <div class="fonts" role="radiogroup">
+              <div class="f"><code style="font-family:'JetBrains Mono'">print("Hi") 0O 1lI</code><span>JetBrains Mono</span></div>
+              <div class="f"><code style="font-family:'Fira Code'">print("Hi") 0O 1lI</code><span>Fira Code</span></div>
+              <div class="f"><code style="font-family:'Source Code Pro'">print("Hi") 0O 1lI</code><span>Source Code Pro</span></div>
+              <div class="f"><code style="font-family:'IBM Plex Mono'">print("Hi") 0O 1lI</code><span>IBM Plex Mono</span></div>
+              <div class="f on"><code style="font-family:'Atkinson Hyperlegible Mono'">print("Hi") 0O 1lI</code><span>Atkinson Hyperlegible Mono</span></div>
+            </div>
+            <div class="lbl">Theme</div>
+            <div class="row" style="gap:8px"><span class="pill info">Light</span><span class="pill">Dark</span><span class="pill">High contrast</span></div>
+          </div>
+        </div>
+        <div class="grip h"></div>
+        <div class="shell" style="flex:0 0 28%">
+          <div class="sh"><span class="ctab on" style="display:inline-flex;gap:6px;align-items:center;font-weight:600;font-size:12.5px;padding:0 8px">{{i:term:s14}} Shell</span><span class="spacer"></span><button class="btn ghost sm">Clear</button></div>
+<div class="sb" style="font-family:'Atkinson Hyperlegible Mono',monospace"><div><span class="sys">main.py ended. Its names are still here: type Python and press Enter.</span>
+<span class="p">&gt;&gt;&gt;</span> secret
+7</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="statusbar"><span class="st"><span class="dot" style="background:var(--tx-3)"></span>Ended</span><span>Python 3.13.18 (MicroLab)</span><span class="spacer"></span><span class="zoom on"><button class="btn ghost icon">{{i:minus:s12}}</button><b>125 %</b><button class="btn ghost icon">{{i:plus:s12}}</button></span></div>
+  <div class="zmenu" role="menu" aria-label="The app's size">
+    <div class="zi">75 %</div><div class="zi">90 %</div><div class="zi">100 %<span class="k">to start</span></div><div class="zi">110 %</div><div class="zi on">{{i:check:s12}}&nbsp;125 %</div><div class="zi">150 %</div>
+    <hr><div class="zi"><b>Back to 100 %</b><span class="k">⌘0</span></div>
+  </div>
+</div>
+</body></html>

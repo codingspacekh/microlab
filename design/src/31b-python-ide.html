@@ -7,30 +7,30 @@
 <!--@MODE_PY: on-->
 <!--@PY_FILE: <div class="pyfile"><b>guessing_game · main.py</b><span>Documents/MicroLab/guessing_game · saved</span></div>-->
 <!--@TOP_RIGHT: <div class="runbox"><button class="btn run">{{i:play:s14}} Run main.py <span class="tiny" style="opacity:.75;margin-left:2px">F5</span></button><button class="btn icon disabled" title="Stop">{{i:stop:s14}}</button></div><button class="btn">{{i:grid:s14}} Libraries</button>-->
-<p class="frame-label"><b>31b · Python 3: the project, the editor and the shell</b> (M12 design, Rev 10, F-91, F-92, F-94; <b>Rev 11</b>, the teacher) — the project is a folder: <b>its tree</b> on the left (as PyCharm's Project view) shows its files and folders — a double-click opens a file in a tab (<code>.py</code>, and text such as <code>scores.txt</code> that the program reads); <b>New file</b>, <b>New folder</b>, and a right-click for Rename, Delete (to the Recycle Bin / Bin) and <i>Show in Explorer / Finder</i>; files changed outside MicroLab show at once. <b>Run</b> (F5) runs the file shown, in its folder. The <b>shell</b> sits below or on the right (31f): the two buttons in its bar choose; <b>its edge is dragged</b> to make it taller or wider; MicroLab remembers both. In the editor, <code>(</code> <code>[</code> <code>{</code> <code>"</code> <code>'</code> are typed <b>in pairs</b> (31f)</p>
+<p class="frame-label"><b>31b · Python 3: the project, the editor and the shell</b> (M12 design, Rev 10, F-91, F-92, F-94; Rev 11; <b>Rev 12</b>, the teacher) — the project is a folder: <b>its tree</b> on the left (as PyCharm's Project view) — a double-click opens a file in a tab; <b>New file</b>, <b>New folder</b> (their name asked in a row, then <b>Create</b>), and a right-click for Rename, Delete (to the Recycle Bin / Bin) and <i>Show in Explorer / Finder</i>. <b>Rev 12:</b> every <code>.py</code> file — in the tree, its tab — shows <b>the Python logo</b>; the tree and the shell can each be <b>hidden and shown again</b>: the two buttons beside <b>Aa</b> (or Ctrl+B, Ctrl+J), the tree's <b>‹</b>, the shell's <b>×</b> — 31g; the editor takes the room. Run shows the shell if it is hidden (what the program prints is never lost from sight). The <b>status bar</b> shows <b>the app's size</b>, 100 % to start: <b>−</b> and <b>+</b> (⌘− / ⌘+), and a click on it chooses one, or <i>Back to 100 %</i> (31h). The shell sits below or on the right (31f), its edge dragged to resize; MicroLab remembers all of these</p>
 <div class="frame">
   {{include:topbar-py}}
   <div class="pyscreen">
     <div class="pybody">
       <div class="ptree" aria-label="Project">
-        <div class="ph"><b>{{i:folder:s14}} guessing_game</b><span class="spacer"></span><button class="btn ghost sm icon" title="New file">{{i:fileplus:s14}}</button><button class="btn ghost sm icon" title="New folder">{{i:folderplus:s14}}</button></div>
+        <div class="ph"><b>{{i:folder:s14}} guessing_game</b><span class="spacer"></span><button class="btn ghost sm icon" title="New file">{{i:fileplus:s14}}</button><button class="btn ghost sm icon" title="New folder">{{i:folderplus:s14}}</button><button class="btn ghost sm icon" title="Hide the project's files (Ctrl+B)">{{i:chevl:s14}}</button></div>
         <div class="pt">
           <div class="r">{{i:chevd:s12}}{{i:folder:s14}} data</div>
           <div class="r in1">{{i:file:s14}} words.txt</div>
-          <div class="r">{{i:file:s14}} helpers.py</div>
-          <div class="r sel">{{i:file:s14}} main.py</div>
+          <div class="r">{{pyfig:logo:14}} helpers.py</div>
+          <div class="r sel">{{pyfig:logo:14}} main.py</div>
           <div class="r">{{i:file:s14}} scores.txt</div>
         </div>
         <div class="pf">Documents/MicroLab/guessing_game</div>
       </div>
       <div class="pmain">
         <div class="pcol">
-          <div class="tabs"><a class="on">{{i:file:s14}} main.py</a><a>{{i:file:s14}} helpers.py<span class="dirty" title="Not saved"></span></a><span class="spacer"></span><button class="btn ghost sm icon" title="Text size and theme">Aa</button></div>
+          <div class="tabs"><a class="on">{{pyfig:logo:14}} main.py</a><a>{{pyfig:logo:14}} helpers.py<span class="dirty" title="Not saved"></span></a><span class="spacer"></span><span class="lay" role="group" aria-label="Panels"><button class="btn ghost sm icon on" title="The project's files (Ctrl+B)">{{i:sidebar:s14}}</button><button class="btn ghost sm icon on" title="The shell (Ctrl+J)">{{i:shellbelow:s14}}</button></span><button class="btn ghost sm icon" title="Text, font and theme">Aa</button></div>
           <div class="ed">{{code:guess}}</div>
         </div>
         <div class="grip h" title="Drag to make the shell taller or shorter"></div>
         <div class="shell" style="flex:0 0 38%">
-          <div class="sh"><span class="ctab on" style="display:inline-flex;gap:6px;align-items:center;font-weight:600;font-size:12.5px;padding:0 8px">{{i:term:s14}} Shell</span><span class="ctab" style="display:inline-flex;gap:6px;align-items:center;color:var(--tx-2);font-size:12.5px;padding:0 8px">{{i:plot:s14}} Plotter</span><span class="spacer"></span><span class="dock" role="group" aria-label="Where the shell is"><button class="btn ghost sm icon on" title="Shell below the editor">{{i:shellbelow:s14}}</button><button class="btn ghost sm icon" title="Shell on the right">{{i:shellright:s14}}</button></span><button class="btn ghost sm">Clear</button></div>
+          <div class="sh"><span class="ctab on" style="display:inline-flex;gap:6px;align-items:center;font-weight:600;font-size:12.5px;padding:0 8px">{{i:term:s14}} Shell</span><span class="ctab" style="display:inline-flex;gap:6px;align-items:center;color:var(--tx-2);font-size:12.5px;padding:0 8px">{{i:plot:s14}} Plotter</span><span class="spacer"></span><span class="dock" role="group" aria-label="Where the shell is"><button class="btn ghost sm icon on" title="Shell below the editor">{{i:shellbelow:s14}}</button><button class="btn ghost sm icon" title="Shell on the right">{{i:shellright:s14}}</button></span><button class="btn ghost sm">Clear</button><button class="btn ghost sm icon" title="Hide the shell (Ctrl+J)">{{i:x:s14}}</button></div>
 <div class="sb"><div><span class="sys">Running main.py in Documents/MicroLab/guessing_game</span>
 I'm thinking of a number from 1 to 10.
 Your guess: <span class="me">5</span>
@@ -45,6 +45,6 @@ Yes! 7 in 2 tries.
       </div>
     </div>
   </div>
-  <div class="statusbar"><span class="st"><span class="dot" style="background:var(--tx-3)"></span>Ended</span><span>Python 3.13.18 (MicroLab)</span><span>3 libraries installed</span><span class="spacer"></span><span>Ln 9, Col 33</span><span>UTF-8 · spaces 4</span></div>
+  <div class="statusbar"><span class="st"><span class="dot" style="background:var(--tx-3)"></span>Ended</span><span>Python 3.13.18 (MicroLab)</span><span>3 libraries installed</span><span class="spacer"></span><span>Ln 9, Col 33</span><span>UTF-8 · spaces 4</span><span class="zoom" title="The size of the whole app (⌘+ / ⌘− · ⌘0 back to 100 %)"><button class="btn ghost icon">{{i:minus:s12}}</button><b>100 %</b><button class="btn ghost icon">{{i:plus:s12}}</button></span></div>
 </div>
 </body></html>

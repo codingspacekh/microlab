@@ -113,7 +113,7 @@ export function ProjectTree({ api, root, name, entries, current, onOpen, onRenam
             <span className="tiny muted">{ask.kind === 'rename' ? '' : `In ${here() || name}`}</span>
             <span className="spacer" />
             <button type="button" className="btn sm" onClick={() => setAsk(null)}>Cancel</button>
-            <button type="button" className="btn sm primary" onClick={() => void commit()}>{ask.kind === 'rename' ? 'Rename' : 'Make'}</button>
+            <button type="button" className="btn sm primary" onClick={() => void commit()}>{ask.kind === 'rename' ? 'Rename' : 'Create'}</button>
           </div>
         </div>
       )}

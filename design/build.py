@@ -58,6 +58,8 @@ ICONS = {
     "chevr": '<path d="M9 6l6 6-6 6"/>', "chevd": '<path d="M6 9l6 6 6-6"/>', "chevl": '<path d="M15 6l-6 6 6 6"/>',
     "x": '<path d="M6 6l12 12M18 6L6 18"/>',
     "shellbelow": '<path d="M4 4h16v16H4zM4 14h16"/>',
+    "sidebar": '<path d="M4 4h16v16H4zM9.5 4v16"/>',
+    "shellhide": '<path d="M4 4h16v16H4zM4 14h16M9 17.5l3-2 3 2"/>',
     "shellright": '<path d="M4 4h16v16H4zM14 4v16"/>',
     "folderplus": '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5zM12 11v6M9 14h6"/>',
     "fileplus": '<path d="M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14h6"/>',

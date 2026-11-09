@@ -102,6 +102,25 @@ def script(req):
                        environment=jedi.InterpreterEnvironment())
 
 
+ALIASES = 150      # names checked for being another name for a function (tkinter's pack = pack_configure)
+
+
+def callable_of(c):
+    """What a name calls: itself if a function or class; for an alias — tkinter's `pack = pack_configure`,
+    `title = wm_title`, turtle's `fd = forward`, `done = mainloop` — the function it stands for; else None."""
+    if c.type in ("function", "class"):
+        return c
+    if c.type != "statement":
+        return None
+    try:
+        for d in c.infer():
+            if d.type in ("function", "class"):
+                return d
+    except Exception:
+        pass
+    return None
+
+
 def complete(req):
     lines = req.get("code", "").split("\n")
     here = lines[req["line"] - 1][:req["column"]] if 0 < req["line"] <= len(lines) else ""
@@ -111,17 +130,22 @@ def complete(req):
         if c.name.startswith("_") and not typed.startswith("_"):   # a module's own names: only when _ is typed
             continue
         item = {"name": c.name, "type": KINDS.get(c.type, "variable")}
+        target = callable_of(c) if len(out) < ALIASES else (c if c.type in ("function", "class") else None)
+        if target is not None:
+            item["type"] = KINDS[target.type]
         if len(out) < DOCS:
             sig = ""
-            if c.type in ("function", "class"):
-                sigs = c.get_signatures()
+            if target is not None:
+                sigs = target.get_signatures()
                 if sigs:
-                    sig = call(sigs[0])
+                    sig = f"{c.name}({call(sigs[0]).split('(', 1)[1]}"   # named as typed: pack(…), not pack_configure(…)
                     params = [p for p in sigs[0].params if p.name not in ("self", "cls")]
                     item["call"] = "args" if params else "empty"
-            doc = explained(c) if c.type != "keyword" else ""
+                else:
+                    item["call"] = "args"
+            doc = explained(target or c) if c.type != "keyword" else ""
             item["doc"] = (sig + "\n" + doc) if sig else doc
-        elif c.type == "function":
+        elif target is not None:
             item["call"] = "args"
         out.append(item)
     return out

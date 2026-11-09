@@ -49,6 +49,26 @@ describe('Jedi, as the editor asks it', () => {
     expect(hello!.doc).toMatch(/hello\(name, times=1\)\nSays hello to someone/);
   });
 
+  it('turtle and tkinter (the teacher: no ( ) added): names that are another name for a function — pack, title, fd, done — come with their brackets', async () => {
+    const pick = async (code: string, name: string) => (await assistant.complete(at(code))).find((c) => c.name === name);
+    const tk = 'import tkinter as tk\nroot = tk.Tk()\nb = tk.Button(root, text="Hi")\n';
+    expect(await pick(`${tk}root.ti`, 'title')).toMatchObject({ type: 'function', call: 'args' });          // title = wm_title
+    expect(await pick(`${tk}root.geo`, 'geometry')).toMatchObject({ type: 'function', call: 'args' });     // geometry = wm_geometry
+    expect(await pick(`${tk}b.pa`, 'pack')).toMatchObject({ type: 'function' });                           // pack = pack_configure
+    expect((await pick(`${tk}b.pa`, 'pack'))!.call).toBeDefined();
+    expect(await pick(`${tk}b.con`, 'config')).toMatchObject({ type: 'function' });                        // config = configure
+    expect(await pick(`${tk}root.main`, 'mainloop')).toMatchObject({ type: 'function', call: expect.any(String) });
+    expect(await pick(`${tk}tk.Bu`, 'Button')).toMatchObject({ type: 'class', call: 'args' });
+    const t = 'import turtle\nt = turtle.Turtle()\n';
+    expect(await pick(`${t}t.f`, 'fd')).toMatchObject({ type: 'function', call: 'args' });                  // fd = forward
+    expect(await pick(`${t}t.pe`, 'penup')).toMatchObject({ type: 'function', call: 'empty' });
+    expect(await pick(`${t}t.l`, 'lt')).toMatchObject({ type: 'function', call: 'args' });                  // lt = left
+    expect(await pick('import turtle\nturtle.do', 'done')).toMatchObject({ type: 'function', call: 'empty' }); // done = mainloop
+    expect(await pick('from turtle import *\nforw', 'forward')).toMatchObject({ type: 'function', call: 'args' });
+    // an alias is shown by the name typed, with the arguments of what it stands for
+    expect((await pick(`${tk}root.ti`, 'title'))!.doc).toMatch(/^title\(/);
+  });
+
   it('a module\'s own _names only when _ is typed', async () => {
     const names = (await assistant.complete(at('import random\nrandom.'))).map((c) => c.name);
     expect(names).toContain('randint');
