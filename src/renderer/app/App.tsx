@@ -12,6 +12,7 @@ import { ControlsPage } from './ControlsPage';
 import { PYTHON3, StartPage } from './StartPage';
 import { fileName, PythonScreen, type PyTab } from '../python3/PythonScreen';
 import { usePython, type PyRunState } from '../python3/usePython';
+import { Libraries } from '../python3/Libraries';
 import '../python3/python3.css';
 import { Workspace } from '../workspace/Workspace';
 import { BoardChip, plugMessage } from '../board/BoardChip';
@@ -295,6 +296,15 @@ export function App({ api, width, startRun, audio }: AppProps) {
     if (!t || (!again && pyRun.state.status !== 'idle')) return;
     pyRun.run(t.text, t.path ?? fileName(t), fileName(t));
   };
+  // Libraries (screen 31d): the window, and how many are installed (the status bar)
+  const [libsOpen, setLibsOpen] = useState(false);
+  const [libCount, setLibCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (mode !== 'python') return;
+    let live = true;
+    void api.python3.libs.list().then((l) => { if (live) setLibCount(l.length); });
+    return () => { live = false; };
+  }, [api, mode]);
   // the Python 3 mode always has a file: a new one when it has none
   useEffect(() => { if (mode === 'python' && py.tabs.length === 0) newPy(); }, [mode, py.tabs.length]);
   /** Before the window closes: the project's changes, then each Python file's. */
@@ -492,7 +502,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
       <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} dirty={dirty} run={runControls} chip={chip} {...actions}
         onOpenAny={() => guard(() => void openAny())}
         py={pyTab ? {
-          tab: pyTab, onNew: newPy, onOpen: () => void openPy(), onSave: () => void savePy(), onSaveAs: () => void savePy(true),
+          tab: pyTab, onNew: newPy, onOpen: () => void openPy(), onSave: () => void savePy(), onSaveAs: () => void savePy(true), onLibraries: () => setLibsOpen(true),
           run: { state: pyRun.state, target: fileName(pyTab), keys: 'F5', onRun: () => runPy(), onStop: pyRun.stop,
             onRestart: () => runPy(true) },
         } : undefined}
@@ -502,7 +512,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
         } : undefined} />
       {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
       {page}
-      {mode === 'python' ? <PyStatusBar run={pyRun.state} /> : <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} board={boardRuns} sound={sound}
+      {mode === 'python' ? <PyStatusBar run={pyRun.state} libraries={libCount} /> : <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} board={boardRuns} sound={sound}
         check={{ count: checkItems.length, asking: !!checking && !running }} />}
       <div className="toasts">
         {sent && (
@@ -532,6 +542,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
           onDoc={(doc) => setOpen((cur) => (cur ? { ...cur, doc, savedNote: undefined } : cur))}
           onClose={() => { void api.boards.files.done(filesOf.id); setFilesOf(null); }} />
       )}
+      {libsOpen && <Libraries api={api} onClose={() => setLibsOpen(false)} onChanged={(l) => setLibCount(l.length)} />}
       {ask && (
         <Dialog title={`Save your changes to “${ask.name}”?`} onCancel={() => setAsk(null)} actions={[
           { label: 'Save', primary: true, onClick: () => { const then = ask.then; const saving = ask.save ?? (() => save()); setAsk(null); void saving().then((ok) => ok && then()); } },
@@ -584,7 +595,7 @@ interface TopBarProps {
   /** Open… with nothing open (screen 31): a project or a .py file. */
   onOpenAny: () => void;
   /** The Python 3 mode (M12, screen 31b): the file shown, its menu, its Run. */
-  py?: { tab: PyTab; run: RunControls; onNew: () => void; onOpen: () => void; onSave: () => void; onSaveAs: () => void };
+  py?: { tab: PyTab; run: RunControls; onNew: () => void; onOpen: () => void; onSave: () => void; onSaveAs: () => void; onLibraries: () => void };
 }
 
 interface RunControls {
@@ -632,6 +643,7 @@ function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, o
           ]} />
           <span className="spacer" />
           <RunBox run={py.run} />
+          <button type="button" className="btn" onClick={py.onLibraries} title="Libraries for Python 3: install from PyPI, or a .whl file"><Icon name="grid" size={14} /> Libraries</button>
         </>
       ) : project && mode !== 'python' ? (
         <>
@@ -787,7 +799,7 @@ function StatusBar({ project, run, board, sound, check }: { project: OpenProject
 
 /** Learn, until M8 builds it. */
 /** The status bar in Python 3 (screen 31b): how the run is, and which Python runs it. */
-function PyStatusBar({ run }: { run: PyRunState }) {
+function PyStatusBar({ run, libraries }: { run: PyRunState; libraries: number | null }) {
   const e = run.ended;
   const left = run.status === 'running' ? <span className="st running"><span className="dot" />Running {run.file}</span>
     : run.status === 'stopping' ? <span className="st">Stopping…</span>
@@ -797,7 +809,10 @@ function PyStatusBar({ run }: { run: PyRunState }) {
   return (
     <footer className="statusbar" role="status">
       {left}
-      <span className="r"><span>{run.version ? `Python ${run.version} (MicroLab)` : 'Python 3 (MicroLab)'}</span></span>
+      <span className="r">
+        {libraries !== null && <span>{libraries === 0 ? 'No libraries installed' : `${libraries} ${libraries === 1 ? 'library' : 'libraries'} installed`}</span>}
+        <span>{run.version ? `Python ${run.version} (MicroLab)` : 'Python 3 (MicroLab)'}</span>
+      </span>
     </footer>
   );
 }

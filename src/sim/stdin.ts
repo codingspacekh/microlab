@@ -11,8 +11,12 @@ export class Stdin {
   private text = '';
   /** Ctrl+C typed while nothing was reading: an interrupt at once. */
   private interrupts = 0;
-  /** input() or the REPL is waiting for a line (its last read found none). */
+  /** input() or the REPL is reading: from its first wait until the program it read for goes on (idle) — so what
+   *  arrives while the REPL is between two lines (printing ...) keeps its place too. */
   private waiting = false;
+  /** A reader has just taken a line and not yet run what it read for, nor read again: a Ctrl+C held behind that line
+   *  waits for it to run (the REPL's own work in between — its echo, the ... check — is never interrupted). */
+  private holding = false;
   private readonly script: [number, string][];
 
   constructor(private readonly control: Control | undefined, script: [number, string][] = [], private readonly now: () => number = () => 0) {
@@ -37,23 +41,29 @@ export class Stdin {
   /** A whole line typed (without its line ending), or undefined while there isn't one yet — or while a Ctrl+C typed
    *  before its end is still to be taken. */
   line(): string | undefined {
-    this.pull();
+    this.pull();   // what arrives before a reader's first read acts as it arrives
     const m = /\r\n|\r|\n/.exec(this.text);
     const c = this.text.indexOf('\x03');
-    if (!m || (c >= 0 && c < m.index) || this.interrupts) {
-      this.waiting = true;
-      return undefined;
-    }
-    this.waiting = false;
+    this.waiting = true;
+    this.holding = false;
+    if (!m || (c >= 0 && c < m.index) || this.interrupts) return undefined;
+    this.holding = true;
     const line = this.text.slice(0, m.index);
     this.text = this.text.slice(m.index + m[0].length);
     return line;
+  }
+
+  /** The program goes on after input() or the REPL's line: Ctrl+C typed from now acts as it arrives. */
+  idle(): void {
+    this.waiting = false;
+    this.holding = false;
   }
 
   /** True once for each Ctrl+C typed, as it arrives — or, if it came while a reader waited, once the lines before it
    *  are taken; what was typed before it on its line stays. */
   interrupted(): boolean {
     this.pull();
+    if (this.holding) return false;
     if (this.interrupts) {
       this.interrupts--;
       return true;

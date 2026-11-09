@@ -14,6 +14,8 @@ import type { Detection, FoundBoard, InstallResult, InstallStep, UsbChip } from 
 /** A .py file opened (M12, F-91). */
 export type PyOpen = { ok: true; path: string; name: string; text: string } | { ok: false; message: string } | { ok: false; canceled: true };
 export type PySave = { ok: true; path: string; name: string } | { ok: false; message: string } | { ok: false; canceled: true };
+/** A library installed in MicroLab's folder (src/main/python3/libraries.ts). */
+export interface PyLibrary { name: string; version: string; summary: string }
 /** What the Python 3 session tells the window (src/main/python3/session.ts). */
 export interface PyError { type: string; message: string; file: string; line: number | null }
 export type PyEvent =
@@ -60,6 +62,18 @@ export interface MicrolabApi {
     /** Stop: the program ends, its windows close. */
     stop(): Promise<void>;
     onEvent(handler: (e: PyEvent) => void): () => void;
+    /** Libraries (F-95, screen 31d), in MicroLab's own folder. */
+    libs: {
+      list(): Promise<PyLibrary[]>;
+      /** A library looked up by its name on PyPI. */
+      lookUp(name: string): Promise<{ ok: true; name: string; version: string; summary: string } | { ok: false; message: string; offline?: true }>;
+      install(name: string): Promise<{ ok: true } | { ok: false; message: string }>;
+      /** Asks for a .whl file and installs it. */
+      installFile(): Promise<{ ok: true } | { ok: false; message: string } | { ok: false; canceled: true }>;
+      remove(name: string): Promise<{ ok: true } | { ok: false; message: string }>;
+      /** What pip says while it installs. */
+      onOutput(handler: (text: string) => void): () => void;
+    };
   };
   /** The copy of a project with unsaved changes (F-03): offered back if the app ended without saving or giving
    *  the changes up. */
@@ -144,6 +158,14 @@ export function getApi(): MicrolabApi {
     python3: {
       run: async () => ({ ok: false, message: 'Python 3 needs the MicroLab app.' }),
       line: async () => {}, interrupt: async () => {}, stop: async () => {}, onEvent: () => () => {},
+      libs: {
+        list: async () => [],
+        lookUp: async () => ({ ok: false, message: 'Libraries need the MicroLab app.' }),
+        install: async () => ({ ok: false, message: 'Libraries need the MicroLab app.' }),
+        installFile: async () => ({ ok: false, message: 'Libraries need the MicroLab app.' }),
+        remove: async () => ({ ok: false, message: 'Libraries need the MicroLab app.' }),
+        onOutput: () => () => {},
+      },
     },
     boards: { get: async () => ({ boards: [], drives: [] }), check: async () => {}, send: async () => ({ ok: false, message: 'Sending to a board needs the MicroLab app.' }),
       install: async () => ({ ok: false, message: 'Installing MicroPython needs the MicroLab app.' }),

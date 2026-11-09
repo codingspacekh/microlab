@@ -142,3 +142,61 @@ describe('M12 the Python 3 screen (screen 31b)', () => {
     expect(s.editor('untitled.py')).toBeInTheDocument();
   });
 });
+
+describe('M12 slice 4: Libraries (screen 31d)', () => {
+  const openLibraries = async () => {
+    newFile();
+    fireEvent.click(screen.getByRole('button', { name: 'Libraries' }));
+    return screen.findByRole('dialog', { name: 'Libraries for Python 3' });
+  };
+
+  it('installed in MicroLab\'s folder, counted in the status bar; none yet: where they would go', async () => {
+    setup(fakeApi({}, {}, { installed: [{ name: 'art', version: '6.5', summary: 'ASCII Art Library For Python' }] }));
+    newFile();
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('1 library installed'));
+    fireEvent.click(screen.getByRole('button', { name: 'Libraries' }));
+    const d = await screen.findByRole('dialog', { name: 'Libraries for Python 3' });
+    expect(await within(d).findByRole('list', { name: 'Installed in MicroLab' })).toHaveTextContent('art6.5ASCII Art Library For Python');
+  });
+
+  it('a library looked up by its name — Connected to PyPI — installed, with what pip says; then Installed, and listed', async () => {
+    const s = setup();
+    const d = await openLibraries();
+    expect(within(d).getByText(/None yet/)).toBeInTheDocument();
+    fireEvent.change(within(d).getByRole('textbox', { name: "A library's name on PyPI" }), { target: { value: 'requests' } });
+    fireEvent.click(within(d).getByRole('button', { name: 'Look up on PyPI' }));
+    const found = await within(d).findByRole('group', { name: 'requests on PyPI' });
+    expect(found).toHaveTextContent('requests2.32.5Python HTTP for Humans.');
+    expect(within(d).getByText(/Connected to PyPI/)).toBeInTheDocument();
+    fireEvent.click(within(found).getByRole('button', { name: /Install/ }));
+    await waitFor(() => expect(s.api.python3.libs.install).toHaveBeenCalledWith('requests'));
+    expect(await within(d).findByRole('log', { name: 'What pip says' })).toHaveTextContent('Successfully installed requests-2.32.5');
+    await waitFor(() => expect(within(found).getByRole('button', { name: /Installed/ })).toBeDisabled());
+    expect(within(d).getByRole('list', { name: 'Installed in MicroLab' })).toHaveTextContent('requests');
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('1 library installed'));
+  });
+
+  it('often used in class: a click looks it up', async () => {
+    const s = setup();
+    const d = await openLibraries();
+    fireEvent.click(within(d).getByRole('button', { name: 'pygame' }));
+    await waitFor(() => expect(s.api.python3.libs.lookUp).toHaveBeenCalledWith('pygame'));
+  });
+
+  it('no internet: said plainly; not on PyPI: said; Remove takes one away', async () => {
+    const api = fakeApi({}, {}, {
+      installed: [{ name: 'numpy', version: '2.3.4', summary: 'Fundamental package for array computing in Python' }],
+      libs: { lookUp: vi.fn(async (n: string) => (n === 'numpy'
+        ? { ok: false as const, offline: true as const, message: "PyPI can't be reached: this computer seems to have no internet. A .whl file from your teacher installs without it." }
+        : { ok: false as const, message: `There is no library called “${n}” on PyPI. Check its spelling.` })) },
+    });
+    setup(api);
+    const d = await openLibraries();
+    fireEvent.click(within(d).getByRole('button', { name: 'numpy' }));
+    expect(await within(d).findByRole('alert')).toHaveTextContent("PyPI can't be reached");
+    expect(d.querySelector('.net')).toHaveTextContent('No internet');
+    fireEvent.click(within(d).getByRole('button', { name: 'Remove numpy' }));
+    await waitFor(() => expect(api.python3.libs.remove).toHaveBeenCalledWith('numpy'));
+    expect(await within(d).findByText(/None yet/)).toBeInTheDocument();
+  });
+});

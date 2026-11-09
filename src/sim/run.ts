@@ -395,6 +395,8 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
       if (line === undefined) console.flush();
       return line ?? null;
     },
+    /** The program goes on after input() or the REPL's line: Ctrl+C acts as it arrives again. */
+    stdin_idle: () => stdin.idle(),
     /** Stop (or a fault, or the time limit) ends the session; Ctrl+C only the line (M9). */
     echo: (text: string) => console.echo(text),
     session_over: (): boolean => !!options.control?.stopRequested() || quiet(),

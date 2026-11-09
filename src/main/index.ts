@@ -16,6 +16,7 @@ import { openSerial, type SerialLink } from './serial-link';
 import { openProjectFile, saveProjectFile } from './project-files';
 import { openPyFile, savePyFile } from './python3/files';
 import { findPython, startPython, type PythonSession } from './python3/session';
+import { installLibrary, listLibraries, lookUp, removeLibrary } from './python3/libraries';
 import { Recent, Recovery } from './recent';
 import { SettingsStore } from './settings';
 import pkg from '../../package.json';
@@ -209,6 +210,26 @@ app.whenReady().then(() => {
   ipcMain.handle('py:interrupt', (e) => pySessions.get(e.sender.id)?.interrupt());
   ipcMain.handle('py:stop', async (e) => { await pySessions.get(e.sender.id)?.stop(); });
   app.on('before-quit', () => { for (const s of pySessions.values()) s.kill(); });
+  // Libraries (M12, F-95, screen 31d): MicroLab's own folder; one install at a time, what pip says sent as it comes
+  let pipBusy = false;
+  const install = async (sender: Electron.WebContents, what: string) => {
+    if (pipBusy) return { ok: false, message: 'A library is being installed: wait for it to finish.' };
+    pipBusy = true;
+    try {
+      return await installLibrary({ python: findPython(), libs: pyLibs, what, onOutput: (t) => { if (!sender.isDestroyed()) sender.send('py:libs-output', t); } });
+    } finally { pipBusy = false; }
+  };
+  ipcMain.handle('py:libs-list', () => listLibraries(pyLibs));
+  ipcMain.handle('py:libs-lookup', (_e, name: string) => lookUp(name));
+  ipcMain.handle('py:libs-install', (e, name: string) => install(e.sender, name));
+  ipcMain.handle('py:libs-install-file', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const options = { title: 'Install a library from a .whl file', filters: [{ name: 'Python library (wheel)', extensions: ['whl'] }], properties: ['openFile' as const] };
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    const path = r.filePaths[0];
+    return r.canceled || !path ? { ok: false, canceled: true } : install(e.sender, path);
+  });
+  ipcMain.handle('py:libs-remove', (_e, name: string) => removeLibrary(pyLibs, name));
   // Real boards (F-55): the USB ports, looked at about once a second; every window is told what changed.
   const user = userInfo().username;
   // Windows' drives come from PowerShell (slow): read at most every 3 s

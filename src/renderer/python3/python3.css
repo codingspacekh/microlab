@@ -24,3 +24,23 @@
 .btn.run .runkeys { font-size: 10.5px; opacity: .75; margin-left: 2px; font-family: var(--font); }
 .pyicon.big { width: 30px; height: 30px; font-size: 12px; border-radius: 8px; }
 .recent-card .chip.py { background: var(--accent-soft); color: var(--accent-ink); }
+/* Libraries (screen 31d) */
+.pylibs { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pylibs .net { align-self: flex-end; margin-top: -4px; }
+.pylibs .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pylibs .look > :first-child { flex: 1; min-width: 200px; }
+.pylibs .often .btn-pill { border: 0; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 600; }
+.pylibs .often .btn-pill:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent-ink); }
+.pylibs .gh { font-size: 11px; font-weight: 650; color: var(--tx-3); text-transform: uppercase; letter-spacing: .05em; margin-top: 6px; }
+.pylibs .pkgs { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; }
+.pylibs .pk { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.pylibs .pk:last-child { border-bottom: 0; }
+.pylibs .pk b { font-family: var(--mono); font-size: 13px; }
+.pylibs .pk .v { color: var(--tx-3); font-family: var(--mono); font-size: 11.5px; }
+.pylibs .pk .d { color: var(--tx-2); flex: 1; min-width: 0; }
+.pylibs .found { border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px; }
+.pylibs .pipout { margin: 0; max-height: 140px; overflow: auto; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+  font-family: var(--mono); font-size: 11.5px; line-height: 17px; color: var(--tx-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.pylibs .note { margin: 0; font-size: 12.5px; color: var(--tx-2); }
+.pylibs .note.warn { color: var(--warn-ink, var(--warn)); }
+.pylibs .note.bad { color: var(--danger); }

@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { MicrolabApi, PyEvent, RecentItem, Recovered } from '../../src/renderer/app/api';
+import type { MicrolabApi, PyEvent, PyLibrary, RecentItem, Recovered } from '../../src/renderer/app/api';
 
 /** The preload's API for component tests: settings in memory, file choosers that answer as told, the app's close;
  *  the recent list and the recovery copy in memory, starting as `start` says (M5.7). */
@@ -7,7 +7,10 @@ import type { MicrolabApi, PyEvent, RecentItem, Recovered } from '../../src/rend
 export type FakeApi = MicrolabApi & { emitPy: (e: PyEvent) => void };
 
 export function fakeApi(project: Partial<MicrolabApi['project']> = {}, start: { recent?: RecentItem[]; recovery?: Recovered | null } = {},
-  py: { pyfile?: Partial<MicrolabApi['pyfile']>; file?: Partial<MicrolabApi['file']> } = {}): FakeApi {
+  py: { pyfile?: Partial<MicrolabApi['pyfile']>; file?: Partial<MicrolabApi['file']>; libs?: Partial<MicrolabApi['python3']['libs']>; installed?: PyLibrary[] } = {}): FakeApi {
+  // the libraries in MicroLab's folder (M12 slice 4): Install adds one, Remove takes it away; pip says a line
+  let installed: PyLibrary[] = py.installed ?? [];
+  const pipHandlers = new Set<(t: string) => void>();
   const stored: Record<string, unknown> = {};
   const pyHandlers = new Set<(e: PyEvent) => void>();
   const projectOpen = project.open ?? vi.fn(async () => ({ ok: false as const, canceled: true as const }));
@@ -58,6 +61,19 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}, start: { 
       interrupt: vi.fn(async () => {}),
       stop: vi.fn(async () => {}),
       onEvent: vi.fn((h: (e: PyEvent) => void) => { pyHandlers.add(h); return () => { pyHandlers.delete(h); }; }),
+      libs: {
+        list: vi.fn(async () => installed),
+        lookUp: vi.fn(async (name: string) => ({ ok: true as const, name, version: '2.32.5', summary: 'Python HTTP for Humans.' })),
+        install: vi.fn(async (name: string) => {
+          for (const h of pipHandlers) h(`Successfully installed ${name}-2.32.5\n`);
+          installed = [...installed.filter((l) => l.name !== name), { name, version: '2.32.5', summary: 'Python HTTP for Humans.' }];
+          return { ok: true as const };
+        }),
+        installFile: vi.fn(async () => ({ ok: false as const, canceled: true as const })),
+        remove: vi.fn(async (name: string) => { installed = installed.filter((l) => l.name !== name); return { ok: true as const }; }),
+        onOutput: vi.fn((h: (t: string) => void) => { pipHandlers.add(h); return () => { pipHandlers.delete(h); }; }),
+        ...py.libs,
+      },
     },
     emitPy: (e) => { for (const h of [...pyHandlers]) h(e); },
   };

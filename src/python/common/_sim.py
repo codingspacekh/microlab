@@ -60,6 +60,7 @@ def _input(prompt=''):
         print(prompt, end='')
     s = _line()
     _ream.echo(s + '\n')   # the board echoes what is typed
+    _ream.stdin_idle()
     return s
 
 
@@ -138,6 +139,7 @@ def repl():
         if not src.strip():
             continue
         try:
+            _ream.stdin_idle()   # Ctrl+C typed with the block's last line stays behind it; from now it stops the block
             exec(compile(src, '<stdin>', 'single'), _g)
         except SystemExit:
             pass

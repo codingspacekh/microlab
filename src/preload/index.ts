@@ -36,6 +36,18 @@ contextBridge.exposeInMainWorld('microlab', {
       ipcRenderer.on('py:event', listener);
       return () => { ipcRenderer.removeListener('py:event', listener); };
     },
+    libs: {
+      list: (): Promise<unknown> => ipcRenderer.invoke('py:libs-list'),
+      lookUp: (name: string): Promise<unknown> => ipcRenderer.invoke('py:libs-lookup', name),
+      install: (name: string): Promise<unknown> => ipcRenderer.invoke('py:libs-install', name),
+      installFile: (): Promise<unknown> => ipcRenderer.invoke('py:libs-install-file'),
+      remove: (name: string): Promise<unknown> => ipcRenderer.invoke('py:libs-remove', name),
+      onOutput: (handler: (text: string) => void): (() => void) => {
+        const listener = (_e: unknown, t: string) => handler(t);
+        ipcRenderer.on('py:libs-output', listener);
+        return () => { ipcRenderer.removeListener('py:libs-output', listener); };
+      },
+    },
   },
   recovery: {
     get: (): Promise<unknown> => ipcRenderer.invoke('recovery:get'),
