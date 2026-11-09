@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>34b Updates — the window</title>
+{{include:head}}
+<style>
+.uds { display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+.uds .now { display: flex; align-items: center; gap: 10px; }
+.uds ul { margin: 4px 0 0 18px; padding: 0; color: var(--tx-2); font-size: 12.5px; line-height: 1.6; }
+.uds .box { border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; }
+.ck { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--line-strong, #c9d0d8); }
+</style>
+</head>
+<body>
+<!--@MODE_WS: -->
+<!--@TOP_RIGHT: <button class="btn">{{i:folder:s14}} Open…</button>-->
+<p class="frame-label"><b>34b · Updates — the window</b> (M11 design, Rev 13) — opened by <i>MicroLab ▸ Check for Updates…</i> (Mac), <i>Help ▸ Check for Updates…</i> (Windows), or <b>Check for updates</b> in About (33). The version now; looks at once (<i>Looking for a newer version…</i> → <i>This is the newest version</i>, or what is out, with <b>What's new in 0.13.0</b>); when it last looked; <b>Download updates by itself</b> — off to start (a school's internet is shared), and even when on, an update goes in only when MicroLab restarts. In development (not the installed app) it says updates work only in the installed app</p>
+<div class="frame" style="position:relative">
+  {{include:topbar-simple}}
+  <div class="start" style="opacity:.45"><div class="col" style="flex:1"><h1>Start something new</h1></div></div>
+  <div class="overlay"></div>
+  <div class="dialog" style="left:50%;top:80px;transform:translateX(-50%);width:min(520px,calc(100% - 40px))">
+    <div class="dh">{{i:restart}}<h2 style="font-size:16px">Updates</h2><span class="spacer"></span><button class="btn ghost icon sm">{{i:x:s14}}</button></div>
+    <div class="db uds">
+      <div class="now">{{appicon:chip:40:upd}}<div class="col" style="gap:2px"><b>MicroLab 0.12.0</b><span class="small muted">Last looked: today, 14:32</span></div></div>
+      <div class="box"><b>MicroLab 0.13.0 is out.</b>
+        <div class="small" style="margin-top:6px;font-weight:600">What's new in 0.13.0:</div>
+        <ul><li>Parts: the servo's pulse shown while it runs</li><li>Python 3: Ctrl+/ comments a line out</li><li>Fixes: a turtle window closed at once no longer leaves the shell waiting</li></ul>
+      </div>
+      <label class="row" style="gap:8px;align-items:flex-start"><span class="ck"></span><span>Download updates by itself<br><span class="small muted">It still goes in only when you restart MicroLab.</span></span></label>
+    </div>
+    <div class="df"><button class="btn">{{i:restart:s14}} Check now</button><span class="spacer"></span><button class="btn">Close</button><button class="btn primary">Download</button></div>
+  </div>
+</div>
+</body></html>

@@ -6,6 +6,8 @@ How MicroLab is built, **in what order**, and **how each part is proven to work*
 - System design (processes, engine, board layer, file format): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html)
 
+*Revision 13 (2026-11-09): **M11 begins** (requirements Rev 13), with the app icon, About MicroLab and updates as in the gradebook and OneEditor (F-107–F-109); design 32, 33, 34, 34b.*
+
 *Revision 12 (2026-11-09): **M12 slice 7** (requirements Rev 12, the teacher's trial): panels hidden and shown, the Python logo on `.py` files, the theme on the whole Python screen, five code fonts, the app's size in the status bar (F-102–F-106); turtle's and tkinter's completions with their brackets; design 31b updated, 31g, 31h new.*
 
 *Revision 11 (2026-11-09): **M12 slice 6** (requirements Rev 11, the teacher after trying M12): projects as folders with their tree, New project asking its name and place first (Python and boards), the shell below or beside and resizable, brackets and quotes in pairs (F-98–F-101); design 31, 31b updated, 31e, 31f new — before M12's gate.*
@@ -597,6 +599,10 @@ connection problem says how to fix it.
 4. Licences of everything bundled listed in the app, checked by a script (N-11).
 5. Saved files from every earlier format open (N-09).
 6. Installers and updates as in the gradebook (Q11); README. *(Rev 10)* The bundled CPython signed and notarized with the app on macOS (R11); one installer per processor.
+   *(Rev 13)* Done as the gradebook and OneEditor do it: electron-builder (Mac `dmg` + `zip` per processor, Windows NSIS x64, per user), the bundled CPython and Jedi per platform and processor in the app's resources, a generic update feed on a GitHub release (`…/releases/latest/download`), electron-updater (looks at start and every 6 h; `autoDownload` off; installs on Restart and update or at quit), Macs signed with the teacher's own certificate (`CSC_NAME`, not notarised), `whats-new.json`, `npm run release` (draft release, then published).
+7. *(Rev 13)* The app icon (screen 32) and About MicroLab (screen 33), an app menu (About, Check for Updates…, the View menu's zoom).
+
+**Slices** *(Rev 13)*: 11.1 the icon, About, the app menu · 11.2 installers with the bundled Python · 11.3 updates · 11.4 licences listed (N-11) · 11.5 performance (N-05) and older files (N-09) · 11.6 Windows 11 / macOS, keyboard, contrast, widths (N-06, N-13, N-14) · 11.7 README and the classroom trial.
 
 **Exit gate**
 - N-01–N-12 checked one by one in `docs/acceptance/M11.md`.
