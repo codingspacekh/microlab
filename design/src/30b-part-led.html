@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>30b Learn — the LED</title>
+{{include:head}}
+</head>
+<body>
+<!--@NAV_LED: on-->
+<!--@TOP_RIGHT: <button class="btn">{{i:chevl:s14}} Back to my project</button>-->
+<p class="frame-label"><b>30b · Learn: a part page — the LED</b> (M8 design, Rev 9) — for 10–13, no code, no board: <b>what it is</b> and what it's for; <b>look inside</b>, a picture to play with — slide the current and watch the chip light, then burn; <b>the idea</b>; <b>its numbers</b>, each said in words; <b>how to connect it</b> to a battery through its resistor, and how to choose that resistor; <b>the mistakes</b>, as the simulator shows them (screen 04). Words with a dotted line open the glossary (here: <i>current</i>). The numbers come from the part's data, so the page and the simulator agree</p>
+<div class="frame">
+  {{include:topbar-learn}}
+  <div class="learn">
+    {{include:learn-nav2}}
+    <main class="lmain">
+      <div class="lcol" style="flex:1.15 1 0;min-width:440px">
+        <div class="card lhero">
+          <div style="flex:none;width:96px;height:96px;border-radius:14px;background:var(--canvas);display:grid;place-items:center">{{part:led:p}}</div>
+          <div class="col" style="gap:6px;min-width:0">
+            <span class="tag">Basics · light</span>
+            <h1>LED</h1>
+            <p class="lede">A tiny light. It glows when a small <span class="word">current</span> flows through it — but only one way round. LED means <b>light-emitting diode</b>.</p>
+            <div class="uses"><span>a power light</span><span>traffic lights</span><span>torches</span><span>screens are millions of them</span></div>
+          </div>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">1</span>Look inside</h2>
+          <div class="play">
+            {{fig:ledinside}}
+            <div class="ctl"><div class="slider"><span>Current through it</span><div class="track"><i style="width:31%"></i><b class="focus" style="left:31%"></b></div><span class="v">15 mA</span></div></div>
+            <div style="margin-top:6px">{{fig:ledstatesrow}}</div>
+            <div class="says">{{i:info:s14}}<span>At <b>15 mA</b> it shines bright. The current comes in at the long leg, crosses the tiny chip — that's where the light is made — and leaves by the short leg. Slide past <b>30 mA</b> and the chip gets too hot: it burns out, for good.</span></div>
+          </div>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">2</span>The idea</h2>
+          <div class="idea">{{i:bulb:s16}}<span>An LED is a <b>one-way door</b> for current. Push from the long leg and the door opens — the chip lights. Push from the short leg and it stays shut: no current, no light. The door needs a small push to open: about <b>2 volts</b> for a red LED. Its colour comes from what the chip is made of, not from the plastic.</span></div>
+        </div>
+      </div>
+      <div class="lcol" style="flex:1 1 0;min-width:380px">
+        <div class="card lsec">
+          <h2><span class="num">3</span>Its numbers</h2>
+          <table class="spec">
+            <tr><td>Push it needs</td><td>≈ 2 V</td><td>red, yellow, green: about 2 V; blue and white: about 3 V</td></tr>
+            <tr><td>Best current</td><td>10–20 mA</td><td>bright, and it lasts for years</td></tr>
+            <tr><td>Most it can take</td><td>30 mA</td><td>more, and the chip burns out</td></tr>
+            <tr><td>Size</td><td>5 mm</td><td>the round top, across</td></tr>
+            <tr><td>Legs</td><td>long +, short −</td><td>and the flat edge is on the − side</td></tr>
+          </table>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">4</span>Connect it</h2>
+          <p>Always with a <b>resistor</b> in the loop: it holds the current back to a safe size. Battery + → resistor → long leg; short leg → battery −.</p>
+          <div class="play" style="margin-top:8px;padding:6px">{{fig:ledconnect}}</div>
+          <p style="margin-top:10px"><b>Which resistor?</b> Take the LED's 2 V from the battery's volts, then divide by the current you want (0.015 A):</p>
+          <div class="calc">
+            <div>3 V battery<b>68 Ω</b></div><div>5 V supply<b>220 Ω</b></div><div>6 V (4×AA)<b>270 Ω</b></div><div>9 V battery<b>470 Ω</b></div>
+          </div>
+          <p class="small muted" style="margin-top:6px">A bigger resistor is safe — the LED is just dimmer. Never smaller than the table says.</p>
+        </div>
+        <div class="card lsec">
+          <h2><span class="num">5</span>Mistakes</h2>
+          <div class="mistake">{{i:alert}}<div><b>No resistor</b><span>Far too much current: it flashes bright and burns out. MicroLab burns it too, and says why.</span> <a>See it happen</a></div></div>
+          <div class="mistake">{{i:warn}}<div><b>The wrong way round</b><span>The one-way door stays shut: it stays dark. Nothing breaks — turn it round.</span></div></div>
+          <div class="mistake">{{i:warn}}<div><b>Both legs in one column</b><span>The breadboard joins them, so the current goes round the LED, not through it.</span></div></div>
+        </div>
+      </div>
+      <div class="card gloss" style="left:430px;top:132px"><b>current</b><span>How much electricity flows past a point each second. Measured in amps (A); small currents in milliamps (mA): 1000 mA = 1 A.</span></div>
+    </main>
+  </div>
+</div>
+</body></html>

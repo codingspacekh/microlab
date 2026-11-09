@@ -27,6 +27,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 import scenes  # noqa: E402
+import learnfigs  # noqa: E402
 from svgparts import icon_svg, PICO_B, PICO_T  # noqa: E402
 
 SRC = ROOT / "src"
@@ -767,7 +768,7 @@ def examples() -> str:
 
 
 # ---------------------------------------------------------------- template engine
-GENERATORS = {"scene": scenes.scene, "code": code, "parts": parts, "part": part, "pinout": pinout, "picov": picov,
+GENERATORS = {"fig": learnfigs.fig, "scene": scenes.scene, "code": code, "parts": parts, "part": part, "pinout": pinout, "picov": picov,
               "examples": examples}
 TAG = re.compile(r"\{\{(include|i|" + "|".join(GENERATORS) + r")(?::([^}]*))?\}\}")
 

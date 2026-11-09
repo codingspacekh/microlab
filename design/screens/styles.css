@@ -495,3 +495,56 @@ textarea.area, .area { min-height: 72px; border: 1px solid var(--line-strong); b
 /* narrower windows: the chip keeps its board and dot, the detail goes to its card */
 @media (max-width: 1500px) { .topbar .boardchip .sub { display: none; } }
 .topbar .proj b, .topbar .proj span { white-space: nowrap; }
+
+/* ---------- learn, Rev 9 (screens 30–30e): about the parts, for 10–13 ---------- */
+.lnav { overflow: auto; gap: 2px; }
+.lnav a.sub { padding-left: 26px; }
+.lnav a.later { color: var(--tx-3); }
+.lmain.flow { flex-direction: column; overflow: auto; }
+.lhero { display: flex; gap: 22px; align-items: center; padding: 18px 22px; }
+.lhero h1 { font-size: 26px; letter-spacing: -.01em; }
+.lhero .lede { color: var(--tx-2); font-size: 14.5px; line-height: 1.55; max-width: 62ch; }
+.uses { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.uses span { font-size: 12px; padding: 3px 9px; border-radius: 12px; background: var(--bg-2); color: var(--tx-2); }
+.lsec p.big { font-size: 14px; line-height: 1.6; color: var(--tx-1); }
+.word { border-bottom: 1.5px dotted var(--accent); color: inherit; cursor: help; }
+.play { background: var(--canvas); border-radius: 12px; padding: 10px 14px 14px; }
+.play .ctl { display: flex; align-items: center; gap: 12px; margin-top: 6px; font-size: 13px; }
+.play .ctl .slider { flex: 1; grid-template-columns: 150px 1fr 70px; margin: 0; font-size: 13px; }
+.play .says { margin-top: 10px; padding: 9px 12px; border-radius: 9px; background: var(--panel); border: 1px solid var(--line); font-size: 13px; color: var(--tx-1); display: flex; gap: 8px; align-items: flex-start; }
+.play .says .ico { color: var(--accent); margin-top: 2px; flex: none; }
+.idea { display: flex; gap: 12px; padding: 12px 14px; border-radius: 10px; background: var(--accent-soft); color: var(--tx-1); font-size: 13.5px; line-height: 1.55; }
+.idea .ico { color: var(--accent-ink); flex: none; margin-top: 3px; }
+.spec { width: 100%; border-collapse: collapse; font-size: 13px; }
+.spec td { padding: 8px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.spec td:first-child { color: var(--tx-2); width: 30%; }
+.spec td:nth-child(2) { font-weight: 700; white-space: nowrap; width: 22%; }
+.spec td:last-child { color: var(--tx-2); }
+.spec tr:last-child td { border-bottom: 0; }
+.calc { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.calc div { background: var(--bg); border-radius: 9px; padding: 9px 11px; font-size: 12px; color: var(--tx-2); }
+.calc b { display: block; font-size: 15px; color: var(--tx-1); margin-top: 2px; }
+.mistake .ico.bad { color: var(--danger); }
+.mistake a { color: var(--accent-ink); font-weight: 600; font-size: 12px; }
+.gloss { position: absolute; width: 260px; padding: 11px 13px; font-size: 12.5px; line-height: 1.5; box-shadow: var(--shadow-l); }
+.gloss b { display: block; font-size: 13px; margin-bottom: 3px; }
+.gloss span { color: var(--tx-2); }
+.lgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
+.lcard { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.lcard .art { height: 78px; border-radius: 9px; background: var(--canvas); display: grid; place-items: center; }
+.lcard .art svg { width: 54px; height: 54px; }
+.lcard b { font-size: 13.5px; }
+.lcard span { font-size: 12px; color: var(--tx-2); line-height: 1.4; }
+.lcard.soon { opacity: .55; }
+.ideacard { padding: 12px 14px; display: flex; gap: 12px; align-items: center; }
+.ideacard .ib { width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-ink); display: grid; place-items: center; flex: none; }
+.ideacard b { font-size: 13.5px; display: block; }
+.ideacard span { font-size: 12px; color: var(--tx-2); }
+.limits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.limits div { background: var(--bg); border-radius: 9px; padding: 10px 12px; font-size: 12px; color: var(--tx-2); line-height: 1.45; }
+.limits b { display: block; font-size: 16px; color: var(--tx-1); margin-bottom: 2px; }
+.pinkinds { display: flex; flex-wrap: wrap; gap: 8px; }
+.pinkinds span { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 5px 10px; border-radius: 8px; background: var(--bg); }
+.pinkinds i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.lmain { position: relative; }
+.play svg.scene { max-width: 100%; height: auto; display: block; margin: 0 auto; }
