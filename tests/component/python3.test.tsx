@@ -1,3 +1,4 @@
+import { currentCompletions, startCompletion } from '@codemirror/autocomplete';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { EditorView } from '@codemirror/view';
 import { describe, expect, it, vi } from 'vitest';
@@ -245,5 +246,90 @@ describe('M12 slice 5 (F-94, F-96): what an error means; the Plotter', () => {
     const p = screen.getByRole('region', { name: 'Plotter' });
     expect([...p.querySelectorAll('.legend .key')].map((k) => k.textContent)).toEqual(['i', 't']);
     expect(p.querySelector('polyline[data-series="1"]')!.getAttribute('points')!.split(' ')).toHaveLength(3);
+  });
+});
+
+describe('M12 slice 5b (F-97, F-92): help while typing — Jedi\'s names and a call\'s arguments; Tab at >>>', () => {
+  const viewOf = (s: ReturnType<typeof setup>, name: string) => EditorView.findFromDOM(s.editor(name).closest('.cm-editor') as HTMLElement)!;
+  const typeAtEnd = (view: EditorView, text: string) => act(() => {
+    const at = view.state.doc.length;
+    view.dispatch({ changes: { from: at, insert: text }, selection: { anchor: at + text.length }, userEvent: 'input.type' });
+  });
+
+  it('the names that fit, asked of Jedi at the cursor\'s place in the file; each with its explanation; a call taken with its brackets', async () => {
+    const api = fakeApi();
+    vi.mocked(api.python3.complete).mockResolvedValue([
+      { name: 'forward', type: 'function', doc: 'forward(distance)\nMove the turtle forward by the specified distance.', call: 'args' },
+      { name: 'four', type: 'variable' },
+    ]);
+    const s = setup(api);
+    newFile();
+    s.type('untitled.py', 'import turtle\n');
+    const view = viewOf(s, 'untitled.py');
+    act(() => { view.focus(); });
+    typeAtEnd(view, 'turtle.fo');
+    act(() => { startCompletion(view); });
+    await waitFor(() => expect(currentCompletions(view.state).map((c) => c.label)).toEqual(['forward', 'four']));
+    expect(api.python3.complete).toHaveBeenLastCalledWith({ code: 'import turtle\nturtle.fo', line: 2, column: 9, path: 'untitled.py' });
+    const forward = currentCompletions(view.state)[0]!;
+    expect(forward.type).toBe('function');
+    expect(((forward.info as () => Node)() as HTMLElement).textContent).toBe('forward(distance)Move the turtle forward by the specified distance.');
+    await act(() => new Promise((r) => setTimeout(r, 100)));   // CodeMirror takes no key for 75 ms after the list opens
+    fireEvent.keyDown(view.contentDOM, { key: 'Tab', code: 'Tab', keyCode: 9 });
+    expect(view.state.doc.toString()).toBe('import turtle\nturtle.forward()');
+    expect(view.state.selection.main.head).toBe(view.state.doc.length - 1);
+  });
+
+  it('Jedi not there (or nothing from it): the names in the file still come; inside text nothing is asked', async () => {
+    const api = fakeApi();
+    const s = setup(api);
+    newFile();
+    s.type('untitled.py', 'score = 0\n');
+    const view = viewOf(s, 'untitled.py');
+    typeAtEnd(view, 'sco');
+    act(() => { startCompletion(view); });
+    await waitFor(() => expect(currentCompletions(view.state).map((c) => c.label)).toContain('score'));
+    const asked = vi.mocked(api.python3.complete).mock.calls.length;
+    typeAtEnd(view, '\nprint("sco');
+    act(() => { startCompletion(view); });
+    await act(() => new Promise((r) => setTimeout(r, 100)));
+    expect(vi.mocked(api.python3.complete).mock.calls.length).toBe(asked);
+  });
+
+  it('a call\'s arguments while it is typed, the one being typed in bold; gone out of the brackets', async () => {
+    const api = fakeApi();
+    vi.mocked(api.python3.signature).mockImplementation(async (at) => ({ name: 'goto', params: ['x', 'y=None'], active: at.code.endsWith(', ') ? 1 : 0, doc: 'Move turtle to an absolute position.' }));
+    const s = setup(api);
+    newFile();
+    s.type('untitled.py', 'import turtle\n');
+    const view = viewOf(s, 'untitled.py');
+    typeAtEnd(view, 'turtle.goto(10, ');
+    await waitFor(() => expect(document.querySelector('.ml-signature b')).toHaveTextContent('y=None'));
+    const tip = document.querySelector('.ml-signature')!;
+    expect(tip.querySelector('code')).toHaveTextContent('goto(x, y=None)');
+    expect(tip).toHaveTextContent('Move turtle to an absolute position.');
+    expect(api.python3.signature).toHaveBeenLastCalledWith(expect.objectContaining({ line: 2, column: 16, path: 'untitled.py' }));
+    typeAtEnd(view, '20)');
+    await waitFor(() => expect(document.querySelector('.ml-signature')).toBeNull());
+  });
+
+  it('Tab at >>> completes from the program\'s names (the runner\'s); several: listed; only at >>>', async () => {
+    const api = fakeApi();
+    vi.mocked(api.python3.shellComplete).mockImplementation(async (t) => (t === 'sec' ? ['second', 'secret'] : t === 'math.sq' ? ['math.sqrt('] : []));
+    const s = setup(api);
+    newFile();
+    fireEvent.click(screen.getByRole('button', { name: /Run untitled\.py/ }));
+    fireEvent.change(s.prompt(), { target: { value: 'sec' } });
+    fireEvent.keyDown(s.prompt(), { key: 'Tab' });
+    expect(api.python3.shellComplete).not.toHaveBeenCalled();   // the program runs: Tab is input()'s
+    s.say({ ended: 'done' }, { prompt: '>>> ' });
+    fireEvent.change(s.prompt(), { target: { value: 'sec' } });
+    fireEvent.keyDown(s.prompt(), { key: 'Tab' });
+    await waitFor(() => expect(s.prompt()).toHaveValue('sec'));
+    await waitFor(() => expect(s.shell().closest('.console')!.querySelector('.hint')).toHaveTextContent('second secret'));
+    fireEvent.change(s.prompt(), { target: { value: 'print(math.sq' } });
+    fireEvent.keyDown(s.prompt(), { key: 'Tab' });
+    await waitFor(() => expect(s.prompt()).toHaveValue('print(math.sqrt('));
+    expect(api.python3.shellComplete).toHaveBeenLastCalledWith('math.sq');
   });
 });

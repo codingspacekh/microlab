@@ -1,7 +1,7 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { python } from '@codemirror/lang-python';
 import { bracketMatching, HighlightStyle, indentOnInput, indentUnit, syntaxHighlighting } from '@codemirror/language';
-import { Annotation, Compartment, EditorSelection, EditorState, StateEffect, StateField, type Range } from '@codemirror/state';
+import { Annotation, Compartment, EditorSelection, EditorState, StateEffect, StateField, type Extension, type Range } from '@codemirror/state';
 import { Decoration, drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, type DecorationSet } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
 import { useEffect, useRef } from 'react';
@@ -28,6 +28,8 @@ export interface CodeEditorProps {
   errorLine?: number;
   /** Put the cursor on this line and show it (M9: "Go to line 5"); a new object each time it is asked. */
   goTo?: { line: number };
+  /** Help while typing from elsewhere (M12: Python 3's, from Jedi) — instead of a board's. */
+  assist?: Extension;
 }
 
 /** The error's line (M9): a line decoration and its code underlined; it moves with edits, until the next run. */
@@ -71,7 +73,7 @@ const colours = HighlightStyle.define([
   { tag: t.comment, color: 'var(--code-com)', fontStyle: 'italic' },
 ]);
 
-export function CodeEditor({ label, value, onChange, board, size, errorLine: errorAt, goTo }: CodeEditorProps) {
+export function CodeEditor({ label, value, onChange, board, size, errorLine: errorAt, goTo, assist }: CodeEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const changed = useRef(onChange);
@@ -96,7 +98,7 @@ export function CodeEditor({ label, value, onChange, board, size, errorLine: err
           bracketMatching(),
           python(),
           errorLine,
-          ...(board ? [boardAssist(board)] : []),
+          ...(board ? [boardAssist(board)] : assist ? [assist] : []),
           syntaxHighlighting(colours),
           indentUnit.of('    '),
           EditorState.tabSize.of(4),

@@ -106,6 +106,7 @@ export function explainPython3(error: ErrorInfo, ctx: Python3Context): Explanati
         const rest = /^\s*print\s+(.*)$/.exec(text)?.[1]?.trim();
         return at(`\`print\` needs brackets${on}: \`print(${rest ?? '"Hello"'})\`. (Without them is how Python 2 wrote it.)`);
       }
+      if (/cannot assign to (function call|literal|expression)/.test(msg)) return at(`The left of \`=\`${on} must be a name: \`x = 5\`, not \`5 = x\`. To compare, use \`==\`.`);
       if (/Maybe you meant '==' or ':=' instead of '='|Maybe you meant '==' instead of '='/.test(msg)) return at(`To compare${on}, use \`==\`. A single \`=\` gives a name a value.`);
       if (/Perhaps you forgot a comma/.test(msg)) return at(`Two values${on} sit side by side with nothing between them: a comma \`,\` goes between the values in brackets — \`print("Age:", age)\`.`);
       if ((m = /'([([{])' was never closed/.exec(msg))) return at(`A bracket opened on line ${n} isn't closed: \`${m[1]}\` needs its \`${{ '(': ')', '[': ']', '{': '}' }[m[1] as '(' | '[' | '{']}\`.`);
@@ -116,7 +117,6 @@ export function explainPython3(error: ErrorInfo, ctx: Python3Context): Explanati
       if ((m = /'(break|continue)' (?:not properly in|outside) loop/.exec(msg))) return at(`\`${m[1]}\`${on} works only inside a loop (\`for\` or \`while\`). Check its indent: it belongs in the loop's block.`);
       if (/invalid decimal literal/.test(msg)) return at(`A name can't start with a digit${on}, and a number times a name needs its \`*\`: \`2 * x\`.`);
       if (/expected 'except' or 'finally' block/.test(msg)) return at(`A \`try:\` block needs an \`except:\` (or \`finally:\`) after it, lined up with the \`try\`${on}.`);
-      if (/cannot assign to (function call|literal|expression)/.test(msg)) return at(`The left of \`=\`${on} must be a name: \`x = 5\`, not \`5 = x\`. To compare, use \`==\`.`);
       const plain = syntax(lines, n, on);
       if (plain) return at(plain);
       if (/expected ':'/.test(msg)) return at(`Line ${n} needs a colon \`:\` at its end.`);
@@ -282,7 +282,7 @@ export function explainPython3(error: ErrorInfo, ctx: Python3Context): Explanati
       break;
 
     case 'OverflowError':
-      return at(`The number${on} is too big${/float/.test(msg) ? ' for a decimal number (a float)' : ''}. Check the maths — a power (\`**\`) grows very fast.`);
+      return at(`The number${on} is too big${/float|Result too large|Numerical result/.test(msg) ? ' for a decimal number (a float)' : ''}. Check the maths — a power (\`**\`) grows very fast.`);
 
     case 'StopIteration':
       return at(`\`next(…)\`${on} asked for one more item than there was.`);

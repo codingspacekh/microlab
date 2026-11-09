@@ -15,12 +15,12 @@ const TYPES: Record<ApiKind, string> = {
 };
 
 /** Inside a string or a comment nothing is offered. */
-function inText(state: EditorState, pos: number): boolean {
+export function inText(state: EditorState, pos: number): boolean {
   const node = syntaxTree(state).resolveInner(pos, -1);
   return /String|Comment/.test(node.name);
 }
 
-function info(text: string): () => Node {
+export function info(text: string): () => Node {
   return () => {
     const [first, ...rest] = text.split('\n');
     const box = document.createElement('div');
@@ -54,13 +54,37 @@ function source(board: string) {
 
 /** A call taken with its brackets (the teacher, 2026-11-08): `scroll(|)` when it takes arguments, `is_pressed()|`
  *  when not; a bracket already there is left as it is. */
-function withBrackets(call: 'args' | 'empty') {
+export function withBrackets(call: 'args' | 'empty') {
   return (view: EditorView, completion: Completion, from: number, to: number) => {
     const open = view.state.sliceDoc(to, to + 1) === '(';
     const insert = open ? completion.label : `${completion.label}()`;
     const anchor = from + insert.length - (!open && call === 'args' ? 1 : 0);
     view.dispatch({ changes: { from, to, insert }, selection: { anchor }, annotations: pickedCompletion.of(completion), userEvent: 'input.complete' });
   };
+}
+
+/** A call's arguments as on screen 02b: the one being typed in bold, then what the call does. */
+export function signatureDom(label: string, params: string[], active: number, about: string): HTMLElement {
+  const dom = document.createElement('div');
+  dom.className = 'ml-signature';
+  dom.setAttribute('role', 'status');
+  const code = document.createElement('code');
+  code.append(`${label}(`);
+  params.forEach((p, i) => {
+    if (i) code.append(', ');
+    // the argument being typed (after a bare * they are named: no position to count)
+    const star = params.indexOf('*');
+    const on = i === active && (star < 0 || i < star);
+    if (on) { const b = document.createElement('b'); b.textContent = p; code.append(b); } else code.append(p);
+  });
+  code.append(')');
+  dom.append(code);
+  if (about) {
+    const doc = document.createElement('p');
+    doc.textContent = about;
+    dom.append(doc);
+  }
+  return dom;
 }
 
 type SignatureTip = Tooltip & { key: string };
@@ -82,25 +106,7 @@ function signatureTooltip(board: string) {
       above: true,
       strictSide: false,
       arrow: false,
-      create: () => {
-        const dom = document.createElement('div');
-        dom.className = 'ml-signature';
-        dom.setAttribute('role', 'status');
-        const code = document.createElement('code');
-        code.append(`${s.label}(`);
-        s.params.forEach((p, i) => {
-          if (i) code.append(', ');
-          // the argument being typed (after a bare * they are named: no position to count)
-          const star = s.params.indexOf('*');
-          const on = i === s.active && (star < 0 || i < star);
-          if (on) { const b = document.createElement('b'); b.textContent = p; code.append(b); } else code.append(p);
-        });
-        code.append(')');
-        const doc = document.createElement('p');
-        doc.textContent = s.doc;
-        dom.append(code, doc);
-        return { dom };
-      },
+      create: () => ({ dom: signatureDom(s.label, s.params, s.active, s.doc) }),
     };
   };
   return StateField.define<SignatureTip | null>({
@@ -111,7 +117,7 @@ function signatureTooltip(board: string) {
 }
 
 /** The list, its explanation and the arguments as on screen 02b — in CodeMirror's theme, so they win over its own. */
-const look = EditorView.theme({
+export const look = EditorView.theme({
   '.cm-tooltip.cm-tooltip-autocomplete': { border: '1px solid var(--line)', borderRadius: '8px', background: 'var(--panel)', boxShadow: 'var(--shadow-l)', overflow: 'hidden' },
   '.cm-tooltip.cm-tooltip-autocomplete > ul': { fontFamily: 'var(--mono)', fontSize: '12px', maxHeight: '15.5em', minWidth: '250px' },
   '.cm-tooltip.cm-tooltip-autocomplete > ul > li': { display: 'flex', alignItems: 'center', gap: '8px', padding: '3px 10px 3px 8px', lineHeight: '20px', color: 'var(--tx-1)' },

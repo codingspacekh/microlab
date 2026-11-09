@@ -187,9 +187,34 @@ describe('the shell after the program (>>>, as IDLE\'s Run Module)', () => {
     expect(await back).toBe('>>> ');
     expect((await at(s, 'n')).text).toBe('5\n');
   });
+
+  it('Tab at >>> (F-92): the program\'s names, a module\'s after a dot, Python\'s words — as Python\'s own shell offers them', async () => {
+    const s = session();
+    await toShell(s, 'import math\nsecret = 7\nsecond = "s"\ndef score():\n    return 1\n');
+    expect(await s.complete('sec')).toEqual(['second', 'secret']);
+    expect(await s.complete('sco')).toEqual(['score()']);   // no arguments: Python closes the brackets
+    expect(await s.complete('math.sq')).toEqual(['math.sqrt(']);
+    expect(await s.complete('whi')).toEqual(['while ']);
+    expect(await s.complete('zzz')).toEqual([]);
+    expect((await at(s, 'secret')).text).toBe('7\n');   // the shell goes on as before
+  });
+
+  it('Tab while the program runs: its names so far; a session gone: nothing', async () => {
+    const s = session();
+    s.run({ code: 'counter = 0\nwhile True:\n    counter += 1\n', file: 'main.py', cwd: tmpdir() });
+    await new Promise((r) => setTimeout(r, 200));
+    expect(await s.complete('coun')).toEqual(['counter']);
+    s.kill();
+    await new Promise((r) => setTimeout(r, 100));
+    expect(await s.complete('coun')).toEqual([]);
+  });
 });
 
 describe('finding Python and the runner', () => {
+  it('every Python these tests start runs hidden (MICROLAB_HIDDEN, the teacher\'s rule): no window is ever shown', () => {
+    expect(process.env.MICROLAB_HIDDEN).toBe('1');
+  });
+
   it('MICROLAB_PYTHON first; then the one in the app\'s resources; then vendor/python; else the computer\'s python3', () => {
     const root = mkdtempSync(join(tmpdir(), 'ml-find-'));
     try {

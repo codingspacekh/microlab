@@ -16,6 +16,7 @@ import { openSerial, type SerialLink } from './serial-link';
 import { openProjectFile, saveProjectFile } from './project-files';
 import { openPyFile, savePyFile } from './python3/files';
 import { findPython, startPython, type PythonSession } from './python3/session';
+import { Assistant, findTools, type Place } from './python3/assist';
 import { installLibrary, listLibraries, lookUp, removeLibrary } from './python3/libraries';
 import { Recent, Recovery } from './recent';
 import { SettingsStore } from './settings';
@@ -209,7 +210,13 @@ app.whenReady().then(() => {
   ipcMain.handle('py:line', (e, text: string) => pySessions.get(e.sender.id)?.line(text));
   ipcMain.handle('py:interrupt', (e) => pySessions.get(e.sender.id)?.interrupt());
   ipcMain.handle('py:stop', async (e) => { await pySessions.get(e.sender.id)?.stop(); });
-  app.on('before-quit', () => { for (const s of pySessions.values()) s.kill(); });
+  // Tab at >>> (F-92): the program's names, from its own session
+  ipcMain.handle('py:shell-complete', (e, text: string) => pySessions.get(e.sender.id)?.complete(text) ?? []);
+  // help while typing (F-97): Jedi in a process of its own, shared by the windows, started when first asked
+  const assistant = new Assistant({ python: findPython(), tools: findTools(), libs: pyLibs });
+  ipcMain.handle('py:complete', (_e, at: Place) => assistant.complete(at));
+  ipcMain.handle('py:signature', (_e, at: Place) => assistant.signature(at));
+  app.on('before-quit', () => { for (const s of pySessions.values()) s.kill(); assistant.dispose(); });
   // Libraries (M12, F-95, screen 31d): MicroLab's own folder; one install at a time, what pip says sent as it comes
   let pipBusy = false;
   const install = async (sender: Electron.WebContents, what: string) => {
@@ -217,7 +224,7 @@ app.whenReady().then(() => {
     pipBusy = true;
     try {
       return await installLibrary({ python: findPython(), libs: pyLibs, what, onOutput: (t) => { if (!sender.isDestroyed()) sender.send('py:libs-output', t); } });
-    } finally { pipBusy = false; }
+    } finally { pipBusy = false; assistant.dispose(); }   // Jedi reads the folder again: the new library completes
   };
   ipcMain.handle('py:libs-list', () => listLibraries(pyLibs));
   ipcMain.handle('py:libs-lookup', (_e, name: string) => lookUp(name));
@@ -229,7 +236,7 @@ app.whenReady().then(() => {
     const path = r.filePaths[0];
     return r.canceled || !path ? { ok: false, canceled: true } : install(e.sender, path);
   });
-  ipcMain.handle('py:libs-remove', (_e, name: string) => removeLibrary(pyLibs, name));
+  ipcMain.handle('py:libs-remove', (_e, name: string) => { assistant.dispose(); return removeLibrary(pyLibs, name); });
   // Real boards (F-55): the USB ports, looked at about once a second; every window is told what changed.
   const user = userInfo().username;
   // Windows' drives come from PowerShell (slow): read at most every 3 s

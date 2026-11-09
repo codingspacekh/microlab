@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { printNames } from '@lib/plot';
 import { Console, type ConsoleTab } from '../console/Console';
 import { CodeEditor } from '../editor/CodeEditor';
@@ -6,6 +6,7 @@ import { useEditorLook, lookAttrs, EditorPrefs } from '../editor/EditorPrefs';
 import { Icon } from '../ui/Icon';
 import type { MicrolabApi } from '../app/api';
 import type { PyRunState } from './usePython';
+import { python3Assist } from './assist';
 import './python3.css';
 
 /**
@@ -35,9 +36,13 @@ export function PythonScreen({ api, tabs, at, onAt, onText, onNew, onClose, run,
   const [look, setLook] = useEditorLook(api);
   const [tab, setTab] = useState<ConsoleTab>('sim');
   const [goTo, setGoTo] = useState<{ file: string; line: number }>();
+  // help while typing (F-97): asked for the file shown, by its path — or its name, not saved yet
+  const where = useRef('');
+  const assist = useMemo(() => python3Assist(api, () => where.current), [api]);
   const shown = tabs[at];
   if (!shown) return null;
   const label = fileName(shown);
+  where.current = shown.path ?? label;
   const names = run.plot.width ? printNames(shown.text, run.plot.width) : null;
   // the error's line, in the file it was in (the runner names it by its path, or by its name if not saved)
   const error = !running && run.ended?.ended === 'error' && run.ended.error ? run.ended.error : undefined;
@@ -61,12 +66,17 @@ export function PythonScreen({ api, tabs, at, onAt, onText, onNew, onClose, run,
       </div>
       <div className="pyed">
         <CodeEditor key={shown.key} label={label} size={look.size} value={shown.text} onChange={onText}
-          errorLine={errorHere} goTo={goTo?.file === label ? goTo : undefined} />
+          errorLine={errorHere} goTo={goTo?.file === label ? goTo : undefined} assist={assist} />
       </div>
       <div className="pyshell">
         <Console name="Shell" chunks={run.console} running={running} entry={run.file ?? label} onClear={onClear}
           idleText={`Press Run (F5) to run ${label}. What it prints, and its errors, come here — and after it, >>> with its names.`}
           tab={tab} onTab={setTab} repl={run.repl} onType={onType} onSoftReset={onRerun}
+          complete={run.repl ? (line, pos) => {
+            // Tab at >>> (F-92): what finishes the name before the cursor, from the program's own names
+            const typed = /[\w.]*$/.exec(line.slice(0, pos))![0];
+            return api.python3.shellComplete(typed).then((options) => ({ from: pos - typed.length, options }));
+          } : undefined}
           onGoTo={(file, line) => setGoTo({ file: file === shown.path ? label : file, line })}
           plot={{ data: run.plot, names, ...(run.startedAt ? { startedAt: run.startedAt } : {}), onClear: onClearPlot }} />
       </div>

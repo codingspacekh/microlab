@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { MicrolabApi, PyEvent, PyLibrary, RecentItem, Recovered } from '../../src/renderer/app/api';
+import type { MicrolabApi, PyCompletion, PyEvent, PyLibrary, PyPlace, PySignature, RecentItem, Recovered } from '../../src/renderer/app/api';
 
 /** The preload's API for component tests: settings in memory, file choosers that answer as told, the app's close;
  *  the recent list and the recovery copy in memory, starting as `start` says (M5.7). */
@@ -60,6 +60,9 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}, start: { 
       line: vi.fn(async () => {}),
       interrupt: vi.fn(async () => {}),
       stop: vi.fn(async () => {}),
+      shellComplete: vi.fn<(text: string) => Promise<string[]>>(async () => []),
+      complete: vi.fn<(at: PyPlace) => Promise<PyCompletion[]>>(async () => []),
+      signature: vi.fn<(at: PyPlace) => Promise<PySignature | null>>(async () => null),
       onEvent: vi.fn((h: (e: PyEvent) => void) => { pyHandlers.add(h); return () => { pyHandlers.delete(h); }; }),
       libs: {
         list: vi.fn(async () => installed),

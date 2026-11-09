@@ -16,7 +16,8 @@ const folder = mkdtempSync(join(tmpdir(), 'ml-explain-'));
 afterAll(() => rmSync(folder, { recursive: true, force: true }));
 
 async function errorOf(code: string, file = join(folder, 'main.py'), stdin: string[] = []): Promise<ErrorInfo> {
-  const s = startPython({ python });
+  // hidden (the teacher's rule): a turtle program's window is made but never shown, never takes focus
+  const s = startPython({ python, env: { ...process.env, MICROLAB_HIDDEN: '1' } });
   s.on((e) => { if ('input' in e) s.line(stdin.shift() ?? ''); });
   s.run({ code, file, cwd: folder });
   const end = await s.ended();
@@ -90,6 +91,43 @@ const CASES: [string, string, RegExp, number?][] = [
   ['a file not in the folder', 'open("scores.txt")\n', /no file `scores\.txt` in the program's folder/, 1],
   ['a function calling itself for ever', 'def f():\n    f()\nf()\n', /calls itself .* again and again/, 2],
   ['turtle: a colour it doesn\'t know', 'import turtle\nturtle.color("blu")\n', /turtle doesn't know the colour `blu`/, 2],
+  // and the rest, each rule from a real program
+  ['break outside a loop', 'break\n', /`break` on line 1 works only inside a loop/, 1],
+  ['triple quotes never closed', 'x = """abc\n', /no closing quote/, 1],
+  ['a bracket closed by the wrong one', 'x = (1, 2]\n', /closes `\(` with `\]`/, 1],
+  ['try without except', 'try:\n    x = 1\nprint(x)\n', /needs an `except:`/],
+  ['a value on the left of =', '5 = x\n', /The left of `=` on line 1 must be a name/, 1],
+  ['a hidden space from a web page', 'x = 1 + 2\n', /hidden character \(U\+00A0\)/, 1],
+  ['tabs and spaces', 'if True:\n        x = 1\n\ty = 2\n', /tabs and spaces mixed/, 3],
+  ['Print with a capital', 'Print("hi")\n', /case-sensitive — Python has `print`, with a small \*\*p\*\*/, 1],
+  ['None called', 'x = None\nx()\n', /`None`, not a function/, 2],
+  ['a value it doesn\'t take', 'def f(a):\n    pass\nf(b=1)\n', /doesn't take a value named `b`/, 3],
+  ['comparing with None', 'x = None\nprint(x < 3)\n', /compares with `None`/, 2],
+  ['comparing a list and a number', 'print([1] < 3)\n', /can't compare a list with a whole number/, 1],
+  ['None + a number', 'def f():\n    pass\nprint(f() + 1)\n', /got `None`/, 3],
+  ['two lists taken away', 'print([1] - [1])\n', /can't be used on a list and a list/, 1],
+  ['text times a decimal, no input()', 'print("ab" * 1.5)\n', /`float\(…\)` makes it one/, 1],
+  ['a tuple changed', 't = (1, 2)\nt[0] = 5\n', /use a list/, 2],
+  ['range of text from input()', 'n = input()\nfor i in range(n):\n    pass\n', /not text\. `input\(\)` gives text/, 2],
+  ['a list as a dictionary key', 'd = {}\nd[[1]] = 2\n', /can't be a dictionary's key/, 2],
+  ['indexing a function', 'print[0]\n', /used on a function: call it/, 1],
+  ['indexing a number', 'x = 5\nx[0]\n', /has no items/, 2],
+  ['for over None', 'for i in None:\n    pass\n', /`None` has none/, 1],
+  ['a list index that is a decimal', 'items = [1]\nitems[0.5]\n', /`\/\/` divides into a whole number/, 2],
+  ['a class without it', 'class Dog:\n    pass\nDog.bark\n', /`Dog` has no `bark`/, 3],
+  ['None before a dot', 'x = None\nx.append(1)\n', /before the dot on line 2 is `None`/, 2],
+  ['a module\'s name with no hint', 'import math\nmath.zzzzzz\n', /The `math` module has no `zzzzzz` on line 2\. Check the spelling/, 2],
+  ['a method with no hint', '"a".zzzzzz()\n', /has no `zzzzzz` on line 1\. Check the spelling/, 1],
+  ['a library by another name on PyPI', 'import cv2\n', /look up `opencv-python`.*On PyPI it is called `opencv-python`/, 1],
+  ['a text not found', '"abc".index("z")\n', /isn't in the text/, 1],
+  ['split at nothing', '"a b".split("")\n', /needs something to split at/, 1],
+  ['randint the wrong way round', 'import random\nrandom.randint(6, 1)\n', /the first must be smaller/, 2],
+  ['past the end of a tuple', 't = (1,)\nt[3]\n', /past the end of the tuple/, 2],
+  ['a folder, not a file', 'open(".")\n', /is a folder, not a file/, 1],
+  ['a number too big', 'x = 10.0 ** 400\n', /too big for a decimal number/, 1],
+  ['next of nothing', 'next(iter([]))\n', /one more item than there was/, 1],
+  ['an assert', 'assert 1 == 2, "maths"\n', /found its condition `False`: maths/, 1],
+  ['turtle: a colour as numbers out of range', 'import turtle\nturtle.pencolor((300, 0, 0))\n', /needs three, each 0–1/, 2],
 ];
 
 describe('every friendly error from CPython\'s real text (F-94)', () => {

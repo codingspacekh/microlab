@@ -6,7 +6,7 @@ it gets the file to run, the lines typed, and Ctrl+C. The student's program runs
 turtle and tkinter work as they do with IDLE; a reader thread takes what the window sends, so Ctrl+C is heard even
 while the program is busy or waits for input().
 
-Window → runner:  {"run": {"code", "file", "cwd"}} · {"line": text} · {"interrupt": true}
+Window → runner:  {"run": {"code", "file", "cwd"}} · {"line": text} · {"interrupt": true} · {"complete": text, "id"}
 Runner → window:  {"ready": version} · {"out": text} · {"err": text} · {"input": true} · {"prompt": ">>> " | "... "}
                   {"window": true} (a tkinter or turtle window opened)
                   {"ended": "done" | "error" | "stopped", "error"?: {type, message, file, line}} · {"replError": {...}}
@@ -28,6 +28,7 @@ _window = sys.stdin           # what the window sends (sys.stdin becomes the pro
 _wire_lock = threading.Lock()
 _inbox = queue.Queue()
 _RUNNER = os.path.abspath(__file__)
+_names = {}                   # the program's names, once it runs: what Tab completes at >>>
 
 
 def send(msg):
@@ -69,9 +70,28 @@ def _reader():
             continue
         if msg.get("interrupt"):
             _thread.interrupt_main()
+        elif "complete" in msg:
+            send({"completions": {"id": msg.get("id"), "options": _complete(msg["complete"])}})
         else:
             _inbox.put(msg)
     _inbox.put(None)   # the window has gone: end
+
+
+def _complete(text):
+    """Tab at >>> (F-92): the names that finish what is typed, as Python's own shell offers them (rlcompleter: the
+    program's names, Python's words and builtins, a module's or an object's after a dot)."""
+    import rlcompleter
+    completer = rlcompleter.Completer(_names)
+    out = []
+    try:
+        while len(out) < 200:
+            option = completer.complete(text, len(out))
+            if option is None:
+                break
+            out.append(option)
+    except Exception:   # an object whose attributes can't be listed: nothing to offer
+        pass
+    return sorted(set(out), key=lambda o: (o.rsplit(".", 1)[-1].startswith("_"), o.lower()))
 
 
 def _next():
@@ -202,7 +222,8 @@ def run(code, file, cwd):
         os.chdir(cwd)
         sys.path.insert(0, cwd)
     sys.argv = [file]
-    names = {"__name__": "__main__", "__file__": file, "__builtins__": builtins}
+    global _names
+    names = _names = {"__name__": "__main__", "__file__": file, "__builtins__": builtins}
     # the editor's text is the file's (it may not be saved): tracebacks show its lines, as for a file on disk
     linecache.cache[file] = (len(code), None, code.splitlines(True), file)
     try:

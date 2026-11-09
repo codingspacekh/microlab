@@ -286,3 +286,10 @@ npm run dist         # installers: Windows .exe, Mac .dmg (Apple chip, Intel) (M
   program's `sys.path`; `pip` runs from the same Python with `--target` that folder.
 - Pure parts stay pure: what a CPython error means (`src/lib/errors`, with CPython's texts), the Plotter's samples
   (`src/lib/plot`), the shell's prompt rules (`src/lib/repl`).
+- **Help while typing (F-97)** comes from **Jedi in a second process** (`src/python3/assist.py`), started when the
+  editor first asks and kept ready: never the program's process (which restarts at each Run and may be busy), and
+  Jedi never on a program's path. It reads the bundled Python's modules and MicroLab's libraries folder; installing or
+  removing a library restarts it. Jedi and parso are fetched with the Python (`vendor/python-tools`, by hash). **Tab
+  at `>>>`** asks the runner itself (`rlcompleter` over the program's names, answered on its reader thread).
+- Ctrl+C and Stop are messages to the runner's reader thread (`_thread.interrupt_main`), not signals — the same on
+  macOS and Windows (R12); Stop ends the process after 0.5 s if the program doesn't stop.

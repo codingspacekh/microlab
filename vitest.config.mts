@@ -19,7 +19,8 @@ export default defineConfig({
       { extends: true, test: { name: 'python', include: ['tests/python/**/*.test.ts'], environment: 'node' } },
       { extends: true, test: { name: 'integration', include: ['tests/integration/**/*.test.ts'], environment: 'node' } },
       // M12: MicroLab's Python 3 runner in a real CPython (the bundled one, MICROLAB_PYTHON, or the computer's python3)
-      { extends: true, test: { name: 'python3', include: ['tests/python3/**/*.test.ts'], environment: 'node', testTimeout: 20_000 } },
+      // Every Python they start runs hidden (the teacher's rule): a tkinter or turtle window is never shown
+      { extends: true, test: { name: 'python3', include: ['tests/python3/**/*.test.ts'], environment: 'node', testTimeout: 20_000, env: { MICROLAB_HIDDEN: '1' } } },
       { extends: true, test: { name: 'acceptance', include: ['tests/acceptance/**/*.test.ts'], environment: 'node' } },
       // Speed budgets (Q14). Not run with coverage: `npm run perf`.
       { extends: true, test: { name: 'perf', include: ['tests/perf/**/*.test.ts'], environment: 'node' } },

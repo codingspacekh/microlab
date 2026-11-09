@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld('microlab', {
     line: (text: string): Promise<void> => ipcRenderer.invoke('py:line', text),
     interrupt: (): Promise<void> => ipcRenderer.invoke('py:interrupt'),
     stop: (): Promise<void> => ipcRenderer.invoke('py:stop'),
+    shellComplete: (text: string): Promise<unknown> => ipcRenderer.invoke('py:shell-complete', text),
+    complete: (at: unknown): Promise<unknown> => ipcRenderer.invoke('py:complete', at),
+    signature: (at: unknown): Promise<unknown> => ipcRenderer.invoke('py:signature', at),
     onEvent: (handler: (e: unknown) => void): (() => void) => {
       const listener = (_e: unknown, ev: unknown) => handler(ev);
       ipcRenderer.on('py:event', listener);

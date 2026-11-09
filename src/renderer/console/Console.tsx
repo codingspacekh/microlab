@@ -34,6 +34,9 @@ export interface BoardConsoleView {
 
 export type ConsoleTab = 'sim' | 'board' | 'plot' | 'problems';
 
+/** What Tab completes: where the name starts in the line, and the names that finish it. */
+export type Completed = { from: number; options: string[] } | null;
+
 export interface ConsoleProps {
   chunks: ConsoleChunk[];
   running: boolean;
@@ -60,7 +63,7 @@ export interface ConsoleProps {
   /** "Go to line 5": the editor shows the error's line (M9, screen 05). */
   onGoTo?: (file: string, line: number) => void;
   /** Tab: the names the line could go on with, as the editor offers them. */
-  complete?: (line: string, pos: number) => { from: number; options: string[] } | null;
+  complete?: (line: string, pos: number) => Completed | Promise<Completed>;
 }
 
 export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete, problems, plot, name = 'Console', idleText }: ConsoleProps) {
@@ -236,12 +239,17 @@ function SimPrompt({ prompt, atRepl, running, entry, onType, onSoftReset, comple
       const pos = input.selectionStart ?? line.length;
       if (!line.slice(0, pos).trim()) { e.preventDefault(); setLine(`${line.slice(0, pos)}    ${line.slice(pos)}`); return; }
       e.preventDefault();
+      const shown = (r: Completed) => {
+        if (!r || !r.options.length) return;
+        const typedPart = line.slice(r.from, pos);
+        const common = r.options.reduce((a, b) => { let i = 0; while (i < a.length && a[i] === b[i]) i++; return a.slice(0, i); });
+        if (common.length > typedPart.length) setLine(line.slice(0, r.from) + common + line.slice(pos));
+        setHint(r.options.length > 1 ? r.options.slice(0, 12).join('  ') + (r.options.length > 12 ? '  …' : '') : '');
+      };
       const r = complete(line, pos);
-      if (!r || !r.options.length) return;
-      const typedPart = line.slice(r.from, pos);
-      const common = r.options.reduce((a, b) => { let i = 0; while (i < a.length && a[i] === b[i]) i++; return a.slice(0, i); });
-      if (common.length > typedPart.length) setLine(line.slice(0, r.from) + common + line.slice(pos));
-      setHint(r.options.length > 1 ? r.options.slice(0, 12).join('  ') + (r.options.length > 12 ? '  …' : '') : '');
+      // an answer from Python 3's shell comes later: used only if the line is still what was asked about
+      if (r instanceof Promise) void r.then((a) => { if (input.value === line) shown(a); });
+      else shown(r);
     }
   };
   // named for where the session is — the program, or its REPL — not for what is printed now (a line that runs prints none)

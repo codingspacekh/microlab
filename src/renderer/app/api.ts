@@ -17,6 +17,9 @@ export type PySave = { ok: true; path: string; name: string } | { ok: false; mes
 /** A library installed in MicroLab's folder (src/main/python3/libraries.ts). */
 export interface PyLibrary { name: string; version: string; summary: string }
 /** What the Python 3 session tells the window (src/main/python3/session.ts). */
+export interface PyPlace { code: string; line: number; column: number; path: string }
+export interface PyCompletion { name: string; type: string; doc?: string; call?: 'args' | 'empty' }
+export interface PySignature { name: string; params: string[]; active: number; doc: string }
 export interface PyError { type: string; message: string; file: string; line: number | null }
 export type PyEvent =
   | { ready: string } | { out: string } | { err: string } | { input: true } | { prompt: string }
@@ -62,6 +65,12 @@ export interface MicrolabApi {
     /** Stop: the program ends, its windows close. */
     stop(): Promise<void>;
     onEvent(handler: (e: PyEvent) => void): () => void;
+    /** Tab at >>> (F-92): what finishes `text`, from the program's names. */
+    shellComplete(text: string): Promise<string[]>;
+    /** Help while typing (F-97, Jedi): the names that fit at a place in the code (line from 1, column from 0). */
+    complete(at: PyPlace): Promise<PyCompletion[]>;
+    /** The call being typed at a place: its arguments, the one being typed. */
+    signature(at: PyPlace): Promise<PySignature | null>;
     /** Libraries (F-95, screen 31d), in MicroLab's own folder. */
     libs: {
       list(): Promise<PyLibrary[]>;
@@ -158,6 +167,7 @@ export function getApi(): MicrolabApi {
     python3: {
       run: async () => ({ ok: false, message: 'Python 3 needs the MicroLab app.' }),
       line: async () => {}, interrupt: async () => {}, stop: async () => {}, onEvent: () => () => {},
+      shellComplete: async () => [], complete: async () => [], signature: async () => null,
       libs: {
         list: async () => [],
         lookUp: async () => ({ ok: false, message: 'Libraries need the MicroLab app.' }),

@@ -31,6 +31,9 @@ export interface PythonSession {
   line(text: string): void;
   /** Ctrl+C: a KeyboardInterrupt in the program, or the shell's line. */
   interrupt(): void;
+  /** Tab at >>> (F-92): the names that finish `text` (what is typed up to the cursor), from the program's names;
+   *  [] if the session is gone or doesn't answer in time. */
+  complete(text: string): Promise<string[]>;
   /** Stop: Ctrl+C, then the process ended if the program hasn't stopped within STOP_GRACE_MS (N-03); at the shell, at once. */
   stop(): Promise<void>;
   kill(): void;
@@ -40,6 +43,8 @@ export interface PythonSession {
 }
 
 export const STOP_GRACE_MS = 500;
+/** How long Tab waits for the runner's names. */
+export const COMPLETE_MS = 1500;
 
 const BIN = process.platform === 'win32' ? 'python.exe' : join('bin', 'python3');
 
@@ -89,6 +94,12 @@ export function startPython(opts: { python: string; runner?: string; libs?: stri
       if (!line.trim()) continue;
       let msg: PythonEvent;
       try { msg = JSON.parse(line) as PythonEvent; } catch { emit({ out: `${line}\n` }); continue; }
+      if ('completions' in msg) {   // an answer to complete(): the session's own, not the window's
+        const c = (msg as { completions: { id: number; options: string[] } }).completions;
+        asked.get(c.id)?.(c.options);
+        asked.delete(c.id);
+        continue;
+      }
       if ('ready' in msg) readyResolve(msg.ready);
       if ('ended' in msg) {
         endedAs = msg;
@@ -124,6 +135,8 @@ export function startPython(opts: { python: string; runner?: string; libs?: stri
     over();
   });
 
+  const asked = new Map<number, (options: string[]) => void>();
+  let lastAsked = 0;
   const send = (msg: object) => {
     if (alive && child.stdin.writable) child.stdin.write(`${JSON.stringify(msg)}\n`);
   };
@@ -137,6 +150,15 @@ export function startPython(opts: { python: string; runner?: string; libs?: stri
     },
     line(text) { send({ line: text }); },
     interrupt() { send({ interrupt: true }); },
+    complete(text) {
+      if (!alive) return Promise.resolve([]);
+      const id = ++lastAsked;
+      return new Promise<string[]>((answer) => {
+        const timer = setTimeout(() => { asked.delete(id); answer([]); }, COMPLETE_MS);
+        asked.set(id, (options) => { clearTimeout(timer); answer(options); });
+        send({ complete: text, id });
+      });
+    },
     async stop() {
       if (!alive) return;
       if (endedAs || atShell) {

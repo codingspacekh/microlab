@@ -23,6 +23,7 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
     pyfile: { open: vi.fn(async () => ({ ok: false as const, canceled: true as const })), openPath: vi.fn(async () => ({ ok: false as const, message: 'gone' })), save: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
     file: { open: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
     python3: { run: vi.fn(async () => ({ ok: false as const, message: 'no' })), line: vi.fn(async () => {}), interrupt: vi.fn(async () => {}), stop: vi.fn(async () => {}), onEvent: vi.fn(() => () => {}),
+      shellComplete: vi.fn(async () => []), complete: vi.fn(async () => []), signature: vi.fn(async () => null),
       libs: { list: vi.fn(async () => []), lookUp: vi.fn(async () => ({ ok: false as const, message: 'no' })), install: vi.fn(async () => ({ ok: false as const, message: 'no' })), installFile: vi.fn(async () => ({ ok: false as const, canceled: true as const })), remove: vi.fn(async () => ({ ok: false as const, message: 'no' })), onOutput: vi.fn(() => () => {}) } },
     boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(async () => {}), send: vi.fn(async () => ({ ok: false as const, message: 'no' })),
       install: vi.fn(async () => ({ ok: false as const, message: 'no' })),

@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { strToU8, zipSync } from 'fflate';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -145,4 +145,29 @@ test('M12 slice 5 (F-94): a real CPython error explained in the shell, its line 
   await prompt.fill('import turtle; turtle.forwad(10)');
   await prompt.press('Enter');
   await expect(shell.getByRole('note', { name: 'What the AttributeError means' })).toContainText('The turtle module has no forwad on line 1. Did you mean turtle.forward?', { timeout: 5000 });
+});
+
+test('M12 slice 5b (F-97, F-92): Jedi offers turtle\'s names as they are typed, with what each does; a call\'s arguments; Tab at >>>', async () => {
+  test.skip(!existsSync(join('vendor', 'python-tools', 'jedi')), 'Jedi not fetched: npm run fetch:python -- --tools');
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Python file' }).click();
+  await setCode(win, 'untitled.py', 'import turtle\nturtle.fo');
+  await win.keyboard.press('Control+Space');
+  const list = win.locator('.cm-tooltip-autocomplete');
+  await expect(list.getByRole('option', { name: /forward/ })).toBeVisible({ timeout: 10_000 });   // the helper's first start
+  await expect(win.locator('.cm-completionInfo')).toContainText('Move the turtle forward');
+  await win.keyboard.press('Enter');
+  await win.keyboard.type('10, ');
+  await expect(win.getByRole('textbox', { name: 'untitled.py' })).toContainText('turtle.forward(10, )');
+  await win.keyboard.press(`${MOD}+A`);
+  await win.keyboard.insertText('import turtle\nturtle.goto(10, ');
+  await expect(win.locator('.ml-signature b')).toHaveText(/^y/, { timeout: 5000 });
+  await win.keyboard.press(`${MOD}+A`);
+  await win.keyboard.insertText('secret = 7\n');
+  await win.keyboard.press('F5');
+  const prompt = win.locator('.pyshell .prompt').getByRole('textbox');
+  await expect(win.locator('.pyshell .prompt')).toContainText('>>>', { timeout: 10_000 });
+  await prompt.fill('secr');
+  await prompt.press('Tab');
+  await expect(prompt).toHaveValue('secret');
 });
