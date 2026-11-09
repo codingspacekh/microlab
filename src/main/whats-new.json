@@ -1,4 +1,8 @@
 {
+  "0.12.2": [
+    "The board and the circuit fold away so your code has the whole window: the button by your files, or Ctrl+B (⌘B on a Mac)",
+    "Press Run and the board comes back, to see your program working"
+  ],
   "0.12.1": [
     "F5 runs your program and Shift+F5 stops it, on a board as in Python 3",
     "The console under your code hides (Ctrl+J) and grows or shrinks: drag its edge",
