@@ -63,7 +63,7 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}, start: { 
       console: { open: vi.fn(async () => ({ ok: true as const })), close: vi.fn(async () => {}), do: vi.fn(async () => {}), onOutput: vi.fn(() => () => {}) },
       onChange: vi.fn(() => () => {}) },
     app: { setDirty: vi.fn(), onCloseRequest: vi.fn(() => () => {}), close: vi.fn(), copy: vi.fn(async () => {}), openDriverPage: vi.fn(async () => {}), showFirmware: vi.fn(async () => {}),
-      zoom: { get: vi.fn(() => 1), set: vi.fn() } },
+      zoom: { get: vi.fn(() => 1), set: vi.fn() }, openWebsite: vi.fn(async () => {}), onMenu: vi.fn(() => () => {}) },
     pyfile: {
       save: vi.fn(async (text: string, o: { path?: string; name: string; from?: string }) => {
         const path = o.path ?? `${o.from ?? HOME}/copy of ${o.name}`;
@@ -116,6 +116,7 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}, start: { 
       interrupt: vi.fn(async () => {}),
       stop: vi.fn(async () => {}),
       shellComplete: vi.fn<(text: string) => Promise<string[]>>(async () => []),
+      version: vi.fn<() => Promise<string | null>>(async () => '3.13.18'),
       complete: vi.fn<(at: PyPlace) => Promise<PyCompletion[]>>(async () => []),
       signature: vi.fn<(at: PyPlace) => Promise<PySignature | null>>(async () => null),
       onEvent: vi.fn((h: (e: PyEvent) => void) => { pyHandlers.add(h); return () => { pyHandlers.delete(h); }; }),

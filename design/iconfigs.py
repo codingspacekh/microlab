@@ -58,7 +58,21 @@ def circuit(uid: str = "c") -> str:
     return _body(inner, uid)
 
 
-ICONS = {"chip": chip, "breadboard": breadboard, "circuit": circuit}
+def logo(uid: str = "l") -> str:
+    """The one chosen (the teacher: "should be the same one as our in app logo"): the top bar's logo, exactly — its
+    blue, the white chip and pins, the green LED — scaled from its 28-unit box into the macOS body (824 px, its margin
+    and soft shadow), so the app is known by the same picture everywhere."""
+    k = 824 / 28
+    return (f'<defs><filter id="sh{uid}" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#0b1f4d" flood-opacity=".3"/></filter></defs>'
+            f'<g transform="translate(100 100) scale({k:.6f})" filter="url(#sh{uid})">'
+            '<rect width="28" height="28" rx="6.3" fill="#2563d9"/></g>'
+            f'<g transform="translate(100 100) scale({k:.6f})">'
+            '<rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="#fff" stroke-width="1.8"/>'
+            '<path d="M11 8V4.5M17 8V4.5M11 23.5V20M17 23.5V20M8 11H4.5M8 17H4.5M20 11h3.5M20 17h3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>'
+            '<circle cx="14" cy="14" r="2.2" fill="#7fe0a8"/></g>')
+
+
+ICONS = {"logo": logo, "chip": chip, "breadboard": breadboard, "circuit": circuit}
 
 
 def icon(name: str, size: str = "256", uid: str = "") -> str:  # uid keeps two pictures of one size apart

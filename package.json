@@ -17,6 +17,7 @@
     "e2e": "npm run build && playwright test",
     "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run perf && npm run build",
     "fetch:python": "node scripts/fetch-python.mjs",
+    "icon": "node scripts/make-icon.mjs",
     "spike:node": "node spikes/micropython-worker/node-spike.mjs",
     "spike:electron": "electron spikes/micropython-worker/electron-main.mjs",
     "pins": "node scripts/print-pins.mjs",

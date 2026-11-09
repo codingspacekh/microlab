@@ -92,3 +92,21 @@ test('the board pictures load from the app\'s own files', async () => {
   await expect(imgs).toHaveCount(3);
   await expect.poll(() => imgs.evaluateAll((els) => els.every((e) => (e as HTMLImageElement).complete && (e as HTMLImageElement).naturalWidth > 0))).toBe(true);
 });
+
+test('M11 slice 1 (Rev 13; screen 33): the app menu has About MicroLab and Check for Updates…; the logo opens About', async () => {
+  const win = await app.firstWindow();
+  const menu = await app.evaluate(({ Menu }) => Menu.getApplicationMenu()!.items.map((m) => ({ label: m.label, items: m.submenu?.items.map((i) => i.label) ?? [] })));
+  const all = menu.flatMap((m) => m.items);
+  expect(all).toContain('About MicroLab');
+  expect(all).toContain('Check for Updates…');
+  await win.getByRole('button', { name: 'About MicroLab' }).click();
+  const about = win.getByRole('dialog', { name: 'About MicroLab' });
+  await expect(about).toContainText('© 2026 CodingSpaceKH. All rights reserved.');
+  await expect(about).toContainText(/Version \d+\.\d+\.\d+/);
+  await expect(about.getByRole('button', { name: /codingspacekh\.dev/ })).toBeVisible();
+  await about.getByRole('button', { name: 'Close' }).click();
+  await expect(about).toHaveCount(0);
+  // the app menu's About, sent from the main process
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.webContents.send('app:menu', 'about'));
+  await expect(win.getByRole('dialog', { name: 'About MicroLab' })).toBeVisible();
+});

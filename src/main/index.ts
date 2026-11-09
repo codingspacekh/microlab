@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { basename, dirname, extname, join, resolve, sep } from 'node:path';
@@ -20,6 +21,7 @@ import { findPython, startPython, type PythonSession } from './python3/session';
 import { Assistant, findTools, type Place } from './python3/assist';
 import { installLibrary, listLibraries, lookUp, removeLibrary } from './python3/libraries';
 import { Recent, Recovery } from './recent';
+import { menuTemplate, WEBSITE, type MenuAction } from './menu';
 import { SettingsStore } from './settings';
 import pkg from '../../package.json';
 import type { ProjectDoc } from '@lib/project';
@@ -78,6 +80,8 @@ function createWindow(): void {
     minWidth: 1280,
     minHeight: 720,
     show: false,
+    // the app icon while developing (M11, F-107); the installed app has its own in its bundle
+    ...(!app.isPackaged && process.platform !== 'darwin' ? { icon: DEV_ICON } : {}),
     backgroundColor: '#f4f6f8',
     webPreferences: {
       preload: join(here, '../preload/index.cjs'),
@@ -100,7 +104,14 @@ function createWindow(): void {
   void win.loadURL(devUrl ?? APP_URL);
 }
 
+/** The app icon while developing (build/icon.png, made by `npm run icon`). */
+const DEV_ICON = join(app.getAppPath(), 'build', 'icon.png');
+
 app.whenReady().then(() => {
+  // the app menu (M11, Rev 13): About MicroLab and Check for Updates… for the window in front; the View menu's zoom
+  const toFront = (action: MenuAction) => (BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0])?.webContents.send('app:menu', action);
+  Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate({ mac: process.platform === 'darwin', dev: !app.isPackaged, send: toFront, website: () => void shell.openExternal(WEBSITE) })));
+  if (!app.isPackaged && process.platform === 'darwin' && existsSync(DEV_ICON)) app.dock?.setIcon(DEV_ICON);
   serveAppFiles();
   const settings = new SettingsStore(join(app.getPath('userData'), 'settings.json'));
   // recent projects (F-05) and the recovery copy (F-03, M5.7)
@@ -447,6 +458,12 @@ app.whenReady().then(() => {
   ipcMain.handle('app:show-firmware', async (_e, kind: 'pico' | 'microbit') => shell.showItemInFolder((await firmwareOf(kind)).file));
   // the helper (F-56): its report to the clipboard; a USB chip's official driver page — no other page can be opened
   ipcMain.handle('app:copy', (_e, text: string) => clipboard.writeText(String(text)));
+  // About MicroLab (F-108): the website, only that address; the bundled Python's version, asked once
+  ipcMain.handle('app:website', () => shell.openExternal(WEBSITE));
+  let pyVersion: Promise<string | null> | undefined;
+  ipcMain.handle('py:version', () => (pyVersion ??= new Promise((done) => {
+    execFile(findPython(), ['-I', '-c', 'import sys; print(sys.version.split()[0])'], { timeout: 10_000, windowsHide: true }, (err, out) => done(err ? null : out.trim() || null));
+  })));
   ipcMain.handle('app:open-driver-page', async (_e, chip: string) => {
     const url = (DRIVER_PAGES as Record<string, string>)[chip];
     if (url) await shell.openExternal(url);

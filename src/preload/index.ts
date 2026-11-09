@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('microlab', {
     interrupt: (): Promise<void> => ipcRenderer.invoke('py:interrupt'),
     stop: (): Promise<void> => ipcRenderer.invoke('py:stop'),
     shellComplete: (text: string): Promise<unknown> => ipcRenderer.invoke('py:shell-complete', text),
+    version: (): Promise<unknown> => ipcRenderer.invoke('py:version'),
     complete: (at: unknown): Promise<unknown> => ipcRenderer.invoke('py:complete', at),
     signature: (at: unknown): Promise<unknown> => ipcRenderer.invoke('py:signature', at),
     onEvent: (handler: (e: unknown) => void): (() => void) => {
@@ -123,5 +124,12 @@ contextBridge.exposeInMainWorld('microlab', {
     showFirmware: (kind: string): Promise<void> => ipcRenderer.invoke('app:show-firmware', kind),
     // the app's size (M12 Rev 12, F-106): the window's zoom
     zoom: { get: (): number => webFrame.getZoomFactor(), set: (f: number): void => webFrame.setZoomFactor(f) },
+    // About MicroLab (M11, F-108): its website; the app menu's About and Check for Updates…
+    openWebsite: (): Promise<void> => ipcRenderer.invoke('app:website'),
+    onMenu: (handler: (action: string) => void): (() => void) => {
+      const listener = (_e: unknown, action: string) => handler(action);
+      ipcRenderer.on('app:menu', listener);
+      return () => { ipcRenderer.removeListener('app:menu', listener); };
+    },
   },
 });

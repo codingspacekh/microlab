@@ -28,9 +28,11 @@ export interface DialogProps {
   icon?: ReactNode;
   /** At the left of the buttons: what will happen. */
   note?: ReactNode;
+  /** The title is the dialog's name, said but not shown (M11: About MicroLab shows the app's name large instead). */
+  hideTitle?: boolean;
 }
 
-export function Dialog({ title, children, actions, onCancel, role = 'alertdialog', width, icon, note }: DialogProps) {
+export function Dialog({ title, children, actions, onCancel, role = 'alertdialog', width, icon, note, hideTitle }: DialogProps) {
   const id = useId();
   const box = useRef<HTMLDivElement>(null);
   const first = useRef<HTMLButtonElement>(null);
@@ -58,7 +60,7 @@ export function Dialog({ title, children, actions, onCancel, role = 'alertdialog
       <div ref={box} className="dialog center" role={role} aria-modal="true" aria-labelledby={`${id}t`}
         aria-describedby={role === 'alertdialog' ? `${id}d` : undefined} onKeyDown={onKeyDown}
         style={width ? ({ '--dw': `${width}px` } as CSSProperties) : undefined}>
-        <div className="dh">{icon && <span className="dicon">{icon}</span>}<h2 id={`${id}t`}>{title}</h2></div>
+        <div className={cls('dh', hideTitle && 'quiet')}>{icon && <span className="dicon">{icon}</span>}<h2 id={`${id}t`} className={hideTitle ? 'sr-only' : undefined}>{title}</h2></div>
         <div className="db" id={`${id}d`}>{children}</div>
         <div className="df">
           {note && <span className="small muted row dnote">{note}</span>}

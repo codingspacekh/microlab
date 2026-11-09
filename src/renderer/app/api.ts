@@ -89,6 +89,8 @@ export interface MicrolabApi {
     /** Stop: the program ends, its windows close. */
     stop(): Promise<void>;
     onEvent(handler: (e: PyEvent) => void): () => void;
+    /** The bundled Python's version (About MicroLab), or null if it can't say. */
+    version(): Promise<string | null>;
     /** Tab at >>> (F-92): what finishes `text`, from the program's names. */
     shellComplete(text: string): Promise<string[]>;
     /** Help while typing (F-97, Jedi): the names that fit at a place in the code (line from 1, column from 0). */
@@ -160,6 +162,10 @@ export interface MicrolabApi {
     showFirmware(kind: 'pico' | 'microbit'): Promise<void>;
     /** The app's size (M12 Rev 12, F-106): the window's zoom factor (1 = 100 %). */
     zoom: { get(): number; set(factor: number): void };
+    /** About MicroLab (M11, F-108): codingspacekh.dev in the computer's browser. */
+    openWebsite(): Promise<void>;
+    /** The app menu's About MicroLab and Check for Updates…: 'about' | 'updates'. */
+    onMenu(handler: (action: string) => void): () => void;
   };
 }
 
@@ -198,7 +204,7 @@ export function getApi(): MicrolabApi {
     python3: {
       run: async () => ({ ok: false, message: 'Python 3 needs the MicroLab app.' }),
       line: async () => {}, interrupt: async () => {}, stop: async () => {}, onEvent: () => () => {},
-      shellComplete: async () => [], complete: async () => [], signature: async () => null,
+      shellComplete: async () => [], complete: async () => [], signature: async () => null, version: async () => null,
       libs: {
         list: async () => [],
         lookUp: async () => ({ ok: false, message: 'Libraries need the MicroLab app.' }),
@@ -222,6 +228,6 @@ export function getApi(): MicrolabApi {
       },
       console: { open: async () => ({ ok: false, message: 'A board needs the MicroLab app.' }), close: async () => {}, do: async () => {}, onOutput: () => () => {} },
       onChange: () => () => {} },
-    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close(), copy: async (t) => navigator.clipboard?.writeText(t), openDriverPage: async () => {}, showFirmware: async () => {}, zoom: { get: () => 1, set: () => {} } },
+    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close(), copy: async (t) => navigator.clipboard?.writeText(t), openDriverPage: async () => {}, showFirmware: async () => {}, zoom: { get: () => 1, set: () => {} }, openWebsite: async () => {}, onMenu: () => () => {} },
   };
 }

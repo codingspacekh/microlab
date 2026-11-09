@@ -14,6 +14,7 @@ import { fileName, PythonScreen, type PyTab } from '../python3/PythonScreen';
 import { ProjectTree } from '../python3/ProjectTree';
 import { NewProject, shortPath, type NewKind } from './NewProject';
 import { ZoomControl } from './Zoom';
+import { About } from './About';
 import { usePython, type PyRunState } from '../python3/usePython';
 import { Libraries } from '../python3/Libraries';
 import '../python3/python3.css';
@@ -352,6 +353,9 @@ export function App({ api, width, startRun, audio }: AppProps) {
     if (!t || (!again && pyRun.state.status !== 'idle')) return;
     pyRun.run(t.text, t.path, fileName(t));
   };
+  // About MicroLab (M11, F-108): the logo, and the app menu's About (Check for Updates…: slice 3)
+  const [aboutOpen, setAboutOpen] = useState(false);
+  useEffect(() => api.app.onMenu((action) => { if (action === 'about') setAboutOpen(true); }), [api]);
   // Libraries (screen 31d): the window, and how many are installed (the status bar)
   const [libsOpen, setLibsOpen] = useState(false);
   const [libCount, setLibCount] = useState<number | null>(null);
@@ -557,6 +561,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
     <div className="app">
       <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} dirty={dirty} run={runControls} chip={chip} {...actions}
         onOpenAny={() => guard(() => void openAny())}
+        onAbout={() => setAboutOpen(true)}
         py={pyProject ? {
           project: pyProject, ...(pyTab ? { tab: pyTab } : {}),
           onNew: () => guardPy(newPython), onOpen: () => guardPy(() => void openAny()), onSave: () => void savePy(), onSaveAs: () => void savePy(true),
@@ -600,6 +605,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
           onClose={() => { void api.boards.files.done(filesOf.id); setFilesOf(null); }} />
       )}
       {libsOpen && <Libraries api={api} onClose={() => setLibsOpen(false)} onChanged={(l) => setLibCount(l.length)} />}
+      {aboutOpen && <About api={api} onClose={() => setAboutOpen(false)} />}
       {newKind && (
         <NewProject api={api} kind={newKind} onCancel={() => setNewKind(null)}
           onPython={(r) => { setNewKind(null); pyProjectOpened(r); }}
@@ -655,6 +661,8 @@ interface TopBarProps {
   edit?: { canUndo: boolean; canRedo: boolean; onUndo: () => void; onRedo: () => void };
   /** Open… with nothing open (screen 31): a project or a .py file. */
   onOpenAny: () => void;
+  /** About MicroLab (M11, F-108): the logo opens it. */
+  onAbout: () => void;
   /** The Python 3 mode (M12, screen 31b): the file shown, its menu, its Run. */
   py?: { project: { root: string; name: string }; tab?: PyTab; run?: RunControls; onNew: () => void; onOpen: () => void; onSave: () => void; onSaveAs: () => void; onShow: () => void; onLibraries: () => void };
 }
@@ -678,10 +686,10 @@ interface RunControls {
 
 const MOD = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
-function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, onOpen, onSave, onSaveAs, onOpenAny, py }: TopBarProps) {
+function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, onOpen, onSave, onSaveAs, onOpenAny, py, onAbout }: TopBarProps) {
   return (
     <header className="topbar">
-      <div className="brand"><Logo /><b>Micro<span>Lab</span></b></div>
+      <button type="button" className="brand about-link" aria-label="About MicroLab" title="About MicroLab" onClick={onAbout}><Logo /><b>Micro<span>Lab</span></b></button>
       <div className="seg modes" role="tablist" aria-label="Mode">
         {MODES.map((m) => (
           <button key={m.id} type="button" role="tab" aria-selected={mode === m.id} className={mode === m.id ? 'on' : ''} onClick={() => onMode(m.id)}>

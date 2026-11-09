@@ -29,7 +29,7 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       context: vi.fn(async () => null), onChanged: vi.fn(() => () => {}) },
     file: { open: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
     python3: { run: vi.fn(async () => ({ ok: false as const, message: 'no' })), line: vi.fn(async () => {}), interrupt: vi.fn(async () => {}), stop: vi.fn(async () => {}), onEvent: vi.fn(() => () => {}),
-      shellComplete: vi.fn(async () => []), complete: vi.fn(async () => []), signature: vi.fn(async () => null),
+      shellComplete: vi.fn(async () => []), complete: vi.fn(async () => []), signature: vi.fn(async () => null), version: vi.fn(async () => null),
       libs: { list: vi.fn(async () => []), lookUp: vi.fn(async () => ({ ok: false as const, message: 'no' })), install: vi.fn(async () => ({ ok: false as const, message: 'no' })), installFile: vi.fn(async () => ({ ok: false as const, canceled: true as const })), remove: vi.fn(async () => ({ ok: false as const, message: 'no' })), onOutput: vi.fn(() => () => {}) } },
     boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(async () => {}), send: vi.fn(async () => ({ ok: false as const, message: 'no' })),
       install: vi.fn(async () => ({ ok: false as const, message: 'no' })),
@@ -53,6 +53,8 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       openDriverPage: vi.fn(async () => {}),
       showFirmware: vi.fn(async () => {}),
       zoom: { get: vi.fn(() => 1), set: vi.fn() },
+      openWebsite: vi.fn(async () => {}),
+      onMenu: vi.fn(() => () => {}),
     },
   } satisfies MicrolabApi;
   return { api, requestClose: () => act(() => closeRequest?.()) };

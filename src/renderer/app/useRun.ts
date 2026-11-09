@@ -14,6 +14,9 @@ import { PACK } from './libpack';
  * (the board's own output, the app's notes, errors in red); the latest state of every part and of the board's own
  * outputs; how it ended. Restart stops the run and starts it again with the project as it is now.
  */
+/** The MicroPython the simulator runs (vendor/micropython): About MicroLab says it too. */
+export const MICROPYTHON = '1.29.0';
+
 export type StartRun = (req: { doc: ProjectDoc; entry: string }, events: RunEvents) => RunHandle;
 /** out: what the board prints; sys: the app's notes; err: errors; me: what the student typed, echoed (M9); why: an
  *  error explained (M9, screen 05). */
@@ -208,7 +211,7 @@ function boardOf(s: RunState): string {
 
 /** The firmware the simulator copies on each board (as the real board's banner names it). */
 function firmwareOf(board: string): string {
-  return board === 'microbit-v2' ? 'micro:bit MicroPython v2.1.2 (MicroPython v1.18)' : 'MicroPython v1.29.0';
+  return board === 'microbit-v2' ? 'micro:bit MicroPython v2.1.2 (MicroPython v1.18)' : `MicroPython v${MICROPYTHON}`;
 }
 
 function endNote(r: RunResult, entry: string): ConsoleChunk {

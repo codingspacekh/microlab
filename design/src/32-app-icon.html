@@ -17,9 +17,16 @@
 </head>
 <body>
 <!--@MODE_WS: -->
-<p class="frame-label"><b>32 · The app icon</b> (M11 design, <b>Rev 13</b>, the teacher: <i>"please create the app icon"</i>) — three options, each grown from the logo in the top bar (the chip, its pins, the green LED). Shown at full size (1024 px, as macOS draws it: a rounded square with its margin and soft shadow), then as small as the Dock, the taskbar and a file list show it (128, 64, 32, 16 px) — an icon must read at 16 px. The one chosen is exported by a script to every size macOS (<code>.icns</code>) and Windows (<code>.ico</code>) need, and used for the window, the Dock / taskbar, the installer and MicroLab's <code>.mlab</code> files</p>
+<p class="frame-label"><b>32 · The app icon</b> (M11 design, Rev 13) — <b>chosen by the teacher: "should be the same one as our in app logo"</b> — the top bar's logo exactly (its blue, the white chip and pins, the green LED), in the macOS layout: a rounded square with its margin and soft shadow; Windows uses the same picture. Shown at full size and as small as the Dock, the taskbar and a file list show it. Exported by <code>npm run icon</code> to <code>build/icon.png</code> (1024 px); the build makes the <code>.icns</code> and <code>.ico</code>. The three first ideas (A Chip, B Breadboard, C Circuit) are kept below for the record</p>
 <div class="frame" style="background:var(--bg)">
-  <div class="icons">
+  <div class="icons" style="grid-template-columns:1fr">
+    <div class="opt" style="flex-direction:row;justify-content:center;gap:40px;flex-wrap:wrap"><div class="col" style="gap:10px;align-items:center"><h2 style="align-self:center">Chosen · the logo</h2>{{appicon:logo:300}}</div>
+      <div class="col" style="gap:16px;justify-content:center"><div class="sizes">{{appicon:logo:128}}{{appicon:logo:64}}{{appicon:logo:32}}{{appicon:logo:16}}</div>
+      <div class="dockbg"><div class="dock"><span class="dot"></span><span class="dot"></span>{{appicon:logo:56}}<span class="dot"></span></div></div>
+      <div class="taskbar"><span class="t"><span class="dot" style="width:20px;height:20px"></span></span><span class="t on">{{appicon:logo:24}}</span><span class="t"><span class="dot" style="width:20px;height:20px"></span></span></div></div>
+    </div>
+  </div>
+  <div class="icons" style="opacity:.6">
     <div class="opt"><h2>A · Chip</h2><p>The logo itself, given depth: the chip, its pins, the LED glowing at its heart. Simplest; the same as the app's own top bar.</p>
       {{appicon:chip:300}}
       <div class="sizes">{{appicon:chip:128}}{{appicon:chip:64}}{{appicon:chip:32}}{{appicon:chip:16}}</div>
