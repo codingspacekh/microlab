@@ -18,6 +18,8 @@
 
 *Revision 9 (2026-11-09): **Learn is about the components, for children** — the teacher: "I don't want it to be about specific board … electronics for kids perspective where we tell students how the component operate behind the scene, how it work, how it use or connect, what the principle idea behind it, not about code, it's more about specification of the component." A part page is now **what it is, how it works inside (a picture to play with), the idea behind it, its specifications, how to connect it, and the mistakes it shows** — for students of **10–13** (Q20): short sentences, everyday comparisons, real units explained; **no code and no particular board** (F-40). **Board pages stay**, about the board as a component — what is on it, its pins and power, its limits — with no code (F-41). **Ideas pages** (voltage, current, resistance, a circuit, the breadboard, digital and analog, PWM) and the **glossary** stay (F-42, F-45). The **Examples tab is taken out** (F-04: the example projects stay as the acceptance suite and as `.mlab` files a teacher opens); code snippets per part (F-25) leave Learn. The first Learn slice is the **Basics** group (Q21).*
 
+*Revision 10 (2026-11-09): **A Python 3 IDE in MicroLab** — the teacher: "integrate pure Python IDLE in the microlab so that student can write their python3 code in the application directly … in the front page add another panel to go to python 3 ide editor"; with **turtle** and **tkinter**, plain **`.py` files**, and **libraries from PyPI** installed when the internet is there. A new Start-page card opens the **Python 3** screen: an editor for `.py` files and a shell, as IDLE has (F-90–F-97). It runs **real CPython 3.13, shipped inside MicroLab** (a self-contained build per platform and processor, with Tcl/Tk), the student's program in its own process, as Thonny does (Q22, §1.14). Learn (M8) waits until after the pilot.*
+
 Name: **MicroLab**.
 
 ---
@@ -36,7 +38,8 @@ Name: **MicroLab**.
 10. [1.10 Decisions & open questions](#110-decisions--open-questions)
 11. [1.11 Proposed way to build it](#111-proposed-way-to-build-it)
 12. [1.12 Files on the board](#112-files-on-the-board) *(Rev 4)*
-13. [1.13 Connecting a real board](#113-connecting-a-real-board) *(Rev 5)*
+13. [1.13 Connecting a real board](#113-connecting-a-real-board)
+14. [1.14 Python 3 in MicroLab](#114-python-3-in-microlab-rev-10) *(Rev 5)*
 
 ---
 
@@ -203,6 +206,18 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 | F-81 | In the simulator, the board's web page opens in a panel inside MicroLab: buttons on the page reach the student's code (e.g. switch an LED), no real network needed | Later phase |
 | F-82 | Pretend Wi-Fi: `network.WLAN` connects to a pretend network; `urequests` reaches a small built-in test server (was F-3B) | Later phase |
 
+### Python 3 *(Rev 10)*
+| ID | Requirement | P |
+|---|---|---|
+| F-90 | A **Python 3** card on the Start page opens the Python 3 screen; the top bar has *Workspace · Python 3 · Learn* | M |
+| F-91 | **`.py` files, as IDLE**: New, Open, Save, Save as, the recent files on the Start page's card; several files open in tabs; a file's folder is where the program runs (`open('data.txt')` finds the file beside it) | M |
+| F-92 | **Run** (F5) runs the file in the editor with real **CPython 3**; the **shell** shows what it prints and errors in red, takes `input()`'s answers, and after the program its **`>>>`** has the program's names (as IDLE's *Run Module*); **Stop** (Ctrl+C) interrupts it; ↑ ↓ history, Tab completes | M |
+| F-93 | **turtle and tkinter** work as on a computer with Python: their windows open beside MicroLab and close with the program, or when Stop is pressed | M |
+| F-94 | **Friendly errors** for CPython's own messages (screen 05's way): the line marked, *What this means*, Go to line | S |
+| F-95 | **Libraries** (a Packages window): the ones installed, a search on PyPI, Install and Remove with `pip` when the internet is there; offline, install from a `.whl` file a teacher hands out. They go into MicroLab's own folder for Python, never into a Python installed on the computer, and every program sees them | M |
+| F-96 | The **Plotter** for numbers a Python 3 program prints (as M9's) | S |
+| F-97 | The editor knows Python 3: highlighting, indentation, completions of names and of the libraries installed (Jedi, shipped) | S |
+
 ### Teacher
 | ID | Requirement | P |
 |---|---|---|
@@ -319,6 +334,8 @@ The **content is the largest piece of work** in the project (about 30 parts × 3
 | R10 | *(Rev 5)* Checking a board means briefly stopping its program (Ctrl-C), and opening an ESP32's port can restart it | The check runs only when a board is plugged in (it has just restarted anyway), then restarts the program with a soft reset; the serial lines are set so an ESP32 is not held in its bootloader; tested with each board in M10 |
 | R6 | A full 3D workspace costs a lot of time and is harder to use for precise wiring (Q1) | Decided: 2D (Rev 2) |
 | R8 | Arduino later (Q13): the classic Uno cannot run MicroPython | Keep the engine's board layer open to new boards; decide Arduino's language when its phase starts |
+| R11 | *(Rev 10)* A bundled CPython makes the installers bigger (≈ 25 MB macOS, ≈ 45 MB Windows, compressed) and every binary in it must be signed (macOS notarization) | A self-contained build (python-build-standalone) per platform and processor; signed with the app in M11, as Thonny does; checked on clean macOS and Windows 11 machines |
+| R12 | *(Rev 10)* Stop on Windows: a child process has no Ctrl+C signal of its own | The program's process starts in its own process group and gets CTRL_BREAK, which MicroLab's runner turns into a KeyboardInterrupt; killed if it doesn't stop within 0.5 s (N-03) — checked on Windows 11 at the milestone's gate |
 | R9 | The TypeScript circuit solver is too slow on weak laptops (Q14) | Performance test from M1 (≤ 1 ms for 40 parts); if missed, rewrite only the solver in Rust → WebAssembly behind the same interface |
 | R7 | Looking like a copy of Tinkercad or Wokwi | Our own layout, pictures and wording; similar *workflow* only |
 
@@ -342,6 +359,8 @@ The **content is the largest piece of work** in the project (about 30 parts × 3
 | Q17 | *(Rev 5)* Can the app show that a board is connected, with no setup? | **Yes** — F-55, F-56, §1.13. The board is recognised by its USB IDs, then asked for its MicroPython version |
 | Q18 | *(Rev 5)* Install MicroPython from inside the app (F-52)? | **Yes for the micro:bit and Pico** (S): one file copied to the board's drive, firmware shipped with the app. **ESP32 stays C** (needs `esptool-js`); the helper links to a guide |
 | Q16 | *(Rev 4)* IoT web pages and Wi-Fi in v1? | **Later phase** (F-80–F-82). v1 keeps the folder tree and `www/` files ready for it |
+| Q22 | *(Rev 10)* How does MicroLab run Python 3? | **A real CPython 3.13 shipped inside the app** (python-build-standalone, with Tcl/Tk), the program in its own process. Pyodide (CPython as WebAssembly) was tried first (spike, 2026-11-09): it ran Python 3.14, `input()`, Stop and a library from PyPI, but has **no tkinter and no turtle**. The native spike ran Python 3.13.18 with Tk 9.0.4, `input()` through a pipe, Ctrl+C in 44 ms, CPython's messages, and `pip install` into an app folder |
+| Q23 | *(Rev 10)* Python 3 projects or plain files? | **Plain `.py` files**, as IDLE; libraries installed with `pip` from PyPI when online, or from a `.whl` file (the teacher, 2026-11-09) |
 | Q20 | *(Rev 9)* Who reads Learn? | **Students of 10–13**: short sentences, everyday comparisons, the real units explained (the teacher, 2026-11-09) |
 | Q21 | *(Rev 9)* Learn's first slice, and how a part shows how it works | **The Basics group** first; each part with a **picture to play with** (look inside), still pictures only where nothing moves (the teacher, 2026-11-09) |
 | Q19 | *(Rev 7)* Can Run run any file, as in Thonny, not only `main.py` as on python.microbit.org? | **Yes** (F-22, F-50, §1.12). It is how the boards themselves work: on a soft reset into the raw REPL (what Thonny uses), the Pico W and ESP32 run `boot.py` but not `main.py`, and the micro:bit runs neither (it has no `boot.py`); Thonny then sends the file in the editor, which runs as `__main__`. `main.py` only runs by itself on a normal start (checked in the firmware: `ports/rp2/main.c`, `ports/esp32/main.c`, micro:bit `codal_port/main.c`). A helper file can carry its own test code under `if __name__ == "__main__":` |
@@ -480,3 +499,14 @@ Getting the computer to "see" the board is where most students get stuck: which 
 A *Copy report* button gathers the operating system, the USB list, the ports and the last messages, so a teacher can see the problem at a glance.
 
 **Testing.** The detection rules are pure functions: a recorded USB list in, a board state out. The helper's steps run against a fake board (the same fake used for the raw REPL, Q15). Real cables, drivers and boards are checked by hand in M10 on clean Windows 11 and macOS machines.
+
+## 1.14 Python 3 in MicroLab *(Rev 10)*
+
+**What runs the code.** MicroLab ships a self-contained **CPython 3.13** for each platform and processor (macOS Apple silicon and Intel, Windows x64): the standard library, Tcl/Tk for tkinter and turtle, and `pip`. Nothing is installed on the computer, and a Python already there is never used or touched.
+
+**How a program runs** (as Thonny does): the main process starts the bundled `python` with MicroLab's small runner script, in the folder of the file being run. The runner reads the student's file and runs it as `__main__`; it sends what the program prints and its tracebacks to the window, asks the window when the program calls `input()`, and, when the program ends, keeps its names for the shell's `>>>`. Stop sends Ctrl+C (SIGINT; on Windows CTRL_BREAK, R12) and, if the program ignores it, ends the process. A tkinter or turtle window is the program's own window, as with IDLE. One Python process is kept ready, so Run starts at once.
+
+**Libraries.** A folder in MicroLab's own data holds the libraries the student installs (`pip install --target`), and it is on every program's path. The Packages window lists them and searches PyPI when the internet is there; offline, a `.whl` file installs the same way. Removing one deletes it from that folder.
+
+**What is shared with the simulator.** The code editor, the shell (its `>>>`, history, Tab, Ctrl+C), the friendly errors (with CPython's own messages), the Plotter, the window's layout. The Python 3 screen has no circuit and no board.
+

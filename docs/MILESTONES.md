@@ -6,6 +6,8 @@ How MicroLab is built, **in what order**, and **how each part is proven to work*
 - System design (processes, engine, board layer, file format): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html)
 
+*Revision 10 (2026-11-09): **M12 Python 3** (requirements Rev 10), built **before M11**: a Python 3 screen with an editor for `.py` files and a shell, real CPython 3.13 shipped inside MicroLab, turtle and tkinter, libraries from PyPI (F-90–F-97). M8 Learn waits until after the pilot (its design approved).*
+
 *Revision 9 (2026-11-09): **M8 Learn rewritten** (requirements Rev 9): Learn is about the components, for students of 10–13 — what each part is, a picture to play with that shows how it works inside, the idea behind it, its specifications, its legs, how to connect it and its mistakes — with **no code and no particular board**; board pages about the board as a component; ideas pages and the glossary. The **Examples tab is taken out** (F-04, F-25 leave M8). Slice 1 is the Basics group.*
 
 *Revision 5 (2026-11-06): **Real boards next.** The teacher has a micro:bit V2 and a Pico W at hand: **M10 (Real boards) is built right after M4**, before M5–M9 (the milestones keep their numbers). Its step 0 — prototype screens 13–16 — is drawn and waiting for approval. The golden recordings deferred in M2 were made on both boards (docs/acceptance/M2.md 26–31).*
@@ -193,7 +195,7 @@ M3 Code drives the circuit ─► M4 Walking skeleton ─► M5 Full editor
 M6 Parts pack 1: inputs ─► M7 Parts pack 2: outputs & displays ─► M8 Learn
         ┌──────────────────────────────────────────────────────────────┘
         ▼
-M9 Errors, faults & multimeter ─► M10 Real boards ─► M11 Hardening & v1.0
+M9 Errors, faults & multimeter ─► M10 Real boards ─► M12 Python 3 (Rev 10) ─► M11 Hardening & v1.0
         └─► later phases: guided projects (Q7) · robot arena (F-70) · IoT & Wi-Fi (F-80–F-82; Rev 8: the ESP8266 and the
             JDY-31 Bluetooth modules, over UART) · Arduino (Q13)
 ```
@@ -211,6 +213,7 @@ M9 Errors, faults & multimeter ─► M10 Real boards ─► M11 Hardening & v1.
 | M8 | Learn | *(Rev 9)* F-40–F-42, F-44, F-45, F-06 (screens 30–30e, replacing 09, 10, 11) | L | 3 |
 | M9 | Errors, faults & multimeter | F-18, F-24, F-26, F-37, F-38, N-07 (screens 04, 05, 07) | M | 2 |
 | M10 | Real boards | F-50–F-56, Q15, Q17, Q18, N-12 (screen 08 + new screens) | L | 2.5 |
+| M12 | *(Rev 10)* Python 3 — built before M11 | F-90–F-97, Q22, Q23, R11, R12 (screens 31–31d) | L | 3 |
 | M11 | Hardening & v1.0 | N-05, N-06, N-09, N-11, installers (Q11), classroom trial | M | 1.5 |
 
 \* *Very rough, for one maintainer working part-time: about 27 weeks in all. Re-estimate after M2.*
@@ -552,6 +555,30 @@ connection problem says how to fix it.
 
 ---
 
+### M12 — Python 3 *(Rev 10, built before M11)*
+
+**Goal:** students write Python 3 in MicroLab as they would in IDLE — `.py` files, Run, a shell with `input()` and `>>>`, turtle and tkinter, libraries from PyPI — with real CPython shipped inside the app.
+
+**Build order**
+0. **Design** (for the teacher's approval): the Start page's Python 3 card; the Python 3 screen (editor tabs, shell, Run / Stop, the file's name and folder); a turtle program running in its own window; the Packages window (installed, search PyPI, install, a `.whl` file offline).
+1. **The runtime**: the bundled CPython per platform and processor in the build (fetched by a script, checked by its hash), started by the main process with MicroLab's runner (`src/python3/runner.py`): run a file as `__main__` in its folder, print and tracebacks to the window, `input()` asked of the window, the names kept for `>>>`, Stop (SIGINT / CTRL_BREAK, then kill), one process kept ready.
+2. **The Python 3 screen**: the Start card and the top bar's mode; `.py` New / Open / Save / Save as / recent (main-process dialogs, the same safety as `.mlab`); the editor (CPython highlighting, indentation); the shell (the M9 console's prompt, history, Tab, Ctrl+C); Run (F5), Stop.
+3. **turtle and tkinter**: their windows from the program's process; closed with the program or at Stop; the shell stays usable.
+4. **Libraries**: the app's Python folder on every program's path; the Packages window — the installed list (`pip list --path`), a PyPI search, Install / Remove with `pip`, a `.whl` file; what `pip` prints shown as it works; offline said plainly.
+5. **Friendly errors** for CPython's messages (M9's engine, new texts); the Plotter; completions with Jedi.
+
+**Tests first**
+- The runner, headless with the bundled Python: a file's prints and traceback; `input()` answered; Stop interrupts a `while True` within 0.5 s (N-03); the shell's `>>>` has the file's names; a file's folder is its working folder.
+- Packages, with a local index (no internet in tests): install, list, use, remove; a `.whl` file installs offline.
+- turtle and tkinter (E2E, hidden window where the platform allows): a turtle program's window opens and closes at Stop.
+- Every friendly error from CPython's real text.
+
+**Exit gate**
+- Manual: the teacher writes, runs and saves `.py` programs, a turtle drawing and a tkinter window, and installs a library from PyPI, on macOS and on Windows 11 (R12).
+- `dev` merged into `main`, tagged `v0.12.0`.
+
+---
+
 ### M11 — Hardening & v1.0
 
 **Goal:** fast, accessible, licensed and installable.
@@ -563,7 +590,7 @@ connection problem says how to fix it.
    and only our own controls on screen (N-13, N-14).
 4. Licences of everything bundled listed in the app, checked by a script (N-11).
 5. Saved files from every earlier format open (N-09).
-6. Installers and updates as in the gradebook (Q11); README.
+6. Installers and updates as in the gradebook (Q11); README. *(Rev 10)* The bundled CPython signed and notarized with the app on macOS (R11); one installer per processor.
 
 **Exit gate**
 - N-01–N-12 checked one by one in `docs/acceptance/M11.md`.
@@ -594,6 +621,7 @@ connection problem says how to fix it.
 | F-37 faults | M1, M3 | M9 |
 | F-38 multimeter | M1 | M9 |
 | F-40–F-42, F-44, F-45 Learn | M8 | M8 |
+| F-90–F-97 Python 3 *(Rev 10)* | M12 (runner) | M12 |
 | F-50 Send to board, F-51 console, F-53 Board files | M10 | M10 |
 | F-52 install MicroPython (micro:bit, Pico) | M10 | M10 |
 | F-54 library pack | M6, M7 | M5 (Add library) |
@@ -631,4 +659,5 @@ connection problem says how to fix it.
 | M8 Learn | ⏸ After M9 — the teacher, 2026-11-08: "skip the M8 Learn and go to M9 first". *Rev 9 (2026-11-09)*: rewritten — about the components, for 10–13, no code, no board; the Examples tab taken out (`ba3a6ee`); the design (screens 30–30e) approved 2026-11-09 — **held until after the pilot** (the teacher) | | |
 | M9 Errors, faults & multimeter | 🔨 Built — all five slices (2026-11-08/09): 1 friendly errors, the REPL, input() (screens 05, 29c); 2 faults on the workspace and Problems (screen 04; 25c–28d's faults); 3 the check before running (29b); 4 the multimeter (29); 5 the Plotter (07). Gate: the teacher tries each and makes each §1.3 mistake ([acceptance](acceptance/M9.md)) | | |
 | M10 Real boards | ✅ Merged — all seven slices, tried on the teacher's micro:bit V2 and Pico W; **open gate items** (Windows 11, an ESP32, a charge-only cable, the firmware copy from an installed MicroLab; the examples with `lib/` after M8) to be done later, by the teacher's decision ([acceptance](acceptance/M10.md)) | 2026-11-06 (partly) | `v0.10.0` |
+| M12 Python 3 *(Rev 10)* | 🔨 Next — before M11 (the teacher, 2026-11-09); step 0, the design (screens 31–31d) | | |
 | M11 Hardening & v1.0 | ⏳ | | |
