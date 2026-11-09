@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BoardConsole, FakeBoard, type ConsoleState, type FakeBoardOptions } from '@lib/repl';
 
 /**
@@ -113,8 +113,8 @@ describe('M10.4 F-50 run the open file on the board', () => {
   it('a file that runs for ever: running it; its prints come; Stop ends it', async () => {
     const s = setup({ exec: () => undefined });
     const run = s.c.runFile('main.py', 'while True: pass');
-    await s.settle();
-    expect(s.last()).toEqual({ prompt: false, running: 'main.py' });
+    // waited for, not a fixed 5 ms: under the full suite's load (M12 adds real Python processes) it can take longer
+    await vi.waitFor(() => expect(s.last()).toEqual({ prompt: false, running: 'main.py' }));
     s.board.emit('tick\r\n');
     await s.settle();
     expect(s.shown()).toBe('tick\n');
