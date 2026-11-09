@@ -125,3 +125,24 @@ test('M12 slice 4 (screen 31d): a teacher\'s .whl file installs with real pip in
   await expect(d.getByText(/None yet/)).toBeVisible();
 });
 
+
+test('M12 slice 5 (F-94): a real CPython error explained in the shell, its line marked; Go to line; an error at >>> too', async () => {
+  const win = await app.firstWindow();
+  await win.getByRole('button', { name: 'New Python file' }).click();
+  await setCode(win, 'untitled.py', ['guess = input("Guess: ")', 'if guess < 7:', '    print("higher")', ''].join('\n'));
+  await win.keyboard.press('F5');
+  const shell = win.getByRole('log', { name: 'Shell' });
+  const prompt = win.locator('.pyshell .prompt').getByRole('textbox');
+  await expect(win.locator('.pyshell .prompt')).toContainText('Guess:', { timeout: 10_000 });
+  await prompt.fill('5');
+  await prompt.press('Enter');
+  await expect(shell).toContainText("TypeError: '<' not supported between instances of 'str' and 'int'", { timeout: 5000 });
+  const card = shell.getByRole('note', { name: 'What the TypeError means' });
+  await expect(card).toContainText('input() gives text, even when a number is typed: int(input(…)) makes it a whole number');
+  await expect(win.locator('.cm-error-line')).toHaveText('if guess < 7:');
+  await card.getByRole('button', { name: 'Go to line 2' }).click();
+  await expect(win.locator('.cm-activeLine')).toHaveText('if guess < 7:');
+  await prompt.fill('import turtle; turtle.forwad(10)');
+  await prompt.press('Enter');
+  await expect(shell.getByRole('note', { name: 'What the AttributeError means' })).toContainText('The turtle module has no forwad on line 1. Did you mean turtle.forward?', { timeout: 5000 });
+});

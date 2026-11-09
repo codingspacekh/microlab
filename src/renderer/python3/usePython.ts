@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { explainPython3 } from '@lib/errors';
 import { addOutput, emptyPlot, type Plot } from '@lib/plot';
 import type { MicrolabApi, PyError, PyEvent } from '../app/api';
 import { append, type ConsoleChunk } from '../app/useRun';
@@ -6,7 +7,7 @@ import { append, type ConsoleChunk } from '../app/useRun';
 /**
  * A Python 3 run as the window sees it (M12, F-92, screen 31b): the shell's text (what the program prints, its
  * errors in red, what the student typed, the app's notes), input() answered on the shell's last line, then >>> in
- * the program's names; Stop; the numbers it printed for the Plotter. The session itself is the main process's.
+ * the program's names; Stop; the numbers it printed for the Plotter; what an error means (slice 5, F-94). The session itself is the main process's.
  */
 export interface PyRunState {
   status: 'idle' | 'running' | 'stopping';
@@ -30,6 +31,9 @@ export function usePython(api: MicrolabApi) {
   const t0 = useRef(0);
   const name = useRef('');
   const windowSaid = useRef(false);
+  /** What ran (its text and its path or name), and the last line typed at >>>: what an error is explained with. */
+  const ran = useRef({ code: '', file: '', typed: '' });
+  const why = (error: PyError) => explainPython3({ ...error, line: error.line ?? undefined }, ran.current);
 
   useEffect(() => api.python3.onEvent((e: PyEvent) => {
     if (!live.current) return;
@@ -44,8 +48,13 @@ export function usePython(api: MicrolabApi) {
       const note = e.ended === 'done' ? `${name.current} ended. Its names are still here: type Python and press Enter.\n`
         : e.ended === 'stopped' ? 'Stopped (Ctrl+C). Its names are still here.\n'
         : 'Its names are still here: type Python and press Enter.\n';
-      // after Stop the session is ended: no names to offer
-      setState((s) => (s.status === 'stopping' ? { ...s, ended: e } : { ...s, ended: e, console: append(s.console, { kind: 'sys', text: note }) }));
+      // what the error means (screen 05's way), after CPython's traceback; after Stop the session is ended: no names to offer
+      const card = e.ended === 'error' && e.error ? why(e.error) : undefined;
+      setState((s) => (s.status === 'stopping' ? { ...s, ended: e }
+        : { ...s, ended: e, console: [...(card ? [{ kind: 'why' as const, text: '', why: card }] : []), { kind: 'sys' as const, text: note }].reduce(append, s.console) }));
+    } else if ('replError' in e) {
+      const card = why(e.replError);
+      if (card) add({ kind: 'why', text: '', why: card });
     } else if ('window' in e) {
       // screen 31c: the window is the program's own, beside MicroLab — said once a run
       if (windowSaid.current) return;
@@ -63,6 +72,7 @@ export function usePython(api: MicrolabApi) {
     windowSaid.current = false;
     t0.current = Date.now();
     name.current = label;
+    ran.current = { code, file: path, typed: '' };
     const folder = /[\\/]/.test(path) ? path.replace(/[\\/][^\\/]*$/, '').split(/[\\/]/).slice(-2).join('/') : 'Documents/Python';
     setState({ ...IDLE, plot: emptyPlot(), status: 'running', startedAt: t0.current, file: label,
       console: [{ kind: 'sys', text: `Running ${label} in ${folder}\n` }] });
@@ -86,6 +96,7 @@ export function usePython(api: MicrolabApi) {
   const type = useCallback((text: string) => {
     if (!live.current) return;
     if (text === '\x03') { void api.python3.interrupt(); return; }
+    ran.current.typed = text;
     setState((s) => ({ ...s, console: append(s.console, { kind: 'me', text: `${text}\n` }) }));
     void api.python3.line(text);
   }, [api]);

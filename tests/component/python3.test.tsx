@@ -200,3 +200,50 @@ describe('M12 slice 4: Libraries (screen 31d)', () => {
     expect(await within(d).findByText(/None yet/)).toBeInTheDocument();
   });
 });
+
+describe('M12 slice 5 (F-94, F-96): what an error means; the Plotter', () => {
+  it('an error explained after CPython\'s traceback (screen 05\'s way); Go to line puts the editor on it, marked', () => {
+    const s = setup();
+    newFile();
+    s.type('untitled.py', 'age = 12\nprint("Age: " + age)\n');
+    fireEvent.click(screen.getByRole('button', { name: /Run untitled\.py/ }));
+    s.say({ err: 'Traceback (most recent call last):\n  File "untitled.py", line 2, in <module>\nTypeError: can only concatenate str (not "int") to str\n' },
+      { ended: 'error', error: { type: 'TypeError', message: 'can only concatenate str (not "int") to str', file: 'untitled.py', line: 2 } }, { prompt: '>>> ' });
+    const card = within(s.shell()).getByRole('note', { name: 'What the TypeError means' });
+    expect(card).toHaveTextContent("What this means: + on line 2 can't join text (a str) and a whole number (an int). Make the number text with str(…)");
+    expect(s.shell().textContent!.indexOf('What this means')).toBeGreaterThan(s.shell().textContent!.indexOf('TypeError: can only'));
+    expect(s.shell().textContent!.indexOf('Its names are still here')).toBeGreaterThan(s.shell().textContent!.indexOf('What this means'));
+    expect(document.querySelector('.cm-error-line')).toHaveTextContent('print("Age: " + age)');
+    fireEvent.click(within(card).getByRole('button', { name: 'Go to line 2' }));
+    expect(EditorView.findFromDOM(s.editor('untitled.py').closest('.cm-editor') as HTMLElement)!.state.selection.main.head).toBe(9);
+  });
+
+  it('an error at >>> is explained with the line typed; no card for an error it doesn\'t know', () => {
+    const s = setup();
+    newFile();
+    s.type('untitled.py', 'secret = 7\n');
+    fireEvent.click(screen.getByRole('button', { name: /Run untitled\.py/ }));
+    s.say({ ended: 'done' }, { prompt: '>>> ' });
+    fireEvent.change(s.prompt(), { target: { value: 'print(secrt)' } });
+    fireEvent.keyDown(s.prompt(), { key: 'Enter' });
+    s.say({ err: "NameError: name 'secrt' is not defined. Did you mean: 'secret'?\n" },
+      { replError: { type: 'NameError', message: "name 'secrt' is not defined. Did you mean: 'secret'?", file: '<stdin>', line: 1 } }, { prompt: '>>> ' });
+    const card = within(s.shell()).getByRole('note', { name: 'What the NameError means' });
+    expect(card).toHaveTextContent('Did you mean secret (made on line 1)?');
+    expect(within(card).queryByRole('button')).toBeNull();
+    s.say({ replError: { type: 'MyError', message: 'boom', file: '<stdin>', line: 1 } });
+    expect(within(s.shell()).getAllByRole('note')).toHaveLength(1);
+  });
+
+  it('the Plotter draws the numbers the program prints, each line named from its print()', () => {
+    const s = setup();
+    newFile();
+    s.type('untitled.py', 'import random\nfor i in range(3):\n    t = random.random()\n    print(i, t)\n');
+    fireEvent.click(screen.getByRole('button', { name: /Run untitled\.py/ }));
+    s.say({ out: '0 0.5\n1 0.25\n' }, { out: '2 0.75\n' });
+    fireEvent.click(screen.getByRole('tab', { name: /Plotter/ }));
+    const p = screen.getByRole('region', { name: 'Plotter' });
+    expect([...p.querySelectorAll('.legend .key')].map((k) => k.textContent)).toEqual(['i', 't']);
+    expect(p.querySelector('polyline[data-series="1"]')!.getAttribute('points')!.split(' ')).toHaveLength(3);
+  });
+});

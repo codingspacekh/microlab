@@ -36,10 +36,10 @@ export interface ExplainContext {
   typed?: string;
 }
 
-const KEYWORDS = ['False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
+export const KEYWORDS = ['False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
   'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try', 'while', 'with', 'yield'];
 const BLOCK = ['if', 'elif', 'else', 'while', 'for', 'def', 'class', 'try', 'except', 'finally', 'with'];
-const BUILTINS = ['print', 'input', 'range', 'len', 'int', 'float', 'str', 'list', 'dict', 'tuple', 'set', 'bool', 'abs', 'min', 'max', 'sum', 'round',
+export const BUILTINS = ['print', 'input', 'range', 'len', 'int', 'float', 'str', 'list', 'dict', 'tuple', 'set', 'bool', 'abs', 'min', 'max', 'sum', 'round',
   'sorted', 'enumerate', 'zip', 'map', 'filter', 'open', 'type', 'isinstance', 'chr', 'ord', 'hex', 'bin', 'divmod', 'pow', 'any', 'all', 'iter',
   'next', 'repr', 'help', 'dir', 'globals', 'locals', 'super', 'object', 'bytes', 'bytearray', 'reversed', 'hash', 'id', 'callable', 'getattr',
   'setattr', 'hasattr', 'Exception', 'ValueError', 'TypeError', 'OSError', 'KeyboardInterrupt'];
@@ -48,7 +48,7 @@ const TYPE_WORDS: Record<string, string> = {
   str: 'text (a str)', int: 'a whole number (an int)', float: 'a decimal number (a float)', NoneType: '`None`', bool: '`True` / `False`',
   list: 'a list', tuple: 'a tuple', dict: 'a dictionary', bytes: 'bytes', bytearray: 'a bytearray', function: 'a function', module: 'a module',
 };
-const typeWord = (t: string) => TYPE_WORDS[t] ?? `a ${t}`;
+export const typeWord = (t: string) => TYPE_WORDS[t] ?? `a ${t}`;
 const OPS: Record<string, string> = {
   __add__: '+', __sub__: '-', __mul__: '*', __truediv__: '/', __floordiv__: '//', __mod__: '%', __pow__: '**', __lt__: '<', __gt__: '>',
   __le__: '<=', __ge__: '>=', __and__: '&', __or__: '|', __lshift__: '<<', __rshift__: '>>',
@@ -82,7 +82,7 @@ export function closest(name: string, names: Iterable<string>): string | undefin
 }
 
 /** The names the code makes, with the line each is first made on. */
-function namesMade(code: string): Map<string, number> {
+export function namesMade(code: string): Map<string, number> {
   const made = new Map<string, number>();
   const add = (name: string, line: number) => { if (/^[A-Za-z_]\w*$/.test(name) && !made.has(name)) made.set(name, line); };
   code.split('\n').forEach((text, i) => {
@@ -347,7 +347,7 @@ function article(word: string): string {
 }
 
 /** "a capital P" / "a small p": what differs between two spellings of a name. */
-function capitalsOf(right: string, wrong: string): string {
+export function capitalsOf(right: string, wrong: string): string {
   const c = [...right].find((ch, i) => ch !== wrong[i])!;   // they differ (only) in capitals
   return c === c.toUpperCase() ? `a capital **${c}**` : `a small **${c}**`;
 }
@@ -358,7 +358,7 @@ function aliasOf(code: string, alias: string): string | undefined {
 }
 
 /** A SyntaxError: what is wrong with the line (or the one before it), if it is one of the usual slips. */
-function syntax(lines: string[], n: number | undefined, on: string): string | undefined {
+export function syntax(lines: string[], n: number | undefined, on: string): string | undefined {
   if (!n) return undefined;
   const line = lines[n - 1] ?? '';
   const t = line.trim();
