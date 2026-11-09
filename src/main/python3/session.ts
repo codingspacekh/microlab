@@ -129,6 +129,9 @@ export function startPython(opts: { python: string; runner?: string; libs?: stri
     emit({ err: `Python couldn't start: ${e.message}\n` });
     over();
   });
+  // a line written as the process ends (Tab just as the program is stopped) fails with EPIPE: unheard, it would be an
+  // uncaught error in the main process — the exit above and below says the process is gone
+  child.stdin.on('error', () => {});
   child.on('exit', (code) => {
     readyReject(new Error('Python ended before it was ready'));
     emit({ exit: code });

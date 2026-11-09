@@ -211,6 +211,19 @@ describe('the shell after the program (>>>, as IDLE\'s Run Module)', () => {
     s.kill();
     await expect.poll(() => s.complete('coun'), { timeout: 5000 }).toEqual([]);
   });
+
+  it('Tab just as the program is killed: nothing, and no error in the main process (a write into a pipe that closed)', async () => {
+    const s = session();
+    s.run({ code: 'counter = 0\nwhile True:\n    counter += 1\n', file: 'main.py', cwd: tmpdir() });
+    await expect.poll(() => s.complete('coun'), { timeout: 10_000 }).toEqual(['counter']);
+    s.kill();
+    // Python is gone before Node hears its exit: the event loop is held while it dies, so Tab still writes to it
+    const until = Date.now() + 100;
+    while (Date.now() < until) { /* held */ }
+    const answers = await Promise.all(Array.from({ length: 20 }, () => s.complete('coun')));
+    expect(answers.every((a) => Array.isArray(a))).toBe(true);
+    await new Promise((r) => setTimeout(r, 300));   // an EPIPE comes a moment later, as an unhandled error
+  });
 });
 
 describe('finding Python and the runner', () => {
