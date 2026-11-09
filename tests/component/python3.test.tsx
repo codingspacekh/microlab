@@ -46,8 +46,9 @@ describe('M12 the Start page (screen 31)', () => {
     fireEvent.click(item);
     await waitFor(() => expect(screen.getByRole('tab', { name: 'Python 3' })).toHaveAttribute('aria-selected', 'true'));
     expect(api.projects.openPython).toHaveBeenCalledWith(`${HOME}/guessing_game`);
-    expect(screen.getByRole('textbox', { name: 'main.py' })).toHaveTextContent('print("guess")');
-    expect(screen.getByRole('group', { name: 'Python project' })).toHaveTextContent('guessing_game · main.py');
+    // the file and the project's name may come a moment after the mode (a busy full run once missed them)
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'main.py' })).toHaveTextContent('print("guess")'));
+    await waitFor(() => expect(screen.getByRole('group', { name: 'Python project' })).toHaveTextContent('guessing_game · main.py'));
     const tree = await screen.findByRole('tree', { name: 'The files of guessing_game' });
     await waitFor(() => expect(within(tree).getAllByRole('treeitem').map((t) => t.textContent)).toEqual(['main.py', 'scores.txt']));
   });

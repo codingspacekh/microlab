@@ -65,7 +65,7 @@ export function configFor(env: Record<string, string | undefined>, version: stri
       target: ['dmg', 'zip'],
       category: 'public.app-category.education',
       extraResources: [python('darwin')],
-      minimumSystemVersion: '12.0',
+      minimumSystemVersion: '13.0',   // Electron 45's own (tests/unit/scripts/macos-minimum.test.ts)
       // Not notarised (no paid Apple account, as the gradebook and OneEditor). Signed with the teacher's own
       // certificate when CSC_NAME names it (a Mac then takes updates by itself), else ad hoc, which Apple-chip Macs
       // need to run it at all. The hardened runtime is for notarised apps; it can stop the launch.
