@@ -74,7 +74,20 @@ def card_art(w: int = 270, h: int = 135) -> str:
     return f'<svg class="scene" width="{w}" height="{h}" viewBox="0 0 270 135" font-family="Inter">{"".join(o)}</svg>'
 
 
-FIGS = {"turtlewin": turtle_window, "cardart": card_art}
+def spiral(size: str = "34") -> str:
+    """A Python project in Recent: the spiral the card's program draws, small (boards show their picture there)."""
+    w = int(size)
+    colours = ["#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#32ade6", "#af52de"]
+    x, y, a = w / 2, w / 2, 0.0
+    o = []
+    for i in range(40):
+        nx, ny = x + i * .42 * w / 34 * math.cos(math.radians(a)), y - i * .42 * w / 34 * math.sin(math.radians(a))
+        o.append(f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{nx:.1f}" y2="{ny:.1f}" stroke="{colours[i % 6]}" stroke-width="1.2"/>')
+        x, y, a = nx, ny, a + 59
+    return f'<svg width="{w}" height="{w}" viewBox="0 0 {w} {w}">{"".join(o)}</svg>'
+
+
+FIGS = {"turtlewin": turtle_window, "cardart": card_art, "spiral": spiral}
 
 
 def fig(name: str, *args: str) -> str:

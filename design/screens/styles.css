@@ -576,3 +576,29 @@ textarea.area, .area { min-height: 72px; border: 1px solid var(--line-strong); b
 .pkgs .pk .v { color: var(--tx-3); font-family: var(--mono); font-size: 11.5px; }
 .pkgs .pk .d { color: var(--tx-2); flex: 1; min-width: 0; }
 .pipout { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-family: var(--mono); font-size: 11.5px; line-height: 17px; color: var(--tx-2); white-space: pre-wrap; }
+
+/* M12 Rev 11 (the teacher): a Python project is a folder — its tree beside the editor; the shell below or on the right, resized by its edge */
+.pyscreen .pybody { flex: 1; min-height: 0; display: flex; }
+.pyscreen .pmain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pyscreen .pmain.right { flex-direction: row; }
+.pyscreen .pcol { flex: 1 1 60%; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.pyscreen .ptree { width: 230px; flex: none; border-right: 1px solid var(--line); display: flex; flex-direction: column; background: var(--panel); }
+.pyscreen .ptree .ph { display: flex; align-items: center; gap: 4px; height: 38px; padding: 0 6px 0 12px; border-bottom: 1px solid var(--line); }
+.pyscreen .ptree .ph b { font-size: 12.5px; display: inline-flex; gap: 6px; align-items: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pyscreen .ptree .pt { padding: 6px 0; font-size: 12.5px; }
+.pyscreen .ptree .pt .r { display: flex; align-items: center; gap: 7px; padding: 4px 12px; font-family: var(--mono); font-size: 12px; color: var(--tx-1); }
+.pyscreen .ptree .pt .r.sel { background: var(--accent-soft); }
+.pyscreen .ptree .pt .r.in1 { padding-left: 30px; }
+.pyscreen .ptree .pt .r .muted { color: var(--tx-3); }
+.pyscreen .ptree .pf { margin-top: auto; padding: 8px 12px; border-top: 1px solid var(--line); font-size: 11px; color: var(--tx-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pyscreen .grip { flex: none; background: var(--line); position: relative; }
+.pyscreen .grip.h { height: 5px; cursor: row-resize; background: var(--bg, #f3f4f6); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.pyscreen .grip.v { width: 5px; cursor: col-resize; background: var(--bg, #f3f4f6); border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+.pyscreen .grip::after { content: ""; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border-radius: 2px; background: var(--tx-3); opacity: .6; }
+.pyscreen .grip.h::after { width: 28px; height: 2px; } .pyscreen .grip.v::after { width: 2px; height: 28px; }
+.pyscreen .pmain.right .shell { flex: 0 0 40%; border-top: 0; }
+.pyscreen .shell .dock { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; background: var(--bg, #f3f4f6); }
+.pyscreen .shell .dock .btn.on { background: var(--panel); box-shadow: var(--shadow-s, 0 1px 2px rgba(0,0,0,.08)); }
+.pyscreen .ed .pair { background: var(--accent-soft); border-radius: 2px; outline: 1px solid var(--accent); }
+.pyscreen .ed .cur { display: inline-block; width: 1.5px; height: 16px; background: var(--tx-1); vertical-align: -3px; }
+.callout { position: absolute; font-family: var(--font, Inter, sans-serif); background: #fff7d6; border: 1px solid #f0d77a; border-radius: 8px; padding: 6px 9px; font-size: 11.5px; color: #5b4a00; box-shadow: var(--shadow-m); max-width: 230px; line-height: 1.35; }

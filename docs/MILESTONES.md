@@ -6,6 +6,8 @@ How MicroLab is built, **in what order**, and **how each part is proven to work*
 - System design (processes, engine, board layer, file format): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html)
 
+*Revision 11 (2026-11-09): **M12 slice 6** (requirements Rev 11, the teacher after trying M12): projects as folders with their tree, New project asking its name and place first (Python and boards), the shell below or beside and resizable, brackets and quotes in pairs (F-98–F-101); design 31, 31b updated, 31e, 31f new — before M12's gate.*
+
 *Revision 10 (2026-11-09): **M12 Python 3** (requirements Rev 10), built **before M11**: a Python 3 screen with an editor for `.py` files and a shell, real CPython 3.13 shipped inside MicroLab, turtle and tkinter, libraries from PyPI (F-90–F-97). M8 Learn waits until after the pilot (its design approved).*
 
 *Revision 9 (2026-11-09): **M8 Learn rewritten** (requirements Rev 9): Learn is about the components, for students of 10–13 — what each part is, a picture to play with that shows how it works inside, the idea behind it, its specifications, its legs, how to connect it and its mistakes — with **no code and no particular board**; board pages about the board as a component; ideas pages and the glossary. The **Examples tab is taken out** (F-04, F-25 leave M8). Slice 1 is the Basics group.*
@@ -566,6 +568,7 @@ connection problem says how to fix it.
 3. **turtle and tkinter**: their windows from the program's process; closed with the program or at Stop; the shell stays usable.
 4. **Libraries**: the app's Python folder on every program's path; the Libraries window — the installed list (`pip list --path`), a library looked up by name (PyPI's JSON page for it; PyPI has no search API) or from a short list often used in class, Install / Remove with `pip`, a `.whl` file; what `pip` prints shown as it works; offline said plainly.
 5. **Friendly errors** for CPython's messages (M9's engine, new texts); the Plotter; completions with Jedi.
+6. *(Rev 11)* **Projects and the shell's place** (design 31, 31b, 31e, 31f): New project asks its name and location first (Python and boards); a Python project is a folder, its tree beside the editor (main-process file operations on that folder only; watched for changes); Open a project (a folder, a `.mlab`, or a `.py` file's folder); Recent lists projects; the shell below or on the right, resized by its edge, remembered; brackets and quotes in pairs in both editors; the Start page's `>_` badge taken out.
 
 **Tests first**
 - The runner, headless with the bundled Python: a file's prints and traceback; `input()` answered; Stop interrupts a `while True` within 0.5 s (N-03); the shell's `>>>` has the file's names; a file's folder is its working folder.

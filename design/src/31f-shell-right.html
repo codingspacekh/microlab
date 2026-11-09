@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>31f Python 3 — the shell on the right; pairs typed</title>
+{{include:head}}
+</head>
+<body>
+<!--@MODE_WS: -->
+<!--@MODE_PY: on-->
+<!--@PY_FILE: <div class="pyfile"><b>turtle_art · spiral.py</b><span>Documents/MicroLab/Sokha/turtle_art · not saved</span></div>-->
+<!--@TOP_RIGHT: <div class="runbox"><button class="btn run">{{i:play:s14}} Run spiral.py <span class="tiny" style="opacity:.75;margin-left:2px">F5</span></button><button class="btn icon disabled" title="Stop">{{i:stop:s14}}</button></div><button class="btn">{{i:grid:s14}} Libraries</button>-->
+<p class="frame-label"><b>31f · Python 3: the shell on the right; brackets and quotes typed in pairs</b> (M12 design, <b>Rev 11</b>, the teacher: <i>"the shell should be allowed to move to different position, and resizable"</i>; <i>"improve on pair symbol like quotation, bracket, parentheses"</i>) — the shell's second button puts it <b>beside the editor</b>; its edge is dragged to make it wider (from a quarter to three quarters of the width); the first button puts it back below. MicroLab remembers where and how big. In the editor, typing <code>(</code> <code>[</code> <code>{</code> <code>"</code> <code>'</code> <b>puts its pair after the cursor</b>: <code>print(</code> becomes <code>print(|)</code>, then <code>"</code> gives <code>print("|")</code>; typing the closing one <b>steps over</b> it rather than adding another; Backspace right after the opening one takes both away; a word selected and <code>"</code> typed puts the quotes around it. A completion taken from the list (<i>forward</i>) brings its brackets too, as now. The same in the boards' editor</p>
+<div class="frame">
+  {{include:topbar-py}}
+  <div class="pyscreen">
+    <div class="pybody">
+      <div class="ptree" aria-label="Project">
+        <div class="ph"><b>{{i:folder:s14}} turtle_art</b><span class="spacer"></span><button class="btn ghost sm icon" title="New file">{{i:fileplus:s14}}</button><button class="btn ghost sm icon" title="New folder">{{i:folderplus:s14}}</button></div>
+        <div class="pt">
+          <div class="r">{{i:file:s14}} flower.py</div>
+          <div class="r">{{i:file:s14}} main.py</div>
+          <div class="r sel">{{i:file:s14}} spiral.py</div>
+        </div>
+        <div class="pf">Documents/MicroLab/Sokha/turtle_art</div>
+      </div>
+      <div class="pmain right">
+        <div class="pcol">
+          <div class="tabs"><a>{{i:file:s14}} main.py</a><a class="on">{{i:file:s14}} spiral.py<span class="dirty" title="Not saved"></span></a><span class="spacer"></span><button class="btn ghost sm icon" title="Text size and theme">Aa</button></div>
+          <div class="ed" style="position:relative"><div class="code">
+<div class="ln"><span class="no">1</span><span class="tx"><span class="k">import</span> turtle</span></div>
+<div class="ln"><span class="no">2</span><span class="tx"></span></div>
+<div class="ln"><span class="no">3</span><span class="tx">t = turtle.Turtle()</span></div>
+<div class="ln"><span class="no">4</span><span class="tx">colours = [<span class="s">"red"</span>, <span class="s">"orange"</span>, <span class="s">"yellow"</span>, <span class="s">"green"</span>]</span></div>
+<div class="ln"><span class="no">5</span><span class="tx"></span></div>
+<div class="ln"><span class="no">6</span><span class="tx"><span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="n">100</span>):</span></div>
+<div class="ln"><span class="no">7</span><span class="tx">    t.pencolor(colours[i % <span class="n">4</span>])</span></div>
+<div class="ln"><span class="no">8</span><span class="tx">    t.forward(i * <span class="n">2</span>)</span></div>
+<div class="ln"><span class="no">9</span><span class="tx">    t.left(<span class="n">91</span>)</span></div>
+<div class="ln"><span class="no">10</span><span class="tx"></span></div>
+<div class="ln"><span class="no">11</span><span class="tx">turtle.title(<span class="s">"<span class="cur"></span></span><span class="s pair">"</span><span class="pair">)</span></span></div>
+</div>
+            <div class="callout" style="left:300px;top:228px">Typed <code>(</code> then <code>"</code>: their pairs came after the cursor. Typing <code>"</code> or <code>)</code> steps over them.</div>
+          </div>
+        </div>
+        <div class="grip v" title="Drag to make the shell wider or narrower"></div>
+        <div class="shell">
+          <div class="sh"><span class="ctab on" style="display:inline-flex;gap:6px;align-items:center;font-weight:600;font-size:12.5px;padding:0 8px">{{i:term:s14}} Shell</span><span class="ctab" style="display:inline-flex;gap:6px;align-items:center;color:var(--tx-2);font-size:12.5px;padding:0 8px">{{i:plot:s14}} Plotter</span><span class="spacer"></span><span class="dock" role="group" aria-label="Where the shell is"><button class="btn ghost sm icon" title="Shell below the editor">{{i:shellbelow:s14}}</button><button class="btn ghost sm icon on" title="Shell on the right">{{i:shellright:s14}}</button></span><button class="btn ghost sm">Clear</button></div>
+<div class="sb"><div><span class="sys">Running spiral.py in Documents/MicroLab/Sokha/turtle_art</span>
+<span class="sys">A window from spiral.py is open beside MicroLab. Close it, or press Stop, to end the program.</span>
+<span class="sys">spiral.py ended. Its names are still here: type Python and press Enter.</span>
+<span class="p">&gt;&gt;&gt;</span> i
+99
+<span class="p">&gt;&gt;&gt;</span> t.heading()
+9.0</div></div>
+          <div class="prompt"><b>&gt;&gt;&gt;</b><span class="field" style="flex:1;height:30px"><span class="ph">Type Python and press Enter</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="statusbar"><span class="st"><span class="dot" style="background:var(--tx-3)"></span>Ended</span><span>Python 3.13.18 (MicroLab)</span><span class="spacer"></span><span>Ln 11, Col 15</span><span>UTF-8 · spaces 4</span></div>
+</div>
+</body></html>
