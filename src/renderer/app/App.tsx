@@ -32,7 +32,7 @@ import type { AudioLike } from '../audio';
  * panels share the width as proportions — parts ~17 %, the circuit the rest, code ~34 % — each within limits, and
  * the dividers between them are draggable; where they were left is a setting (N-13).
  */
-type Mode = 'workspace' | 'learn' | 'examples';
+type Mode = 'workspace' | 'learn';
 
 /** The project in the window: what it is, and where it came from (no path: not saved yet). */
 export interface OpenProject {
@@ -350,7 +350,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
   };
 
   const page = controls ? <ControlsPage />
-    : mode !== 'workspace' ? <Later mode={mode} />
+    : mode !== 'workspace' ? <Later />
     : open ? <Workspace key={open.key} api={api} width={width} doc={open.doc} onChange={(doc) => setOpen((cur) => (cur ? { ...cur, doc, savedNote: undefined } : cur))}
         history={open.history ?? EMPTY_HISTORY} onHistory={(h) => setOpen((cur) => (cur ? { ...cur, history: h } : cur))}
         onUndo={() => step(undo)} onRedo={() => step(redo)}
@@ -379,7 +379,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
             <button type="button" className="btn sm" onClick={() => consoleDo({ do: 'interrupt' })}><Icon name="stop" size={14} /> Stop the board</button>
           </>
         ) : undefined} />
-    : <StartPage onNew={start} onOpen={actions.onOpen} onLearn={() => setMode('learn')} onExamples={() => setMode('examples')}
+    : <StartPage onNew={start} onOpen={actions.onOpen} onLearn={() => setMode('learn')}
         recent={recent} onOpenRecent={(r) => guard(() => void openRecent(r))}
         onForget={(r) => void api.project.forget(r.path).then(async () => setRecent(await api.project.recent()))}
         recovered={recovered} onRecover={recover} onDiscard={discard} />;
@@ -450,7 +450,6 @@ function useHash() {
 const MODES: { id: Mode; label: string; icon: string }[] = [
   { id: 'workspace', label: 'Workspace', icon: 'grid' },
   { id: 'learn', label: 'Learn', icon: 'book' },
-  { id: 'examples', label: 'Examples', icon: 'bulb' },
 ];
 
 interface TopBarProps {
@@ -647,11 +646,12 @@ function StatusBar({ project, run, board, sound, check }: { project: OpenProject
   );
 }
 
-function Later({ mode }: { mode: Mode }) {
+/** Learn, until M8 builds it. */
+function Later() {
   return (
     <main className="later">
-      <h1>{mode === 'learn' ? 'Learn' : 'Examples'}</h1>
-      <p className="muted">{mode === 'learn' ? 'The part and board pages come in M8.' : 'The examples page comes in M5.'}</p>
+      <h1>Learn</h1>
+      <p className="muted">How each part works inside, the idea behind it and how to connect it — coming in M8.</p>
     </main>
   );
 }

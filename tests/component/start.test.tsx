@@ -76,10 +76,11 @@ describe('M4.2 the Start screen', () => {
     expect(screen.getByRole('heading', { name: 'Start a new project' })).toBeInTheDocument();
   });
 
-  it('the Learn and Examples cards lead to those pages', () => {
+  it('the Learn card leads to Learn; there is no Examples card (the teacher, 2026-11-09)', () => {
     render(<App api={fakeApi()} width={1440} />);
-    fireEvent.click(screen.getByRole('button', { name: 'See the examples' }));
-    expect(screen.getByRole('tab', { name: 'Examples' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('button', { name: 'See the examples' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Learn' }));
+    expect(screen.getByRole('tab', { name: 'Learn' })).toHaveAttribute('aria-selected', 'true');
   });
 });
 

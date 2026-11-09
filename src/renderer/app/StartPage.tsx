@@ -12,7 +12,6 @@ export interface StartPageProps {
   onNew: (board: NewProjectBoard) => void;
   onOpen: () => void;
   onLearn: () => void;
-  onExamples: () => void;
   recent?: RecentItem[];
   onOpenRecent?: (item: RecentItem) => void;
   onForget?: (item: RecentItem) => void;
@@ -22,7 +21,7 @@ export interface StartPageProps {
   onDiscard?: () => void;
 }
 
-export function StartPage({ onNew, onOpen, onLearn, onExamples, recent = [], onOpenRecent, onForget, recovered, onRecover, onDiscard }: StartPageProps) {
+export function StartPage({ onNew, onOpen, onLearn, recent = [], onOpenRecent, onForget, recovered, onRecover, onDiscard }: StartPageProps) {
   return (
     <main className="start">
       <div className="start-main">
@@ -79,13 +78,8 @@ export function StartPage({ onNew, onOpen, onLearn, onExamples, recent = [], onO
       <aside className="start-side">
         <div className="card side-card">
           <h2><Icon name="book" /> Learn</h2>
-          <p className="small muted">How every part works, its pins, and how to connect it to your board.</p>
+          <p className="small muted">How each part works inside, the idea behind it, and how to connect it.</p>
           <button type="button" className="btn" onClick={onLearn}>Open Learn</button>
-        </div>
-        <div className="card side-card">
-          <h2><Icon name="bulb" /> Examples</h2>
-          <p className="small muted">Ready projects to run and change.</p>
-          <button type="button" className="btn" onClick={onExamples}>See the examples</button>
         </div>
         <div className="card side-card tip">
           <b className="small"><Icon name="bulb" size={12} /> Tip</b>

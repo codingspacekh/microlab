@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { App } from '../../src/renderer/app/App';
 import type { MicrolabApi } from '../../src/renderer/app/api';
@@ -16,10 +16,10 @@ function renderWorkspace(api: MicrolabApi, width: number) {
 }
 
 describe('M4.1 the shell (screens 01–03): top bar, modes, panels, status bar', () => {
-  it('has the brand, the three modes and a status bar', async () => {
+  it('has the brand, the two modes and a status bar (the Examples tab taken out — the teacher, 2026-11-09)', async () => {
     renderWorkspace(fakeApi(), 1440);
     expect(screen.getByText('Lab')).toBeInTheDocument();
-    for (const name of ['Workspace', 'Learn', 'Examples']) expect(screen.getByRole('tab', { name })).toBeInTheDocument();
+    expect(within(screen.getByRole('tablist', { name: 'Mode' })).getAllByRole('tab').map((t) => t.textContent!.trim())).toEqual(['Workspace', 'Learn']);
     expect(screen.getByRole('tab', { name: 'Workspace' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
@@ -56,7 +56,7 @@ describe('M4.1 the shell (screens 01–03): top bar, modes, panels, status bar',
     await vi.waitFor(() => expect(screen.getByRole('separator', { name: 'Parts panel width' })).toHaveAttribute('aria-valuenow', '288'));
   });
 
-  it('Learn and Examples are their own pages (built in later milestones)', async () => {
+  it('Learn is its own page (built in M8)', async () => {
     renderWorkspace(fakeApi(), 1440);
     fireEvent.click(screen.getByRole('tab', { name: 'Learn' }));
     expect(screen.getByRole('tab', { name: 'Learn' })).toHaveAttribute('aria-selected', 'true');
