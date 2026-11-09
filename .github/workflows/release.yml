@@ -1,7 +1,7 @@
 name: Release
 
 # M11 (Rev 13, F-109), as OneEditor's: pushing a version tag (vX.Y.Z, on the merge into main) makes a DRAFT release in
-# the releases repo — installers only, public (the teacher: as the gradebook's; the code stays private) — and builds
+# the releases repo — installers only, public (the teacher: as the gradebook's; the code repo is public too, all rights reserved) — and builds
 # the Windows installer into it; the packaged app checks itself. The installers carry the update address (that repo's
 # latest release), and latest.yml is added for the installed apps to find the next version. The two Mac installers are
 # built on the teacher's Mac, signed with their certificate so Macs update by themselves: `npm run release:mac` adds

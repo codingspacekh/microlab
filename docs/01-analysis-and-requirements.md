@@ -393,7 +393,7 @@ The **content is the largest piece of work** in the project (about 30 parts × 3
 | Q8 | Schematic view (F-19)? | Later (C) |
 | Q9 | Windows 11 + macOS, as the other apps? | Yes |
 | Q11 | Installers and updates as in the gradebook (v1.21 updates by themselves)? | Yes, at the end, one final build |
-| Q12 | Is the source public (GPL-3.0 like EasyMedia) or private? | Private for now |
+| Q12 | Is the source public (GPL-3.0 like EasyMedia) or private? | Private at first; **public since 2026-11-09**, all rights reserved (no licence) — CI is free for a public repo |
 | Q13 | *(Rev 2)* Arduino in a later phase: which boards, and in which language? The classic **Uno / Nano (AVR) cannot run MicroPython** — they need C++ and a separate engine. Arduino's **Nano ESP32** and **Nano RP2040 Connect** do run MicroPython and would fit the current engine with little extra work | Decided when that phase starts; until then the board layer is kept open to new boards (R8) |
 
 ## 1.11 Proposed way to build it

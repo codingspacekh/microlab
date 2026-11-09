@@ -186,8 +186,8 @@ If a gate fails, fix forward inside the same milestone. Do **not** start the nex
 | `dev` | Day-to-day work; every commit is green locally. |
 | `main` | Only gate-passed milestones, merged from `dev` with `--no-ff` and tagged. |
 
-The repository is local only (Q12: private). `.github/workflows/ci.yml` runs the same checks if it is
-ever pushed; until then `npm run check` is the gate.
+The repository is on GitHub, public since 2026-11-09 (Q12: all rights reserved, no licence); `.github/workflows/ci.yml`
+runs `npm run check` and the e2e tests there on macOS and Windows for every push to `main` or `dev`.
 
 ## 5. Milestone overview
 

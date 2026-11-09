@@ -2,14 +2,14 @@
 
 MicroLab's installers and updates work as the gradebook's and OneEditor's do (M11, requirements Rev 13, F-109).
 The installers are published as a **GitHub release in a public repo that holds only installers** —
-`codingspacekh/microlab-releases` — while the code stays private. Every installed MicroLab looks at that repo's
+`codingspacekh/microlab-releases` — beside the code repo, public since 2026-11-09 (all rights reserved). Every installed MicroLab looks at that repo's
 latest release when it opens and every 6 hours; it says a new version is out, downloads it when asked (or by itself,
 if the student turned that on), and puts it in on **Restart and update** or when MicroLab is next closed.
 
 ## Once
 
 1. **The releases repo** — public, empty: `codingspacekh/microlab-releases`.
-2. **The code repo** — private: `codingspacekh/microlab` (any name); push `main`, `dev` and the tags.
+2. **The code repo** — public, all rights reserved (no licence): `codingspacekh/microlab` (any name); push `main`, `dev` and the tags.
 3. **A token for the workflow** — a fine-grained personal access token with *Contents: read and write* on
    `codingspacekh/microlab-releases` only. Save it in the code repo as the Actions secret **`RELEASES_TOKEN`**.
 4. **The Mac certificate** — the same self-made code-signing certificate the gradebook and OneEditor use (Keychain

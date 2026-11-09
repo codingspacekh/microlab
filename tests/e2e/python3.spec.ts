@@ -151,15 +151,18 @@ test('M12 slice 5b (F-97, F-92): Jedi offers turtle\'s names as they are typed, 
   test.skip(!existsSync(join('vendor', 'python-tools', 'jedi')), 'Jedi not fetched: npm run fetch:python -- --tools');
   const win = await app.firstWindow();
   await newProject(win, 'New Python project');
-  await setCode(win, 'main.py', 'import turtle\nturtle.fo');
-  await win.keyboard.press('Control+Space');
   const list = win.locator('.cm-tooltip-autocomplete');
-  await expect(list.getByRole('option', { name: /forward/ })).toBeVisible({ timeout: 10_000 });   // the helper's first start
-  await expect(win.locator('.cm-completionInfo')).toContainText('Move the turtle forward');
-  // Enter once forward is the chosen one (on a slow computer the list may still be answering again)
-  await expect(list.getByRole('option', { name: /forward/, selected: true })).toBeVisible();
-  await win.keyboard.press('Enter');
-  await expect(win.getByRole('textbox', { name: 'main.py' })).toContainText('turtle.forward(');
+  // CodeMirror ignores Enter for 75 ms after the list changes (it makes a new line instead); on a busy computer the
+  // list can still change after a short wait — then the code is put back and asked for again, as a person would
+  await expect(async () => {
+    await setCode(win, 'main.py', 'import turtle\nturtle.fo');
+    await win.keyboard.press('Control+Space');
+    await expect(list.getByRole('option', { name: /forward/, selected: true })).toBeVisible({ timeout: 10_000 });   // the helper's first start
+    await expect(win.locator('.cm-completionInfo')).toContainText('Move the turtle forward');
+    await win.waitForTimeout(150);
+    await win.keyboard.press('Enter');
+    await expect(win.getByRole('textbox', { name: 'main.py' })).toContainText('turtle.forward(', { timeout: 1000 });
+  }).toPass({ timeout: 25_000 });
   await win.keyboard.type('10, ');
   await expect(win.getByRole('textbox', { name: 'main.py' })).toContainText('turtle.forward(10, )');
   await win.keyboard.press(`${MOD}+A`);

@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { basename, dirname, extname, join, resolve, sep } from 'node:path';
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, net, protocol, session, shell } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, net, protocol, screen, session, shell } from 'electron';
 import { APP_SCHEME, APP_URL, isolationHeaders, resolveAppPath, responseHeaders } from './app-protocol';
 import { existsSync, mkdirSync, watch, writeFileSync, type FSWatcher } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -78,6 +78,12 @@ function serveAppFiles(): void {
 const dirty = new Map<number, boolean>();
 const closing = new Set<number>();
 
+/** A place for the hidden window on Windows: beyond the right edge of every screen, where nobody sees it. */
+function pastTheScreens(): { x: number; y: number } {
+  const right = Math.max(...screen.getAllDisplays().map((d) => d.bounds.x + d.bounds.width));
+  return { x: right + 100, y: 0 };
+}
+
 function createWindow(): void {
   const win = new BrowserWindow({
     title: 'MicroLab',
@@ -86,7 +92,8 @@ function createWindow(): void {
     minWidth: 1280,
     minHeight: 720,
     show: false,
-    ...(HIDDEN && process.platform === 'win32' ? { x: -32000, y: -32000, skipTaskbar: true, focusable: false } : {}),
+    // (just past the screens' right edge — not -32000, where Windows keeps minimised windows: one there never resized)
+    ...(HIDDEN && process.platform === 'win32' ? { ...pastTheScreens(), skipTaskbar: true, focusable: false } : {}),
     // the app icon while developing (M11, F-107); the installed app has its own in its bundle
     ...(!app.isPackaged && process.platform !== 'darwin' ? { icon: DEV_ICON } : {}),
     backgroundColor: '#f4f6f8',

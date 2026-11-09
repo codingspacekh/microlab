@@ -23,4 +23,9 @@ jobs:
       - name: The Python 3.13 and Jedi MicroLab ships (checked by hash)
         run: npm run fetch:python
       - run: npm run check
+        if: runner.os != 'Windows'
+      # Windows: the same check without coverage — its 2-core runner runs the test files one at a time, and the coverage
+      # gate is the Mac's (the same code)
+      - run: npm run check:no-coverage
+        if: runner.os == 'Windows'
       - run: npx playwright test
