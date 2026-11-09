@@ -13,7 +13,7 @@ import { findPython, startPython } from '../../src/main/python3/session';
  */
 const python = findPython();
 const dirs: string[] = [];
-afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
+afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); });
 const dir = (p = 'ml-libs-') => { const d = mkdtempSync(join(tmpdir(), p)); dirs.push(d); return d; };
 
 /** A pure-Python wheel, as a teacher might hand out: greet 1.0, with its package `greet`. */

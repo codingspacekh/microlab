@@ -13,7 +13,7 @@ import { findPython, startPython } from '../../src/main/python3/session';
  */
 const python = findPython();
 const folder = mkdtempSync(join(tmpdir(), 'ml-explain-'));
-afterAll(() => rmSync(folder, { recursive: true, force: true }));
+afterAll(() => rmSync(folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }));
 
 async function errorOf(code: string, file = join(folder, 'main.py'), stdin: string[] = []): Promise<ErrorInfo> {
   // hidden (the teacher's rule): a turtle program's window is made but never shown, never takes focus

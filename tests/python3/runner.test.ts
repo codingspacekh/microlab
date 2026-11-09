@@ -93,7 +93,7 @@ describe('the runner', () => {
       const s = session({ libs });
       const r = await runToEnd(s, 'import mylib, sys, site\nprint(mylib.NAME, sys.flags.no_user_site)\n');
       expect(r.out).toBe("from MicroLab's folder 1\n");
-    } finally { rmSync(libs, { recursive: true, force: true }); }
+    } finally { rmSync(libs, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); }
   });
 
   it('exit() and sys.exit() end the program quietly', async () => {
@@ -247,7 +247,7 @@ describe('finding Python and the runner', () => {
       mkdirSync(join(shipped, '..'), { recursive: true });
       writeFileSync(shipped, '');
       expect(findPython({}, join(root, 'res'), root)).toBe(shipped);
-    } finally { rmSync(root, { recursive: true, force: true }); }
+    } finally { rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); }
   });
 
   it('the runner shipped in the app\'s resources, else the source tree\'s', () => {
@@ -257,7 +257,7 @@ describe('finding Python and the runner', () => {
       mkdirSync(join(root, 'res', 'python3'), { recursive: true });
       writeFileSync(join(root, 'res', 'python3', 'runner.py'), '');
       expect(findRunner(join(root, 'res'), root)).toBe(join(root, 'res', 'python3', 'runner.py'));
-    } finally { rmSync(root, { recursive: true, force: true }); }
+    } finally { rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); }
   });
 
   it('a Python that can\'t start says so; the session is over', async () => {

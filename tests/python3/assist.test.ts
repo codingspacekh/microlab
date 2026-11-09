@@ -16,7 +16,7 @@ const libs = mkdtempSync(join(tmpdir(), 'ml-assist-libs-'));
 mkdirSync(join(libs, 'greet'));
 writeFileSync(join(libs, 'greet', '__init__.py'), 'def hello(name, times=1):\n    """Says hello to someone, for MicroLab\'s tests."""\n    return name\n');
 const assistant = new Assistant({ python, tools, libs });
-afterAll(() => { assistant.dispose(); rmSync(libs, { recursive: true, force: true }); });
+afterAll(() => { assistant.dispose(); rmSync(libs, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); });
 
 const at = (code: string) => {
   const lines = code.split('\n');
