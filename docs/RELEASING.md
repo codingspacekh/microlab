@@ -44,6 +44,10 @@ if the student turned that on), and puts it in on **Restart and update** or when
 
 - `npm run icon` — the app icon (`build/icon.png`) from the logo.
 - `npm run fetch:python` — the Python 3.13 and Jedi for this computer (`-- --all`: every platform).
+- `npm run licences` (after `npm run build`) — `build-info/THIRD_PARTY_LICENSES.txt`, the list *About ▸ Licences*
+  shows: everything shipped that CodingSpaceKH did not write, with its licence. Every installer build makes it again
+  (`scripts/package.ts`), and **stops** at a package without a licence text or under a copyleft licence (GPL, LGPL,
+  AGPL). A new firmware, Python or library: put its licence texts in `licences/` first ([`licences/README.md`](../licences/README.md)).
 - `npm run dist` — the installer for this computer, unsigned and without updates unless `MICROLAB_UPDATE_URL` and
   `CSC_NAME` are set; `node scripts/package.ts --dir` — the unpacked app only.
 

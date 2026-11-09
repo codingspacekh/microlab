@@ -15,6 +15,8 @@ export interface SelfCheckDeps {
   renderer: string;
   /** Install MicroPython's firmware (library/firmware: firmware.json and the files it names). */
   firmware: string;
+  /** About ▸ Licences (N-11): THIRD_PARTY_LICENSES.txt. */
+  licences: string;
   updatesFile: string;
   runPython: (exe: string) => Promise<string>;
   loadUpdater: () => Promise<unknown>;
@@ -35,6 +37,7 @@ export async function selfCheck(d: SelfCheckDeps): Promise<SelfCheckReport> {
   checks.jedi = there(d.tools && join(d.tools, 'jedi'), 'Jedi (python-tools/jedi)');
   checks.pages = there(join(d.renderer, 'index.html'), "the window's pages (index.html)");
   checks.updates = there(d.updatesFile, 'the update address (updates.json)');
+  checks.licences = there(d.licences, 'the licences (THIRD_PARTY_LICENSES.txt)');
   try {
     const list = JSON.parse(readFileSync(join(d.firmware, 'firmware.json'), 'utf8')) as Record<string, { file?: string }>;
     const missing = Object.values(list).filter((f) => f && typeof f === 'object' && f.file && !existsSync(join(d.firmware, f.file))).map((f) => f.file);

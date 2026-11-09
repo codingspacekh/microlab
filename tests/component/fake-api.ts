@@ -69,7 +69,7 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}, start: { 
       console: { open: vi.fn(async () => ({ ok: true as const })), close: vi.fn(async () => {}), do: vi.fn(async () => {}), onOutput: vi.fn(() => () => {}) },
       onChange: vi.fn(() => () => {}) },
     app: { setDirty: vi.fn(), onCloseRequest: vi.fn(() => () => {}), close: vi.fn(), copy: vi.fn(async () => {}), openDriverPage: vi.fn(async () => {}), showFirmware: vi.fn(async () => {}),
-      zoom: { get: vi.fn(() => 1), set: vi.fn() }, openWebsite: vi.fn(async () => {}), onMenu: vi.fn(() => () => {}) },
+      zoom: { get: vi.fn(() => 1), set: vi.fn() }, openWebsite: vi.fn(async () => {}), licences: vi.fn(async (): Promise<string | null> => 'MicroLab 0.4.0 — third-party components\n\nPython 3.13.18 — Python Software Foundation License'), onMenu: vi.fn(() => () => {}) },
     pyfile: {
       save: vi.fn(async (text: string, o: { path?: string; name: string; from?: string }) => {
         const path = o.path ?? `${o.from ?? HOME}/copy of ${o.name}`;

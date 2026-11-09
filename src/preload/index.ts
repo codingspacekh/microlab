@@ -142,6 +142,8 @@ contextBridge.exposeInMainWorld('microlab', {
     zoom: { get: (): number => webFrame.getZoomFactor(), set: (f: number): void => webFrame.setZoomFactor(f) },
     // About MicroLab (M11, F-108): its website; the app menu's About and Check for Updates…
     openWebsite: (): Promise<void> => ipcRenderer.invoke('app:website'),
+    // About ▸ Licences (M11.4, N-11)
+    licences: (): Promise<string | null> => ipcRenderer.invoke('app:licences'),
     onMenu: (handler: (action: string) => void): (() => void) => {
       const listener = (_e: unknown, action: string) => handler(action);
       ipcRenderer.on('app:menu', listener);

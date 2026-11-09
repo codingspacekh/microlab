@@ -54,6 +54,7 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       copy: vi.fn(async () => {}),
       openDriverPage: vi.fn(async () => {}),
       showFirmware: vi.fn(async () => {}),
+      licences: vi.fn(async () => null),
       zoom: { get: vi.fn(() => 1), set: vi.fn() },
       openWebsite: vi.fn(async () => {}),
       onMenu: vi.fn(() => () => {}),

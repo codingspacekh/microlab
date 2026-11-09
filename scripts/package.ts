@@ -30,6 +30,9 @@ console.log(updates.url
   ? `Updates from ${updates.url}${process.platform === 'darwin' ? (updates.macSigned ? `, signed as ${process.env.CSC_NAME}` : ', NOT signed with the certificate: a Mac will be offered the .dmg instead') : ''}.`
   : 'No MICROLAB_UPDATE_URL: this build will not look for updates.');
 
+// THIRD_PARTY_LICENSES (N-11) for what this build bundled and this Python: it stops at a missing or copyleft licence
+execFileSync(process.execPath, [join(root, 'scripts', 'licences.ts'), '--target', `${process.platform}-${arch}`], { cwd: root, stdio: 'inherit' });
+
 execFileSync(builder, builderArgs(process.platform, arch, { dir }), { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
 
 // each Mac build writes latest-mac.yml for its own chip: kept apart, then merged (scripts/release-mac.ts)

@@ -44,6 +44,10 @@ export function configFor(env: Record<string, string | undefined>, version: stri
       { from: 'vendor/python-tools', to: 'python-tools' },
       // Install MicroPython's firmware (F-52): copied to a board's drive, offline
       { from: 'library/firmware', to: 'firmware' },
+      // About ▸ Licences (N-11): everything shipped that CodingSpaceKH did not write (scripts/licences.ts), and
+      // Chromium's own (the Mac build would otherwise leave them out)
+      { from: 'build-info/THIRD_PARTY_LICENSES.txt', to: 'THIRD_PARTY_LICENSES.txt' },
+      { from: 'node_modules/electron/dist/LICENSES.chromium.html', to: 'LICENSES.chromium.html' },
     ],
     win: {
       target: [{ target: 'nsis', arch: ['x64'] }],

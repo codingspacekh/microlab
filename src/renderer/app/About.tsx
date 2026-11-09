@@ -7,18 +7,21 @@ import { Icon } from '../ui/Icon';
 /**
  * About MicroLab (M11, Rev 13, F-108; screen 33) — the teacher: "add all right 2026 CodingSpaceKH, visit
  * codingspacekh.dev for contribution etc". The icon, the version, what MicroLab is and what is inside it; the
- * copyright; the website, opened in the computer's browser (only that address).
+ * copyright; the website, opened in the computer's browser (only that address); Licences (M11.4, N-11): everything
+ * MicroLab is built with, and its licence.
  */
 export function About({ api, onClose, actions = [] }: { api: MicrolabApi; onClose: () => void; actions?: { label: string; icon: string; onClick: () => void }[] }) {
   const [python, setPython] = useState<string | null>(null);
+  const [licences, setLicences] = useState(false);
   useEffect(() => {
     let live = true;
     void api.python3.version().then((v) => { if (live) setPython(v); });
     return () => { live = false; };
   }, [api]);
+  if (licences) return <Licences api={api} onClose={() => setLicences(false)} />;
   return (
     <Dialog role="dialog" title="About MicroLab" width={460} onCancel={onClose} hideTitle
-      actions={[...actions.map((a) => ({ label: a.label, onClick: a.onClick })), { label: 'Close', primary: true, onClick: onClose }]}>
+      actions={[{ label: 'Licences', onClick: () => setLicences(true) }, ...actions.map((a) => ({ label: a.label, onClick: a.onClick })), { label: 'Close', primary: true, onClick: onClose }]}>
       <div className="about">
         <AppIcon />
         <h2>MicroLab</h2>
@@ -30,6 +33,28 @@ export function About({ api, onClose, actions = [] }: { api: MicrolabApi; onClos
           <Icon name="ext" size={14} /> <span>To contribute, report a problem or share an idea, visit <b>codingspacekh.dev</b></span>
         </button>
       </div>
+    </Dialog>
+  );
+}
+
+/**
+ * About ▸ Licences (M11.4, N-11; screen 33): THIRD_PARTY_LICENSES — everything MicroLab ships that CodingSpaceKH did not
+ * write, each with its licence (Electron, Python and pip, Jedi, MicroPython and the boards' firmware, the library
+ * pack, the fonts, the app's packages) — read from the app itself, without the internet. Close goes back to About.
+ */
+export function Licences({ api, onClose }: { api: MicrolabApi; onClose: () => void }) {
+  const [text, setText] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    void api.app.licences().then((t) => { if (live) setText(t); });
+    return () => { live = false; };
+  }, [api]);
+  return (
+    <Dialog role="dialog" title="Licences" width={760} onCancel={onClose} actions={[{ label: 'Close', primary: true, onClick: onClose }]}>
+      <p className="lic-lead">MicroLab is © 2026 CodingSpaceKH. It is built with these parts made by others, each under its own licence.</p>
+      {text === null
+        ? <p className="lic-none">The list is made when MicroLab is built (<code>npm run build &amp;&amp; npm run licences</code>).</p>
+        : <pre className="lic-text" tabIndex={0} aria-label="Licences" aria-busy={text === undefined}>{text ?? 'Loading…'}</pre>}
     </Dialog>
   );
 }

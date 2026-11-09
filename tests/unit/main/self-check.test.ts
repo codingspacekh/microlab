@@ -12,7 +12,7 @@ afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, f
 function app() {
   const res = mkdtempSync(join(tmpdir(), 'ml-self-'));
   dirs.push(res);
-  for (const f of ['python/bin/python3', 'python3/runner.py', 'python3/assist.py', 'python-tools/jedi/__init__.py', 'renderer/index.html', 'updates.json', 'firmware/pico.uf2']) {
+  for (const f of ['python/bin/python3', 'python3/runner.py', 'python3/assist.py', 'python-tools/jedi/__init__.py', 'renderer/index.html', 'updates.json', 'firmware/pico.uf2', 'THIRD_PARTY_LICENSES.txt']) {
     mkdirSync(join(res, f, '..'), { recursive: true });
     writeFileSync(join(res, f), 'x');
   }
@@ -21,7 +21,7 @@ function app() {
     res,
     deps: {
       python: join(res, 'python/bin/python3'), runner: join(res, 'python3/runner.py'), assist: join(res, 'python3/assist.py'),
-      tools: join(res, 'python-tools'), renderer: join(res, 'renderer'), firmware: join(res, 'firmware'), updatesFile: join(res, 'updates.json'),
+      tools: join(res, 'python-tools'), renderer: join(res, 'renderer'), firmware: join(res, 'firmware'), licences: join(res, 'THIRD_PARTY_LICENSES.txt'), updatesFile: join(res, 'updates.json'),
       runPython: vi.fn(async () => '3.13.18'), loadUpdater: vi.fn(async () => ({})),
     },
   };
@@ -32,19 +32,21 @@ describe('the packaged app checks itself', () => {
     const { deps } = app();
     const r = await selfCheck(deps);
     expect(r.ok).toBe(true);
-    expect(r.checks).toEqual({ python: 'Python 3.13.18', runner: true, help: true, jedi: true, pages: true, updates: true, firmware: true, updater: true });
+    expect(r.checks).toEqual({ python: 'Python 3.13.18', runner: true, help: true, jedi: true, pages: true, updates: true, licences: true, firmware: true, updater: true });
   });
 
   it('a part missing, a Python that is not 3.13 or doesn\'t run, an updater that won\'t load: not ok, and why', async () => {
     const { res, deps } = app();
     rmSync(join(res, 'python3/assist.py'));
     rmSync(join(res, 'firmware/pico.uf2'));
+    rmSync(join(res, 'THIRD_PARTY_LICENSES.txt'));
     deps.runPython = vi.fn(async () => '3.14.5');
     deps.loadUpdater = vi.fn(async () => { throw new Error('electron-updater has no autoUpdater'); });
     const r = await selfCheck(deps);
     expect(r.ok).toBe(false);
     expect(r.checks.help).toMatch(/missing/);
     expect(r.checks.firmware).toBe('the firmware missing: pico.uf2');
+    expect(r.checks.licences).toMatch(/^the licences \(THIRD_PARTY_LICENSES.txt\) missing/);
     expect(r.checks.python).toBe('Python 3.14.5, not the bundled 3.13');
     expect(r.checks.updater).toBe('electron-updater has no autoUpdater');
     deps.runPython = vi.fn(async () => { throw new Error('spawn ENOENT'); });

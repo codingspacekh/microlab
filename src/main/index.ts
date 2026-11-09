@@ -110,10 +110,13 @@ function createWindow(): void {
 /** The MicroPython firmware Install MicroPython copies to a board (F-52): in the installed app's resources, else the source tree's. */
 const firmwareFolder = () => (app.isPackaged ? join(process.resourcesPath, 'firmware') : join(here, '../../library/firmware'));
 
+/** About ▸ Licences (N-11): in the installed app's resources; while developing, what `npm run licences` last wrote. */
+const licencesFile = () => (app.isPackaged ? join(process.resourcesPath, 'THIRD_PARTY_LICENSES.txt') : join(here, '../../build-info/THIRD_PARTY_LICENSES.txt'));
+
 /** M11: the packaged app checks itself (MICROLAB_SELF_CHECK, from scripts/package.ts): what it found, then it quits. */
 async function runSelfCheck(report: string): Promise<void> {
   const r = await selfCheck({
-    python: findPython(), runner: findRunner(), assist: findAssist(), tools: findTools(), renderer: rendererDir, firmware: firmwareFolder(),
+    python: findPython(), runner: findRunner(), assist: findAssist(), tools: findTools(), renderer: rendererDir, firmware: firmwareFolder(), licences: licencesFile(),
     updatesFile: join(process.resourcesPath ?? '', 'updates.json'),
     runPython: (exe) => new Promise((done, fail) => {
       execFile(exe, ['-I', '-c', 'import sys; print(sys.version.split()[0])'], { timeout: 30_000, windowsHide: true }, (err, out) => (err ? fail(err) : done(out)));
@@ -481,6 +484,8 @@ app.whenReady().then(() => {
   ipcMain.handle('app:copy', (_e, text: string) => clipboard.writeText(String(text)));
   // About MicroLab (F-108): the website, only that address; the bundled Python's version, asked once
   ipcMain.handle('app:website', () => shell.openExternal(WEBSITE));
+  // About ▸ Licences (N-11): the list, read without the internet; null while developing before `npm run licences`
+  ipcMain.handle('app:licences', async () => { try { return await readFile(licencesFile(), 'utf8'); } catch { return null; } });
   let pyVersion: Promise<string | null> | undefined;
   ipcMain.handle('py:version', () => (pyVersion ??= new Promise((done) => {
     execFile(findPython(), ['-I', '-c', 'import sys; print(sys.version.split()[0])'], { timeout: 10_000, windowsHide: true }, (err, out) => done(err ? null : out.trim() || null));

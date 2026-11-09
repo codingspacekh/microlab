@@ -37,4 +37,28 @@ describe('M11 About MicroLab (screen 33)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'About MicroLab' }));
     expect(screen.getByRole('dialog', { name: 'About MicroLab' })).toHaveTextContent('MicroPython 1.29.0');
   });
+
+  it('M11.4 Licences (N-11): everything MicroLab is built with, from the app itself; Close goes back to About', async () => {
+    const api = fakeApi();
+    render(<App api={api} width={1440} />);
+    fireEvent.click(screen.getByRole('button', { name: 'About MicroLab' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'About MicroLab' })).getByRole('button', { name: 'Licences' }));
+    const list = screen.getByRole('dialog', { name: 'Licences' });
+    expect(list).toHaveTextContent('MicroLab is © 2026 CodingSpaceKH. It is built with these parts made by others, each under its own licence.');
+    await waitFor(() => expect(within(list).getByLabelText('Licences')).toHaveTextContent('Python 3.13.18 — Python Software Foundation License'));
+    expect(within(list).getByLabelText('Licences')).toHaveAttribute('tabindex', '0');   // scrolled with the keyboard too
+    expect(api.app.licences).toHaveBeenCalledOnce();
+    fireEvent.click(within(list).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog', { name: 'Licences' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'About MicroLab' })).toBeInTheDocument();
+  });
+
+  it('while developing, before the list is made: says how to make it', async () => {
+    const api = fakeApi();
+    api.app.licences = vi.fn(async () => null);
+    render(<App api={api} width={1440} />);
+    fireEvent.click(screen.getByRole('button', { name: 'About MicroLab' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Licences' }));
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Licences' })).toHaveTextContent('The list is made when MicroLab is built (npm run build && npm run licences).'));
+  });
 });

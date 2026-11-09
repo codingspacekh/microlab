@@ -179,6 +179,8 @@ export interface MicrolabApi {
     zoom: { get(): number; set(factor: number): void };
     /** About MicroLab (M11, F-108): codingspacekh.dev in the computer's browser. */
     openWebsite(): Promise<void>;
+    /** About ▸ Licences (M11.4, N-11): THIRD_PARTY_LICENSES.txt; null while developing before `npm run licences`. */
+    licences(): Promise<string | null>;
     /** The app menu's About MicroLab and Check for Updates…: 'about' | 'updates'. */
     onMenu(handler: (action: string) => void): () => void;
   };
@@ -248,6 +250,6 @@ export function getApi(): MicrolabApi {
       },
       console: { open: async () => ({ ok: false, message: 'A board needs the MicroLab app.' }), close: async () => {}, do: async () => {}, onOutput: () => () => {} },
       onChange: () => () => {} },
-    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close(), copy: async (t) => navigator.clipboard?.writeText(t), openDriverPage: async () => {}, showFirmware: async () => {}, zoom: { get: () => 1, set: () => {} }, openWebsite: async () => {}, onMenu: () => () => {} },
+    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close(), copy: async (t) => navigator.clipboard?.writeText(t), openDriverPage: async () => {}, showFirmware: async () => {}, zoom: { get: () => 1, set: () => {} }, openWebsite: async () => {}, licences: async () => null, onMenu: () => () => {} },
   };
 }
