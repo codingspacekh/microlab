@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { basename, dirname, extname, join, resolve, sep } from 'node:path';
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, net, protocol, screen, session, shell } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, net, protocol, session, shell } from 'electron';
 import { APP_SCHEME, APP_URL, isolationHeaders, resolveAppPath, responseHeaders } from './app-protocol';
 import { existsSync, mkdirSync, watch, writeFileSync, type FSWatcher } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -53,8 +53,10 @@ const HIDDEN = process.env.MICROLAB_HIDDEN === '1';
 if (HIDDEN) {
   app.dock?.hide();
   app.commandLine.appendSwitch('mute-audio');
-  // Windows draws nothing for a window never shown, so the tests' mouse never arrives (found on the first Windows run):
-  // there it is shown without focus, off the screen and the taskbar — and not taken for one behind other windows
+  // Windows: a window never shown gets no mouse (the tests' drags hung), and one beyond the screens' edge comes out a
+  // wrong size (its borders reckoned for no screen) — measured on the CI runner, 2026-11-09. There it is shown on the
+  // screen but unseen: fully transparent, clicks passing through it, never focused, not on the taskbar — and not taken
+  // for one hidden behind other windows
   if (process.platform === 'win32') app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 }
 
@@ -78,12 +80,6 @@ function serveAppFiles(): void {
 const dirty = new Map<number, boolean>();
 const closing = new Set<number>();
 
-/** A place for the hidden window on Windows: beyond the right edge of every screen, where nobody sees it. */
-function pastTheScreens(): { x: number; y: number } {
-  const right = Math.max(...screen.getAllDisplays().map((d) => d.bounds.x + d.bounds.width));
-  return { x: right + 100, y: 0 };
-}
-
 function createWindow(): void {
   const win = new BrowserWindow({
     title: 'MicroLab',
@@ -92,9 +88,8 @@ function createWindow(): void {
     minWidth: 1280,
     minHeight: 720,
     show: false,
-    // (just past the screens' right edge — not -32000, where Windows keeps minimised windows; a shown window is kept no
-    // bigger than the screen, so the CI runner is given a 1920 × 1080 one)
-    ...(HIDDEN && process.platform === 'win32' ? { ...pastTheScreens(), skipTaskbar: true, focusable: false } : {}),
+    // (a shown window is kept no bigger than its screen, so the CI runner is given a 1920 × 1080 one)
+    ...(HIDDEN && process.platform === 'win32' ? { x: 0, y: 0, skipTaskbar: true, focusable: false } : {}),
     // the app icon while developing (M11, F-107); the installed app has its own in its bundle
     ...(!app.isPackaged && process.platform !== 'darwin' ? { icon: DEV_ICON } : {}),
     backgroundColor: '#f4f6f8',
@@ -109,7 +104,13 @@ function createWindow(): void {
     },
   });
   if (!HIDDEN) win.once('ready-to-show', () => win.show());
-  else if (process.platform === 'win32') win.once('ready-to-show', () => win.showInactive());
+  else if (process.platform === 'win32') {
+    win.once('ready-to-show', () => {
+      win.setOpacity(0);
+      win.setIgnoreMouseEvents(true);
+      win.showInactive();
+    });
+  }
   // unsaved changes: the window asks the student first (M4.6), then closes itself through app:close
   win.on('close', (e) => {
     if (!dirty.get(win.webContents.id) || closing.has(win.webContents.id)) return;

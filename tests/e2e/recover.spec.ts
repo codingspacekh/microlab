@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,6 +19,13 @@ const launch = async () => {
   return win;
 };
 
+/** The app killed, as a crash would: on Windows its whole process tree — killing only the main process there leaves
+ *  its helpers running, holding the test's folder (it could not be removed, and the worker never ended). */
+const crash = (a: ElectronApplication) => {
+  if (process.platform === 'win32') execFileSync('taskkill', ['/pid', String(a.process().pid), '/T', '/F'], { stdio: 'ignore' });
+  else a.process().kill('SIGKILL');
+};
+
 test.beforeEach(() => { home = mkdtempSync(join(tmpdir(), 'microlab-e2e-')); });
 
 test.afterEach(async () => {
@@ -35,7 +43,7 @@ test('F-03: the app is killed while editing; on restart the project is offered b
   await win.keyboard.insertText('\n# kept after a crash\n');
   // the copy is written a few seconds after the change
   await expect.poll(() => existsSync(join(home, 'recovery', 'project.mlab')), { timeout: 10_000 }).toBe(true);
-  app!.process().kill('SIGKILL');
+  crash(app!);
   await new Promise((r) => setTimeout(r, 300));
 
   win = await launch();
