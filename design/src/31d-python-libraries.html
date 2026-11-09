@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>31d Python 3 — libraries</title>
+{{include:head}}
+</head>
+<body>
+<!--@MODE_WS: -->
+<!--@MODE_PY: on-->
+<!--@PY_FILE: <div class="pyfile"><b>weather.py</b><span>Documents/Python · saved</span></div>-->
+<!--@TOP_RIGHT: <div class="runbox"><button class="btn run">{{i:play:s14}} Run weather.py <span class="tiny" style="opacity:.75;margin-left:2px">F5</span></button><button class="btn icon disabled" title="Stop">{{i:stop:s14}}</button></div><button class="btn on">{{i:grid:s14}} Libraries</button>-->
+<p class="frame-label"><b>31d · Python 3: Libraries</b> (M12 design, Rev 10, F-95) — the libraries this computer's MicroLab has: installed into <b>MicroLab's own folder</b> (never into a Python already on the computer), and every program sees them. With the internet, a library is <b>looked up by its name on PyPI</b> (PyPI has no search for programs, only each library's page: its version and what it does), or chosen from those often used in class; each library's summary as its authors wrote it on PyPI; Install and Remove — what <code>pip</code> says shown as it works; without the internet, said plainly, and a <code>.whl</code> file from the teacher installs the same way</p>
+<div class="frame" style="position:relative">
+  {{include:topbar-py}}
+  <div class="pyscreen" style="opacity:.55">
+    <div class="tabs"><a class="on">{{i:file:s14}} weather.py</a></div>
+    <div class="ed"></div>
+  </div>
+  <div class="overlay"></div>
+  <div class="dialog" style="left:50%;top:70px;transform:translateX(-50%);width:min(720px,calc(100% - 40px))">
+    <div class="dh">{{i:grid}}<h2 style="font-size:16px">Libraries for Python 3</h2><span class="spacer"></span><span class="pill ok">{{i:check:s12}} Connected to PyPI</span><button class="btn ghost icon sm">{{i:x:s14}}</button></div>
+    <div class="db">
+      <div class="row" style="gap:8px"><div class="field" style="flex:1;height:34px">{{i:search:s14}}<span>requests</span></div><button class="btn primary">Look up on PyPI</button></div>
+      <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><span class="tiny muted">Often used in class:</span><span class="pill">numpy</span><span class="pill">matplotlib</span><span class="pill">pygame</span><span class="pill">pillow</span><span class="pill info">requests</span></div>
+      <div class="pkgs" style="margin-top:6px">
+        <div class="pk"><b>requests</b><span class="v">2.32.5</span><span class="d">Python HTTP for Humans.</span><button class="btn sm" disabled>{{i:check:s12}} Installed</button></div>
+      </div>
+      <div class="pipout" style="margin-top:8px">Collecting requests
+  Downloading requests-2.32.5-py3-none-any.whl (64 kB)
+Collecting charset-normalizer, idna, urllib3, certifi …
+Installed requests 2.32.5 and 4 libraries it needs.</div>
+      <div class="gh" style="font-size:11px;font-weight:650;color:var(--tx-3);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 2px">Installed in MicroLab · 3</div>
+      <div class="pkgs">
+        <div class="pk"><b>requests</b><span class="v">2.32.5</span><span class="d">Python HTTP for Humans.</span><button class="btn ghost sm">{{i:trash:s12}} Remove</button></div>
+        <div class="pk"><b>art</b><span class="v">6.5</span><span class="d">ASCII Art Library For Python</span><button class="btn ghost sm">{{i:trash:s12}} Remove</button></div>
+        <div class="pk"><b>numpy</b><span class="v">2.3.4</span><span class="d">Fundamental package for array computing in Python</span><button class="btn ghost sm">{{i:trash:s12}} Remove</button></div>
+      </div>
+    </div>
+    <div class="df"><button class="btn">{{i:file:s14}} Install from a .whl file…</button><span class="small muted">No internet? A teacher's <code>.whl</code> file installs the same way.</span><span class="spacer"></span><button class="btn">Done</button></div>
+  </div>
+</div>
+</body></html>

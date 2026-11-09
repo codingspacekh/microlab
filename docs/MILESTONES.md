@@ -560,11 +560,11 @@ connection problem says how to fix it.
 **Goal:** students write Python 3 in MicroLab as they would in IDLE — `.py` files, Run, a shell with `input()` and `>>>`, turtle and tkinter, libraries from PyPI — with real CPython shipped inside the app.
 
 **Build order**
-0. **Design** (for the teacher's approval): the Start page's Python 3 card; the Python 3 screen (editor tabs, shell, Run / Stop, the file's name and folder); a turtle program running in its own window; the Packages window (installed, search PyPI, install, a `.whl` file offline).
+0. **Design** (for the teacher's approval): the Start page's Python 3 card; the Python 3 screen (editor tabs, shell, Run / Stop, the file's name and folder); a turtle program running in its own window; the Libraries window (installed, look a library up by name on PyPI, install, a `.whl` file offline).
 1. **The runtime**: the bundled CPython per platform and processor in the build (fetched by a script, checked by its hash), started by the main process with MicroLab's runner (`src/python3/runner.py`): run a file as `__main__` in its folder, print and tracebacks to the window, `input()` asked of the window, the names kept for `>>>`, Stop (SIGINT / CTRL_BREAK, then kill), one process kept ready.
 2. **The Python 3 screen**: the Start card and the top bar's mode; `.py` New / Open / Save / Save as / recent (main-process dialogs, the same safety as `.mlab`); the editor (CPython highlighting, indentation); the shell (the M9 console's prompt, history, Tab, Ctrl+C); Run (F5), Stop.
 3. **turtle and tkinter**: their windows from the program's process; closed with the program or at Stop; the shell stays usable.
-4. **Libraries**: the app's Python folder on every program's path; the Packages window — the installed list (`pip list --path`), a PyPI search, Install / Remove with `pip`, a `.whl` file; what `pip` prints shown as it works; offline said plainly.
+4. **Libraries**: the app's Python folder on every program's path; the Libraries window — the installed list (`pip list --path`), a library looked up by name (PyPI's JSON page for it; PyPI has no search API) or from a short list often used in class, Install / Remove with `pip`, a `.whl` file; what `pip` prints shown as it works; offline said plainly.
 5. **Friendly errors** for CPython's messages (M9's engine, new texts); the Plotter; completions with Jedi.
 
 **Tests first**

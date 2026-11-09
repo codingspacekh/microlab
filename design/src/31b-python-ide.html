@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>31b Python 3 — editor and shell</title>
+{{include:head}}
+</head>
+<body>
+<!--@MODE_WS: -->
+<!--@MODE_PY: on-->
+<!--@PY_FILE: <div class="pyfile"><b>guess.py</b><span>Documents/Python · saved</span></div>-->
+<!--@TOP_RIGHT: <div class="runbox"><button class="btn run">{{i:play:s14}} Run guess.py <span class="tiny" style="opacity:.75;margin-left:2px">F5</span></button><button class="btn icon disabled" title="Stop">{{i:stop:s14}}</button></div><button class="btn">{{i:grid:s14}} Libraries</button>-->
+<p class="frame-label"><b>31b · Python 3: the editor and the shell</b> (M12 design, Rev 10, F-91, F-92, F-94) — as IDLE: the <code>.py</code> files open in tabs (unsaved: a dot); <b>Run</b> (F5) runs the one shown with real CPython 3.13, in its own folder. The <b>shell</b> below: what the program prints, <code>input()</code> answered on the shell's last line, and after the program its <b>&gt;&gt;&gt;</b> with the program's names (<code>secret</code>, <code>tries</code>), as IDLE's <i>Run Module</i>. An error is explained as in screen 05. Libraries (31d) is beside Run</p>
+<div class="frame">
+  {{include:topbar-py}}
+  <div class="pyscreen">
+    <div class="tabs"><a class="on">{{i:file:s14}} guess.py</a><a>{{i:file:s14}} helpers.py<span class="dirty" title="Not saved"></span></a><span class="spacer"></span><button class="btn ghost sm">{{i:plus:s14}}</button><button class="btn ghost sm icon" title="Text size and theme">Aa</button></div>
+    <div class="ed">{{code:guess}}</div>
+    <div class="shell">
+      <div class="sh"><span class="ctab on" style="display:inline-flex;gap:6px;align-items:center;font-weight:600;font-size:12.5px;padding:0 8px">{{i:term:s14}} Shell</span><span class="ctab" style="display:inline-flex;gap:6px;align-items:center;color:var(--tx-2);font-size:12.5px;padding:0 8px">{{i:plot:s14}} Plotter</span><span class="spacer"></span><button class="btn ghost sm">Clear</button></div>
+<div class="sb"><div><span class="sys">Python 3.13.18 · running guess.py in Documents/Python</span>
+I'm thinking of a number from 1 to 10.
+Your guess: <span class="me">5</span>
+Higher!
+Your guess: <span class="me">8</span>
+Lower!
+Your guess: <span class="me">7</span>
+Yes! 7 in 3 tries.
+<span class="sys">guess.py ended. Its names are still here: type Python and press Enter.</span>
+<span class="p">&gt;&gt;&gt;</span> secret, tries
+(7, 3)
+<span class="p">&gt;&gt;&gt;</span> tries * 2
+6</div></div>
+      <div class="prompt"><b>&gt;&gt;&gt;</b><span class="field" style="flex:1;height:30px"><span class="ph">Type Python and press Enter</span></span></div>
+    </div>
+  </div>
+  <div class="statusbar"><span class="st"><span class="dot" style="background:var(--tx-3)"></span>Ended</span><span>Python 3.13.18 (MicroLab)</span><span>3 libraries installed</span><span class="spacer"></span><span>Ln 9, Col 33</span><span>UTF-8 · spaces 4</span></div>
+</div>
+</body></html>

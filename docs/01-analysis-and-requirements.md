@@ -214,7 +214,7 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 | F-92 | **Run** (F5) runs the file in the editor with real **CPython 3**; the **shell** shows what it prints and errors in red, takes `input()`'s answers, and after the program its **`>>>`** has the program's names (as IDLE's *Run Module*); **Stop** (Ctrl+C) interrupts it; ↑ ↓ history, Tab completes | M |
 | F-93 | **turtle and tkinter** work as on a computer with Python: their windows open beside MicroLab and close with the program, or when Stop is pressed | M |
 | F-94 | **Friendly errors** for CPython's own messages (screen 05's way): the line marked, *What this means*, Go to line | S |
-| F-95 | **Libraries** (a Packages window): the ones installed, a search on PyPI, Install and Remove with `pip` when the internet is there; offline, install from a `.whl` file a teacher hands out. They go into MicroLab's own folder for Python, never into a Python installed on the computer, and every program sees them | M |
+| F-95 | **Libraries** (a Packages window): the ones installed; a library **looked up by its name** on PyPI (its version and summary — PyPI has no search for programs), or chosen from a short list of those often used in class; Install and Remove with `pip` when the internet is there; offline, install from a `.whl` file a teacher hands out. They go into MicroLab's own folder for Python, never into a Python installed on the computer, and every program sees them | M |
 | F-96 | The **Plotter** for numbers a Python 3 program prints (as M9's) | S |
 | F-97 | The editor knows Python 3: highlighting, indentation, completions of names and of the libraries installed (Jedi, shipped) | S |
 

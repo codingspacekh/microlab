@@ -548,3 +548,31 @@ textarea.area, .area { min-height: 72px; border: 1px solid var(--line-strong); b
 .pinkinds i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .lmain { position: relative; }
 .play svg.scene { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+
+/* ---------- Python 3 (M12 design, Rev 10) ---------- */
+.pycard { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
+.pyicon { width: 26px; height: 26px; border-radius: 7px; background: #1f2937; color: #ffd43b; font-family: var(--mono); font-size: 12px; font-weight: 700; display: inline-grid; place-items: center; }
+.pycard .gh { font-size: 11px; font-weight: 650; color: var(--tx-3); text-transform: uppercase; letter-spacing: .05em; padding: 0 2px 4px; }
+.pycard .pitem .nm small { display: block; color: var(--tx-3); font-size: 11px; }
+.pyfile { display: flex; flex-direction: column; margin-left: 14px; padding-left: 14px; border-left: 1px solid var(--line); line-height: 1.25; }
+.pyfile b { font-size: 13.5px; } .pyfile span { font-size: 11.5px; color: var(--tx-3); font-family: var(--mono); }
+.pyscreen { flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+.pyscreen .tabs { display: flex; align-items: center; gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--line); height: 38px; flex: none; }
+.pyscreen .tabs a { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px; font-family: var(--mono); font-size: 12.5px; color: var(--tx-2); border-bottom: 2px solid transparent; }
+.pyscreen .tabs a.on { color: var(--tx-1); border-bottom-color: var(--accent); }
+.pyscreen .tabs a .dirty { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+.pyscreen .ed { flex: 1 1 58%; min-height: 0; overflow: hidden; padding: 8px 0; font-family: var(--mono); font-size: 13px; line-height: 21px; }
+.pyscreen .ed .ln .no { width: 44px; }
+.pyscreen .shell { flex: 1 1 42%; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.pyscreen .shell .sh { display: flex; align-items: center; gap: 4px; padding: 0 10px; height: 36px; border-bottom: 1px solid var(--line); flex: none; }
+.pyscreen .shell .sb { flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 8px 14px; font-family: var(--mono); font-size: 12.5px; line-height: 19px; white-space: pre-wrap; color: var(--tx-1); }
+.pyscreen .shell .sb .sys { color: var(--tx-3); } .pyscreen .shell .sb .me { color: var(--accent-ink); font-weight: 600; } .pyscreen .shell .sb .err { color: var(--danger); }
+.pyscreen .shell .sb .p { color: var(--tx-3); }
+.pyscreen .shell .prompt { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 12.5px; }
+.oswin { position: absolute; border-radius: 10px; box-shadow: 0 22px 60px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.25); }
+.pkgs .pk { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.pkgs .pk:last-child { border-bottom: 0; }
+.pkgs .pk b { font-family: var(--mono); font-size: 13px; }
+.pkgs .pk .v { color: var(--tx-3); font-family: var(--mono); font-size: 11.5px; }
+.pkgs .pk .d { color: var(--tx-2); flex: 1; min-width: 0; }
+.pipout { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-family: var(--mono); font-size: 11.5px; line-height: 17px; color: var(--tx-2); white-space: pre-wrap; }

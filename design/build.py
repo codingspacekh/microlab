@@ -28,6 +28,7 @@ ROOT = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 import scenes  # noqa: E402
 import learnfigs  # noqa: E402
+import pyfigs  # noqa: E402
 from svgparts import icon_svg, PICO_B, PICO_T  # noqa: E402
 
 SRC = ROOT / "src"
@@ -571,6 +572,9 @@ BUILTINS = {"print", "range", "int", "str", "float", "len", "min", "max", "abs",
 TOK = re.compile(r"(#.*$)|(\"[^\"]*\"|'[^']*')|(\b\d+(?:\.\d+)?\b)|([A-Za-z_]\w*)|(⟨caret⟩)|(⟦|⟧)|(.)", re.S)
 
 
+CODE.update(pyfigs.CODES)
+
+
 def hl(line: str) -> str:
     out = []
     for m in TOK.finditer(line):
@@ -768,7 +772,7 @@ def examples() -> str:
 
 
 # ---------------------------------------------------------------- template engine
-GENERATORS = {"fig": learnfigs.fig, "scene": scenes.scene, "code": code, "parts": parts, "part": part, "pinout": pinout, "picov": picov,
+GENERATORS = {"pyfig": pyfigs.fig, "fig": learnfigs.fig, "scene": scenes.scene, "code": code, "parts": parts, "part": part, "pinout": pinout, "picov": picov,
               "examples": examples}
 TAG = re.compile(r"\{\{(include|i|" + "|".join(GENERATORS) + r")(?::([^}]*))?\}\}")
 
