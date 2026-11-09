@@ -1,16 +1,26 @@
-# Dormant until the repository is pushed (MILESTONES §4.3); `npm run check` is the gate locally.
+# The check on GitHub (MILESTONES §4.3): `npm run check` and the e2e tests on macOS and Windows 11, for every push to
+# main or dev and every pull request — the same gate as on the teacher's Mac, and the first run on Windows (N-06).
+# Releases are the Release workflow's (a version tag), not this one's.
 name: check
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
 jobs:
   check:
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      MICROLAB_HIDDEN: '1'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      - name: The Python 3.13 and Jedi MicroLab ships (checked by hash)
+        run: npm run fetch:python
       - run: npm run check
       - run: npx playwright test
