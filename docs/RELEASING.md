@@ -40,6 +40,14 @@ if the student turned that on), and puts it in on **Restart and update** or when
    then **publish** it. Every installed MicroLab sees it within 6 hours, or at its next start. A bad release is put
    right by the next one.
 
+## A test installer (no release)
+
+To try MicroLab on a real school computer before a release (M11.5: Windows 10, Core i5, 4 GB):
+`git push origin dev:installer` — the *installer* workflow builds the same Windows installer as a release, and keeps
+it with the run for 14 days (**Actions ▸ installer ▸ the run ▸ Artifacts ▸ MicroLab-test-installer-windows-x64**).
+Nothing is published, and installed MicroLabs don't see it. Once the workflow is on `main`, **Run workflow** on its
+page does the same.
+
 ## Locally
 
 - `npm run icon` — the app icon (`build/icon.png`) from the logo.

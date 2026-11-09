@@ -65,6 +65,10 @@ export interface CircuitLink {
 export const RP2040_RESET: PinState = { mode: 'reset', pull: 'down', out: 0 };
 
 export class PinBank {
+  /** Every change kept in the traces below (the tests, the acceptance suite); the app's runs turn it off (M11.5): they
+   *  hear each change through onLevel, and a fast loop would fill the memory. `trace` still takes the levels a circuit
+   *  hasn't read yet. */
+  recording = true;
   readonly trace: TraceEntry[] = [];
   /** Told of every output level change, as it is traced (the window draws the Pico W's own LED, M4.5). */
   onLevel?: (pin: string, level: number) => void;
@@ -181,7 +185,7 @@ export class PinBank {
     }
     if (before === volts) return;
     this.analogOut.set(pin, volts);
-    this.analogTrace.push([this.now(), pin, volts]);
+    if (this.recording) this.analogTrace.push([this.now(), pin, volts]);
   }
 
   /** Is a finger on the pin (touch sensing)? */
@@ -197,12 +201,12 @@ export class PinBank {
     if (duty < 0) {
       if (!before) return;
       this.pwm.delete(pin);
-      this.pwmTrace.push([this.now(), pin, before.freq, 0]);
+      if (this.recording) this.pwmTrace.push([this.now(), pin, before.freq, 0]);
       return;
     }
     if (before && before.freq === freq && before.duty === duty) return;
     this.pwm.set(pin, { freq, duty });
-    this.pwmTrace.push([this.now(), pin, freq, duty]);
+    if (this.recording) this.pwmTrace.push([this.now(), pin, freq, duty]);
   }
 
   /** When the next scripted input change is due (µs), or Infinity: a sleep wakes for it. */
@@ -304,7 +308,9 @@ export class PinBank {
     if (now === 0) this.falls.set(pin, (this.falls.get(pin) ?? 0) + 1);
     const s = this.get(pin);
     if (s.mode === 'out' || s.mode === 'od') {
-      this.trace.push([this.now(), pin, now]);
+      // the circuit reads its edges from here too (an HC-SR04's trigger, a DS1302's clock), and drops them once read
+      // when nothing records (M11.5)
+      if (this.recording || this.circuit) this.trace.push([this.now(), pin, now]);
       this.onLevel?.(pin, now);
     }
     const irq = this.irqs.get(pin);

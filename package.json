@@ -31,7 +31,8 @@
     "art": "python3 scripts/export-art.py",
     "perf": "vitest run --project perf --reporter=verbose --silent=false",
     "golden": "node scripts/record-golden.mjs",
-    "examples": "node scripts/pack-examples.mjs"
+    "examples": "node scripts/pack-examples.mjs",
+    "old-projects": "node scripts/old-projects.mjs"
   },
   "dependencies": {
     "electron-updater": "^6.8.11",

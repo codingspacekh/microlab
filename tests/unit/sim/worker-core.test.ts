@@ -40,6 +40,10 @@ describe('M2.8 the worker\'s run: output batched to ≤ 60 a second, then the en
     expect(parts.length).toBeLessThan(200 / 4);
     expect(parts.at(-1)!.states['led1']!.brightness).toBeGreaterThan(0.2);   // it ends lit
     expect(posts.at(-1)).toMatchObject({ type: 'end' });
+    // M11.5: the result sent at the end carries no record of the 200 toggles (the window drew them as they came)
+    const end = posts.at(-1) as { result: { trace: unknown[]; parts: unknown[] } };
+    expect(end.result.trace).toEqual([]);
+    expect(end.result.parts).toEqual([]);
   });
 
   it('M4.5: the entry file is run; pin levels and display frames are batched, the latest of each', async () => {

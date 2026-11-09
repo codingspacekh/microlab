@@ -117,6 +117,8 @@ export class CircuitHost {
   private solution: Solution | undefined;
   private dirty = true;
   faults: Fault[] = [];
+  /** Every part state kept in partTrace (the tests); the app's runs hear them through onChange (M11.5). */
+  recording = true;
   readonly partTrace: PartTraceEntry[] = [];
   /** Told of every change of a part's state (the worker batches them for the window). */
   onChange?: (entry: PartTraceEntry) => void;
@@ -549,6 +551,11 @@ export class CircuitHost {
         this.echoes.set(part.id, e);
       }
     }
+    // nothing records the levels (the app, M11.5): the ones read are dropped, so the trace holds only what's new
+    if (!this.pins.recording && this.traceSeen > 0) {
+      trace.splice(0, this.traceSeen);
+      this.traceSeen = 0;
+    }
   }
 
   private readonly chips = new Map<string, I2CDevice>();
@@ -973,7 +980,7 @@ export class CircuitHost {
       : JSON.stringify(view) === JSON.stringify(before));
     if (same) return;
     const entry: PartTraceEntry = [t, id, view];
-    this.partTrace.push(entry);
+    if (this.recording) this.partTrace.push(entry);
     this.onChange?.(entry);
   }
 

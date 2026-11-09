@@ -85,6 +85,8 @@ export async function handleStart(
     entry: msg.entry,
     circuit: msg.circuit,
     control,
+    // the window draws each change as it comes: no record of them all (M11.5 — a fast loop filled the memory)
+    record: false,
     // a sleep sends what is waiting once a frame has passed: a note (an LED) set just after a send is shown while the
     // program sleeps, not only at its next change
     clock: new RealClock({ wait: (ms) => { maybeFlush(); control.wait(ms); } }),

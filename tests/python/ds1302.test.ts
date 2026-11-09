@@ -75,6 +75,15 @@ describe('M6.5b the DS1302 clock, pin by pin', () => {
     expect(r.faults).toEqual([]);
   });
 
+  it('M11.5: the same in the app, where nothing records the pins (record: false) — the clock reads its edges as they come', async () => {
+    const r = await runProject(await nodeLoader(), {
+      board: 'pico-w', clock: new VirtualClock(), circuit: rtc('pico-w', 'GP13', 'GP14', 'GP15', '3V3'), record: false,
+      files: { 'main.py': `${DRIVER}set_time(26, 12, 31, 23, 59, 50)\nprint(now())\ntime.sleep(12)\nprint(now())\n` },
+    });
+    expect(lines(r)).toEqual(['[26, 12, 31, 23, 59, 50]', '[27, 1, 1, 0, 0, 2]']);
+    expect(r.trace.length).toBeLessThan(10);   // only what the circuit hasn't read yet
+  });
+
   it('CH set: the clock stands still; WP set: writes are ignored', async () => {
     const r = await run('pico-w', rtc('pico-w', 'GP13', 'GP14', 'GP15', '3V3'), [
       DRIVER, 'set_time(26, 1, 1, 8, 0, 0)', 'put(0x80, 0x80 | bcd(10))', 'time.sleep(3)', 'print(hex(get(0x80)))',
