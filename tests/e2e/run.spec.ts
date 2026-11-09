@@ -554,8 +554,9 @@ test('M7.5 (screens 28, 28d): a USB-serial adapter dropped below the Pico W, wir
     await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   }
   await expect(win.locator('[data-wire]')).toHaveCount(3);
+  // a dot every half second: what the terminal reads at the wrong rate shows while the program still runs
   await setCode(win, ['from machine import UART, Pin', 'import time', 'u = UART(0, 9600, tx=Pin(0), rx=Pin(1))', "u.write('Hello! Type on or off.\\r\\n')",
-    'while True:', '    if u.any():', "        u.write('got ' + u.readline().decode())", '    time.sleep_ms(20)', ''].join('\n'));
+    'n = 0', 'while True:', '    if u.any():', "        u.write('got ' + u.readline().decode())", '    n += 1', '    if n % 25 == 0:', "        u.write('.')", '    time.sleep_ms(20)', ''].join('\n'));
   await win.getByRole('button', { name: 'Run main.py' }).click();
   const term = win.getByRole('group', { name: 'USB1 serial terminal' });
   await expect(term.getByLabel('What USB1 received')).toContainText('Hello! Type on or off.', { timeout: 5000 });
@@ -566,9 +567,9 @@ test('M7.5 (screens 28, 28d): a USB-serial adapter dropped below the Pico W, wir
   // screen 28d: the terminal at 115200 — what comes next is garbage, and the card says why
   await term.getByRole('combobox', { name: 'USB1 baud rate' }).click();
   await win.getByRole('option', { name: '115200 baud' }).click();
+  await expect(term).toContainText('Garbled? The board sends at 9600 baud; this terminal reads 115200.', { timeout: 5000 });
   await term.getByRole('textbox', { name: 'Send from USB1' }).fill('off');
   await term.getByRole('button', { name: 'Send' }).click();
-  await expect(term).toContainText('Garbled? The board sends at 9600 baud; this terminal reads 115200.', { timeout: 5000 });
   // and the board read garbage of what the terminal sent at 115200: decode() fails, as on the real one
   await expect(win.locator('.console')).toContainText('UnicodeError', { timeout: 5000 });
 });

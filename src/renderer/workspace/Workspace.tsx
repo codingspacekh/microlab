@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { BoardId } from '@lib/boards';
 import { faultCards, type FaultCard } from '@lib/circuit';
+import type { CheckItem } from '@lib/project';
 import { boardData, completeAt, EMPTY_HISTORY, PART_KINDS, record, type History } from '@lib/editor';
 import { microbitAlone, onGpioBoard, spaceNote, type ProjectDoc } from '@lib/project';
 import { Console, type BoardConsoleView, type ConsoleTab } from '../console/Console';
@@ -16,6 +17,8 @@ import type { MicrolabApi } from '../app/api';
 import { boardName, boardPicture } from '../app/boards';
 import { BREADBOARD_TYPE, Canvas, GPIO_BOARD_TYPE, type Placing, type Selection } from './Canvas';
 import { FilesPanel, type FilesAsk } from './FilesPanel';
+import { CheckCard, checkProblem } from './check';
+import type { ProblemItem } from './faults';
 import { Inspector } from './Inspector';
 import { BreadboardIcon, PartIcon } from './drawings';
 import './workspace.css';
@@ -56,6 +59,9 @@ export interface WorkspaceProps {
   onReplace?: (led: string) => void;
   /** Problems' Clear (M9). */
   onClearFaults?: () => void;
+  /** The check before running (M9 slice 3, screen 29b): what it found, live until fixed (in Problems); `open` while
+   *  its card asks before a run. */
+  check?: { items: CheckItem[]; open: boolean; enabled: boolean; onEnabled: (on: boolean) => void; onRunAnyway: () => void; onCancel: () => void };
   /** Over the canvas while the real board runs: the simulator is stopped, the board must be wired like this. */
   banner?: ReactNode;
   /** The circuit's undo / redo (M5.1, F-16), kept by the app with the open project (its top bar has the buttons). */
@@ -80,7 +86,7 @@ const IDLE_RUN: Pick<RunState, 'parts' | 'board'> = { parts: {}, board: { pins: 
 
 export function Workspace({
   api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, onConsoleTab, banner, onType, onSoftReset,
-  onReplace, onClearFaults, history = EMPTY_HISTORY, onHistory, onUndo, onRedo, file = 'main.py', onFile, runFile = file,
+  onReplace, onClearFaults, check, history = EMPTY_HISTORY, onHistory, onUndo, onRedo, file = 'main.py', onFile, runFile = file,
 }: WorkspaceProps) {
   const { ref, width } = useWidth(fixed);
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
@@ -195,11 +201,15 @@ export function Workspace({
   useEffect(() => { if (run.ended?.ended === 'fault') setProblemsTab(true); }, [run.ended]);
   useEffect(() => { if (running) setProblemsTab(false); }, [running]);
   /** Show (Problems): the canvas brings the part or pin into view and rings it; a part is selected. */
-  const [focus, setFocus] = useState<{ part?: string; pin?: string; n: number }>();
-  const show = (c: FaultCard) => {
-    setFocus({ ...c.show, n: (focus?.n ?? 0) + 1 });
-    if (c.show.part && !running) setSelection([{ kind: 'part', id: c.show.part }]);
+  const [focus, setFocus] = useState<{ part?: string; pin?: string; point?: string; n: number }>();
+  /** Show: a part, a pin or a hole rung on the canvas; a pin the code uses — its line in the editor (screen 29b). */
+  const show = (c: Pick<ProblemItem, 'show'>) => {
+    const { line, ...at } = c.show;
+    if (line && !at.part && !at.point) { goToLine(line.file, line.line); return; }
+    setFocus({ ...at, n: (focus?.n ?? 0) + 1 });
+    if (at.part && !running) setSelection([{ kind: 'part', id: at.part }]);
   };
+  const problemItems: ProblemItem[] = [...cards, ...(check?.items ?? []).map(checkProblem)];
   const keep = (h: History) => onHistory?.(h);
   // what was selected may be gone (an undo, a redo)
   useEffect(() => {
@@ -326,6 +336,10 @@ export function Workspace({
         onChange={(v) => setDrag({ parts: v })} onCommit={commit('parts')} />
         </div>
         )}
+        {check?.open && check.items.length > 0 && (
+          <CheckCard items={check.items} enabled={check.enabled} onEnabled={check.onEnabled} onShow={show}
+            onRunAnyway={check.onRunAnyway} onCancel={check.onCancel} />
+        )}
         {(banner ?? errorBanner) && <div className={`cbanner${banner ? '' : ' error'}`} role={banner ? undefined : 'note'}>{banner ?? errorBanner}</div>}
         {selection.length === 1 && (
           <Inspector key={`${selection[0]!.kind}:${selection[0]!.id}`} project={project} selection={selection[0]!} onChange={setProject} onClose={() => setSelection([])} onSelect={setSelection}
@@ -384,7 +398,7 @@ export function Workspace({
         {libraries && <AddLibrary doc={doc} onDoc={onChange} onCopy={(t) => void api.app.copy(t)} onClose={() => setLibraries(false)} />}
         <Console chunks={run.console} running={running} entry={runFile} onClear={onClearConsole} board={realBoard}
           tab={problemsTab ? 'problems' : consoleTab} onTab={(t: ConsoleTab) => { setProblemsTab(t === 'problems'); if (t !== 'problems') onConsoleTab?.(t); }}
-          problems={{ cards, onShow: show, ...(onReplace ? { onReplace } : {}), onClear: () => onClearFaults?.() }}
+          problems={{ cards: problemItems, onShow: show, ...(onReplace ? { onReplace } : {}), onClear: () => onClearFaults?.() }}
           repl={run.repl} onType={onType} onSoftReset={onSoftReset} onGoTo={goToLine}
           complete={(line, pos) => {
             // as the editor offers them, after main.py's code: its imports and names count

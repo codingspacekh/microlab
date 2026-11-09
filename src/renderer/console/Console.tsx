@@ -1,11 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import type { FaultCard } from '@lib/circuit';
 import type { Explanation } from '@lib/errors';
 import type { ConsoleState } from '@lib/repl';
 import { Icon } from '../ui/Icon';
 import { TextField } from '../ui';
 import type { ConsoleChunk } from '../app/useRun';
-import { ProblemsList } from '../workspace/faults';
+import { ProblemsList, type ProblemItem } from '../workspace/faults';
 import './console.css';
 
 /**
@@ -43,7 +42,7 @@ export interface ConsoleProps {
   tab?: ConsoleTab;
   onTab?: (tab: ConsoleTab) => void;
   /** Problems (M9 slice 2, F-24): the circuit's faults in the last run, each with Show; Clear empties them. */
-  problems?: { cards: FaultCard[]; onShow: (card: FaultCard) => void; onReplace?: (led: string) => void; onClear: () => void };
+  problems?: { cards: ProblemItem[]; onShow: (item: ProblemItem) => void; onReplace?: (led: string) => void; onClear: () => void };
   /** The program has ended and its REPL waits (M9, F-23, screen 29c). */
   repl?: boolean;
   /** A line typed — input()'s answer, a line for the REPL — or '\x03' for Ctrl+C (M9). */

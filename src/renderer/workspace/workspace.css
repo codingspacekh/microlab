@@ -278,3 +278,17 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .canvas .focus-ring { fill: none; stroke: var(--accent); stroke-width: 3; animation: focus-ring 0.9s ease-out 3; }
 @keyframes focus-ring { from { stroke-opacity: 1; r: 12; } to { stroke-opacity: 0.15; r: 30; } }
 @media (prefers-reduced-motion: reduce) { .canvas .focus-ring { animation: none; } }
+
+/* ---------- M9 slice 3: the check before running (screen 29b) ---------- */
+.canvas .check-card { z-index: 7; top: 12px; left: 50%; transform: translateX(-50%); width: min(460px, calc(100% - 24px)); padding: 12px 14px; font-size: 12.5px; line-height: 1.45; border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+.check-card .fh { display: flex; align-items: center; gap: 8px; }
+.check-card .fh > .ico { color: var(--warn); flex: none; }
+.check-card ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.check-card li { display: flex; align-items: flex-start; gap: 8px; }
+.check-card li > .ico { color: var(--warn); flex: none; margin-top: 2px; }
+.check-card li .tx { flex: 1; min-width: 0; color: var(--tx-2); }
+.check-card li .tx b { color: var(--tx-1); }
+.check-card li .btn { flex: none; }
+.check-card .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.check-card .row .spacer { flex: 1; }
+.check-card .row .crow { padding: 0; }

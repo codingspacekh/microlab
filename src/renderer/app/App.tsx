@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { NewProjectBoard } from '@lib/boards';
-import { newProject, onGpioBoard, runTarget, type ProjectDoc } from '@lib/project';
+import { checkBeforeRun, newProject, onGpioBoard, runTarget, type ProjectDoc } from '@lib/project';
 import { boardData, EMPTY_HISTORY, redo, undo, type History } from '@lib/editor';
 import { faultCards, faultSummary, stoppedBy } from '@lib/circuit';
 import { Icon, Logo } from '../ui/Icon';
@@ -90,17 +90,48 @@ export function App({ api, width, startRun, audio }: AppProps) {
   }, [circuit, atRepl, endRepl]);
   // what Run runs (F-22, Q19): the file in the editor, as Thonny does; main.py from its menu
   const target = open ? runTarget(open.doc.files, open.file ?? 'main.py', open.lastRun) : 'main.py';
-  const runFile = (entry: string) => {
+  // M9 slice 3 (F-18, screen 29b): Run first looks over the circuit and the code — unless the student turned it off
+  const [checkOn, setCheckOn] = useState(true);
+  useEffect(() => {
+    let live = true;
+    void api.settings.get('check.beforeRun').then((v) => { if (live && v === false) setCheckOn(false); });
+    return () => { live = false; };
+  }, [api]);
+  const turnCheck = (on: boolean) => { setCheckOn(on); void api.settings.set('check.beforeRun', on); };
+  /** The check's card is open before running this file; `checked`: it found something, listed until it is fixed. */
+  const [checking, setChecking] = useState<string | null>(null);
+  const [checked, setChecked] = useState(false);
+  const checkOf = (o: OpenProject, entry: string) => {
+    try { return checkBeforeRun(o.doc.project, boardData(o.doc.project.board as BoardId), o.doc.files, entry); } catch { return []; }
+  };
+  const checkItems = useMemo(() => (open && (checked || checking) ? checkOf(open, checking ?? target) : []),
+    [open?.doc, checked, checking, target]);
+  useEffect(() => {
+    if (checked && checkItems.length === 0) { setChecked(false); setChecking(null); }
+  }, [checked, checkItems]);
+  const runNow = (entry: string) => {
     if (!open) return;
+    setChecking(null);
     setOpen((cur) => (cur ? { ...cur, lastRun: entry } : cur));
     if (open.doc !== open.saved) keepCopy(open);   // a run is a moment worth keeping (F-03)
     sim.run(open.doc, entry, boardOf(open));
+  };
+  const runFile = (entry: string) => {
+    if (!open) return;
+    if (checkOn && checkOf(open, entry).length > 0) {
+      setChecking(entry);
+      setChecked(true);
+      return;
+    }
+    runNow(entry);
   };
   const runControls: RunControls = {
     state: sim.state,
     target,
     onRun: () => runFile(target),
     onRunMain: () => runFile('main.py'),
+    checkOn,
+    onCheckOn: turnCheck,
     onStop: sim.stop,
     onRestart: () => sim.restart(() => latest.current!.doc),
   };
@@ -328,6 +359,8 @@ export function App({ api, width, startRun, audio }: AppProps) {
         run={sim.state} running={running} onInput={sim.setInput} onClearConsole={sim.clear}
         onType={sim.type} onSoftReset={() => sim.restart(() => latest.current!.doc)}
         onReplace={sim.replace} onClearFaults={sim.clearFaults}
+        check={{ items: checkItems, open: !!checking && !running, enabled: checkOn, onEnabled: turnCheck,
+          onRunAnyway: () => runNow(checking ?? target), onCancel: () => setChecking(null) }}
         consoleTab={bc.tab} onConsoleTab={bc.setTab}
         board={bc.shown ? {
           label: `${bc.shown.name} (USB)`, name: bc.shown.name, chunks: bc.chunks, ...(bc.state ? { state: bc.state } : {}),
@@ -360,7 +393,8 @@ export function App({ api, width, startRun, audio }: AppProps) {
         } : undefined} />
       {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
       {page}
-      <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} board={boardRuns} sound={sound} />
+      <StatusBar project={open && mode === 'workspace' ? open : null} run={sim.state} board={boardRuns} sound={sound}
+        check={{ count: checkItems.length, asking: !!checking && !running }} />
       <div className="toasts">
         {sent && (
           <div className="toast sent" role="status" aria-live="polite">
@@ -445,6 +479,9 @@ interface RunControls {
   onRunMain: () => void;
   onStop: () => void;
   onRestart: () => void;
+  /** The check before running is on (M9 slice 3): Run's ⌄ menu turns it on and off. */
+  checkOn: boolean;
+  onCheckOn: (on: boolean) => void;
 }
 
 const MOD = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+';
@@ -508,6 +545,8 @@ function RunBox({ run }: { run: RunControls }) {
           </button>
           <MenuButton label="More ways to run" className="split" items={[
             { label: 'Run main.py', icon: 'play', description: 'As when the board is switched on: main.py is the file a board runs by itself.', onSelect: run.onRunMain },
+            { label: 'Check before running', checked: run.checkOn, onSelect: () => run.onCheckOn(!run.checkOn),
+              description: 'Run first looks for a leg alone in its column, a wire that ends where nothing is, a pin the code uses with nothing on it.' },
           ]} />
         </span>
         <button type="button" className="btn icon" disabled title="Stop" aria-label="Stop"><Icon name="stop" size={14} /></button>
@@ -547,7 +586,7 @@ function Notice({ text, onDismiss }: { text: string; onDismiss: () => void }) {
   );
 }
 
-function StatusBar({ project, run, board, sound }: { project: OpenProject | null; run: RunState; board?: string; sound: { muted: boolean; toggle: () => void } }) {
+function StatusBar({ project, run, board, sound, check }: { project: OpenProject | null; run: RunState; board?: string; sound: { muted: boolean; toggle: () => void }; check?: { count: number; asking: boolean } }) {
   const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
   const p = project?.doc.project;
   const e = run.ended;
@@ -561,7 +600,9 @@ function StatusBar({ project, run, board, sound }: { project: OpenProject | null
   const damage = e?.ended === 'fault' && e.fault ? cards.find((c) => c.key === `${e.fault!.kind}:${e.fault!.on}`) : undefined;
   const summary = faultSummary(cards);
   const hurt = cards.some((c) => c.severity === 'damage');
-  const left = run.status === 'running' ? <span className="st running"><span className="dot" />Running at real speed</span>
+  const things = (n: number) => `${n} thing${n === 1 ? '' : 's'} to look at`;
+  const left = check?.asking && check.count ? <span className="st warn">Checked before running: {things(check.count)}</span>
+    : run.status === 'running' ? <span className="st running"><span className="dot" />Running at real speed</span>
     : run.status === 'stopping' ? <span className="st">Stopping…</span>
     : e?.ended === 'error' ? <span className="st bad">Stopped: an error{e.error?.line ? ` on line ${e.error.line}` : ''}</span>
     : e?.ended === 'fault' ? <span className="st bad">{damage ? stoppedBy(damage) : 'Stopped: the circuit was damaged'}</span>
@@ -598,6 +639,7 @@ function StatusBar({ project, run, board, sound }: { project: OpenProject | null
         </button>
       )}
       <span className="r">
+        {!!check?.count && <span className="st warn"><Icon name="warn" size={12} /> Wiring check: {check.count} to look at</span>}
         {summary && <span className={hurt ? 'st bad faults' : 'st warn faults'}><Icon name={hurt ? 'alert' : 'warn'} size={12} /> {summary}</span>}
         <span>{p ? `${BOARD_NAMES[p.board as keyof typeof BOARD_NAMES] ?? p.board}${onGpioBoard(p) ? ' + GPIO board' : ''} + ${count(p.parts.length, 'part')} · ${count(p.wires.length, 'wire')}` : 'MicroLab'}</span>
       </span>

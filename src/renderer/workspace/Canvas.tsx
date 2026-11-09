@@ -137,7 +137,7 @@ export interface CanvasProps {
   /** There is an edit to undo: a damage's card offers Undo (screen 25c). */
   canUndo?: boolean;
   /** Show (Problems): a part or pin brought into view and ringed; `n` makes each Show a new one. */
-  focus?: { part?: string; pin?: string; n: number };
+  focus?: { part?: string; pin?: string; point?: string; n: number };
 }
 
 /** `box` fitted into the part of a `w` × `h` canvas right of `inset` px, as a viewBox for the whole canvas; just
@@ -260,7 +260,8 @@ export function Canvas({
     if (!part) return [];
     return isFree(part.type) ? Object.keys(terminalsOf(scene, part)).map((t) => `${part.id}.${t}`).concat(Object.values(part.legs)) : Object.values(part.legs);
   };
-  const centreOf = (at: { part?: string; pin?: string }): Point | undefined => {
+  const centreOf = (at: { part?: string; pin?: string; point?: string }): Point | undefined => {
+    if (at.point) return pointAt(scene, at.point) ?? undefined;
     if (at.pin) return pinPoint(at.pin);
     const pts = at.part ? refsOf(at.part).map((r) => pointAt(scene, r)).filter((q): q is Point => !!q) : [];
     return pts.length ? { x: pts.reduce((t, q) => t + q.x, 0) / pts.length, y: pts.reduce((t, q) => t + q.y, 0) / pts.length } : undefined;

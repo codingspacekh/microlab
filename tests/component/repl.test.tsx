@@ -30,6 +30,9 @@ function setup() {
   render(<App api={fakeApi()} width={1440} startRun={sim.start} />);
   fireEvent.click(screen.getByRole('button', { name: 'New Pico W project' }));
   startBuilding();
+  // these programs use GP15 with nothing on it: the check before running (M9 slice 3) is turned off from Run's menu
+  fireEvent.click(screen.getByRole('button', { name: 'More ways to run' }));
+  fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /Check before running/ }));
   const editor = () => screen.getByRole('textbox', { name: 'main.py' });
   const log = () => screen.getByRole('log', { name: 'Console' });
   const run = (code = CODE) => {

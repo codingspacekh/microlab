@@ -17,6 +17,8 @@ export interface MenuItem {
   disabled?: boolean;
   /** Under the label, quieter: what it does (screen 16's Send menu). */
   description?: string;
+  /** A setting it turns on and off (M9: Check before running): ticked when on. */
+  checked?: boolean;
   onSelect: () => void;
 }
 
@@ -108,7 +110,8 @@ export function MenuButton({ label, icon = 'chevd', items, className, alignRight
             <li
               key={it.label}
               ref={(el) => { refs.current[i] = el; }}
-              role="menuitem"
+              role={it.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+              aria-checked={it.checked}
               tabIndex={-1}
               aria-disabled={it.disabled || undefined}
               aria-keyshortcuts={it.keys}
@@ -116,7 +119,8 @@ export function MenuButton({ label, icon = 'chevd', items, className, alignRight
               onMouseMove={() => enabled(i) && i !== hl && setHl(i)}
               onClick={() => choose(i)}
             >
-              {it.icon && <Icon name={it.icon} size={14} />}
+              {it.checked !== undefined ? (it.checked ? <Icon name="check" size={14} /> : <span className="ico-gap" aria-hidden="true" />)
+                : it.icon && <Icon name={it.icon} size={14} />}
               {it.description ? <span className="tx"><b>{it.label}</b><span className="dsc">{it.description}</span></span> : it.label}
               {it.hint && <small aria-hidden="true">{it.hint}</small>}
             </li>

@@ -93,8 +93,11 @@ test('F-02 / F-60: save with ⌘S / Ctrl+S, start again, open the file: the same
   expect((await win.locator('[data-wire="w1"]').getAttribute('data-via'))!.split(' ')).toHaveLength(2);
   await expect(win.getByRole('textbox', { name: 'main.py' })).toContainText('print("from the teacher")');
 
-  // and it runs as it was saved
+  // and it runs as it was saved — the check before running (M9 slice 3) sees the resistor's free end: Run anyway
   await win.getByRole('button', { name: 'Run main.py' }).click();
+  const check = win.getByRole('dialog', { name: 'Before it runs' });
+  await expect(check).toContainText("R1's leg is alone in column");
+  await check.getByRole('button', { name: 'Run anyway' }).click();
   await expect(win.getByRole('log', { name: 'Console' })).toContainText('from the teacher', { timeout: 5000 });
 });
 

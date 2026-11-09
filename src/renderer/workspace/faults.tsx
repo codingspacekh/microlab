@@ -51,8 +51,20 @@ export function FaultNote({ card, style, onClose }: { card: FaultCard; style?: C
   );
 }
 
-/** Problems (F-24, screens 04, 25c): each fault of the run, the damage first, with Show. */
-export function ProblemsList({ cards, onShow, onReplace }: { cards: FaultCard[]; onShow: (card: FaultCard) => void; onReplace?: (led: string) => void }) {
+/** What Problems lists: a fault of the run (a FaultCard) or a thing the check before running found (M9 slice 3). */
+export interface ProblemItem {
+  key: string;
+  severity: 'damage' | 'warning';
+  heading: string;
+  line: string;
+  show: { part?: string; pin?: string; point?: string; line?: { file: string; line: number } };
+  hurt?: { led?: string; pin?: string };
+  /** Its button: Show, or "Line 6". */
+  action?: string;
+}
+
+/** Problems (F-24, screens 04, 25c, 29b): each fault of the run, the damage first, and what the check found, with Show. */
+export function ProblemsList({ cards, onShow, onReplace }: { cards: ProblemItem[]; onShow: (item: ProblemItem) => void; onReplace?: (led: string) => void }) {
   if (!cards.length) return <span className="sys">No problems in the circuit. A part used wrongly — an LED with no resistor, a short, 5 V on a pin — shows here while it runs.</span>;
   const sorted = [...cards.filter((c) => c.severity === 'damage'), ...cards.filter((c) => c.severity !== 'damage')];
   return (
@@ -62,11 +74,11 @@ export function ProblemsList({ cards, onShow, onReplace }: { cards: FaultCard[];
           <Icon name={c.severity === 'damage' ? 'alert' : 'warn'} size={16} />
           <div className="pbody">
             <b>{c.heading}</b>
-            <span>{c.line}</span>
+            {c.line && <span>{c.line}</span>}
           </div>
           <span className="pacts">
             {c.hurt?.led && onReplace && <button type="button" className="btn ghost sm" onClick={() => onReplace(c.hurt!.led!)}>Replace</button>}
-            {(c.show.part || c.show.pin) && <button type="button" className="btn sm" aria-label={`Show: ${c.heading}`} onClick={() => onShow(c)}>Show</button>}
+            {(c.show.part || c.show.pin || c.show.point || c.show.line) && <button type="button" className="btn sm" aria-label={`${c.action ?? 'Show'}: ${c.heading}`} onClick={() => onShow(c)}>{c.action ?? 'Show'}</button>}
           </span>
         </li>
       ))}

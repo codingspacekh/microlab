@@ -142,3 +142,4 @@ body.dragging { cursor: pointer; user-select: none; }
 .dialog .dh { padding: 18px 20px 6px; display: flex; align-items: center; gap: 10px; }
 .dialog .db { padding: 8px 20px 16px; color: var(--tx-2); line-height: 1.5; font-size: 13px; }
 .dialog .df { padding: 12px 20px; border-top: 1px solid var(--line); display: flex; gap: 8px; align-items: center; background: var(--bg); border-radius: 0 0 14px 14px; }
+.mi .ico-gap { width: 14px; height: 14px; flex: none; display: inline-block; }
