@@ -7,8 +7,13 @@ process — never the student's program's. It answers, one JSON line each:
 line is 1-based, column 0-based (Jedi's). Jedi and parso come from --tools; MicroLab's libraries (--libs) are on the
 path it reads, so what is installed there completes too. Python's own modules are those of the Python this runs on.
 """
+import contextlib
+import importlib
+import io
+import inspect
 import json
 import os
+import re
 import sys
 
 _args = sys.argv[1:]
@@ -35,6 +40,60 @@ def short(text):
     return first[:DOC_CHARS] + ("…" if len(first) > DOC_CHARS else "")
 
 
+def plain(param):
+    """A parameter as students read it, without its type hint: 'x: tuple[float, float]' -> 'x', 'y: None=None' -> 'y=None'."""
+    text = param.to_string()
+    name = re.match(r"\s*(\*{0,2}\w*)", text).group(1)
+    default = re.search(r"=\s*(.+)$", text)
+    return name + ("=" + default.group(1).strip() if default and name and not name.startswith("*") else "")
+
+
+def call(sig):
+    """A call as students read it: name(a, b=1) — no type hints, no return type (typeshed's stubs have them)."""
+    return f"{sig.name}({', '.join(plain(p) for p in sig.params if p.name not in ('self', 'cls'))})"
+
+
+def explained(name):
+    """What a name does: its docstring — from the module itself when Jedi read a stub (stubs have none)."""
+    doc = name.docstring(raw=True)
+    if not doc.strip():
+        try:
+            for real in name.goto(follow_imports=True, prefer_stubs=False):
+                doc = real.docstring(raw=True)
+                if doc.strip():
+                    break
+        except Exception:
+            pass
+    if not doc.strip():
+        doc = from_python(name)
+    return short(doc)
+
+
+# Python's own modules whose import does something (opens a browser, prints): never imported for their explanations
+_LOUD = {"antigravity", "this", "idlelib", "turtledemo", "tkinter.__main__", "__main__", "pydoc", "webbrowser"}
+
+
+def from_python(name):
+    """The docstring a name of one of Python's own modules really has, read from the module imported: some are made
+    when the module runs (turtle's forward, goto… come from its classes), so neither the stub nor the code has it.
+    Never an installed library's: its code is not run here."""
+    module = name.module_name or ""
+    top = module.split(".")[0]
+    if not module or top not in getattr(sys, "stdlib_module_names", ()) or top in _LOUD or module in _LOUD:
+        return ""
+    full = name.full_name or ""
+    if not full.startswith(module + "."):
+        return ""
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):   # what an import prints never reaches the window's channel
+            obj = importlib.import_module(module)
+        for part in full[len(module) + 1:].split("."):
+            obj = getattr(obj, part)
+        return inspect.getdoc(obj) or ""
+    except Exception:
+        return ""
+
+
 def script(req):
     path = req.get("path") or None
     folder = os.path.dirname(path) if path and os.path.isabs(path) else os.getcwd()
@@ -44,9 +103,12 @@ def script(req):
 
 
 def complete(req):
+    lines = req.get("code", "").split("\n")
+    here = lines[req["line"] - 1][:req["column"]] if 0 < req["line"] <= len(lines) else ""
+    typed = re.search(r"\w*$", here).group(0)   # what is typed of the name, read from the code itself
     out = []
-    for i, c in enumerate(script(req).complete(req["line"], req["column"])):
-        if c.name.startswith("__") or (c.name.startswith("_") and not c.complete.startswith("_") and req.get("prefix", "") == ""):
+    for c in script(req).complete(req["line"], req["column"]):
+        if c.name.startswith("_") and not typed.startswith("_"):   # a module's own names: only when _ is typed
             continue
         item = {"name": c.name, "type": KINDS.get(c.type, "variable")}
         if len(out) < DOCS:
@@ -54,10 +116,10 @@ def complete(req):
             if c.type in ("function", "class"):
                 sigs = c.get_signatures()
                 if sigs:
-                    sig = sigs[0].to_string()
+                    sig = call(sigs[0])
                     params = [p for p in sigs[0].params if p.name not in ("self", "cls")]
                     item["call"] = "args" if params else "empty"
-            doc = short(c.docstring(raw=True)) if c.type != "keyword" else ""
+            doc = explained(c) if c.type != "keyword" else ""
             item["doc"] = (sig + "\n" + doc) if sig else doc
         elif c.type == "function":
             item["call"] = "args"
@@ -70,11 +132,11 @@ def signature(req):
     if not sigs:
         return None
     s = sigs[0]
-    params = [p.to_string() for p in s.params if p.name not in ("self", "cls")]
+    params = [plain(p) for p in s.params if p.name not in ("self", "cls")]
     active = s.index if s.index is not None else -1
     if s.params and s.params[0].name in ("self", "cls") and active > 0:
         active -= 1
-    return {"name": s.name, "params": params, "active": active, "doc": short(s.docstring(raw=True))}
+    return {"name": s.name, "params": params, "active": active, "doc": explained(s)}
 
 
 def main():

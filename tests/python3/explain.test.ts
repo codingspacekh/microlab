@@ -77,7 +77,8 @@ const CASES: [string, string, RegExp, number?][] = [
   // values
   ['int() of text that isn\'t a number', 'n = int(input())\n', /`int\(…\)` on line 1 got text that isn't a whole number \(`'abc'`\)/, 1],
   ['float() of text', 'x = float("ten")\n', /`float\(…\)` on line 1 got text that isn't a number/, 1],
-  ['too many to unpack', 'a, b = 1, 2, 3\n', /has 2 names, but the right gives 3 values/, 1],
+  // 3.14 says how many (got 3); 3.13 doesn't
+  ['too many to unpack', 'a, b = 1, 2, 3\n', /has 2 names, but the right gives (3|more) values/, 1],
   ['too few to unpack', 'a, b, c = 1, 2\n', /has 3 names, but the right gives only 2/, 1],
   ['the square root of a negative', 'import math\nmath.sqrt(-1)\n', /no answer for that number/, 2],
   ['remove what isn\'t there', 'items = [1]\nitems.remove(5)\n', /isn't in the list/, 2],
