@@ -6,7 +6,7 @@
 //   npm run release:mac -- --dry   build only, and list what would be added
 //
 // First push the tag (vX.Y.Z on the merge into main): the Release workflow makes the draft in the releases repo
-// (codingspacekh/microlab-releases: installers only — the code stays private) and adds Windows. This adds the Mac
+// (codingspacekh/microlab-releases: installers only; the code is in codingspacekh/microlab) and adds Windows. This adds the Mac
 // installers, their zips (what the updater downloads) and one latest-mac.yml for both chips. Nothing reaches a laptop
 // until the draft is published. Settings are read from ~/.microlab/release.env when it is there (CSC_NAME=…;
 // MICROLAB_RELEASES_REPO=… to use another repo); kept on this Mac, never in the project; anything already set wins.

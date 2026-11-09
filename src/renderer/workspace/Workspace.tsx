@@ -23,6 +23,7 @@ import type { ProblemItem } from './faults';
 import { Inspector } from './Inspector';
 import { BreadboardIcon, PartIcon } from './drawings';
 import { CONSOLE_MAX, CONSOLE_MIN, useBoardConsole } from './useBoardConsole';
+import { useBoardPanel } from './useBoardPanel';
 import './workspace.css';
 
 /**
@@ -115,12 +116,21 @@ export function Workspace({
   const [con, setCon] = useBoardConsole(api);
   const conRef = useRef(con);
   conRef.current = con;
+  // the board's side (the teacher, 2026-11-09): folded away for code alone — its button, Ctrl+B / ⌘B; a run, or the
+  // check before one, brings it back so the board is seen (the choice stays for next time)
+  const board = useBoardPanel(api);
+  const boardRef = useRef(board);
+  boardRef.current = board;
+  useEffect(() => {
+    if (running || check?.open) board.show();
+  }, [running, check?.open, board]);
   const sideRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const keys = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'j') return;
-      e.preventDefault();
-      setCon({ ...conRef.current, shown: !conRef.current.shown });
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+      const k = e.key.toLowerCase();
+      if (k === 'j') { e.preventDefault(); setCon({ ...conRef.current, shown: !conRef.current.shown }); }
+      else if (k === 'b') { e.preventDefault(); boardRef.current.choose(!boardRef.current.shown); }
     };
     window.addEventListener('keydown', keys);
     return () => window.removeEventListener('keydown', keys);
@@ -213,6 +223,8 @@ export function Workspace({
       const t = e.target as HTMLElement | null;
       if (t && (t.closest('input, textarea, [contenteditable="true"], .cm-editor') || t.isContentEditable)) return;
       e.preventDefault();
+      // the board folded away: P asks to build — it comes back, with its parts
+      if (!boardRef.current.shown) { boardRef.current.choose(true); setPartsOpen(true); return; }
       setPartsOpen((o) => !o);
     };
     window.addEventListener('keydown', key);
@@ -293,6 +305,7 @@ export function Workspace({
   });
   return (
     <div className="ws" ref={ref}>
+      {board.shown && (<>
       <nav className="rail" aria-label="Board and parts">
         <span className="rb static" title={boardName(project)}>
           <span className="pic"><img src={boardPicture(project)} alt="" draggable={false} /></span>Board
@@ -384,7 +397,8 @@ export function Workspace({
       </section>
       <Divider label="Code panel width" value={sidePx} min={LIMITS.side[0]} max={sideMax} edge="right"
         onChange={(v) => setDrag({ side: v })} onCommit={commit('side')} />
-      <section ref={sideRef} className="side" aria-label="Code" data-theme={lookOf['data-theme']} style={{ flexBasis: sidePx, ...lookOf.style }}>
+      </>)}
+      <section ref={sideRef} className={board.shown ? 'side' : 'side whole'} aria-label="Code" data-theme={lookOf['data-theme']} style={board.shown ? { flexBasis: sidePx, ...lookOf.style } : lookOf.style}>
         <div className="ftabs">
           <div className="tabs" role="tablist" aria-label="Files">
             {shownTabs.map((p) => (
@@ -400,6 +414,8 @@ export function Workspace({
             ))}
           </div>
           <span className="r">
+            <button type="button" className={`btn ghost sm icon${board.shown ? ' on' : ''}`} aria-pressed={board.shown} aria-label="The board"
+              title={`${board.shown ? 'Fold away' : 'Show'} the board and the circuit (${MOD_KEY}B)`} onClick={() => board.choose(!board.shown)}><Icon name="sidebar" size={14} /></button>
             <button type="button" className={`btn ghost sm icon${con.shown ? ' on' : ''}`} aria-pressed={con.shown} aria-label="The console"
               title={`${con.shown ? 'Hide' : 'Show'} the console (${MOD_KEY}J)`} onClick={() => setCon({ ...con, shown: !con.shown })}><Icon name="shellbelow" size={14} /></button>
             <EditorPrefs look={look} onLook={setLook} />

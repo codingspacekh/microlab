@@ -320,3 +320,5 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .side .cgrip::after { content: ""; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 28px; height: 2px; border-radius: 2px; background: var(--tx-3); opacity: .55; }
 .side .cgrip:hover, .side .cgrip.dragging, .side .cgrip:focus-visible { background: var(--accent-soft); outline: none; }
 .side .cgrip:hover::after, .side .cgrip.dragging::after, .side .cgrip:focus-visible::after { background: var(--accent); opacity: 1; }
+/* the board's side folded away (the teacher, 2026-11-09): the code takes the whole width */
+.ws .side.whole { flex: 1 1 auto; }
