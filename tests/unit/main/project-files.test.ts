@@ -67,6 +67,7 @@ describe('M4.6 F-02 saving a project file', () => {
 
   it('a folder that isn\'t there, or can\'t be written: a message naming the file, never a crash', async () => {
     expect(await saveProjectFile(join(dir, 'gone', 'x.mlab'), blink())).toEqual({ ok: false, message: '“x.mlab” can\'t be saved: its folder isn\'t there any more.' });
+    if (process.platform === 'win32') return;   // Windows ignores a folder's read-only mode (chmod): only Macs here
     const locked = join(dir, 'locked');
     mkdirSync(locked);
     chmodSync(locked, 0o500);

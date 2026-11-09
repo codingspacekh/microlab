@@ -79,7 +79,11 @@ describe('the runner', () => {
       const s = session();
       const r = await runToEnd(s, 'import helpers, os\nprint(open("data.txt").read().strip(), helpers.twice(21), os.path.basename(__file__))\n', [], join(dir, 'main.py'), dir);
       expect(r.out).toBe('apples 42 main.py\n');
-    } finally { rmSync(dir, { recursive: true, force: true }); }
+    } finally {
+      // Windows won't remove a folder that is a running Python's own: the Python first, then the folder
+      for (const x of sessions.splice(0)) x.kill();
+      rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+    }
   });
 
   it('libraries in MicroLab\'s own folder are importable; the computer\'s user site is not used', async () => {

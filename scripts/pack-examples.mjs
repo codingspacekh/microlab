@@ -13,6 +13,9 @@ const out = process.argv[2] ?? join(root, 'out/examples');
 const tree = (dir, base = dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
   e.isDirectory() ? tree(join(dir, e.name), base) : [relative(base, join(dir, e.name)).split(sep).join('/')]);
 
+/** A file or folder name every computer takes: Windows refuses < > : " / \ | ? * ("BBC micro:bit V2"). */
+const safeName = (s) => s.replace(/[<>:"/\\|?*]/g, '-');
+
 let count = 0;
 for (const id of readdirSync(examples).sort()) {
   for (const board of readdirSync(join(examples, id)).sort()) {
@@ -23,8 +26,8 @@ for (const id of readdirSync(examples).sort()) {
     const entries = { 'project.json': new Uint8Array(project) };
     for (const path of tree(join(dir, 'files'))) entries[`files/${path}`] = new Uint8Array(readFileSync(join(dir, 'files', path)));
     const boardName = JSON.parse(readFileSync(join(root, 'library/boards', board, 'board.json'), 'utf8')).name;
-    mkdirSync(join(out, boardName), { recursive: true });
-    writeFileSync(join(out, boardName, `${title.replaceAll('/', '-')}.mlab`), zipSync(entries));
+    mkdirSync(join(out, safeName(boardName)), { recursive: true });
+    writeFileSync(join(out, safeName(boardName), `${safeName(title)}.mlab`), zipSync(entries));
     count++;
   }
 }

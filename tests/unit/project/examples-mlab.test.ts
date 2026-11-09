@@ -27,7 +27,8 @@ describe('the examples packed as .mlab files', () => {
     const dir = join(root, id, board);
     const json = JSON.parse(readFileSync(join(dir, 'project.json'), 'utf8')) as { title: string };
     const name = JSON.parse(readFileSync(join(process.cwd(), 'library/boards', board, 'board.json'), 'utf8')).name as string;
-    const doc = readMlab(readFileSync(join(out, name, `${json.title.replaceAll('/', '-')}.mlab`)));
+    const safe = (s: string) => s.replace(/[<>:"/\\|?*]/g, '-');   // as the script: Windows refuses ':' in a name
+    const doc = readMlab(readFileSync(join(out, safe(name), `${safe(json.title)}.mlab`)));
     expect(doc.project.board).toBe(board);
     expect(doc.files['main.py']).toBe(readFileSync(join(dir, 'files', 'main.py'), 'utf8'));
   });

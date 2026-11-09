@@ -1,0 +1,16 @@
+# Text files are kept with LF on every computer: the tests compare files byte for byte (golden circuits, the library
+# pack's SHA-256s, the examples), and a Windows checkout would otherwise turn them into CRLF.
+* text=auto eol=lf
+
+# Never touched
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.wasm binary
+*.uf2 binary
+*.mlab binary
+*.zip binary

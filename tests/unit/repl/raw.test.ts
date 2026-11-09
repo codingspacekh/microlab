@@ -137,7 +137,8 @@ describe('M10.3 raw-paste mode (found on the teacher\'s micro:bit: bytes of a lo
 
   it('a long command goes in raw-paste mode, a window at a time: a board that drops what comes too fast gets it whole', async () => {
     const board = new FakeBoard({ preset: 'microbit-v2', lossy: true, exec: echo });
-    const repl = new RawRepl(board, quick);
+    // the board's answers given time (a busy Windows runner can take more than 60 ms): the windows are what's tested
+    const repl = new RawRepl(board, { pauseMs: 0, replyMs: 2000 });
     await repl.enter();
     expect((await repl.exec(long)).out).toBe('3000\r\n');
     expect((await repl.exec(long)).out).toBe('3000\r\n');

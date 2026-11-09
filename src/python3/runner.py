@@ -114,6 +114,17 @@ def _next():
 _HIDDEN = os.environ.get("MICROLAB_HIDDEN") == "1"
 
 
+def _beat(root):
+    """Tk's mainloop (turtle.done(), root.mainloop()) waits for the window's next event; on Windows a quiet window
+    may send none, so Ctrl+C would wait with it. A tick every 0.1 s lets Python notice the KeyboardInterrupt."""
+    def tick():
+        try:
+            root.after(100, tick)
+        except Exception:   # the window was closed
+            pass
+    tick()
+
+
 def _watch_tk():
     """Once tkinter is imported, each window it makes tells the window, and comes to the front — a window from
     another process can open behind MicroLab, where the student wouldn't see it (F-93, screen 31c)."""
@@ -135,6 +146,7 @@ def _watch_tk():
                 self.focus_force()
         except Exception:
             pass
+        _beat(self)
         send({"window": True})
 
     tk.Tk.__init__ = init
@@ -192,6 +204,13 @@ def _where(exc, file):
     last = list(traceback.TracebackException.from_exception(exc).format_exception_only())[-1].strip()
     message = last.split(": ", 1)[1] if ": " in last else str(exc)
     info = {"type": type(exc).__name__, "message": message, "file": file, "line": None}
+    # Windows says "Permission denied" for open() of a folder, where macOS says IsADirectoryError: the same mistake
+    if sys.platform == "win32" and isinstance(exc, PermissionError) and exc.filename is not None:
+        try:
+            if os.path.isdir(exc.filename):
+                info["type"] = "IsADirectoryError"
+        except (TypeError, ValueError):
+            pass
     if isinstance(exc, SyntaxError):
         info["message"] = exc.msg
         info["line"] = exc.lineno
