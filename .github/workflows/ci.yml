@@ -6,6 +6,14 @@ on:
   push:
     branches: [main, dev]
   pull_request:
+  # by hand (Actions ▸ check ▸ Run workflow, or `gh workflow run check --ref dev -f all_failures=true`): every e2e test
+  # runs to the end, to see all that fails at once
+  workflow_dispatch:
+    inputs:
+      all_failures:
+        description: Run every e2e test (no stop after 5 failures)
+        type: boolean
+        default: false
 jobs:
   check:
     strategy:
@@ -15,6 +23,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       MICROLAB_HIDDEN: '1'
+      # (by hand once this file is on main — GitHub offers Run workflow only from there; until then, and for any push,
+      # "[e2e all]" in the commit message does the same)
+      E2E_ALL_FAILURES: ${{ (inputs.all_failures || contains(github.event.head_commit.message, '[e2e all]')) && '1' || '' }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
