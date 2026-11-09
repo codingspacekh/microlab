@@ -522,6 +522,8 @@ export function App({ api, width, startRun, audio }: AppProps) {
 
   const actions = {
     onNewProject: () => guard(() => { sim.reset(); setOpen(null); setMode('workspace'); }),
+    // the teacher (2026-11-09): back to the Start page — its changes asked about first, as for any project closed
+    onCloseProject: () => guard(() => { sim.reset(); setOpen(null); setMode('workspace'); void refreshRecent(); }),
     onOpen: () => guard(() => void openFile()),
     onSave: () => void save(),
     onSaveAs: () => void save(true),
@@ -578,6 +580,15 @@ export function App({ api, width, startRun, audio }: AppProps) {
         py={pyProject ? {
           project: pyProject, ...(pyTab ? { tab: pyTab } : {}),
           onNew: () => guardPy(newPython), onOpen: () => guardPy(() => void openAny()), onSave: () => void savePy(), onSaveAs: () => void savePy(true),
+          onClose: () => guardPy(() => {
+            if (pyRunning) void pyRun.stop();
+            projectRef.current = null;
+            setPyProject(null);
+            setPy({ tabs: [], at: 0 });
+            setPyTree([]);
+            setMode('workspace');
+            void refreshRecent();
+          }),
           onShow: () => void api.projects.reveal(pyProject.root, ''), onLibraries: () => setLibsOpen(true),
           ...(pyTab ? { run: { state: pyRun.state, target: fileName(pyTab), keys: 'F5', onRun: () => runPy(), onStop: pyRun.stop, onRestart: () => runPy(true) } } : {}),
         } : undefined}
@@ -671,6 +682,8 @@ interface TopBarProps {
   onOpen: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  /** Close the project, back to the Start page (the teacher, 2026-11-09). */
+  onCloseProject: () => void;
   /** The real board's chip (F-55) and Send to board (F-50). */
   chip: React.ReactNode;
   /** Undo / redo of the circuit (screen 02b), in the workspace. */
@@ -680,7 +693,7 @@ interface TopBarProps {
   /** About MicroLab (M11, F-108): the logo opens it. */
   onAbout: () => void;
   /** The Python 3 mode (M12, screen 31b): the file shown, its menu, its Run. */
-  py?: { project: { root: string; name: string }; tab?: PyTab; run?: RunControls; onNew: () => void; onOpen: () => void; onSave: () => void; onSaveAs: () => void; onShow: () => void; onLibraries: () => void };
+  py?: { project: { root: string; name: string }; tab?: PyTab; run?: RunControls; onNew: () => void; onOpen: () => void; onClose: () => void; onSave: () => void; onSaveAs: () => void; onShow: () => void; onLibraries: () => void };
 }
 
 interface RunControls {
@@ -702,7 +715,7 @@ interface RunControls {
 
 const MOD = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
-function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, onOpen, onSave, onSaveAs, onOpenAny, py, onAbout }: TopBarProps) {
+function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, onOpen, onSave, onSaveAs, onCloseProject, onOpenAny, py, onAbout }: TopBarProps) {
   return (
     <header className="topbar">
       <button type="button" className="brand about-link" aria-label="About MicroLab" title="About MicroLab" onClick={onAbout}><Logo /><b>Micro<span>Lab</span></b></button>
@@ -726,6 +739,7 @@ function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, o
             { label: 'Save', icon: 'file', hint: `${MOD}S`, keys: 'Meta+S Control+S', disabled: !py.tab, onSelect: py.onSave },
             { label: 'Save as…', icon: 'copy', hint: MOD === '⌘' ? '⇧⌘S' : 'Ctrl+Shift+S', keys: 'Shift+Meta+S Shift+Control+S', disabled: !py.tab, onSelect: py.onSaveAs },
             { label: MOD === '⌘' ? 'Show the project in Finder' : 'Show the project in Explorer', icon: 'folder', onSelect: py.onShow },
+            { label: 'Close project', icon: 'x', onSelect: py.onClose },
           ]} />
           <span className="spacer" />
           {py.run && <RunBox run={py.run} />}
@@ -743,6 +757,7 @@ function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, o
             { label: 'Open a project…', icon: 'folder', hint: `${MOD}O`, keys: 'Meta+O Control+O', onSelect: onOpen },
             { label: 'Save', icon: 'file', hint: `${MOD}S`, keys: 'Meta+S Control+S', onSelect: onSave },
             { label: 'Save as…', icon: 'copy', hint: MOD === '⌘' ? '⇧⌘S' : 'Ctrl+Shift+S', keys: 'Shift+Meta+S Shift+Control+S', onSelect: onSaveAs },
+            { label: 'Close project', icon: 'x', onSelect: onCloseProject },
           ]} />
           <span className="spacer" />
           {edit && (

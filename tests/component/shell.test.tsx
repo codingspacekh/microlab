@@ -33,10 +33,11 @@ describe('M4.1 the shell (screens 01–03): top bar, modes, panels, status bar',
     expect(screen.getByRole('region', { name: 'Circuit' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Code' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Parts' })).toBeNull();
-    expect(screen.getAllByRole('separator')).toHaveLength(1);
+    // the code side's divider, and the console's edge under the code (the teacher, 2026-11-09)
+    expect(screen.getAllByRole('separator').map((s) => s.getAttribute('aria-label'))).toEqual(['Code panel width', 'The console\'s size']);
     fireEvent.click(screen.getByRole('button', { name: 'Parts' }));
     expect(screen.getByRole('region', { name: 'Parts' })).toBeInTheDocument();
-    expect(screen.getAllByRole('separator')).toHaveLength(2);
+    expect(screen.getByRole('separator', { name: 'Parts panel width' })).toBeInTheDocument();
   });
 
   it('panel widths are proportions of the window, within limits: 17 % and 34 % by default', async () => {

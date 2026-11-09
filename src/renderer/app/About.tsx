@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import type { MicrolabApi } from './api';
 import { MICROPYTHON } from './useRun';
 import { Dialog } from '../ui/Dialog';
-import { Icon } from '../ui/Icon';
 
 /**
  * About MicroLab (M11, Rev 13, F-108; screen 33) — the teacher: "add all right 2026 CodingSpaceKH, visit
@@ -30,7 +29,7 @@ export function About({ api, onClose, actions = [] }: { api: MicrolabApi; onClos
         <div className="parts">{python ? `Python ${python} · ` : ''}MicroPython {MICROPYTHON}</div>
         <div className="copy">© 2026 CodingSpaceKH. All rights reserved.</div>
         <button type="button" className="site" onClick={() => void api.app.openWebsite()}>
-          <Icon name="ext" size={14} /> <span>To contribute, report a problem or share an idea, visit <b>codingspacekh.dev</b></span>
+          To contribute visit <b>codingspacekh.dev</b>
         </button>
       </div>
     </Dialog>

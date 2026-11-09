@@ -53,6 +53,7 @@ test('N-05: MicroLab starts in 5 s or less — from its process starting to the 
 });
 
 test('N-05: a 40-part circuit runs at full speed (≥ 10 000 pin writes a second) in 500 MB or less', async () => {
+  test.setTimeout(60_000);
   // GP0's LED changes at every write: the circuit is solved again each time
   const file = join(home, 'Forty parts.mlab');
   const { breadboards, parts, wires } = fortyPartsLayout();
@@ -81,11 +82,20 @@ test('N-05: a 40-part circuit runs at full speed (≥ 10 000 pin writes a second
   expect(counts.at(-1)).toBeGreaterThanOrEqual(WRITES_PER_SECOND);
   expect(mb).toBeLessThanOrEqual(MEMORY_MB);
 
-  // and it doesn't grow while it runs on (every change was once kept: 40 000 a second, without end)
-  await expect.poll(async () => ((await console_.textContent()) ?? '').match(/writes \d+/g)?.length ?? 0, { timeout: 20_000 }).toBeGreaterThanOrEqual(10);
-  const later = memory().mb;
-  console.log(`PERF circuit after 10 s: ${later} MB`);
-  expect(later - mb).toBeLessThanOrEqual(GROWTH_MB);
+  // and it doesn't grow on while it runs (every change was once kept: 40 000 a second, without end). Memory freed is
+  // given back late on a computer with plenty (Windows' private memory on GitHub's 16 GB runner rose 120 MB, then
+  // stayed): from its 10th second to its 17th it must stay level, and within the budget all the while
+  const at = async (n: number) => {
+    await expect.poll(async () => ((await console_.textContent()) ?? '').match(/writes \d+/g)?.length ?? 0, { timeout: 20_000 }).toBeGreaterThanOrEqual(n);
+    const m = memory().mb;
+    const each = await app.evaluate(({ app: a }) => a.getAppMetrics().map((p) => `${p.type} ${Math.round((p.memory.privateBytes ?? p.memory.workingSetSize) / 1024)}`).join(', '));
+    console.log(`PERF circuit after ${n} s: ${m} MB (${each})`);
+    return m;
+  };
+  const ten = await at(10);
+  const seventeen = await at(17);
+  expect(Math.max(ten, seventeen)).toBeLessThanOrEqual(MEMORY_MB);
+  expect(seventeen - ten).toBeLessThanOrEqual(GROWTH_MB);
 });
 
 test('N-05: a Python 3 program running, with Jedi answering, in 500 MB or less', async () => {

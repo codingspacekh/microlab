@@ -30,7 +30,10 @@ describe('Jedi, as the editor asks it', () => {
   });
 
   it('a module\'s names after a dot, each with its signature and explanation; a call with arguments', async () => {
-    const found = await assistant.complete(at('import turtle\nturtle.fo'));
+    // Jedi's first start loads turtle's stubs: on a slower computer (an Intel Mac) longer than the 4 s a question is
+    // given — that question gets nothing, as the editor does; asked again, it answers
+    let found: Awaited<ReturnType<typeof assistant.complete>> = [];
+    await expect.poll(async () => (found = await assistant.complete(at('import turtle\nturtle.fo'))).some((c) => c.name === 'forward'), { timeout: 30_000 }).toBe(true);
     const forward = found.find((c) => c.name === 'forward');
     expect(forward).toMatchObject({ type: 'function', call: 'args' });
     expect(forward!.doc).toMatch(/^forward\(distance\)\n.*Move the turtle forward/s);

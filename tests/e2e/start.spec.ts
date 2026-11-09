@@ -103,7 +103,11 @@ test('M11 slice 1 (Rev 13; screen 33): the app menu has About MicroLab and Check
   const about = win.getByRole('dialog', { name: 'About MicroLab' });
   await expect(about).toContainText('© 2026 CodingSpaceKH. All rights reserved.');
   await expect(about).toContainText(/Version \d+\.\d+\.\d+/);
-  await expect(about.getByRole('button', { name: /codingspacekh\.dev/ })).toBeVisible();
+  // the teacher (2026-11-09): one short line, no icon
+  const site = about.getByRole('button', { name: 'To contribute visit codingspacekh.dev' });
+  await expect(site).toBeVisible();
+  await expect(site.locator('svg')).toHaveCount(0);
+  expect((await site.boundingBox())!.height).toBeLessThan(40);
   await about.getByRole('button', { name: 'Close' }).click();
   await expect(about).toHaveCount(0);
   // the app menu's About, sent from the main process (the window is up)

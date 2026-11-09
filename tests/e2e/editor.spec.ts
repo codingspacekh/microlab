@@ -47,7 +47,10 @@ test('the editor and the console below it fill the code side', async () => {
   const con = (await win.locator('.console').boundingBox())!;
   expect(Math.abs(ed.width - side.width)).toBeLessThanOrEqual(2);
   expect(Math.abs(ed.y - (tabs.y + tabs.height))).toBeLessThanOrEqual(2);
-  expect(Math.abs(con.y - (ed.y + ed.height))).toBeLessThanOrEqual(2);
+  // between them the edge that sizes the console (the teacher, 2026-11-09)
+  const grip = (await win.getByRole('separator', { name: 'The console\'s size' }).boundingBox())!;
+  expect(Math.abs(grip.y - (ed.y + ed.height))).toBeLessThanOrEqual(2);
+  expect(Math.abs(con.y - (grip.y + grip.height))).toBeLessThanOrEqual(2);
   expect(Math.abs(con.y + con.height - (side.y + side.height))).toBeLessThanOrEqual(2);
   expect(ed.height).toBeGreaterThan(con.height);   // the code gets the most room
 });
