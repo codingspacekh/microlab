@@ -16,6 +16,8 @@
 
 *Revision 8 (2026-11-06): two facts from the teacher's real boards, for the connection helper and installing MicroPython (§1.13, F-52, F-56). **The Pico and Pico W have no power light** — their only LED is the program's — so the helper's cable test for a Pico is its BOOTSEL drive: hold BOOTSEL while plugging in; if `RPI-RP2` appears, the cable carries data. **macOS asks before an app may write to a removable drive** (`RPI-RP2`, `MICROBIT`): installing MicroPython says so and offers to show the file to drag across by hand.*
 
+*Revision 9 (2026-11-09): **Learn is about the components, for children** — the teacher: "I don't want it to be about specific board … electronics for kids perspective where we tell students how the component operate behind the scene, how it work, how it use or connect, what the principle idea behind it, not about code, it's more about specification of the component." A part page is now **what it is, how it works inside (a picture to play with), the idea behind it, its specifications, how to connect it, and the mistakes it shows** — for students of **10–13** (Q20): short sentences, everyday comparisons, real units explained; **no code and no particular board** (F-40). **Board pages stay**, about the board as a component — what is on it, its pins and power, its limits — with no code (F-41). **Ideas pages** (voltage, current, resistance, a circuit, the breadboard, digital and analog, PWM) and the **glossary** stay (F-42, F-45). The **Examples tab is taken out** (F-04: the example projects stay as the acceptance suite and as `.mlab` files a teacher opens); code snippets per part (F-25) leave Learn. The first Learn slice is the **Basics** group (Q21).*
+
 Name: **MicroLab**.
 
 ---
@@ -128,7 +130,7 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 | F-01 | New project: choose the board (micro:bit V2, Pico W, ESP32); it is placed with a breadboard and a starter `main.py` | M |
 | F-02 | Save and open a project as one file (`.mlab`, Q10) that opens on any laptop with the app | M |
 | F-03 | Autosave and crash recovery | M |
-| F-04 | Examples: open a ready project from the library (e.g. *Blink*, *Traffic lights*, *Servo sweep*) for any of the three boards | M |
+| F-04 | Examples: open a ready project from the library (e.g. *Blink*, *Traffic lights*, *Servo sweep*) for any of the three boards. *(Rev 9)* No Examples tab: the example projects are the acceptance suite (M3) and `.mlab` files the teacher hands out (`npm run examples`) | C |
 | F-05 | Recent projects on the start screen | S |
 | F-06 | Export a picture of the circuit and a wiring list (part pin → board pin) for printing or the real build | S |
 
@@ -154,7 +156,7 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 | F-22 | **Run / Stop / Restart** the simulation; Stop always works, even in `while True:` with no sleep. *(Rev 7)* **Run runs the file open in the editor**, as Thonny does (Q19): a fresh board, its start-up file (`boot.py` on the Pico W and ESP32 — the micro:bit has none), then the open file as `__main__`; the other files can be imported. The button names the file (*▶ Run led_test.py*); its ⌄ menu has *Run main.py (as when the board is switched on)*. When the open file isn't Python, Run runs the last Python file run, or `main.py` | M |
 | F-23 | Console: `print()` output, `input()`, and the REPL after the program ends | M |
 | F-24 | Errors: the line is highlighted, the real MicroPython message is shown, and a short student-friendly explanation beside it (e.g. *"NameError: name 'pin' isn't defined" → Python is case-sensitive: you named it `Pin`*) | M |
-| F-25 | Code snippets for each part ("Insert example code for this servo on GP15") | S |
+| F-25 | Code snippets for each part ("Insert example code for this servo on GP15"). *(Rev 9)* Not in Learn, which has no code; later, if at all | C |
 | F-26 | Plotter: numbers printed as `print(a, b)` are drawn as live lines (as in Mu / Thonny) | S |
 
 ### Simulation
@@ -176,9 +178,10 @@ Priority: **M** = MVP, **S** = should (soon after), **C** = could (later).
 ### Learn
 | ID | Requirement | P |
 |---|---|---|
-| F-40 | **Part page** for every part: what it is, how it works (with an animated picture), its pins, key numbers (voltage, current), how to connect it to **each** of the three boards (wiring picture + table), example code per board, common mistakes, and **Try it** (opens a ready project) | M |
-| F-41 | **Board page**: interactive pinout (hover / filter by PWM, ADC, I²C …), power pins, limits, built-in parts | M |
-| F-42 | Glossary: voltage, current, resistance, Ohm's law, PWM, pull-up, I²C, ADC … linked from the part pages | S |
+| F-40 | **Part page** for every part, for students of 10–13 *(Rev 9: about the component, not a board, no code)*: **what it is** and what it is used for; **look inside** — a picture to play with that shows how it works (turn the potentiometer's knob and the wiper slides along its track; press the button and its contacts touch; the LED's current flows one way only); **the idea behind it** (a resistor holds the current back: Ohm's law with an everyday comparison); **its specifications**, each number explained (an LED: about 2 V across it, 20 mA, 30 mA at most); **its legs** and how to tell them apart; **how to connect it** — in a breadboard, to a battery or a supply's + and −, with the parts it needs (an LED's resistor and how to choose it); **the mistakes** — what goes wrong, as the simulator shows it (screen 04's faults) | M |
+| F-41 | **Board page**: interactive pinout (hover / filter by PWM, ADC, I²C …), power pins, limits, built-in parts. *(Rev 9)* The board as a component: what is on it (the chip, the USB, the regulator, its own LEDs and buttons), what its pins can do and give, its limits — no code | M |
+| F-42 | Glossary: voltage, current, resistance, Ohm's law, PWM, pull-up, I²C, ADC … linked from the part pages. *(Rev 9)* One or two lines each, for 10–13 | S |
+| F-45 | *(Rev 9)* **Ideas pages**: the big ideas a part page leans on, each with a picture to play with — voltage, current and resistance (water in pipes), a circuit (a loop, open and closed), the breadboard (which holes are joined), series and parallel, digital and analog, PWM | M |
 | F-43 | Guided projects: step-by-step lessons that check each step (*"Place a 220 Ω resistor in row 12" ✓*) | S |
 | F-44 | Part pages open from the parts panel, from a part on the workspace (right-click → *Learn about this*) and from a search | M |
 
@@ -298,6 +301,10 @@ library/parts/servo-sg90/
     microbit.py   pico-w.py   esp32.py     + a ready project per board for "Try it"
 ```
 
+*(Rev 9)* A part's Learn page is about the part itself: `learn.md` has the sections of F-40 (what it is · look inside · the idea · specifications · legs · connecting · mistakes), with no code and no board; its **look inside** picture is one of the app's interactive figures, named in `learn.md`; its numbers come from `part.json` so the page and the simulator agree. The examples per board stay as the acceptance suite (`library/examples/`), not in Learn.
+
+*(Rev 9)* The content is now one page per part (not per board) and the ideas pages, for 10–13, with no code to test; it is still drafted with AI help from the datasheets and checked by the teacher, group by group, the Basics first.
+
 The **content is the largest piece of work** in the project (about 30 parts × 3 boards of explanations, wiring and tested examples). Suggestion: drafts are written with AI help from the datasheets, then the teacher checks them; every example is an automated test (it must run in the simulator without errors and produce the expected outputs).
 
 ## 1.9 Risks
@@ -335,6 +342,8 @@ The **content is the largest piece of work** in the project (about 30 parts × 3
 | Q17 | *(Rev 5)* Can the app show that a board is connected, with no setup? | **Yes** — F-55, F-56, §1.13. The board is recognised by its USB IDs, then asked for its MicroPython version |
 | Q18 | *(Rev 5)* Install MicroPython from inside the app (F-52)? | **Yes for the micro:bit and Pico** (S): one file copied to the board's drive, firmware shipped with the app. **ESP32 stays C** (needs `esptool-js`); the helper links to a guide |
 | Q16 | *(Rev 4)* IoT web pages and Wi-Fi in v1? | **Later phase** (F-80–F-82). v1 keeps the folder tree and `www/` files ready for it |
+| Q20 | *(Rev 9)* Who reads Learn? | **Students of 10–13**: short sentences, everyday comparisons, the real units explained (the teacher, 2026-11-09) |
+| Q21 | *(Rev 9)* Learn's first slice, and how a part shows how it works | **The Basics group** first; each part with a **picture to play with** (look inside), still pictures only where nothing moves (the teacher, 2026-11-09) |
 | Q19 | *(Rev 7)* Can Run run any file, as in Thonny, not only `main.py` as on python.microbit.org? | **Yes** (F-22, F-50, §1.12). It is how the boards themselves work: on a soft reset into the raw REPL (what Thonny uses), the Pico W and ESP32 run `boot.py` but not `main.py`, and the micro:bit runs neither (it has no `boot.py`); Thonny then sends the file in the editor, which runs as `__main__`. `main.py` only runs by itself on a normal start (checked in the firmware: `ports/rp2/main.c`, `ports/esp32/main.c`, micro:bit `codal_port/main.c`). A helper file can carry its own test code under `if __name__ == "__main__":` |
 | Q14 | *(Rev 3)* Rust instead of TypeScript, since the app "is like a compiler"? | **TypeScript + Electron.** We don't write a compiler: MicroPython's own compiler and VM (C) run as the official WebAssembly build, already near native speed. What we write — the board hardware layer, the circuit solver (~30 nets: microseconds per solve), the editor UI — needs no Rust speed, and the hardware layer has to talk to MicroPython's JavaScript bridge anyway. Rust would add a second language and test setup for one maintainer; Tauri would use a different browser engine per OS (sound, rendering, SharedArrayBuffer to check); a native Rust UI has no code editor as good as CodeMirror. Electron is the same choice as EasyMedia. **Safeguard:** the circuit engine stays pure behind one interface (`solve(netlist) → voltages, currents`) with a performance test in M1 (a 40-part circuit solves in ≤ 1 ms); if real laptops ever miss it, only the solver is rewritten in Rust → WebAssembly, against the same tests (§1.11, R9) |
 

@@ -6,6 +6,8 @@ How MicroLab is built, **in what order**, and **how each part is proven to work*
 - System design (processes, engine, board layer, file format): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html)
 
+*Revision 9 (2026-11-09): **M8 Learn rewritten** (requirements Rev 9): Learn is about the components, for students of 10–13 — what each part is, a picture to play with that shows how it works inside, the idea behind it, its specifications, its legs, how to connect it and its mistakes — with **no code and no particular board**; board pages about the board as a component; ideas pages and the glossary. The **Examples tab is taken out** (F-04, F-25 leave M8). Slice 1 is the Basics group.*
+
 *Revision 5 (2026-11-06): **Real boards next.** The teacher has a micro:bit V2 and a Pico W at hand: **M10 (Real boards) is built right after M4**, before M5–M9 (the milestones keep their numbers). Its step 0 — prototype screens 13–16 — is drawn and waiting for approval. The golden recordings deferred in M2 were made on both boards (docs/acceptance/M2.md 26–31).*
 
 *Revision 4 (2026-11-06): **Build like Tinkercad, earlier** — the teacher asked for Tinkercad's way of placing parts, wires with bend points and part values in M4, not M5: new slice **M4.3b** takes the first part of M5.1 (delete), M5.2 (the full breadboard), M5.3 (bend points, wire colour) and M5.4 (the inspector).*
@@ -206,7 +208,7 @@ M9 Errors, faults & multimeter ─► M10 Real boards ─► M11 Hardening & v1.
 | M5 | Full editor | F-03, F-05, F-11–F-17, F-20, F-21 (UI) (screens 01, 02, 02b) | L | 2.5 |
 | M6 | Parts pack 1: inputs & micro:bit sensors | F-34, F-35, F-36 (sound), F-54 (screens 06, 07 in part) | L | 3 |
 | M7 | Parts pack 2: outputs & displays | F-33, F-34, F-36, F-54 (screens 06, 07) | L | 3 |
-| M8 | Learn | F-04, F-06, F-25, F-40–F-42, F-44 (screens 09, 10, 11) | L | 3 |
+| M8 | Learn | *(Rev 9)* F-40–F-42, F-44, F-45, F-06 (screens 30–30e, replacing 09, 10, 11) | L | 3 |
 | M9 | Errors, faults & multimeter | F-18, F-24, F-26, F-37, F-38, N-07 (screens 04, 05, 07) | M | 2 |
 | M10 | Real boards | F-50–F-56, Q15, Q17, Q18, N-12 (screen 08 + new screens) | L | 2.5 |
 | M11 | Hardening & v1.0 | N-05, N-06, N-09, N-11, installers (Q11), classroom trial | M | 1.5 |
@@ -473,22 +475,26 @@ boards and the library-pack file it needs.
 
 ### M8 — Learn
 
-**Goal:** a page for every part and board, the glossary, the examples screen, and the ways into them.
+*Revision 9: rewritten for the teacher's purpose — electronics for children, about the components, no code, no board. Screens 09 (a servo page per board), 10 (the Pico W's pinout with code) and 11 (examples) are replaced by screens 30–30e.*
+
+**Goal:** for students of 10–13, a page for every part that shows how it works inside — a picture to play with — the idea behind it, its specifications, its legs, how to connect it and the mistakes it shows; a page for each board as a component; the ideas pages and the glossary; and the ways into them from the workspace.
 
 **Build order**
-1. The part page (F-40, screen 09) from `learn.md`, `part.json` and the wiring pictures; *Try it*.
-2. The board page with the pin filter (F-41, screen 10); glossary (F-42); entry points (F-44).
-3. Examples screen (F-04, screen 11); *Insert example code for this part* (F-25).
-4. Export a picture of the circuit and the wiring list (F-06).
-5. Content: drafts from the datasheets with AI help, checked by the teacher (R4).
+0. **Design** (prototype, for the teacher's approval before any code): Learn's home (the parts by group, the ideas, the boards, a search), a part page (the LED), a part page whose picture is played with (the potentiometer), an ideas page (voltage, current and resistance), a board page as a component, the glossary's words in a page.
+1. **The Learn page engine**: `learn.md` per part with the sections of F-40 (a checker test: every part in the slice has every section, no code, no board), its numbers from `part.json` (so the page and the simulator agree), its figure named; the page in the app; the ways in (F-44: the parts panel, a part on the workspace — *Learn about this* — the inspector, the fault cards' *Show me how*, a search).
+2. **Slice 1, Basics**: resistor, LED, RGB LED, push button, slide switch, potentiometer, LDR, buzzer, battery pack, breadboard — each with its picture to play with — and the ideas pages they lean on (voltage, current and resistance; a circuit; the breadboard).
+3. **The glossary** (F-42) and its words linked from every page; the board pages (F-41).
+4. **The other groups**, one slice each, the teacher reviewing each: sensors, modules, chips, actuators, output modules, communication, displays.
+5. Export a picture of the circuit and the wiring list (F-06).
 
 **Tests first**
-- The learn checker: every part has every section, a wiring picture and an example per board.
-- Every *Try it* opens a project that passes its `expect.json`.
-- The wiring list for *Traffic lights* equals the one printed on screen 08.
+- The learn checker: every part has every section, its figure, no code block and no board's name in its body; every glossary word a page uses is defined.
+- A page's numbers equal `part.json`'s (an LED's 20 mA is the simulator's 20 mA).
+- Each interactive figure: its control moves what it shows, by the same model the simulator uses (the potentiometer's wiper at 25 % gives 0.825 V of 3.3 V).
+- The ways in open the right page.
 
 **Exit gate**
-- Manual: the teacher has reviewed every page (checklist in `docs/acceptance/M8.md`).
+- Manual: the teacher has read every page of each group and tried every picture (checklist in `docs/acceptance/M8.md`).
 
 ---
 
@@ -569,7 +575,7 @@ connection problem says how to fix it.
 |---|---|---|
 | F-01 new project, F-02 save / open, F-60 starter project | M4 | M4 |
 | F-03 autosave, F-05 recent projects | M5 | M5 |
-| F-04 examples | M3 (runner) | M8 |
+| F-04 examples | M3 (runner) | *(Rev 9)* no tab — the acceptance suite and `.mlab` files |
 | F-06 picture and wiring list | M8 | M8 |
 | F-10 parts panel, F-13 wires | — | M4, M5 |
 | F-11 move / rotate, F-14 inspector, F-15 pin hover, F-16 undo, F-17 zoom | M5 (`lib/editor`) | M5 |
@@ -579,7 +585,7 @@ connection problem says how to fix it.
 | F-21 folder tree | M2 | M5 |
 | F-22 Run / Stop, F-23 console and REPL | M2 | M4, M9 |
 | F-24 friendly errors | M9 | M9 |
-| F-25 snippets | — | M8 |
+| F-25 snippets | — | *(Rev 9)* not in Learn; later, if at all |
 | F-26 plotter | — | M9 |
 | F-30 real MicroPython, F-39 timing | M0 (spike), M2 | M4 |
 | F-31 digital, F-32 analog, F-33 PWM | M2, M3 | M4 |
@@ -587,7 +593,7 @@ connection problem says how to fix it.
 | F-35 inputs while running, F-36 outputs | M3, M6, M7 | M4, M6, M7 |
 | F-37 faults | M1, M3 | M9 |
 | F-38 multimeter | M1 | M9 |
-| F-40–F-42, F-44 Learn | M8 | M8 |
+| F-40–F-42, F-44, F-45 Learn | M8 | M8 |
 | F-50 Send to board, F-51 console, F-53 Board files | M10 | M10 |
 | F-52 install MicroPython (micro:bit, Pico) | M10 | M10 |
 | F-54 library pack | M6, M7 | M5 (Add library) |
@@ -622,7 +628,7 @@ connection problem says how to fix it.
 | M5 Full editor | ✅ Merged — all 7 slices (rotate / duplicate / select several / undo; zoom, pan, hover; bends and pin cards; the inspector's Joins; autocomplete per board; the project's files and Run the open file; autosave, recovery and recent projects); the teacher's gate answers built (the wheel zooms, wires follow the part); **open gate item**: the side-by-side look at screens 01 / 02 / 02b, merged first by the teacher's decision ([acceptance](acceptance/M5.md)) | 2026-11-07 (partly) | `v0.5.0` |
 | M6 Parts pack 1: inputs | ✅ Merged — all 9 slices: the slide switch, LDR, RGB LED, battery packs, the GPIO board's USB, the active and passive buzzer, the PIR, line sensor, soil moisture, TMP36 / LM35, DHT11 / DHT22, HC-SR04, MPU6050 (I²C) — with their controls while running and sound from the laptop; slice 5: the SunFounder kit's 14 input modules and 6 chips; slice 6: the micro:bit's own buttons, logo, tilt, shake, light, temperature and microphone on a micro:bit inputs card; slice 7: the library pack (seven drivers with their licences, the micro:bit's own too) and Add a library; slice 8 (the teacher's requests): a new project is the board alone, the parts panel on a rail, mini / half / full breadboards, the editor's text size and theme; slice 9 (the teacher's request): a new micro:bit project is the micro:bit alone, wired at its five rings, its GPIO board from the parts panel and taken out in its inspector; the gate closed by the teacher ([acceptance](acceptance/M6.md)) | 2026-11-08 | `v0.6.0` |
 | M7 Parts pack 2: outputs & displays | ✅ Done — merged `v0.7.0` 2026-11-08 (gate closed by the teacher): slice 1 (screens 25, 25b, 25c, approved 2026-11-08): 1a the actuators, their drivers and the kit's output modules in the engine and the sim, 24 examples; 1b in the editor — terminals to wire, parts beside the breadboard, the power supply's jumpers; slice 2 (screens 26, 26b, 26c, approved 2026-11-08): the OLED, the 16×2 LCD, a 7-segment digit, the TM1637 and the MAX7219 with their drivers in the library pack, 15 examples; the parts beside the breadboard turn; the parts panel's search; the RC522 RFID reader with a card and a key fob; slice 3 (screens 27, 27b, 27c, approved 2026-11-08): NeoPixel sticks and rings (WS2812B) through the firmware's own `neopixel`, 6 examples; slice 4 (screen 06): the micro:bit V2's speaker, `audio` with its built-in Sounds and SoundEffects synthesized as CODAL does, `music` with pin=None; slice 5 (screens 28–28d): UART on the wire with a USB-serial adapter and its terminal, an HC-05 and a phone, a NEO-6M GPS, SPI's modes and pins; micropyGPS in the pack, 9 examples ([acceptance](acceptance/M7.md)) | | |
-| M8 Learn | ⏸ After M9 — the teacher, 2026-11-08: "skip the M8 Learn and go to M9 first" | | |
+| M8 Learn | ⏸ After M9 — the teacher, 2026-11-08: "skip the M8 Learn and go to M9 first". *Rev 9 (2026-11-09)*: rewritten — about the components, for 10–13, no code, no board; the Examples tab taken out (`ba3a6ee`); step 0, the design (screens 30–30e), next | | |
 | M9 Errors, faults & multimeter | 🔨 Built — all five slices (2026-11-08/09): 1 friendly errors, the REPL, input() (screens 05, 29c); 2 faults on the workspace and Problems (screen 04; 25c–28d's faults); 3 the check before running (29b); 4 the multimeter (29); 5 the Plotter (07). Gate: the teacher tries each and makes each §1.3 mistake ([acceptance](acceptance/M9.md)) | | |
 | M10 Real boards | ✅ Merged — all seven slices, tried on the teacher's micro:bit V2 and Pico W; **open gate items** (Windows 11, an ESP32, a charge-only cable, the firmware copy from an installed MicroLab; the examples with `lib/` after M8) to be done later, by the teacher's decision ([acceptance](acceptance/M10.md)) | 2026-11-06 (partly) | `v0.10.0` |
 | M11 Hardening & v1.0 | ⏳ | | |
