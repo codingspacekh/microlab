@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>35e The teacher's passcode</title>
+{{include:head}}
+</head>
+<body>
+<p class="frame-label"><b>35e · Leaving needs the teacher</b> (M13 design, Rev 15, F-113) — the student pressed Esc (or F11, or closed the window). Nothing is lost by asking: <b>Back to the exam</b> is the main button. The teacher types their passcode and chooses what it is for — <b>Leave full screen</b> (the exam goes on, in a window), or <b>End the exam on this computer</b> (saved, kept, not handed in). A wrong passcode: <i>Not the teacher's passcode</i>, and each try waits longer (1 s, 2 s, 4 s … a minute). The same window lets the teacher reopen a handed-in exam (35f) or one whose name is taken (35b)</p>
+<div class="frame" style="position:relative">
+  <div class="topbar exam">
+    <div class="brand">{{include:logo}}<b>Micro<span>Lab</span></b></div>
+    <span class="examtag">{{i:lock:s12}} EXAM</span>
+    <div class="examwho"><b>Term 1 exam — traffic lights</b><span>Sokha Chan · started 09:02</span></div>
+    <span class="spacer"></span>
+    <span class="examclock">{{i:clock:s14}} 09:44</span>
+    <button class="btn primary">{{i:upload:s14}} Hand in…</button>
+  </div>
+  <div class="ws" style="opacity:.5">
+    {{include:parts-panel}}
+    <div class="canvas"><div class="stage">{{scene:traffic:build}}</div></div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+  <div class="overlay"></div>
+  <div class="dialog" style="left:50%;top:120px;transform:translateX(-50%);width:min(460px,calc(100% - 40px))">
+    <div class="dh">{{i:lock}}<h2 style="font-size:16px">Only your teacher can let you out</h2></div>
+    <div class="db">
+      <p class="small" style="margin:0 0 12px;color:var(--tx-2)">You're in an exam. To leave, ask your teacher to type their passcode — or go back and carry on.</p>
+      <label class="lbl">Teacher's passcode</label>
+      <div class="field focus" style="height:36px">{{i:key:s14}}<span>••••••</span></div>
+      <label class="lbl">Then</label>
+      <div class="crow"><span class="radio on"></span><span class="tx"><b>Leave full screen</b><span>The exam goes on, in a window.</span></span></div>
+      <div class="crow"><span class="radio"></span><span class="tx"><b>End the exam on this computer</b><span>Saved and kept here, not handed in.</span></span></div>
+    </div>
+    <div class="df"><button class="btn">{{i:key:s14}} OK</button><span class="spacer"></span><button class="btn primary">Back to the exam</button></div>
+  </div>
+</div>
+</body></html>

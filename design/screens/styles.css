@@ -626,3 +626,23 @@ textarea.area, .area { min-height: 72px; border: 1px solid var(--line-strong); b
 .zmenu .zi.on { background: var(--accent-soft); font-weight: 600; }
 .zmenu .zi .k { margin-left: auto; color: var(--tx-3); font-size: 11px; }
 .zmenu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+
+/* exam mode (Rev 15, screens 35–35f) */
+.topbar.exam { background: var(--inverse); color: var(--on-inverse); border-bottom-color: var(--inverse); }
+.topbar.exam .brand b span { color: #8fb4f5; }
+.topbar.exam .btn.ghost { color: #d5dbe3; }
+.topbar.exam .vsep { background: rgba(255,255,255,.18); }
+.topbar.exam .btn:not(.primary):not(.run):not(.ghost) { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.22); color: #fff; }
+.examtag { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 12px; background: #f5b941; color: #3b2a05; font-weight: 700; font-size: 11.5px; letter-spacing: .04em; }
+.examwho { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.examwho b { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.examwho span { font-size: 11.5px; color: #b8c1cc; white-space: nowrap; }
+.examclock { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 13px; color: #e6eaf0; padding: 0 4px; }
+.passcode { display: flex; gap: 8px; }
+.passcode i { flex: 1; height: 40px; border: 1px solid var(--line-strong); border-radius: 8px; display: grid; place-items: center; font-style: normal; font-size: 20px; color: var(--tx-1); }
+.passcode i.f { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.lbl { font-weight: 600; font-size: 12px; display: block; margin: 14px 0 5px; }
+.lbl:first-child { margin-top: 0; }
+.filelist { border: 1px solid var(--line); border-radius: 9px; padding: 6px; font-size: 12.5px; }
+.filelist .r { display: flex; align-items: center; gap: 8px; padding: 5px 8px; }
+.filelist .r.in1 { padding-left: 28px; }

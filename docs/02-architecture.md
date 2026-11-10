@@ -1,5 +1,7 @@
 # 2. Architecture
 
+*Revision 4 (2026-11-10): **Teacher mode and exams** (requirements Rev 15–17, M13): signatures checked offline, the exam session held by the main process, Python's audit hooks in an exam (§2.12).*
+
 *Revision 3 (2026-11-06): **Run runs the open file** (requirements Rev 7, Q19): the run starts from the file chosen in the editor, not always `main.py` (§2.3).*
 
 *Revision 2 (2026-11-05): renamed **MicroLab** (`.mlab` files); layout and form-control rules (N-13, N-14) in §2.1, §2.8, §2.10.*
@@ -293,3 +295,53 @@ npm run dist         # installers: Windows .exe, Mac .dmg (Apple chip, Intel) (M
   at `>>>`** asks the runner itself (`rlcompleter` over the program's names, answered on its reader thread).
 - Ctrl+C and Stop are messages to the runner's reader thread (`_thread.interrupt_main`), not signals — the same on
   macOS and Windows (R12); Stop ends the process after 0.5 s if the program doesn't stop.
+
+## 2.12 Teacher mode and exams *(Rev 15–17, M13)*
+
+```
+ Author's computer                 codingspacekh.dev (Vercel)            Teacher's computer                    Classroom computer
+ ─────────────────                 ──────────────────────────            ──────────────────                    ──────────────────
+ author key (private, offline)     POST /api/microlab/teacher-request    teacher key (private, locked by       MicroLab, student mode
+ npm run licence  ◄── email ────── checks · limits · Supabase · Resend ◄─ the teacher passcode) ── request ──   author keys (public) in the build
+        │                                                                 .mllicence ──► teacher mode            │
+        └──── .mllicence by email (Reply) ─────────────────────────────►  Make an exam ──► .mlexam (signed) ──►  checks both signatures, offline
+```
+
+**Who checks what.** Every check that decides something runs in the **main process**; the window only shows the result. The renderer can't be trusted to hide a menu item as a lock — the main process **refuses** the IPC calls themselves while an exam is on.
+
+| Where | What |
+|---|---|
+| `src/lib/exam/` (pure) | The formats and their Zod schemas (request, licence, exam, withdrawn list); **canonical JSON** (sorted keys, no spaces — the bytes that are signed); what an exam allows (a pure table: which IPC channels are refused); the wait after wrong passcodes (1, 2, 4 … 60 s); the hand-in file list; the request as text (screen 36b) |
+| `src/main/trust/` | Node's built-in `crypto`, no new dependency: **Ed25519** keys, signing and checking; **scrypt** for passcodes (N = 2¹⁶, r = 8, p = 1: ~64 MB, about 0.3 s on the slowest school computer — measured at the gate); **AES-256-GCM** for the teacher's private key under a key from scrypt(teacher passcode). The author keys and addresses come from `resources/trust.json` |
+| `src/main/exam/` | The exam session: start, resume, lock-down, leave, hand in; `Exams on this computer` |
+| `src/python3/runner.py` | `--exam <folder>`: the audit hook and Tcl's guarded commands (F-116), set before the student's code |
+| `scripts/licence.ts` | The author's tool: `npm run licence -- --new-key` (once), `npm run licence -- <request>` → `<name>.mllicence`, `npm run licence -- --withdraw <id>` → a signed `withdrawn.json` |
+| `codingspace` repo | `src/pages/api/microlab/teacher-request.ts` and its table — built and tested in that repo, deployed before M13's gate |
+
+**Build settings** (`resources/trust.json`, in the repository — only public things):
+`{ "authorKeys": [{ "id": "ck-2026", "publicKey": "<base64 SPKI>" }], "requestUrl": "https://codingspacekh.dev/api/microlab/teacher-request", "requestEmail": "codingspacekh@gmail.com", "withdrawnUrl": "https://codingspacekh.dev/microlab/withdrawn.json" }` — up to two author keys (R17); a fork changes this file.
+
+**The files.**
+
+| File | Contents | Signed by |
+|---|---|---|
+| Request (JSON, or the text of screen 36b) | `v, name, school, email, check, note, publicKey, app, os, at` | — |
+| `.mllicence` (JSON) | `licence: { id, name, school, email, publicKey, issued }`, `authorKey` (its id), `sig` | the author, over canonical `licence` |
+| `.mlexam` (zip) | `exam.json`: `v, id, title, kind (board · python), settings { sendToBoard, installLibraries, handinUrl }, passcode { salt, N, r, p, hash }, files { path: sha256 }`; `licence.json` (the teacher's); `starter/…`; `exam.sig` | the teacher, over canonical `exam.json` — which holds the hash of every starter file |
+| `withdrawn.json` | `ids: [...]`, `at`, `sig` | the author |
+
+**Opening an exam** (F-122): the licence's `authorKey` is one of the build's and its signature checks out → the licence isn't withdrawn → `exam.sig` checks out with the licence's `publicKey` → every file in `starter/` has the hash `exam.json` gives it, and no file is missing or extra. Any step failing names the reason (screen 36d) and nothing is unpacked.
+
+**On the teacher's computer** (`userData/teacher/`): `key.json` — the public key, the private key encrypted (salt, nonce, ciphertext); `request.json` — the request sent, so a licence that comes back is matched to this key (F-121); `licence.json` once loaded. Making an exam asks the teacher passcode to decrypt the key for that one signature; it is never kept in memory afterwards.
+
+**The exam session** (`src/main/exam/session.ts`), one per computer:
+- **State** in the settings: `exam = { folder, examId, name, startedAt, handedIn, wrongTries, waitUntil }`. Set before anything opens, so a computer switched off mid-start resumes; at app start, `exam` set and not handed in → the exam window opens straight away (F-114).
+- **One window**, full screen. On a close, leave-full-screen, Esc or F11 (`before-input-event`), the main process cancels and asks the window to show 35e. Which full-screen call on each platform (`setKiosk`, `setFullScreen`, `setSimpleFullScreen` on macOS) is decided in slice 4 by trying each with a turtle window open (R14) **(spike)**.
+- **Refused while an exam is on** (the pure table in `lib/exam`): new window, Start page, open / save-as / recent / new project, opening any path outside `folder` (the project tree's operations already check the root), `second-instance` and `open-file` (they bring the exam window forward instead), the Board files panel's read, `pip` unless `installLibraries`, Send to board unless `sendToBoard`. Each refused call is a test.
+- **Saved** every 5 s while it changes and on every Run — the M5 autosave pointed at the exam's folder; the recovery copy is not used in an exam.
+- **Hand in**: save, write `handin.json` (`examId, name, at, files: {path: sha256}`) in the folder, set `handedIn`, leave full screen, `shell.showItemInFolder`. A board exam also writes its code files (`main.py`, `lib/…`) beside the `.mlab` (Q32). Opening a handed-in exam opens it read-only.
+- **Exams on this computer** (F-117) deletes for good (`fs.rm`), **not** to the Recycle Bin — from there a student could put it back.
+
+**Python in an exam** (F-116, R15). The runner, given `--exam <folder>`, installs a `sys.addaudithook` hook **before** the student's code; a hook can't be removed once added. It allows reading under `folder`, Python's own prefix (`sys.base_prefix`), Tcl/Tk's library and MicroLab's libraries folder, and writing only under `folder`, after `os.path.realpath` (so `..`, symlinks and `os.chdir` don't get round it). It refuses: `open` elsewhere; `os.listdir`, `os.scandir`, `glob.glob`, `os.walk` outside; `os.chdir` outside; `subprocess.Popen`, `os.system`, `os.exec*`, `os.spawn*`, `os.posix_spawn`, `os.startfile`; `ctypes.*`; `os.symlink`, `os.link`, `shutil.*` outside; `sys.addaudithook` stays allowed (it can only add). Tcl reads files **without** Python's audit events, so the runner's existing `tkinter.Tk` wrapper renames Tcl's `open`, `file`, `glob`, `cd`, `exec`, `source` and `load` and puts path-checking versions in their place, and turns off `tk_getOpenFile` / `tk_chooseDirectory` outside `folder`. The refusal is a `PermissionError` with the plain message, so it reads as one of MicroLab's friendly errors. Jedi's process (completions) starts with the exam's folder as its only project path.
+
+**The request route** (the `codingspace` repo): `POST` JSON only, ≤ 4 KB; the schema of `lib/exam`'s request (copied, with a test that the two agree on a sample); at most 3 requests an hour from one address (hashed, as the site's questions are); a row in `microlab_teacher_requests`; then Resend: from `microlab@codingspacekh.dev`, to `MICROLAB_REQUEST_TO`, `Reply-To` the teacher, the request's text in the body and as `request.json` attached (what `npm run licence` reads). `{ ok }`, `{ limited }` (429), `{ invalid }` (400), `{ error }` (500); MicroLab treats anything but `ok` as *send it by hand* (36b). No origin check — MicroLab's main process sends no `Origin`. *The route is optional (MILESTONES Rev 15): until it is deployed, `requestUrl` answers 404, which is just another "send it by hand"; deploying it later needs no MicroLab update.*

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>35f Handed in</title>
+{{include:head}}
+</head>
+<body>
+<!--@TOP_RIGHT: -->
+<p class="frame-label"><b>35f · Handed in</b> (M13 design, Rev 15, F-115, Q25, Q32) — <i>Hand in…</i> asked once (<i>You can't change your work after this</i>), then saved and ended the exam on this computer. MicroLab leaves full screen and says <b>what to upload</b> and <b>where</b>: the hand-in site's address from the exam file, and the files — a board exam gives its <code>.mlab</code> and its code files beside it, so the site shows the code; a Python 3 exam its folder. <b>Show in Explorer</b> (Finder on a Mac) opens the folder, ready to drag into the site. Opening the exam again shows it read-only; the teacher's passcode reopens it (35e)</p>
+<div class="frame" style="position:relative">
+  {{include:topbar-simple}}
+  <div class="start" style="opacity:.45"><div class="col" style="flex:1"><h1>Start something new</h1></div></div>
+  <div class="overlay"></div>
+  <div class="dialog" style="left:50%;top:84px;transform:translateX(-50%);width:min(560px,calc(100% - 40px))">
+    <div class="dh"><span style="color:var(--success)">{{i:check}}</span><h2 style="font-size:16px">Handed in — now upload it</h2></div>
+    <div class="db">
+      <p class="small" style="margin:0 0 12px;color:var(--tx-2)"><b>Term 1 exam — traffic lights</b> · Sokha Chan · 10:15. Your exam is finished on this computer. Upload these files to the <b>ICT hand-in site</b> (its address here, from the exam file):</p>
+      <div class="filelist">
+        <div class="r">{{i:folder:s14}} <b>Sokha Chan</b><span class="spacer"></span><span class="tiny muted">Documents/MicroLab/Exams/Term 1 exam — traffic lights</span></div>
+        <div class="r in1">{{i:file:s14}} Traffic lights.mlab<span class="spacer"></span><span class="tiny muted">the circuit and the code</span></div>
+        <div class="r in1">{{pyfig:logo:14}} main.py</div>
+        <div class="r in1">{{i:folder:s14}} lib</div>
+      </div>
+      <div class="note"><span class="ico">{{i:info:s14}}</span><span>Upload the whole folder, or drag the files in. Nothing here can be changed now — if something went wrong, ask your teacher.</span></div>
+    </div>
+    <div class="df"><button class="btn">{{i:folder:s14}} Show in Explorer</button><span class="spacer"></span><button class="btn primary">Done</button></div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>35c In the exam — a board project</title>
+{{include:head}}
+</head>
+<body>
+<!--@RUNBOX: {{include:run-running}}-->
+<!--@EDITOR: {{code:traffic:cur=21}}-->
+<!--@CONSOLE: <div class="cbody"><span class="sys">MicroPython v1.24.1 on Raspberry Pi Pico W (simulated)</span>
+Button pressed: stopping traffic
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running main.py</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed</span>-->
+<!--@STATUS_R: <span class="row" style="gap:5px">{{i:check:s12}} Saved 09:41</span>-->
+<p class="frame-label"><b>35c · In the exam — a board project</b> (M13 design, Rev 15, F-112, F-114) — MicroLab fills the screen. The top bar is dark, so an exam is plain to see from across the room: <b>EXAM</b>, the exam's title, the student's name, the verified teacher who made it (<i>Rev 16</i>), the clock (no time limit in MicroLab, Q29) and <b>Hand in…</b>. Gone: the Start page, <i>Open…</i>, <i>New</i>, <i>Recent</i>, <i>Save as</i>, the project menu, other windows. Everything inside the project works as always — the parts, the wires, Run and Stop, the console, the Plotter, <b>Send to board</b> (if the teacher allowed it). Saved every few seconds and on every Run; switched off or ended from Task Manager, MicroLab comes back here. Esc, F11 or closing asks for the teacher's passcode (35e)</p>
+<div class="frame">
+  <div class="topbar exam">
+    <div class="brand">{{include:logo}}<b>Micro<span>Lab</span></b></div>
+    <span class="examtag">{{i:lock:s12}} EXAM</span>
+    <div class="examwho"><b>Term 1 exam — traffic lights</b><span>Sokha Chan · started 09:02 · by Srey Leak ✓</span></div>
+    <span class="spacer"></span>
+    <button class="btn ghost icon" title="Undo (Ctrl+Z)">{{i:undo}}</button><button class="btn ghost icon" title="Redo">{{i:redo}}</button>
+    <div class="vsep"></div>
+    {{include:run-running}}
+    <button class="btn">{{i:usb}} Send to board</button>
+    <div class="vsep"></div>
+    <span class="examclock">{{i:clock:s14}} 09:41</span>
+    <button class="btn primary">{{i:upload:s14}} Hand in…</button>
+  </div>
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas"><div class="stage">{{scene:traffic:run}}</div>{{include:ctools}}</div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>
