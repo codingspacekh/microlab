@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>37 Run on</title>
+{{include:head}}
+</head>
+<body>
+<!--@BOARDCHIP: <button class="boardchip ok"><span class="dot"></span>{{part:pico:bp}}Pico W <span class="sub">· MicroPython 1.29</span></button>-->
+<!--@RUNBOX: <div class="runbox"><span class="runsplit"><button class="btn run">{{i:play:s14}} Run main.py <span class="where">· sim + Pico W</span></button><button class="btn run on" title="More ways to run">{{i:chevd:s14}}</button></span><button class="btn icon disabled" title="Stop">{{i:stop:s14}}</button></div>-->
+<!--@SENDBTN: <span class="sendsplit"><button class="btn">{{i:usb}} Send to board</button><button class="btn" title="More ways to send">{{i:chevd:s14}}</button></span>-->
+<p class="frame-label"><b>37 · Run on: the simulator, the real board, or both</b> — the teacher's trial (Rev 18, F-125): Run's ⌄ menu chooses where Run (F5) runs the open file; kept until changed. The button says where. With no board plugged in, or a board that isn't this project's, Run uses the simulator and says so (<i>· sim — no board</i>); the two board choices are greyed with <i>Plug in a Pico W</i>. Stop (Shift+F5) stops everything that runs</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas"><div class="stage">{{scene:traffic:build}}</div>{{include:ctools}}</div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+  <div class="float menu static runmenu" style="position:absolute;right:466px">
+    <div class="mg">Run on</div>
+    <div class="mi"><span class="radio"></span><span><b>The simulator</b><small>On the screen only. Nothing is sent to the board.</small></span></div>
+    <div class="mi"><span class="radio"></span><span><b>The real board · Pico W</b><small>Copies the project's changed files first (never its <span class="mono">main.py</span>), then runs the file in the editor there. The picture stays still.</small></span></div>
+    <div class="mi hl"><span class="radio on"></span><span><b>Both at once</b><small>The same program on the screen and on the Pico W, to compare. Each reads its own buttons and sensors: the picture's, and the real ones.</small></span></div>
+    <div class="msep"></div>
+    <div class="mi"><span>{{i:play:s14}}</span><span><b>Run main.py</b><small>As when the board is switched on: main.py is the file a board runs by itself.</small></span></div>
+    <div class="mi"><span class="ck">{{i:check:s14}}</span><span><b>Check before running</b></span></div>
+  </div>
+</div>
+</body></html>

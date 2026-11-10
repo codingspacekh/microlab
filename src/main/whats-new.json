@@ -1,0 +1,28 @@
+{
+  "1.0.0": [
+    "MicroLab 1.0 — ready for class, on Windows 10 and 11 and on Macs",
+    "F5 runs your program and Shift+F5 stops it, on a board as in Python 3",
+    "Run on the simulator, your real board, or both at once — choose in Run's menu; no Send to board needed",
+    "The console under your code hides (Ctrl+J) and grows or shrinks — drag its edge",
+    "Close project, in the project menu, goes back to the Start page",
+    "A program left running no longer fills the computer's memory; clearer colours for hints, comments and line numbers"
+  ],
+  "0.12.2": [
+    "The board and the circuit fold away so your code has the whole window: the button by your files, or Ctrl+B (⌘B on a Mac)",
+    "Press Run and the board comes back, to see your program working"
+  ],
+  "0.12.1": [
+    "F5 runs your program and Shift+F5 stops it, on a board as in Python 3",
+    "The console under your code hides (Ctrl+J) and grows or shrinks: drag its edge",
+    "Close project, in the project menu, goes back to the Start page",
+    "The Start page fits a small window, and your recent projects scroll",
+    "A program left running no longer fills the computer's memory; clearer colours for hints, comments and line numbers"
+  ],
+  "0.12.0": [
+    "Python 3 in MicroLab: make a Python project, write and run your programs with real Python 3.13 — input(), turtle drawings and tkinter windows; install libraries from PyPI",
+    "Help while you type: names and what they do, a call's arguments, brackets and quotes in pairs; errors explained in plain words, with Go to line",
+    "Your work in projects: each one a folder (Python) or a .mlab file (boards), made where you choose",
+    "The editor's theme on the whole screen, thirteen code fonts, text up to 36 px; the app's size in the status bar",
+    "MicroLab updates itself: when a new version is out, it says so — Download, then Restart and update"
+  ]
+}

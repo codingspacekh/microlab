@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>35 Make an exam</title>
+{{include:head}}
+</head>
+<body>
+<!--@PROJECT: Exam starter — traffic lights-->
+<!--@PROJECT_SUB: Pico W · saved-->
+<p class="frame-label"><b>35 · Make an exam</b> (M13 design, <b>Rev 15</b>, F-110; the teacher: <i>"everyone can open any project even though it is not belong to them … especially in the exam"</i>) — the teacher opens the starter (here a Pico W with the circuit given and <code>main.py</code> to finish; a Python 3 project works the same way) and chooses <i>File ▸ Make an exam…</i>. The exam's <b>title</b>; the teacher's <b>passcode</b>, twice, at least 6 characters — it ends an exam early, lets a student back in, and deletes exams from a computer; it is kept in the file only as a slow hash, never as itself. The <b>hand-in site's address</b> is shown to students when they hand in (F-115). <b>Send to a real board</b> on to start (Q30); <b>Install libraries</b> off (R15). <b>Rev 16:</b> only in <b>teacher mode</b> (36c); the exam is <b>signed</b> with the teacher's key — the line under the title says by whom, and <i>Save</i> asks the teacher passcode once. <b>Save exam file…</b> saves one <code>.mlexam</code>; the teacher copies it to each computer <b>when the exam begins</b> (R16)</p>
+<div class="frame" style="position:relative">
+  {{include:topbar}}
+  <div class="ws" style="opacity:.5">
+    {{include:parts-panel}}
+    <div class="canvas"><div class="stage">{{scene:traffic:build}}</div></div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+  <div class="overlay"></div>
+  <div class="dialog" style="left:50%;top:64px;transform:translateX(-50%);width:min(580px,calc(100% - 40px))">
+    <div class="dh">{{i:exam}}<h2 style="font-size:16px">Make an exam</h2><span class="spacer"></span><button class="btn ghost icon sm">{{i:x:s14}}</button></div>
+    <div class="db">
+      <div class="row" style="gap:8px;align-items:center;margin:0 0 10px"><span class="pill ok">{{i:check:s12}} Signed by Srey Leak · Riverside High School</span></div><p class="small muted" style="margin:0 0 14px">Students get this project as it is now — <b>Traffic lights</b> on the Pico W, with its circuit and <code>main.py</code> — each their own copy, full screen, with no way to other projects until they hand in.</p>
+      <label class="lbl">Exam title</label>
+      <div class="field" style="height:34px"><span>Term 1 exam — traffic lights</span></div>
+      <div class="row" style="gap:12px">
+        <div style="flex:1;min-width:0"><label class="lbl">Teacher's passcode</label><div class="field focus" style="height:34px">{{i:key:s14}}<span>••••••••</span></div></div>
+        <div style="flex:1;min-width:0"><label class="lbl">Passcode again</label><div class="field" style="height:34px">{{i:key:s14}}<span>••••••••</span></div></div>
+      </div>
+      <p class="tiny muted" style="margin:5px 0 0">At least 6 characters. Only you need it: to let a student out early, or back in, and to delete exams from a computer.</p>
+      <label class="lbl">Hand-in site <span class="muted" style="font-weight:400">(shown when students hand in)</span></label>
+      <div class="field" style="height:34px"><span class="ph">The address of your ICT hand-in site</span></div>
+      <label class="lbl">Students may</label>
+      <div class="crow"><span class="switch on"></span><span class="tx"><b>Send to a real board</b><span>Files already on a board can't be opened in the exam.</span></span></div>
+      <div class="crow"><span class="switch"></span><span class="tx"><b>Install libraries</b><span>Off: only the libraries already on each computer.</span></span></div>
+      <div class="note warn" style="margin-top:12px"><span class="ico">{{i:warn:s14}}</span><span>Copy the exam file to the computers <b>when the exam begins</b> — before then anyone could open it to read the question.</span></div>
+    </div>
+    <div class="df"><span class="spacer"></span><button class="btn">Cancel</button><button class="btn primary">{{i:exam:s14}} Save exam file…</button></div>
+  </div>
+</div>
+</body></html>

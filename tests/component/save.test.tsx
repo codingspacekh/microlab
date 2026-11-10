@@ -5,6 +5,7 @@ import { newProject, type ProjectDoc, type SaveResult } from '@lib/project';
 import { App } from '../../src/renderer/app/App';
 import type { MicrolabApi } from '../../src/renderer/app/api';
 import { newProjectFromStart } from './new-project';
+import { UPDATES_OFF } from './fake-api';
 
 /** M4.6 F-02, F-60: Save, Save as, the unsaved mark, "Save your changes?" before the project is closed. */
 function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) => Promise<SaveResult> = async (_d, o) => ({ ok: true, path: o.path ?? `/s/${o.name} 2.mlab`, name: o.path ? o.name : `${o.name} 2` })) {
@@ -22,6 +23,7 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
     },
     recovery: { get: vi.fn(async () => null), write: vi.fn(async () => {}), clear: vi.fn(async () => {}) },
     pyfile: { save: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
+    updates: { get: vi.fn(async () => UPDATES_OFF), check: vi.fn(async () => UPDATES_OFF), download: vi.fn(async () => UPDATES_OFF), install: vi.fn(async () => UPDATES_OFF), setAuto: vi.fn(async () => UPDATES_OFF), seen: vi.fn(async () => UPDATES_OFF), showDmg: vi.fn(async () => UPDATES_OFF), openDmg: vi.fn(async () => UPDATES_OFF), onChange: vi.fn(() => () => {}) },
     projects: { home: vi.fn(async () => '/u/Documents/MicroLab'), choose: vi.fn(async () => null), newPython: vi.fn(async () => ({ ok: false as const, message: 'no' })),
       newBoard: vi.fn(async (location: string, name: string) => ({ ok: true as const, path: `${location}/${name}.mlab`, name })), openPython: vi.fn(async () => ({ ok: false as const, message: 'no' })),
       tree: vi.fn(async () => []), newEntry: vi.fn(async () => ({ ok: false as const, message: 'no' })), rename: vi.fn(async () => ({ ok: false as const, message: 'no' })),
@@ -29,7 +31,7 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       context: vi.fn(async () => null), onChanged: vi.fn(() => () => {}) },
     file: { open: vi.fn(async () => ({ ok: false as const, canceled: true as const })) },
     python3: { run: vi.fn(async () => ({ ok: false as const, message: 'no' })), line: vi.fn(async () => {}), interrupt: vi.fn(async () => {}), stop: vi.fn(async () => {}), onEvent: vi.fn(() => () => {}),
-      shellComplete: vi.fn(async () => []), complete: vi.fn(async () => []), signature: vi.fn(async () => null),
+      shellComplete: vi.fn(async () => []), complete: vi.fn(async () => []), signature: vi.fn(async () => null), version: vi.fn(async () => null),
       libs: { list: vi.fn(async () => []), lookUp: vi.fn(async () => ({ ok: false as const, message: 'no' })), install: vi.fn(async () => ({ ok: false as const, message: 'no' })), installFile: vi.fn(async () => ({ ok: false as const, canceled: true as const })), remove: vi.fn(async () => ({ ok: false as const, message: 'no' })), onOutput: vi.fn(() => () => {}) } },
     boards: { get: vi.fn(async () => ({ boards: [], drives: [] })), check: vi.fn(async () => {}), send: vi.fn(async () => ({ ok: false as const, message: 'no' })),
       install: vi.fn(async () => ({ ok: false as const, message: 'no' })),
@@ -52,7 +54,10 @@ function fakeApi(save: (doc: ProjectDoc, opts: { path?: string; name: string }) 
       copy: vi.fn(async () => {}),
       openDriverPage: vi.fn(async () => {}),
       showFirmware: vi.fn(async () => {}),
+      licences: vi.fn(async () => null),
       zoom: { get: vi.fn(() => 1), set: vi.fn() },
+      openWebsite: vi.fn(async () => {}),
+      onMenu: vi.fn(() => () => {}),
     },
   } satisfies MicrolabApi;
   return { api, requestClose: () => act(() => closeRequest?.()) };

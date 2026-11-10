@@ -6,6 +6,14 @@ How MicroLab is built, **in what order**, and **how each part is proven to work*
 - System design (processes, engine, board layer, file format): [`02-architecture.md`](02-architecture.md)
 - UI prototype: [`../design/screens/index.html`](../design/screens/index.html)
 
+*Revision 16 (2026-11-10): **the classroom trial done** — *"i already tested it worked fine"* — with one request, built before v1.0.0 as slice **11.8 Run on** (requirements Rev 18, F-125; design 37–37c approved: *"all good"*); tried on a real board by the teacher: *"both worked perfectly"*.*
+
+*Revision 15 (2026-11-10): the teacher may set up Resend later — M13's step **2b** (the request form on codingspacekh.dev) is **optional**: without it *Send request* fails and MicroLab offers the request by hand (Copy, *Open in my email app*), which reaches codingspacekh@gmail.com all the same; the gate tests whichever route is live. The form can be added at any time after, with no MicroLab update (`requestUrl` is already in the build).*
+
+*Revision 14 (2026-11-10): **M13 Teacher mode and exams** (requirements Rev 15–17): verified teachers make signed exam files; a student in an exam is kept inside their own exam, full screen, until they hand in (F-110–F-124); design 35–36d approved (*"it's all fine"*). Built **after v1.0.0** (Q28); architecture §2.12.*
+
+*Revision 13 (2026-11-09): **M11 begins** (requirements Rev 13), with the app icon, About MicroLab and updates as in the gradebook and OneEditor (F-107–F-109); design 32, 33, 34, 34b.*
+
 *Revision 12 (2026-11-09): **M12 slice 7** (requirements Rev 12, the teacher's trial): panels hidden and shown, the Python logo on `.py` files, the theme on the whole Python screen, five code fonts, the app's size in the status bar (F-102–F-106); turtle's and tkinter's completions with their brackets; design 31b updated, 31g, 31h new.*
 
 *Revision 11 (2026-11-09): **M12 slice 6** (requirements Rev 11, the teacher after trying M12): projects as folders with their tree, New project asking its name and place first (Python and boards), the shell below or beside and resizable, brackets and quotes in pairs (F-98–F-101); design 31, 31b updated, 31e, 31f new — before M12's gate.*
@@ -184,8 +192,8 @@ If a gate fails, fix forward inside the same milestone. Do **not** start the nex
 | `dev` | Day-to-day work; every commit is green locally. |
 | `main` | Only gate-passed milestones, merged from `dev` with `--no-ff` and tagged. |
 
-The repository is local only (Q12: private). `.github/workflows/ci.yml` runs the same checks if it is
-ever pushed; until then `npm run check` is the gate.
+The repository is on GitHub, public since 2026-11-09 (Q12: all rights reserved, no licence); `.github/workflows/ci.yml`
+runs `npm run check` and the e2e tests there on macOS and Windows for every push to `main` or `dev`.
 
 ## 5. Milestone overview
 
@@ -200,6 +208,7 @@ M6 Parts pack 1: inputs ─► M7 Parts pack 2: outputs & displays ─► M8 Lea
         ┌──────────────────────────────────────────────────────────────┘
         ▼
 M9 Errors, faults & multimeter ─► M10 Real boards ─► M12 Python 3 (Rev 10) ─► M11 Hardening & v1.0
+        ─► M13 Teacher mode & exams (Rev 15–17)
         └─► later phases: guided projects (Q7) · robot arena (F-70) · IoT & Wi-Fi (F-80–F-82; Rev 8: the ESP8266 and the
             JDY-31 Bluetooth modules, over UART) · Arduino (Q13)
 ```
@@ -219,6 +228,7 @@ M9 Errors, faults & multimeter ─► M10 Real boards ─► M12 Python 3 (Rev 1
 | M10 | Real boards | F-50–F-56, Q15, Q17, Q18, N-12 (screen 08 + new screens) | L | 2.5 |
 | M12 | *(Rev 10)* Python 3 — built before M11 | F-90–F-97, Q22, Q23, R11, R12 (screens 31–31d) | L | 3 |
 | M11 | Hardening & v1.0 | N-05, N-06, N-09, N-11, installers (Q11), classroom trial | M | 1.5 |
+| M13 | *(Rev 14)* Teacher mode & exams — after v1.0.0 | F-110–F-124, Q24–Q39, R13–R19 (screens 35–36d); the request route in the codingspace site *(optional, Rev 15)* | M | 2 |
 
 \* *Very rough, for one maintainer working part-time: about 27 weeks in all. Re-estimate after M2.*
 *The learning content (M6–M8) is the largest piece of work (R4); it can be drafted alongside M3–M5.*
@@ -590,17 +600,55 @@ connection problem says how to fix it.
 **Goal:** fast, accessible, licensed and installable.
 
 **Build order**
-1. Performance budgets on the slowest school laptop: start ≤ 5 s, ≤ 500 MB, a 40-part circuit at full speed (N-05).
-2. The same features on Windows 11 and macOS Intel / Apple Silicon (N-06).
+1. Performance budgets on the slowest school computer — an Intel Core i5, 4 GB, SSD, 1920 × 1080, Windows 10 64-bit
+   (Rev 14): start ≤ 5 s, ≤ 500 MB, a 40-part circuit at full speed (N-05).
+2. The same features on Windows 10 (64-bit) and 11 and macOS Intel / Apple Silicon (N-06); CI runs Windows Server, so
+   the installer is checked on a real Windows 10 school computer.
 3. Keyboard use of the main actions; contrast (design system); every screen checked at 1280, 1440 and 1920 wide
    and only our own controls on screen (N-13, N-14).
 4. Licences of everything bundled listed in the app, checked by a script (N-11).
 5. Saved files from every earlier format open (N-09).
 6. Installers and updates as in the gradebook (Q11); README. *(Rev 10)* The bundled CPython signed and notarized with the app on macOS (R11); one installer per processor.
+   *(Rev 13)* Done as the gradebook and OneEditor do it: electron-builder (Mac `dmg` + `zip` per processor, Windows NSIS x64, per user), the bundled CPython and Jedi per platform and processor in the app's resources, a generic update feed on a GitHub release (`…/releases/latest/download`), electron-updater (looks at start and every 6 h; `autoDownload` off; installs on Restart and update or at quit), Macs signed with the teacher's own certificate (`CSC_NAME`, not notarised), `whats-new.json`, `npm run release` (draft release, then published).
+7. *(Rev 13)* The app icon (screen 32) and About MicroLab (screen 33), an app menu (About, Check for Updates…, the View menu's zoom).
+
+**Slices** *(Rev 13)*: 11.1 the icon, About, the app menu · 11.2 installers with the bundled Python · 11.3 updates · 11.4 licences listed (N-11) · 11.5 performance (N-05) and older files (N-09) · 11.6 Windows 11 / macOS, keyboard, contrast, widths (N-06, N-13, N-14) · 11.7 README and the classroom trial · *(Rev 16)* **11.8 Run on** — the trial's fix (F-125, screens 37–37c).
+
+**11.8 Run on** *(Rev 16, before v1.0.0)*: Run's ⌄ menu chooses *The simulator* · *The real board* · *Both at once*, kept in the settings (`run.on`); the button says where. The place is worked out by a pure function from the choice, the boards plugged in and the project's board (`lib/usb` `runPlace`: a ready board that fits, else the simulator with *no board*). On the real board: the project's files but `main.py` go through the existing send (`run: false`, `keep: false` — only the changed ones), then the console's *run* runs the open file from the editor; the check before running first, as now. *Both at once*: the simulator too, and the console side by side. Stop / Shift+F5 / Restart act on all that runs; F5 doesn't start a second run while the board runs. **Tests first**: `runPlace` and the button's words for every case (no board, a wrong board, BOOTSEL, a board busy, ready); `boardCopy` leaves out `main.py` only; component — the menu (three choices, the remembered one ticked, greyed with no board), Run on the board sends without `main.py` and without restarting, then runs the file; both — the simulator and the board started, the console in two columns, Stop stops both; no board — the simulator runs and the button says so. **Gate**: the teacher tries it with a real micro:bit or Pico W.
 
 **Exit gate**
 - N-01–N-12 checked one by one in `docs/acceptance/M11.md`.
 - The teacher's classroom trial, tagged `v1.0.0`.
+
+---
+
+### M13 — Teacher mode and exams *(Rev 14, after v1.0.0)*
+
+**Goal:** in an exam, a student works only in their own copy of an exam a verified teacher made, full screen, until they hand in. A student can't open a classmate's work in MicroLab, can't read it from a Python program, and can't make a fake exam (§1.15, §1.16; architecture §2.12).
+
+**Build order**
+0. **Design** — ✅ screens 35–36d approved 2026-11-10.
+1. **Trust, headless** (F-121, F-122, F-123): `lib/exam` (formats, schemas, canonical JSON); `main/trust` (Ed25519, scrypt, AES-GCM, `resources/trust.json`); the teacher key store; `scripts/licence.ts` (`--new-key`, a licence from a request, `--withdraw`); reading `.mlexam` and every check in its order; the withdrawn list (shipped and fetched, signed).
+2. **Teacher mode** (F-118–F-121; screens 36, 36b, 36c): *Help ▸ I'm a teacher…*, the key made and locked, *Send request* (`net.fetch` to `requestUrl`, 10 s), the hand-made fallback (Copy, `mailto:`), the request kept; loading a `.mllicence` (double-click, *Help ▸ Load teacher licence…*), *for another computer* refused; Help showing the mode. **2b, in the codingspace repo — optional, when the teacher has set up Resend** *(Rev 15)*: the route, its table and its tests; deployed, then one real request end to end. Until then the route doesn't exist, *Send request* gets no `ok`, and the by-hand screen (36b) is the way — tested in step 2 against a fake `requestUrl` that fails (offline, 404, 500, `limited`).
+3. **Making and opening exams** (F-110, F-111, F-122; screens 35, 35b, 36d): *File ▸ Make an exam…* in teacher mode only — the teacher passcode, the exam passcode, the settings, the signed `.mlexam`; opening one (double-click, *Open…*, dropped) — the checks, *Exam by … ✓*, the name, a taken name, the student's copy in `Documents/MicroLab/Exams/<title>/<name>`.
+4. **The exam session** (F-112–F-114; screens 35c, 35d, 35e): the state in the settings and the resume at start; full screen per platform (the spike in §2.12) and every way out caught; the refused IPC calls (the pure table, every row tested); the dark exam bar with the clock and *Hand in…*; the board screen and the Python 3 screen in an exam (the tree at the exam's folder, no *Show in Explorer*, no Libraries unless allowed, no Board files read); saving every 5 s and on Run; the teacher passcode window, its two choices, the growing wait (kept across a restart).
+5. **Python in an exam** (F-116, R15): the runner's `--exam` audit hook and Tcl's guarded commands; the friendly error for a refusal; Jedi with the exam's folder only.
+6. **Hand in and after** (F-115, F-117; screen 35f): hand in — `handin.json`, the code files beside a board exam's `.mlab`, read-only afterwards, the teacher reopening it; *Exams on this computer* (list, delete for good); the exam's help for the teacher (what full screen does and doesn't stop, R13); README.
+
+**Tests first**
+- `lib/exam`: canonical JSON is the same bytes for the same object in any key order; every schema accepts the samples and refuses each broken field; the refused-IPC table; the wait schedule; the hand-in list for a board and a Python exam.
+- `main/trust` and the reader, with a **test author key** made by the tests (never the real one): a licence signed by it is accepted; by another key — refused; one field changed (the name, the public key) — refused; an exam with a starter file changed, added or removed — refused; `exam.json` changed — refused; a withdrawn licence — refused; a licence for another computer's key — refused at loading; a wrong teacher passcode can't decrypt the key; scrypt's time on the CI machines recorded.
+- `scripts/licence.ts`: a request in → a licence the app accepts; a malformed request → a clear error and no file.
+- The session (integration, the main process with a fake window): every refused channel refuses while an exam is on and works after it; the state survives a restart; a taken name; hand in writes `handin.json` and the code files; a handed-in exam opens read-only; deleting exams leaves nothing in the Recycle Bin / Bin.
+- **Escape attempts** (python3 tests, the real CPython, each must end in the refusal): `open("../x/main.py")`; an absolute path; `os.listdir("..")`; `os.scandir`; `pathlib.Path("..").iterdir()`; `glob.glob("../*")`; `os.walk("..")`; `os.chdir("..")` then a relative `open`; `sys.path.append("../x"); import main`; `exec(open(...).read())`; `subprocess.run(["cmd"])`; `os.system`; `os.popen`; `ctypes.CDLL`; `os.symlink` out of the folder; `shutil.copy` from outside; `tkinter.Tk().tk.eval("open ../x/main.py")`; `tk.eval("glob ../*")`; `tk.eval("exec ls")`; `filedialog.askopenfilename(initialdir="..")`. And what must still work: turtle, tkinter, `random`, reading and writing files in the folder, an allowed library.
+- Component: the exam bar, the four dialogs (35, 35b, 35e, 35f) and the teacher dialogs (36–36d), each against its screen.
+- E2E (hidden window): a teacher makes an exam (test author key); a student opens it, types a name, runs a program, can't open another project, hands in; the files are in the folder; the app restarted mid-exam comes back into it.
+
+**Exit gate**
+- Manual on the slowest school computer (Windows 10) and on macOS: a full exam with two students one after the other on one computer — make, copy, start, work, Esc, the teacher passcode, switch off mid-exam and back, hand in, upload to the ICT hand-in site; the second student can't open the first's exam in MicroLab or from Python; *Exams on this computer* deletes both. Alt+Tab is noted as seen, not stopped (R13).
+- A real request from MicroLab reaches codingspacekh@gmail.com — through the route if 2b is done, otherwise by hand (36b: *Open in my email app*) *(Rev 15)*; the licence made with the real author key, emailed back, turns on teacher mode on another computer of the teacher's; that computer's exam opens on a student computer with *Exam by … ✓*.
+- The author key's backup made and kept offline (R17).
+- `dev` merged into `main`, tagged `v1.1.0`.
 
 ## 7. Requirement → milestone map
 
@@ -628,6 +676,7 @@ connection problem says how to fix it.
 | F-38 multimeter | M1 | M9 |
 | F-40–F-42, F-44, F-45 Learn | M8 | M8 |
 | F-90–F-97 Python 3 *(Rev 10)* | M12 (runner) | M12 |
+| F-110–F-117 exam mode, F-118–F-124 teacher mode *(Rev 15–17)* | M13 (trust, session, runner) | M13 |
 | F-50 Send to board, F-51 console, F-53 Board files | M10 | M10 |
 | F-52 install MicroPython (micro:bit, Pico) | M10 | M10 |
 | F-54 library pack | M6, M7 | M5 (Add library) |
@@ -663,7 +712,8 @@ connection problem says how to fix it.
 | M6 Parts pack 1: inputs | ✅ Merged — all 9 slices: the slide switch, LDR, RGB LED, battery packs, the GPIO board's USB, the active and passive buzzer, the PIR, line sensor, soil moisture, TMP36 / LM35, DHT11 / DHT22, HC-SR04, MPU6050 (I²C) — with their controls while running and sound from the laptop; slice 5: the SunFounder kit's 14 input modules and 6 chips; slice 6: the micro:bit's own buttons, logo, tilt, shake, light, temperature and microphone on a micro:bit inputs card; slice 7: the library pack (seven drivers with their licences, the micro:bit's own too) and Add a library; slice 8 (the teacher's requests): a new project is the board alone, the parts panel on a rail, mini / half / full breadboards, the editor's text size and theme; slice 9 (the teacher's request): a new micro:bit project is the micro:bit alone, wired at its five rings, its GPIO board from the parts panel and taken out in its inspector; the gate closed by the teacher ([acceptance](acceptance/M6.md)) | 2026-11-08 | `v0.6.0` |
 | M7 Parts pack 2: outputs & displays | ✅ Done — merged `v0.7.0` 2026-11-08 (gate closed by the teacher): slice 1 (screens 25, 25b, 25c, approved 2026-11-08): 1a the actuators, their drivers and the kit's output modules in the engine and the sim, 24 examples; 1b in the editor — terminals to wire, parts beside the breadboard, the power supply's jumpers; slice 2 (screens 26, 26b, 26c, approved 2026-11-08): the OLED, the 16×2 LCD, a 7-segment digit, the TM1637 and the MAX7219 with their drivers in the library pack, 15 examples; the parts beside the breadboard turn; the parts panel's search; the RC522 RFID reader with a card and a key fob; slice 3 (screens 27, 27b, 27c, approved 2026-11-08): NeoPixel sticks and rings (WS2812B) through the firmware's own `neopixel`, 6 examples; slice 4 (screen 06): the micro:bit V2's speaker, `audio` with its built-in Sounds and SoundEffects synthesized as CODAL does, `music` with pin=None; slice 5 (screens 28–28d): UART on the wire with a USB-serial adapter and its terminal, an HC-05 and a phone, a NEO-6M GPS, SPI's modes and pins; micropyGPS in the pack, 9 examples ([acceptance](acceptance/M7.md)) | | |
 | M8 Learn | ⏸ After M9 — the teacher, 2026-11-08: "skip the M8 Learn and go to M9 first". *Rev 9 (2026-11-09)*: rewritten — about the components, for 10–13, no code, no board; the Examples tab taken out (`ba3a6ee`); the design (screens 30–30e) approved 2026-11-09 — **held until after the pilot** (the teacher) | | |
-| M9 Errors, faults & multimeter | 🔨 Built — all five slices (2026-11-08/09): 1 friendly errors, the REPL, input() (screens 05, 29c); 2 faults on the workspace and Problems (screen 04; 25c–28d's faults); 3 the check before running (29b); 4 the multimeter (29); 5 the Plotter (07). Gate: the teacher tries each and makes each §1.3 mistake ([acceptance](acceptance/M9.md)) | | |
+| M9 Errors, faults & multimeter | ✅ Merged `v0.9.0`, with M12, 2026-11-09 — all five slices (2026-11-08/09): 1 friendly errors, the REPL, input() (screens 05, 29c); 2 faults on the workspace and Problems (screen 04; 25c–28d's faults); 3 the check before running (29b); 4 the multimeter (29); 5 the Plotter (07). Gate: the teacher tries each and makes each §1.3 mistake ([acceptance](acceptance/M9.md)) | | |
 | M10 Real boards | ✅ Merged — all seven slices, tried on the teacher's micro:bit V2 and Pico W; **open gate items** (Windows 11, an ESP32, a charge-only cable, the firmware copy from an installed MicroLab; the examples with `lib/` after M8) to be done later, by the teacher's decision ([acceptance](acceptance/M10.md)) | 2026-11-06 (partly) | `v0.10.0` |
-| M12 Python 3 *(Rev 10)* | 🔨 In progress — before M11 (the teacher, 2026-11-09); the design (screens 31–31d) approved 2026-11-09 | | |
-| M11 Hardening & v1.0 | ⏳ | | |
+| M12 Python 3 *(Rev 10)* | ✅ Merged — before M11 (the teacher); the design (screens 31–31d) approved 2026-11-09 ([acceptance](acceptance/M12.md)) | 2026-11-09 | `v0.12.0` |
+| M11 Hardening & v1.0 | 🔨 Built — all seven slices on `dev` (2026-11-09), and **11.8 Run on** (2026-11-10), the classroom trial's fix — the trial done (*"it worked fine"*); 11.8 tried by the teacher on a real board (*"both worked perfectly"*); **next: `v1.0.0`**: the icon, About, the app menu; installers, updates, licences; the speed budgets and older files; every screen at every width, the keyboard, contrast, an Intel Mac in CI; the README. **Waiting for the teacher**: the slowest school computer, the classroom trial ([the plan](acceptance/M11-trial.md)), then `v1.0.0` ([acceptance](acceptance/M11.md)) | | |
+| M13 Teacher mode & exams *(Rev 14)* | 📝 Planned — after `v1.0.0` (Q28); step 2b (Resend, the form) optional, whenever the teacher sets it up (Rev 15); the design (screens 35–36d) approved 2026-11-10 ([acceptance](acceptance/M13.md)) | | |

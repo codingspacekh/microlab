@@ -31,7 +31,7 @@ test.afterEach(async () => {
   // unsaved changes would make the window ask before it closes (M4.6): end it without asking
   await app?.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach((w) => w.destroy())).catch(() => {});
   await app?.close();
-  rmSync(home, { recursive: true, force: true });
+  rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
 const centre = async (win: Page, selector: string) => {
@@ -209,8 +209,10 @@ test('M6.2: a passive buzzer plays the PWM\'s note with the real worker; the sta
   await setCode(win, 'from machine import Pin, PWM\nimport time\nb = PWM(Pin(15))\nwhile True:\n    for note in (262, 330, 392):\n        b.freq(note)\n        b.duty_u16(32768)\n        time.sleep(0.3)\n');
   await win.getByRole('button', { name: 'Run main.py' }).click();
   const bz = win.locator('[data-part="bz1"]');
-  await expect(bz).toHaveAttribute('data-hz', '330', { timeout: 5000 });
-  await expect(bz).toHaveAttribute('data-hz', '392', { timeout: 1000 });
+  // each note lasts 0.3 s: every note heard, looked at often enough never to miss one (a slow machine, CI)
+  const heard = new Set<string>();
+  await expect.poll(async () => { heard.add((await bz.getAttribute('data-hz')) ?? ''); return ['262', '330', '392'].every((n) => heard.has(n)); },
+    { timeout: 10_000, intervals: [50] }).toBe(true);
   await expect(bz.locator('.waves')).toHaveCount(1);
   await win.getByRole('button', { name: /Sound on/ }).click();
   await expect(win.getByRole('button', { name: /Sound off/ })).toHaveAttribute('aria-pressed', 'false');

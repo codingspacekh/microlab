@@ -30,7 +30,7 @@ test.describe('the window fills its width', () => {
   let app: ElectronApplication;
   let home: string;
   test.beforeAll(async () => { home = mkdtempSync(join(tmpdir(), 'microlab-e2e-')); app = await launch(home); });
-  test.afterAll(async () => { await app?.close(); rmSync(home, { recursive: true, force: true }); });
+  test.afterAll(async () => { await app?.close(); rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); });
 
   for (const [w, h] of [[1280, 720], [1440, 900], [1920, 1080]] as const) {
     test(`at ${w} × ${h}: no horizontal scroll, the panels share the whole width`, async () => {
@@ -86,6 +86,6 @@ test('a divider dragged to a new width is still there after a restart', async ()
     await expect.poll(async () => Math.round((await widths(win)).parts)).toBe(Math.round(moved));
     await app.close();
   } finally {
-    rmSync(home, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
   }
 });

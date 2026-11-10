@@ -59,6 +59,9 @@ export class BoardConsole {
   private st: ConsoleState = { prompt: false, running: null };
   /** A file run here (not the board's own main.py) holds the port until it ends. */
   runningFile = false;
+  /** A file is being started (runFile, before it runs); Stop meanwhile calls it off (M11.8). */
+  startingFile = false;
+  private calledOff = false;
 
   constructor(private readonly link: Link, private readonly sink: ConsoleSink, private readonly opts: ReplOptions = {}) {
     this.off = link.onData((d) => { if (!this.muted) this.show(this.clean(bytesText(d))); });
@@ -95,8 +98,10 @@ export class BoardConsole {
     await this.write('\x04');
   }
 
-  /** Stop (Ctrl-C): the program — or the file run here — stops; the board gives its >>> prompt. */
+  /** Stop (Ctrl-C): the program — or the file run here — stops; the board gives its >>> prompt. A file still being
+   *  started (the raw prompt, the restart: M11.8) is called off — a Ctrl-C then would be lost, and it would run on. */
   interrupt(): Promise<void> {
+    if (this.startingFile) this.calledOff = true;
     return this.write('\x03');
   }
 
@@ -128,14 +133,22 @@ export class BoardConsole {
     this.mute();
     const repl = new RawRepl(this.link, this.opts);
     try {
+      this.startingFile = true;
+      this.calledOff = false;
       await repl.enter();
       await this.ask(repl);
+      // a fresh board, as Thonny and the simulator give (Q19, M11.8): a helper copied anew is the one imported
+      await repl.reset();
       this.reset();
-      this.runningFile = true;
-      this.setState({ prompt: false, running: name });
-      await repl.execStream(code, (t) => this.emit(strip(t), 'out'), (t) => this.emit(strip(t), 'err'));
+      this.startingFile = false;
+      if (!this.calledOff) {
+        this.runningFile = true;
+        this.setState({ prompt: false, running: name });
+        await repl.execStream(code, (t) => this.emit(strip(t), 'out'), (t) => this.emit(strip(t), 'err'));
+      }
       await repl.leave();
     } finally {
+      this.startingFile = false;
       this.runningFile = false;
       repl.dispose();
       this.unmute();

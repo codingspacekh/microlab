@@ -21,6 +21,22 @@ contextBridge.exposeInMainWorld('microlab', {
   pyfile: {
     save: (text: string, opts: unknown): Promise<unknown> => ipcRenderer.invoke('py:save', text, opts),
   },
+  // updates (M11, F-109), as the gradebook and OneEditor
+  updates: {
+    get: (): Promise<unknown> => ipcRenderer.invoke('updates:get'),
+    check: (): Promise<unknown> => ipcRenderer.invoke('updates:check'),
+    download: (): Promise<unknown> => ipcRenderer.invoke('updates:download'),
+    install: (): Promise<unknown> => ipcRenderer.invoke('updates:install'),
+    setAuto: (on: boolean): Promise<unknown> => ipcRenderer.invoke('updates:auto', on),
+    seen: (): Promise<unknown> => ipcRenderer.invoke('updates:seen'),
+    showDmg: (): Promise<unknown> => ipcRenderer.invoke('updates:show-dmg'),
+    openDmg: (): Promise<unknown> => ipcRenderer.invoke('updates:open-dmg'),
+    onChange: (handler: (state: unknown) => void): (() => void) => {
+      const listener = (_e: unknown, state: unknown) => handler(state);
+      ipcRenderer.on('updates:state', listener);
+      return () => { ipcRenderer.removeListener('updates:state', listener); };
+    },
+  },
   // projects as folders (M12 Rev 11): made, opened, their tree and its files
   projects: {
     home: (): Promise<unknown> => ipcRenderer.invoke('projects:home'),
@@ -50,6 +66,7 @@ contextBridge.exposeInMainWorld('microlab', {
     interrupt: (): Promise<void> => ipcRenderer.invoke('py:interrupt'),
     stop: (): Promise<void> => ipcRenderer.invoke('py:stop'),
     shellComplete: (text: string): Promise<unknown> => ipcRenderer.invoke('py:shell-complete', text),
+    version: (): Promise<unknown> => ipcRenderer.invoke('py:version'),
     complete: (at: unknown): Promise<unknown> => ipcRenderer.invoke('py:complete', at),
     signature: (at: unknown): Promise<unknown> => ipcRenderer.invoke('py:signature', at),
     onEvent: (handler: (e: unknown) => void): (() => void) => {
@@ -123,5 +140,14 @@ contextBridge.exposeInMainWorld('microlab', {
     showFirmware: (kind: string): Promise<void> => ipcRenderer.invoke('app:show-firmware', kind),
     // the app's size (M12 Rev 12, F-106): the window's zoom
     zoom: { get: (): number => webFrame.getZoomFactor(), set: (f: number): void => webFrame.setZoomFactor(f) },
+    // About MicroLab (M11, F-108): its website; the app menu's About and Check for Updates…
+    openWebsite: (): Promise<void> => ipcRenderer.invoke('app:website'),
+    // About ▸ Licences (M11.4, N-11)
+    licences: (): Promise<string | null> => ipcRenderer.invoke('app:licences'),
+    onMenu: (handler: (action: string) => void): (() => void) => {
+      const listener = (_e: unknown, action: string) => handler(action);
+      ipcRenderer.on('app:menu', listener);
+      return () => { ipcRenderer.removeListener('app:menu', listener); };
+    },
   },
 });

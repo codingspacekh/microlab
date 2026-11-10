@@ -96,6 +96,16 @@ describe('M6.4 HC-SR04 with time_pulse_us', () => {
     expect(r.faults).toEqual([]);
   });
 
+  it('M11.5: the same in the app, where nothing records the pins (record: false) — the trigger is still seen', async () => {
+    const r = await runProject(await nodeLoader(), {
+      board: 'pico-w', clock: new VirtualClock(), circuit: sonar('pico-w', 'VBUS', 'GP14', 'GP15'), record: false,
+      files: { 'main.py': `${ping(14, 15)}\nprint(round(cm()))\ntime.sleep(1)\nprint(round(cm()))\n` },
+      partInputs: [{ atUs: 500_000, part: 'sonar1', cm: 50 }],
+    });
+    expect(lines(r)).toEqual(['100', '50']);
+    expect(r.trace.length).toBeLessThan(10);
+  });
+
   it('the ESP32 (screen 07): 34 cm is an echo of 1972 µs', async () => {
     const r = await run('esp32-devkit-v1', sonar('esp32-devkit-v1', 'VIN', 'D5', 'D18'),
       'from machine import Pin, time_pulse_us\nimport time\ntrig = Pin(5, Pin.OUT)\necho = Pin(18, Pin.IN)\ntrig.value(1)\ntime.sleep_us(10)\ntrig.value(0)\nprint(time_pulse_us(echo, 1, 30000))\n',

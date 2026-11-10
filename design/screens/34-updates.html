@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>34 Updates</title>
+<meta name="viewport" content="width=device-width">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="fit.js" defer></script>
+
+<style>
+.unote { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-top: 1px solid var(--accent-line, #b9cdf4); background: var(--accent-soft); font-size: 12.5px; }
+.unote .bar { width: 160px; height: 6px; border-radius: 3px; background: #fff; overflow: hidden; }
+.unote .bar i { display: block; height: 100%; width: 62%; background: var(--accent); }
+.states { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.states .k { font-size: 11px; font-weight: 650; color: var(--tx-3); text-transform: uppercase; letter-spacing: .05em; }
+.states .unote { border: 1px solid var(--accent-line, #b9cdf4); border-radius: 9px; }
+.uds { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.uds ul { margin: 4px 0 0 18px; padding: 0; color: var(--tx-2); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<p class="frame-label"><b>34 · Updates</b> (M11 design, <b>Rev 13</b>, the teacher: <i>"prepare for auto update when the next feature is released … the same way we did in the gradebook and OneEditor"</i>) — MicroLab looks for a newer version <b>when it opens and every 6 hours</b> (on the internet; offline, it says nothing). A <b>note above the status bar</b> says what there is, in every mode: <i>MicroLab 0.13.0 is out</i> — <b>What's new</b>, <b>Download</b>; downloading, with how far; <i>ready</i> — <b>Restart and update</b> or <b>Later</b> (it goes in when MicroLab is next closed; it never restarts by itself, nor while a program runs or work is unsaved — it asks to save first); once, after: <i>Updated to 0.13.0</i>. Nothing is downloaded unless the student presses Download — or turns on <i>Download updates by itself</i> (34b). On a Mac whose copy can't update itself, the new version is saved in Downloads with <b>Open it</b> / <b>Show in Finder</b></p>
+<div class="frame" style="position:relative">
+  <div class="topbar">
+  <div class="brand"><svg class="logo" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="#2563d9"/><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M11 8V4.5M17 8V4.5M11 23.5V20M17 23.5V20M8 11H4.5M8 17H4.5M20 11h3.5M20 17h3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="14" r="2.2" fill="#7fe0a8"/></svg>
+<b>Micro<span>Lab</span></b></div>
+  <div class="seg modes"><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg> Workspace</span><span class="on"><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 10l3 2-3 2M13 15h3"/></svg> Python 3</span><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M8 7h7"/></svg> Learn</span></div>
+  <div class="pyfile"><b>guessing_game · main.py</b><span>Documents/MicroLab/guessing_game · saved</span></div>
+  <span class="spacer"></span>
+  <div class="runbox"><button class="btn run"><svg class="ico fill s14" viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z"/></svg> Run main.py <span class="tiny" style="opacity:.75;margin-left:2px">F5</span></button><button class="btn icon disabled"><svg class="ico fill s14" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg></button></div><button class="btn"><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg> Libraries</button>
+</div>
+
+  <div class="row" style="flex:1;min-height:0;align-items:stretch">
+    <div class="pyscreen" style="flex:1">
+      <div class="tabs"><a class="on"><svg class="pylogo" width="14" height="14" viewBox="0.21 -0.077 110 110" aria-hidden="true"><linearGradient id="pyl11a" gradientUnits="userSpaceOnUse" x1="63.8159" y1="56.6829" x2="118.4934" y2="1.8225" gradientTransform="matrix(1 0 0 -1 -53.2974 66.4321)"><stop offset="0" stop-color="#387EB8"/><stop offset="1" stop-color="#366994"/></linearGradient><path fill="url(#pyl11a)" d="M55.023-0.077c-25.971,0-26.25,10.081-26.25,12.156c0,3.148,0,12.594,0,12.594h26.75v3.781c0,0-27.852,0-37.375,0c-7.949,0-17.938,4.833-17.938,26.25c0,19.673,7.792,27.281,15.656,27.281c2.335,0,9.344,0,9.344,0s0-9.765,0-13.125c0-5.491,2.721-15.656,15.406-15.656c15.91,0,19.971,0,26.531,0c3.902,0,14.906-1.696,14.906-14.406c0-13.452,0-17.89,0-24.219C82.054,11.426,81.515-0.077,55.023-0.077z M40.273,8.392c2.662,0,4.813,2.15,4.813,4.813c0,2.661-2.151,4.813-4.813,4.813s-4.813-2.151-4.813-4.813C35.46,10.542,37.611,8.392,40.273,8.392z"/><linearGradient id="pyl11b" gradientUnits="userSpaceOnUse" x1="97.0444" y1="21.6321" x2="155.6665" y2="-34.5308" gradientTransform="matrix(1 0 0 -1 -53.2974 66.4321)"><stop offset="0" stop-color="#FFE052"/><stop offset="1" stop-color="#FFC331"/></linearGradient><path fill="url(#pyl11b)" d="M55.397,109.923c25.959,0,26.282-10.271,26.282-12.156c0-3.148,0-12.594,0-12.594H54.897v-3.781c0,0,28.032,0,37.375,0c8.009,0,17.938-4.954,17.938-26.25c0-23.322-10.538-27.281-15.656-27.281c-2.336,0-9.344,0-9.344,0s0,10.216,0,13.125c0,5.491-2.631,15.656-15.406,15.656c-15.91,0-19.476,0-26.532,0c-3.892,0-14.906,1.896-14.906,14.406c0,14.475,0,18.265,0,24.219C28.366,100.497,31.562,109.923,55.397,109.923z M70.148,101.454c-2.662,0-4.813-2.151-4.813-4.813s2.15-4.813,4.813-4.813c2.661,0,4.813,2.151,4.813,4.813S72.809,101.454,70.148,101.454z"/></svg> main.py</a></div>
+      <div class="ed"><div class="ln"><span class="no">1</span><span class="tx"><span class="k">import</span> random</span></div><div class="ln"><span class="no">2</span><span class="tx"> </span></div><div class="ln"><span class="no">3</span><span class="tx">secret = random.<span class="f">randint</span>(<span class="n">1</span>, <span class="n">10</span>)</span></div><div class="ln"><span class="no">4</span><span class="tx">tries = <span class="n">0</span></span></div><div class="ln"><span class="no">5</span><span class="tx"><span class="f">print</span>(<span class="s">&quot;I&#x27;m thinking of a number from 1 to 10.&quot;</span>)</span></div><div class="ln"><span class="no">6</span><span class="tx"> </span></div><div class="ln"><span class="no">7</span><span class="tx"><span class="k">while</span> <span class="k">True</span>:</span></div><div class="ln"><span class="no">8</span><span class="tx">    guess = <span class="f">int</span>(<span class="f">input</span>(<span class="s">&quot;Your guess: &quot;</span>))</span></div><div class="ln"><span class="no">9</span><span class="tx">    tries = tries + <span class="n">1</span></span></div><div class="ln"><span class="no">10</span><span class="tx">    <span class="k">if</span> guess &lt; secret:</span></div><div class="ln"><span class="no">11</span><span class="tx">        <span class="f">print</span>(<span class="s">&quot;Higher!&quot;</span>)</span></div><div class="ln"><span class="no">12</span><span class="tx">    <span class="k">elif</span> guess &gt; secret:</span></div><div class="ln"><span class="no">13</span><span class="tx">        <span class="f">print</span>(<span class="s">&quot;Lower!&quot;</span>)</span></div><div class="ln"><span class="no">14</span><span class="tx">    <span class="k">else</span>:</span></div><div class="ln"><span class="no">15</span><span class="tx">        <span class="f">print</span>(f<span class="s">&quot;Yes! {secret} in {tries} tries.&quot;</span>)</span></div><div class="ln"><span class="no">16</span><span class="tx">        <span class="k">break</span></span></div></div>
+    </div>
+    <div class="states" style="width:470px;border-left:1px solid var(--line);background:var(--bg)">
+      <div class="k">1 · One is out</div>
+      <div class="unote"><svg class="ico s14" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18M12 11v5M12 8h.01"/></svg><span><b>MicroLab 0.13.0 is out.</b></span><span class="spacer"></span><button class="btn sm">What's new</button><button class="btn sm primary">Download</button><button class="btn ghost icon sm"><svg class="ico s12" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="k">2 · Downloading</div>
+      <div class="unote"><svg class="ico s14" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18M12 11v5M12 8h.01"/></svg><span>Downloading 0.13.0… 62 %</span><span class="bar"><i></i></span><span class="tiny muted">keep working</span></div>
+      <div class="k">3 · Ready</div>
+      <div class="unote"><svg class="ico s14" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg><span><b>0.13.0 is ready.</b> It goes in when you next close MicroLab, or now:</span><span class="spacer"></span><button class="btn sm">Later</button><button class="btn sm primary">Restart and update</button></div>
+      <div class="k">4 · After, once</div>
+      <div class="unote"><svg class="ico s14" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg><span><b>Updated to 0.13.0.</b> New: the servo's pulse shown while it runs; …</span><span class="spacer"></span><button class="btn sm">OK</button></div>
+      <div class="k">On a Mac that can't update itself</div>
+      <div class="unote"><svg class="ico s14" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18M12 11v5M12 8h.01"/></svg><span><b>MicroLab 0.13.0 is in Downloads.</b> Open it and drag MicroLab into Applications.</span><span class="spacer"></span><button class="btn sm">Show in Finder</button><button class="btn sm primary">Open it</button></div>
+    </div>
+  </div>
+  <div class="unote"><svg class="ico s14" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg><span><b>0.13.0 is ready.</b> It goes in when you next close MicroLab, or now:</span><span class="spacer"></span><button class="btn sm">Later</button><button class="btn sm primary">Restart and update</button></div>
+  <div class="statusbar"><span class="st"><span class="dot" style="background:var(--tx-3)"></span>Ready</span><span>Python 3.13.18 (MicroLab)</span><span class="spacer"></span><span class="zoom"><button class="btn ghost icon"><svg class="ico s12" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><b>100 %</b><button class="btn ghost icon"><svg class="ico s12" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></span></div>
+</div>
+</body></html>

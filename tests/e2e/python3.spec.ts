@@ -21,7 +21,7 @@ test.beforeEach(async () => {
 test.afterEach(async () => {
   await app?.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach((w) => w.destroy())).catch(() => {});
   await app?.close();
-  rmSync(home, { recursive: true, force: true });
+  rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
@@ -70,8 +70,8 @@ test('Stop ends a program that runs on; ⌘S saves main.py in its project\'s fol
   await setCode(win, 'main.py', ['import time', 'n = 0', 'while True:', '    n += 1', '    print(n)', '    time.sleep(0.1)', ''].join('\n'));
   await win.keyboard.press(`${MOD}+s`);
   await expect(win.getByRole('group', { name: 'Python project' })).toContainText('Test project · main.py');
-  await expect(win.getByRole('group', { name: 'Python project' })).toContainText('saved');
-  expect(readFileSync(file, 'utf8')).toContain('time.sleep(0.1)');
+  await expect(win.getByRole('group', { name: 'Python project' })).not.toContainText('not saved');   // ("not saved" holds "saved" too)
+  await expect.poll(() => readFileSync(file, 'utf8')).toContain('time.sleep(0.1)');
   await win.getByRole('button', { name: /Run main\.py/ }).click();
   await expect(win.getByRole('log', { name: 'Shell' })).toContainText('3', { timeout: 10_000 });
   await win.getByRole('button', { name: 'Stop' }).click();
@@ -151,12 +151,18 @@ test('M12 slice 5b (F-97, F-92): Jedi offers turtle\'s names as they are typed, 
   test.skip(!existsSync(join('vendor', 'python-tools', 'jedi')), 'Jedi not fetched: npm run fetch:python -- --tools');
   const win = await app.firstWindow();
   await newProject(win, 'New Python project');
-  await setCode(win, 'main.py', 'import turtle\nturtle.fo');
-  await win.keyboard.press('Control+Space');
   const list = win.locator('.cm-tooltip-autocomplete');
-  await expect(list.getByRole('option', { name: /forward/ })).toBeVisible({ timeout: 10_000 });   // the helper's first start
-  await expect(win.locator('.cm-completionInfo')).toContainText('Move the turtle forward');
-  await win.keyboard.press('Enter');
+  // CodeMirror ignores Enter for 75 ms after the list changes (it makes a new line instead); on a busy computer the
+  // list can still change after a short wait — then the code is put back and asked for again, as a person would
+  await expect(async () => {
+    await setCode(win, 'main.py', 'import turtle\nturtle.fo');
+    await win.keyboard.press('Control+Space');
+    await expect(list.getByRole('option', { name: /forward/, selected: true })).toBeVisible({ timeout: 10_000 });   // the helper's first start
+    await expect(win.locator('.cm-completionInfo')).toContainText('Move the turtle forward');
+    await win.waitForTimeout(150);
+    await win.keyboard.press('Enter');
+    await expect(win.getByRole('textbox', { name: 'main.py' })).toContainText('turtle.forward(', { timeout: 1000 });
+  }).toPass({ timeout: 25_000 });
   await win.keyboard.type('10, ');
   await expect(win.getByRole('textbox', { name: 'main.py' })).toContainText('turtle.forward(10, )');
   await win.keyboard.press(`${MOD}+A`);

@@ -10,6 +10,7 @@
  *   node scripts/fetch-python.mjs              this computer's platform and processor, and the tools
  *   node scripts/fetch-python.mjs --tools      the tools only (development with the computer's own Python)
  *   node scripts/fetch-python.mjs --all        every platform the app is built for (a build machine)
+ *   node scripts/fetch-python.mjs --target darwin-x64   one platform and chip (what scripts/package.ts builds)
  *
  * A part already there with the same hash is left as it is. A new release is a change here: its URL and hash.
  */
@@ -107,7 +108,9 @@ async function fetchTools() {
 const args = process.argv.slice(2);
 try {
   if (!args.includes('--tools')) {
-    for (const target of args.includes('--all') ? Object.keys(PYTHONS) : [`${process.platform}-${process.arch}`]) await fetchPython(target);
+    const at = args.indexOf('--target');
+    const targets = args.includes('--all') ? Object.keys(PYTHONS) : at >= 0 && args[at + 1] ? [args[at + 1]] : [`${process.platform}-${process.arch}`];
+    for (const target of targets) await fetchPython(target);
   }
   await fetchTools();
 } catch (e) {

@@ -16,7 +16,7 @@ const libs = mkdtempSync(join(tmpdir(), 'ml-assist-libs-'));
 mkdirSync(join(libs, 'greet'));
 writeFileSync(join(libs, 'greet', '__init__.py'), 'def hello(name, times=1):\n    """Says hello to someone, for MicroLab\'s tests."""\n    return name\n');
 const assistant = new Assistant({ python, tools, libs });
-afterAll(() => { assistant.dispose(); rmSync(libs, { recursive: true, force: true }); });
+afterAll(() => { assistant.dispose(); rmSync(libs, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); });
 
 const at = (code: string) => {
   const lines = code.split('\n');
@@ -30,7 +30,10 @@ describe('Jedi, as the editor asks it', () => {
   });
 
   it('a module\'s names after a dot, each with its signature and explanation; a call with arguments', async () => {
-    const found = await assistant.complete(at('import turtle\nturtle.fo'));
+    // Jedi's first start loads turtle's stubs: on a slower computer (an Intel Mac) longer than the 4 s a question is
+    // given — that question gets nothing, as the editor does; asked again, it answers
+    let found: Awaited<ReturnType<typeof assistant.complete>> = [];
+    await expect.poll(async () => (found = await assistant.complete(at('import turtle\nturtle.fo'))).some((c) => c.name === 'forward'), { timeout: 30_000 }).toBe(true);
     const forward = found.find((c) => c.name === 'forward');
     expect(forward).toMatchObject({ type: 'function', call: 'args' });
     expect(forward!.doc).toMatch(/^forward\(distance\)\n.*Move the turtle forward/s);
@@ -49,9 +52,11 @@ describe('Jedi, as the editor asks it', () => {
     expect(hello!.doc).toMatch(/hello\(name, times=1\)\nSays hello to someone/);
   });
 
-  it('turtle and tkinter (the teacher: no ( ) added): names that are another name for a function — pack, title, fd, done — come with their brackets', async () => {
+  it('turtle and tkinter (the teacher: no ( ) added): names that are another name for a function — pack, title, fd, done — come with their brackets', { timeout: 60_000 }, async () => {
     const pick = async (code: string, name: string) => (await assistant.complete(at(code))).find((c) => c.name === name);
     const tk = 'import tkinter as tk\nroot = tk.Tk()\nb = tk.Button(root, text="Hi")\n';
+    // tkinter's first question loads its stubs: on the Intel Mac longer than a question's 4 s — asked again, as for turtle
+    await expect.poll(async () => !!(await pick(`${tk}root.ti`, 'title')), { timeout: 30_000 }).toBe(true);
     expect(await pick(`${tk}root.ti`, 'title')).toMatchObject({ type: 'function', call: 'args' });          // title = wm_title
     expect(await pick(`${tk}root.geo`, 'geometry')).toMatchObject({ type: 'function', call: 'args' });     // geometry = wm_geometry
     expect(await pick(`${tk}b.pa`, 'pack')).toMatchObject({ type: 'function' });                           // pack = pack_configure
@@ -69,8 +74,10 @@ describe('Jedi, as the editor asks it', () => {
     expect((await pick(`${tk}root.ti`, 'title'))!.doc).toMatch(/^title\(/);
   });
 
-  it('a module\'s own _names only when _ is typed', async () => {
-    const names = (await assistant.complete(at('import random\nrandom.'))).map((c) => c.name);
+  it('a module\'s own _names only when _ is typed', { timeout: 60_000 }, async () => {
+    let names: string[] = [];
+    // random's first question loads it: asked again until it answers (the Intel Mac, as for turtle)
+    await expect.poll(async () => (names = (await assistant.complete(at('import random\nrandom.'))).map((c) => c.name)).includes('randint'), { timeout: 30_000 }).toBe(true);
     expect(names).toContain('randint');
     expect(names.some((n) => n.startsWith('_'))).toBe(false);
   });

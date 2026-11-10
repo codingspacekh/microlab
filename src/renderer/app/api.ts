@@ -1,4 +1,5 @@
 import type { OpenResult, ProjectDoc, SaveResult } from '@lib/project';
+import type { UpdateState } from '@lib/updates';
 import type { BoardListing, ConsoleAction, ConsoleKind, SendRequest, SendResult } from '@lib/repl';
 
 /** A recent project (F-05): where it is from the home folder, and whether it is still there. */
@@ -56,6 +57,20 @@ export interface MicrolabApi {
   file: {
     open(): Promise<({ kind: 'mlab' } & OpenResult) | ({ kind: 'py' } & PyProjectOpen) | { ok: false; canceled: true }>;
   };
+  /** Updates (M11, F-109; screens 34, 34b), as the gradebook and OneEditor: the main process looks; the window is told. */
+  updates: {
+    get(): Promise<UpdateState>;
+    check(): Promise<UpdateState>;
+    download(): Promise<UpdateState>;
+    /** Restart and update (only once the work is saved). */
+    install(): Promise<UpdateState>;
+    setAuto(on: boolean): Promise<UpdateState>;
+    /** "Updated to …" read. */
+    seen(): Promise<UpdateState>;
+    showDmg(): Promise<UpdateState>;
+    openDmg(): Promise<UpdateState>;
+    onChange(handler: (state: UpdateState) => void): () => void;
+  };
   /** Projects as folders (M12 Rev 11, F-100, F-101; screens 31e, 31b). Paths in a project use forward slashes. */
   projects: {
     /** MicroLab's folder in Documents: where every new project's location starts. */
@@ -89,6 +104,8 @@ export interface MicrolabApi {
     /** Stop: the program ends, its windows close. */
     stop(): Promise<void>;
     onEvent(handler: (e: PyEvent) => void): () => void;
+    /** The bundled Python's version (About MicroLab), or null if it can't say. */
+    version(): Promise<string | null>;
     /** Tab at >>> (F-92): what finishes `text`, from the program's names. */
     shellComplete(text: string): Promise<string[]>;
     /** Help while typing (F-97, Jedi): the names that fit at a place in the code (line from 1, column from 0). */
@@ -160,6 +177,12 @@ export interface MicrolabApi {
     showFirmware(kind: 'pico' | 'microbit'): Promise<void>;
     /** The app's size (M12 Rev 12, F-106): the window's zoom factor (1 = 100 %). */
     zoom: { get(): number; set(factor: number): void };
+    /** About MicroLab (M11, F-108): codingspacekh.dev in the computer's browser. */
+    openWebsite(): Promise<void>;
+    /** About ▸ Licences (M11.4, N-11): THIRD_PARTY_LICENSES.txt; null while developing before `npm run licences`. */
+    licences(): Promise<string | null>;
+    /** The app menu's About MicroLab and Check for Updates…: 'about' | 'updates'. */
+    onMenu(handler: (action: string) => void): () => void;
   };
 }
 
@@ -185,6 +208,11 @@ export function getApi(): MicrolabApi {
     },
     recovery: { get: async () => null, write: async () => {}, clear: async () => {} },
     pyfile: { save: async () => ({ ok: false, message: 'Saving a file needs the MicroLab app.' }) },
+    updates: (() => {
+      // outside the installed app updates are off: the window says so
+      const off = async (): Promise<UpdateState> => ({ mode: 'off', current: '0.0.0', status: 'idle', version: null, notes: [], percent: 0, checkedAt: null, error: null, autoDownload: false, updatedTo: null, updatedNotes: [], dmg: null });
+      return { get: off, check: off, download: off, install: off, setAuto: off, seen: off, showDmg: off, openDmg: off, onChange: () => () => {} };
+    })(),
     projects: {
       home: async () => 'Documents/MicroLab', choose: async () => null,
       newPython: async () => ({ ok: false, message: 'Python projects need the MicroLab app.' }),
@@ -198,7 +226,7 @@ export function getApi(): MicrolabApi {
     python3: {
       run: async () => ({ ok: false, message: 'Python 3 needs the MicroLab app.' }),
       line: async () => {}, interrupt: async () => {}, stop: async () => {}, onEvent: () => () => {},
-      shellComplete: async () => [], complete: async () => [], signature: async () => null,
+      shellComplete: async () => [], complete: async () => [], signature: async () => null, version: async () => null,
       libs: {
         list: async () => [],
         lookUp: async () => ({ ok: false, message: 'Libraries need the MicroLab app.' }),
@@ -222,6 +250,6 @@ export function getApi(): MicrolabApi {
       },
       console: { open: async () => ({ ok: false, message: 'A board needs the MicroLab app.' }), close: async () => {}, do: async () => {}, onOutput: () => () => {} },
       onChange: () => () => {} },
-    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close(), copy: async (t) => navigator.clipboard?.writeText(t), openDriverPage: async () => {}, showFirmware: async () => {}, zoom: { get: () => 1, set: () => {} } },
+    app: { setDirty: () => {}, onCloseRequest: () => () => {}, close: () => window.close(), copy: async (t) => navigator.clipboard?.writeText(t), openDriverPage: async () => {}, showFirmware: async () => {}, zoom: { get: () => 1, set: () => {} }, openWebsite: async () => {}, licences: async () => null, onMenu: () => () => {} },
   };
 }

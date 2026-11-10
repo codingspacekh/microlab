@@ -18,7 +18,7 @@ test.afterEach(async () => {
   // unsaved changes would make the window ask before it closes (M4.6): end it without asking
   await app?.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach((w) => w.destroy())).catch(() => {});
   await app?.close();
-  rmSync(home, { recursive: true, force: true });
+  rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
 async function resize(win: Page, width: number, height: number) {
@@ -91,4 +91,53 @@ test('the board pictures load from the app\'s own files', async () => {
   const imgs = win.locator('.bcard img');
   await expect(imgs).toHaveCount(3);
   await expect.poll(() => imgs.evaluateAll((els) => els.every((e) => (e as HTMLImageElement).complete && (e as HTMLImageElement).naturalWidth > 0))).toBe(true);
+});
+
+test('M11 slice 1 (Rev 13; screen 33): the app menu has About MicroLab and Check for Updates…; the logo opens About', async () => {
+  const win = await app.firstWindow();
+  const menu = await app.evaluate(({ Menu }) => Menu.getApplicationMenu()!.items.map((m) => ({ label: m.label, items: m.submenu?.items.map((i) => i.label) ?? [] })));
+  const all = menu.flatMap((m) => m.items);
+  expect(all).toContain('About MicroLab');
+  expect(all).toContain('Check for Updates…');
+  await win.getByRole('button', { name: 'About MicroLab' }).click();
+  const about = win.getByRole('dialog', { name: 'About MicroLab' });
+  await expect(about).toContainText('© 2026 CodingSpaceKH. All rights reserved.');
+  await expect(about).toContainText(/Version \d+\.\d+\.\d+/);
+  // the teacher (2026-11-09): one short line, no icon
+  const site = about.getByRole('button', { name: 'To contribute visit codingspacekh.dev' });
+  await expect(site).toBeVisible();
+  await expect(site.locator('svg')).toHaveCount(0);
+  expect((await site.boundingBox())!.height).toBeLessThan(40);
+  await about.getByRole('button', { name: 'Close' }).click();
+  await expect(about).toHaveCount(0);
+  // the app menu's About, sent from the main process (the window is up)
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.webContents.send('app:menu', 'about'));
+  await expect(win.getByRole('dialog', { name: 'About MicroLab' })).toBeVisible();
+});
+
+test('M11 slice 3 (screen 34b): Check for Updates… from the app menu; not the installed app: it says updates work only there', async () => {
+  const win = await app.firstWindow();
+  await expect(win.getByRole('heading', { name: 'Start something new' })).toBeVisible();   // the window is up: menu actions reach it
+  await app.evaluate(({ Menu }) => {
+    const find = (items: Electron.MenuItem[]): Electron.MenuItem | undefined => {
+      for (const i of items) { if (i.label === 'Check for Updates…') return i; const s = i.submenu && find(i.submenu.items); if (s) return s; }
+      return undefined;
+    };
+    find(Menu.getApplicationMenu()!.items)!.click();
+  });
+  const d = win.getByRole('dialog', { name: 'Updates' });
+  await expect(d).toContainText('Updates work only in the installed MicroLab');
+  await expect(win.getByRole('region', { name: 'Updates' })).toHaveCount(0);   // no note: nothing to say
+  await d.getByRole('button', { name: 'Close' }).click();
+});
+
+test('M11: the window\'s pages load whole under its security policy — no font, script or style refused', async () => {
+  const win = await app.firstWindow();
+  const refused: string[] = [];
+  win.on('console', (m) => { if (m.type() === 'error' && /Content Security Policy|Loading the (font|script|stylesheet)/.test(m.text())) refused.push(m.text().slice(0, 160)); });
+  await win.reload();
+  await expect(win.getByRole('heading', { name: 'Start something new' })).toBeVisible();
+  await win.evaluate(() => document.fonts.ready);
+  await win.waitForTimeout(500);
+  expect(refused).toEqual([]);
 });

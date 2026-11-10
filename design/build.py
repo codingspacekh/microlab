@@ -29,6 +29,7 @@ sys.path.insert(0, str(ROOT))
 import scenes  # noqa: E402
 import learnfigs  # noqa: E402
 import pyfigs  # noqa: E402
+import iconfigs  # noqa: E402
 from svgparts import icon_svg, PICO_B, PICO_T  # noqa: E402
 
 SRC = ROOT / "src"
@@ -99,6 +100,10 @@ ICONS = {
     "heart": '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
     "usb": '<path d="M10 3h4v5h-4zM8 8h8v8a4 4 0 0 1-8 0zM12 20v2"/>',
     "lock": '<path d="M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3"/>',
+    "upload": '<path d="M12 16V4M7 9l5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>',
+    "user": '<path d="M12 4a4 4 0 1 0 0 8a4 4 0 0 0 0-8M4.5 20a7.5 7.5 0 0 1 15 0"/>',
+    "exam": '<path d="M8 4h8v3H8zM8 5.5H5.5V21h13V5.5H16M8.5 13.5l2.5 2.5 4.5-5"/>',
+    "key": '<path d="M8 10a4 4 0 1 0 0 8a4 4 0 0 0 0-8M11.5 12.5L20 4M17 7l2 2M15 9l1.5 1.5"/>',
 }
 
 
@@ -778,7 +783,7 @@ def examples() -> str:
 
 
 # ---------------------------------------------------------------- template engine
-GENERATORS = {"pyfig": pyfigs.fig, "fig": learnfigs.fig, "scene": scenes.scene, "code": code, "parts": parts, "part": part, "pinout": pinout, "picov": picov,
+GENERATORS = {"appicon": iconfigs.fig, "pyfig": pyfigs.fig, "fig": learnfigs.fig, "scene": scenes.scene, "code": code, "parts": parts, "part": part, "pinout": pinout, "picov": picov,
               "examples": examples}
 TAG = re.compile(r"\{\{(include|i|" + "|".join(GENERATORS) + r")(?::([^}]*))?\}\}")
 

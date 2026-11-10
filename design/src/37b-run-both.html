@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>37b Running on both</title>
+{{include:head}}
+</head>
+<body>
+<!--@BOARDCHIP: <button class="boardchip ok"><span class="dot"></span>{{part:pico:bp}}Pico W <span class="sub">· running main.py</span></button>-->
+<!--@RUNBOX: <div class="runbox"><span class="timer"><span class="dot"></span>Running 00:07 <span class="where">· sim + Pico W</span></span><button class="btn stop">{{i:stop:s14}} Stop</button><button class="btn icon" title="Restart both">{{i:restart}}</button></div>-->
+<!--@SENDBTN: <span class="sendsplit"><button class="btn">{{i:usb}} Send to board</button><button class="btn" title="More ways to send">{{i:chevd:s14}}</button></span>-->
+<!--@EDITOR: {{code:traffic:cur=21}}-->
+<!--@CTABS: <a class="on">{{i:term:s14}} Simulator + Pico W</a><a>{{i:plot:s14}} Plotter</a><a>{{i:warn:s14}} Problems</a>-->
+<!--@CONSOLE: <div class="csplit"><div><div class="ch"><span class="dot"></span>Simulator</div><div class="cbody"><span class="sys">MicroPython v1.29.0 on Raspberry Pi Pico W (simulated)</span>
+Traffic lights ready
+Button pressed: stopping traffic
+</div></div><div><div class="ch"><span class="dot"></span>Pico W (USB)</div><div class="cbody"><span class="sent">✓ Nothing to copy: lib/ssd1306.py was already on the Pico W.</span>
+<span class="sys">Running main.py from the editor. The board's own main.py, the one it starts by itself, is unchanged.</span>
+Traffic lights ready
+</div></div></div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>Running on both — Stop (<span class="kbd">Shift</span>+<span class="kbd">F5</span>) stops both</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Running at real speed · Pico W (USB): running main.py</span>-->
+<!--@STATUS_R: <span class="muted">Circuit solve 0.08 ms</span>-->
+<p class="frame-label"><b>37b · Running on both</b> — Run (F5) with <i>Both at once</i> (Rev 18, F-125): the changed files are copied (here none), then the simulator and the real Pico W start the same file together. The console shows the two side by side, each with its own output; the simulator's button is clicked on the picture, the board's is pressed for real, so the two may differ — the banner says so. Stop and Restart act on both; unplugging the board ends its side only (<i>The Pico W was unplugged</i>), the simulator runs on</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas"><div class="stage">{{scene:traffic:run}}</div>
+      <div class="cbanner"><div class="row" style="gap:10px;padding:9px 12px;border-radius:9px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-m);font-size:12.5px;flex:1">{{i:usb:s14}}<span><b>Running here and on the real Pico W.</b> Each reads its own buttons: click this picture's, press the real board's. The real board must be wired like this picture. <a>Print the wiring list</a></span></div></div>
+      {{include:ctools}}</div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

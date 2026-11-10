@@ -150,3 +150,10 @@ export function sendMessage(r: Extract<SendResult, { ok: true }>, req: SendReque
   if (r.keptIn) lines.push(`The board's old main.py is kept in “${r.keptIn.split(/[\\/]/).pop()}” (Documents › MicroLab › Board backups).`);
   return lines;
 }
+
+/** What the copy before Run on the board says (M11.8, F-125, screen 37c): main.py is never among them. */
+export function copyMessage(r: Extract<SendResult, { ok: true }>): string {
+  const list = (xs: string[]) => xs.join(', ');
+  if (r.sent.length) return `Copied to the ${r.board}: ${list(r.sent.map((s) => `${s.path} (${size(s.size)})`))}. Its main.py was left as it was.`;
+  return `Nothing to copy: ${list(r.same)} ${r.same.length > 1 ? 'were' : 'was'} already on the ${r.board}.`;
+}

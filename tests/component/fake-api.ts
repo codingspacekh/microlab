@@ -1,10 +1,13 @@
 import { vi } from 'vitest';
+import type { UpdateState } from '../../src/lib/updates';
 import type { MicrolabApi, PyCompletion, PyEvent, PyLibrary, PyPlace, PySignature, RecentItem, Recovered, TreeEntry } from '../../src/renderer/app/api';
 
 /** The preload's API for component tests: settings in memory, file choosers that answer as told, the app's close;
  *  the recent list and the recovery copy in memory, starting as `start` says (M5.7). */
 /** The fake API, and (M12) what the Python 3 session would tell the window: `emitPy` sends it an event. */
-export type FakeApi = MicrolabApi & { emitPy: (e: PyEvent) => void; disk: Map<string, string | null> };
+export type FakeApi = MicrolabApi & { emitPy: (e: PyEvent) => void; disk: Map<string, string | null>; emitUpdates: (patch: Partial<UpdateState>) => void };
+/** Updates as the main process says them (M11): off until a test says otherwise. */
+export const UPDATES_OFF: UpdateState = { mode: 'off', current: '0.12.0', status: 'idle', version: null, notes: [], percent: 0, checkedAt: null, error: null, autoDownload: false, updatedTo: null, updatedNotes: [], dmg: null };
 /** Where new projects start (M12 Rev 11): MicroLab's folder in Documents. */
 export const HOME = '/u/Documents/MicroLab';
 
@@ -29,6 +32,9 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}, start: { 
   const pipHandlers = new Set<(t: string) => void>();
   const stored: Record<string, unknown> = {};
   const pyHandlers = new Set<(e: PyEvent) => void>();
+  let updates: UpdateState = { ...UPDATES_OFF };
+  const updateHandlers = new Set<(s: UpdateState) => void>();
+  const now = async () => updates;
   const projectOpen = project.open ?? vi.fn(async () => ({ ok: false as const, canceled: true as const }));
   let recovered: Recovered | null = start.recovery ?? null;
   let recent: RecentItem[] = start.recent ?? [];
@@ -63,7 +69,7 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}, start: { 
       console: { open: vi.fn(async () => ({ ok: true as const })), close: vi.fn(async () => {}), do: vi.fn(async () => {}), onOutput: vi.fn(() => () => {}) },
       onChange: vi.fn(() => () => {}) },
     app: { setDirty: vi.fn(), onCloseRequest: vi.fn(() => () => {}), close: vi.fn(), copy: vi.fn(async () => {}), openDriverPage: vi.fn(async () => {}), showFirmware: vi.fn(async () => {}),
-      zoom: { get: vi.fn(() => 1), set: vi.fn() } },
+      zoom: { get: vi.fn(() => 1), set: vi.fn() }, openWebsite: vi.fn(async () => {}), licences: vi.fn(async (): Promise<string | null> => 'MicroLab 0.4.0 — third-party components\n\nPython 3.13.18 — Python Software Foundation License'), onMenu: vi.fn(() => () => {}) },
     pyfile: {
       save: vi.fn(async (text: string, o: { path?: string; name: string; from?: string }) => {
         const path = o.path ?? `${o.from ?? HOME}/copy of ${o.name}`;
@@ -71,6 +77,13 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}, start: { 
         return { ok: true as const, path, name: path.split('/').pop()! };
       }),
       ...py.pyfile,
+    },
+    updates: {
+      get: vi.fn(now), check: vi.fn(now), download: vi.fn(now), install: vi.fn(now),
+      setAuto: vi.fn(async (on: boolean) => { updates = { ...updates, autoDownload: on }; return updates; }),
+      seen: vi.fn(async () => { updates = { ...updates, updatedTo: null, updatedNotes: [] }; return updates; }),
+      showDmg: vi.fn(now), openDmg: vi.fn(now),
+      onChange: vi.fn((h: (s: UpdateState) => void) => { updateHandlers.add(h); return () => { updateHandlers.delete(h); }; }),
     },
     projects: {
       home: vi.fn(async () => HOME),
@@ -116,6 +129,7 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}, start: { 
       interrupt: vi.fn(async () => {}),
       stop: vi.fn(async () => {}),
       shellComplete: vi.fn<(text: string) => Promise<string[]>>(async () => []),
+      version: vi.fn<() => Promise<string | null>>(async () => '3.13.18'),
       complete: vi.fn<(at: PyPlace) => Promise<PyCompletion[]>>(async () => []),
       signature: vi.fn<(at: PyPlace) => Promise<PySignature | null>>(async () => null),
       onEvent: vi.fn((h: (e: PyEvent) => void) => { pyHandlers.add(h); return () => { pyHandlers.delete(h); }; }),
@@ -135,5 +149,6 @@ export function fakeApi(project: Partial<MicrolabApi['project']> = {}, start: { 
     },
     emitPy: (e) => { for (const h of [...pyHandlers]) h(e); },
     disk,
+    emitUpdates: (patch) => { updates = { ...updates, ...patch }; for (const h of [...updateHandlers]) h(updates); },
   };
 }

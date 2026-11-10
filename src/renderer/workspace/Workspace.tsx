@@ -22,6 +22,8 @@ import { CheckCard, checkProblem } from './check';
 import type { ProblemItem } from './faults';
 import { Inspector } from './Inspector';
 import { BreadboardIcon, PartIcon } from './drawings';
+import { CONSOLE_MAX, CONSOLE_MIN, useBoardConsole } from './useBoardConsole';
+import { useBoardPanel } from './useBoardPanel';
 import './workspace.css';
 
 /**
@@ -55,6 +57,8 @@ export interface WorkspaceProps {
   /** The real board's console (M10.4, screen 16), its tab chosen or not. */
   board?: BoardConsoleView;
   consoleTab?: 'sim' | 'board';
+  /** Run on both at once (M11.8, screen 37b): the simulator's console and the board's side by side. */
+  consoleSplit?: boolean;
   onConsoleTab?: (tab: 'sim' | 'board') => void;
   /** "Replace the LED" (M9, screen 04): the burnt LED lights again in the next run. */
   onReplace?: (led: string) => void;
@@ -85,10 +89,13 @@ export interface WorkspaceProps {
 /** Edits of one value of one thing within this long are one undo step (a stepper held, a value typed). */
 const MERGE_MS = 1000;
 
+/** The shortcut's key as this computer shows it: ⌘ on a Mac, Ctrl+ elsewhere. */
+const MOD_KEY = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+';
+
 const IDLE_RUN: Pick<RunState, 'parts' | 'board'> = { parts: {}, board: { pins: {} } };
 
 export function Workspace({
-  api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, onConsoleTab, banner, onType, onSoftReset,
+  api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, consoleSplit, onConsoleTab, banner, onType, onSoftReset,
   onReplace, onClearFaults, onClearPlot, check, history = EMPTY_HISTORY, onHistory, onUndo, onRedo, file = 'main.py', onFile, runFile = file,
 }: WorkspaceProps) {
   const { ref, width } = useWidth(fixed);
@@ -106,6 +113,38 @@ export function Workspace({
   const [notice, setNotice] = useState<{ text: string } | null>(null);
   const [look, setLook] = useEditorLook(api);
   const lookOf = lookAttrs(look);
+  // the console under the code (the teacher, 2026-11-09): hidden and shown — its button, its ×, Ctrl+J / ⌘J, as
+  // Python 3's shell — and made taller or shorter by the edge above it; both remembered
+  const [con, setCon] = useBoardConsole(api);
+  const conRef = useRef(con);
+  conRef.current = con;
+  // the board's side (the teacher, 2026-11-09): folded away for code alone — its button, Ctrl+B / ⌘B; a run, or the
+  // check before one, brings it back so the board is seen (the choice stays for next time)
+  const board = useBoardPanel(api);
+  const boardRef = useRef(board);
+  boardRef.current = board;
+  useEffect(() => {
+    if (running || check?.open) board.show();
+  }, [running, check?.open, board]);
+  const sideRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const keys = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+      const k = e.key.toLowerCase();
+      if (k === 'j') { e.preventDefault(); setCon({ ...conRef.current, shown: !conRef.current.shown }); }
+      else if (k === 'b') { e.preventDefault(); boardRef.current.choose(!boardRef.current.shown); }
+    };
+    window.addEventListener('keydown', keys);
+    return () => window.removeEventListener('keydown', keys);
+  }, [setCon]);
+  // a program starting brings a hidden console back: nothing it prints is missed
+  useEffect(() => {
+    if (running && !conRef.current.shown) setCon({ ...conRef.current, shown: true });
+  }, [running, setCon]);
+  const conAt = (clientY: number) => {
+    const r = sideRef.current!.getBoundingClientRect();
+    return (r.bottom - clientY) / r.height;
+  };
   const shownTabs = [...tabs.filter((t) => t in doc.files), ...(tabs.includes(file) || !(file in doc.files) ? [] : [file])];
   const openFile = (p: string) => { setTabs((t) => (t.includes(p) ? t : [...t, p])); onFile?.(p); };
   const closeTab = (p: string) => {
@@ -186,6 +225,8 @@ export function Workspace({
       const t = e.target as HTMLElement | null;
       if (t && (t.closest('input, textarea, [contenteditable="true"], .cm-editor') || t.isContentEditable)) return;
       e.preventDefault();
+      // the board folded away: P asks to build — it comes back, with its parts
+      if (!boardRef.current.shown) { boardRef.current.choose(true); setPartsOpen(true); return; }
       setPartsOpen((o) => !o);
     };
     window.addEventListener('keydown', key);
@@ -266,6 +307,7 @@ export function Workspace({
   });
   return (
     <div className="ws" ref={ref}>
+      {board.shown && (<>
       <nav className="rail" aria-label="Board and parts">
         <span className="rb static" title={boardName(project)}>
           <span className="pic"><img src={boardPicture(project)} alt="" draggable={false} /></span>Board
@@ -357,7 +399,8 @@ export function Workspace({
       </section>
       <Divider label="Code panel width" value={sidePx} min={LIMITS.side[0]} max={sideMax} edge="right"
         onChange={(v) => setDrag({ side: v })} onCommit={commit('side')} />
-      <section className="side" aria-label="Code" data-theme={lookOf['data-theme']} style={{ flexBasis: sidePx, ...lookOf.style }}>
+      </>)}
+      <section ref={sideRef} className={board.shown ? 'side' : 'side whole'} aria-label="Code" data-theme={lookOf['data-theme']} style={board.shown ? { flexBasis: sidePx, ...lookOf.style } : lookOf.style}>
         <div className="ftabs">
           <div className="tabs" role="tablist" aria-label="Files">
             {shownTabs.map((p) => (
@@ -373,6 +416,10 @@ export function Workspace({
             ))}
           </div>
           <span className="r">
+            <button type="button" className={`btn ghost sm icon${board.shown ? ' on' : ''}`} aria-pressed={board.shown} aria-label="The board"
+              title={`${board.shown ? 'Fold away' : 'Show'} the board and the circuit (${MOD_KEY}B)`} onClick={() => board.choose(!board.shown)}><Icon name="sidebar" size={14} /></button>
+            <button type="button" className={`btn ghost sm icon${con.shown ? ' on' : ''}`} aria-pressed={con.shown} aria-label="The console"
+              title={`${con.shown ? 'Hide' : 'Show'} the console (${MOD_KEY}J)`} onClick={() => setCon({ ...con, shown: !con.shown })}><Icon name="shellbelow" size={14} /></button>
             <EditorPrefs look={look} onLook={setLook} />
             <MenuButton label="Add a file or a library" icon="plus" alignRight items={[
               { label: 'New file…', icon: 'file', onSelect: () => setFiles({ ask: { kind: 'new' } }) },
@@ -405,7 +452,27 @@ export function Workspace({
             }} />
         )}
         {libraries && <AddLibrary doc={doc} onDoc={onChange} onCopy={(t) => void api.app.copy(t)} onClose={() => setLibraries(false)} />}
-        <Console chunks={run.console} running={running} entry={runFile} onClear={onClearConsole} board={realBoard}
+        {con.shown && (
+          <div className="cgrip" role="separator" tabIndex={0} aria-label="The console's size" aria-orientation="horizontal"
+            aria-valuemin={Math.round(CONSOLE_MIN * 100)} aria-valuemax={Math.round(CONSOLE_MAX * 100)} aria-valuenow={Math.round(con.size * 100)}
+            title="Drag to make the console taller or shorter"
+            onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); e.currentTarget.classList.add('dragging'); }}
+            onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) setCon({ ...con, size: conAt(e.clientY) }, false); }}
+            onPointerUp={(e) => {
+              e.currentTarget.classList.remove('dragging');
+              if (e.currentTarget.hasPointerCapture(e.pointerId)) { e.currentTarget.releasePointerCapture(e.pointerId); setCon({ ...con, size: conAt(e.clientY) }); }
+            }}
+            onKeyDown={(e) => {
+              // the edge moves with the arrow: up, the console grows
+              const by = ({ ArrowUp: 0.05, ArrowDown: -0.05 } as Record<string, number>)[e.key];
+              if (by) { e.preventDefault(); setCon({ ...con, size: con.size + by }); }
+              else if (e.key === 'Home') { e.preventDefault(); setCon({ ...con, size: CONSOLE_MIN }); }
+              else if (e.key === 'End') { e.preventDefault(); setCon({ ...con, size: CONSOLE_MAX }); }
+            }} />
+        )}
+        {con.shown && (
+        <div className="sideconsole" style={{ flexBasis: `${Math.round(con.size * 100)}%` }}>
+        <Console chunks={run.console} running={running} entry={runFile} onClear={onClearConsole} board={realBoard} split={consoleSplit}
           tab={sideTab ?? consoleTab} onTab={(t: ConsoleTab) => { setSideTab(t === 'plot' || t === 'problems' ? t : null); if (t === 'sim' || t === 'board') onConsoleTab?.(t); }}
           {...(run.plot ? { plot: { data: run.plot, names: plotNames, ...(run.startedAt ? { startedAt: run.startedAt } : {}), onClear: () => onClearPlot?.() } } : {})}
           problems={{ cards: problemItems, onShow: show, ...(onReplace ? { onReplace } : {}), onClear: () => onClearFaults?.() }}
@@ -415,7 +482,13 @@ export function Workspace({
             const code = `${text(doc.files['main.py'])}\n`;
             const r = completeAt(project.board, code + line, code.length + pos);
             return r ? { from: r.from - code.length, options: r.options.map((o) => o.label) } : null;
-          }} />
+          }}
+          headEnd={(
+            <button type="button" className="btn ghost sm icon" aria-label="Hide the console" title={`Hide the console (${MOD_KEY}J)`}
+              onClick={() => setCon({ ...con, shown: false })}><Icon name="x" size={14} /></button>
+          )} />
+        </div>
+        )}
       </section>
     </div>
   );

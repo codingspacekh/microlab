@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>35b Start the exam</title>
+{{include:head}}
+</head>
+<body>
+<!--@TOP_RIGHT: -->
+<p class="frame-label"><b>35b · Start the exam</b> (M13 design, Rev 15, F-111) — the student double-clicks <code>Term 1 exam — traffic lights.mlexam</code> (or uses <i>Open…</i>, or drops it on MicroLab). MicroLab shows what the exam is and says <b>who made it</b> — <i>Rev 16:</i> a verified teacher, checked offline from the signatures in the file (F-122; refused otherwise, 36d) — and asks the student's <b>name</b> (typed, as on the hand-in site, Q33). <b>Start the exam</b> makes their own copy in <code>Documents/MicroLab/Exams/Term 1 exam — traffic lights/Sokha Chan</code> and goes full screen (35c). A name already used on this computer is <b>taken</b> (shown below the field when it happens): only the teacher's passcode opens someone's exam again, so typing a classmate's name never shows their work. Whatever was open is closed first (and saved, or asked)</p>
+<div class="frame" style="position:relative">
+  {{include:topbar-simple}}
+  <div class="start" style="opacity:.45"><div class="col" style="flex:1"><h1>Start something new</h1></div></div>
+  <div class="overlay"></div>
+  <div class="dialog" style="left:50%;top:84px;transform:translateX(-50%);width:min(560px,calc(100% - 40px))">
+    <div class="dh">{{i:exam}}<h2 style="font-size:16px">Term 1 exam — traffic lights</h2></div>
+    <div class="db">
+      <div class="row" style="gap:12px;align-items:center;margin-bottom:14px"><span class="pill info">{{i:cpu:s12}} Raspberry Pi Pico W</span><span class="small muted">A board project · the circuit and <code>main.py</code> to finish</span></div>
+      <div class="row" style="gap:8px;align-items:center;margin:-4px 0 12px"><span class="pill ok">{{i:check:s12}} Exam by Srey Leak · Riverside High School</span></div>
+      <label class="lbl">Your name</label>
+      <div class="field focus" style="height:36px">{{i:user:s14}}<span>Sokha Chan</span></div>
+      <p class="tiny muted" style="margin:5px 0 0">As on the hand-in site.</p>
+      <div class="note info"><span class="ico">{{i:lock:s14}}</span><span>MicroLab will fill the screen, and only this exam can be open until you <b>Hand in</b>. Your work is saved all the time — if the computer goes off, MicroLab brings you back here.</span></div>
+    </div>
+    <div class="df"><span class="spacer"></span><button class="btn">Not now</button><button class="btn primary">{{i:play:s14}} Start the exam</button></div>
+  </div>
+</div>
+</body></html>

@@ -304,6 +304,13 @@ export class RawRepl {
   }
 
   /** Back to the normal prompt. */
+  /** At the raw prompt (M11.8): a soft restart — what the last run imported and started is gone; boot.py runs on the
+   *  Pico W and ESP32, main.py never (pyexec.c runs it only from the friendly REPL); back at the raw prompt. */
+  async reset(): Promise<void> {
+    await this.send('\x04');
+    this.seen += await this.reader.until(RAW_PROMPT, Math.max(this.replyMs, 3000));
+  }
+
   async leave(): Promise<void> {
     await this.send('\x02');
     await this.reader.until('>>> ', this.replyMs);

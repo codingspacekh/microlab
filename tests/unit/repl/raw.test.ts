@@ -7,7 +7,8 @@ import { appWrites, boardText, latin1, loadRecording, replay, text } from './rep
  * its program, Ctrl-A gives a prompt that runs whatever is sent before Ctrl-D, Ctrl-B goes back, and Ctrl-D at the
  * normal prompt restarts the board's own main.py. Checked against exchanges recorded on the teacher's Pico W.
  */
-const quick = { pauseMs: 0, replyMs: 60 };
+// the board's answers within 60 ms here; on a busy CI runner (Windows) the fake board's timers can take longer
+const quick = { pauseMs: 0, replyMs: process.env.CI ? 400 : 60 };
 
 describe('M10.2 Q15 checking a board, against the recordings', () => {
   it.each(['pico-w-idle', 'pico-w-running'])('%s: the same bytes as recorded are sent, in order, and the board is a Pico W', async (name) => {
@@ -49,6 +50,19 @@ describe('M10.2 FakeBoard answers as the real board does', () => {
     for (const w of appWrites(r)) { await board.write(latin1(w)); await board.settled(); }
     const cut = (s: string) => s.slice(0, s.indexOf('MPY: soft reboot\r\n') + 18);
     expect(cut(got)).toBe(cut(boardText(r)));
+  });
+});
+
+describe('M11.8 a soft restart in the raw REPL', () => {
+  it('Ctrl-D at an empty raw prompt: the board restarts (boot.py, never main.py) and is back at the raw prompt', async () => {
+    const board = new FakeBoard({ preset: 'pico-w', program: {} });
+    const repl = new RawRepl(board, quick);
+    await repl.enter();
+    await repl.reset();
+    expect(board.rawResets).toBe(1);
+    expect(board.softReboots).toBe(0);
+    expect(board.state).toBe('raw');
+    repl.dispose();
   });
 });
 
@@ -137,7 +151,8 @@ describe('M10.3 raw-paste mode (found on the teacher\'s micro:bit: bytes of a lo
 
   it('a long command goes in raw-paste mode, a window at a time: a board that drops what comes too fast gets it whole', async () => {
     const board = new FakeBoard({ preset: 'microbit-v2', lossy: true, exec: echo });
-    const repl = new RawRepl(board, quick);
+    // the board's answers given time (a busy Windows runner can take more than 60 ms): the windows are what's tested
+    const repl = new RawRepl(board, { pauseMs: 0, replyMs: 2000 });
     await repl.enter();
     expect((await repl.exec(long)).out).toBe('3000\r\n');
     expect((await repl.exec(long)).out).toBe('3000\r\n');

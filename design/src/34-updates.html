@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>34 Updates</title>
+{{include:head}}
+<style>
+.unote { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-top: 1px solid var(--accent-line, #b9cdf4); background: var(--accent-soft); font-size: 12.5px; }
+.unote .bar { width: 160px; height: 6px; border-radius: 3px; background: #fff; overflow: hidden; }
+.unote .bar i { display: block; height: 100%; width: 62%; background: var(--accent); }
+.states { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.states .k { font-size: 11px; font-weight: 650; color: var(--tx-3); text-transform: uppercase; letter-spacing: .05em; }
+.states .unote { border: 1px solid var(--accent-line, #b9cdf4); border-radius: 9px; }
+.uds { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.uds ul { margin: 4px 0 0 18px; padding: 0; color: var(--tx-2); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<!--@MODE_WS: -->
+<!--@MODE_PY: on-->
+<!--@PY_FILE: <div class="pyfile"><b>guessing_game · main.py</b><span>Documents/MicroLab/guessing_game · saved</span></div>-->
+<!--@TOP_RIGHT: <div class="runbox"><button class="btn run">{{i:play:s14}} Run main.py <span class="tiny" style="opacity:.75;margin-left:2px">F5</span></button><button class="btn icon disabled">{{i:stop:s14}}</button></div><button class="btn">{{i:grid:s14}} Libraries</button>-->
+<p class="frame-label"><b>34 · Updates</b> (M11 design, <b>Rev 13</b>, the teacher: <i>"prepare for auto update when the next feature is released … the same way we did in the gradebook and OneEditor"</i>) — MicroLab looks for a newer version <b>when it opens and every 6 hours</b> (on the internet; offline, it says nothing). A <b>note above the status bar</b> says what there is, in every mode: <i>MicroLab 0.13.0 is out</i> — <b>What's new</b>, <b>Download</b>; downloading, with how far; <i>ready</i> — <b>Restart and update</b> or <b>Later</b> (it goes in when MicroLab is next closed; it never restarts by itself, nor while a program runs or work is unsaved — it asks to save first); once, after: <i>Updated to 0.13.0</i>. Nothing is downloaded unless the student presses Download — or turns on <i>Download updates by itself</i> (34b). On a Mac whose copy can't update itself, the new version is saved in Downloads with <b>Open it</b> / <b>Show in Finder</b></p>
+<div class="frame" style="position:relative">
+  {{include:topbar-py}}
+  <div class="row" style="flex:1;min-height:0;align-items:stretch">
+    <div class="pyscreen" style="flex:1">
+      <div class="tabs"><a class="on">{{pyfig:logo:14}} main.py</a></div>
+      <div class="ed">{{code:guess}}</div>
+    </div>
+    <div class="states" style="width:470px;border-left:1px solid var(--line);background:var(--bg)">
+      <div class="k">1 · One is out</div>
+      <div class="unote">{{i:info:s14}}<span><b>MicroLab 0.13.0 is out.</b></span><span class="spacer"></span><button class="btn sm">What's new</button><button class="btn sm primary">Download</button><button class="btn ghost icon sm">{{i:x:s12}}</button></div>
+      <div class="k">2 · Downloading</div>
+      <div class="unote">{{i:info:s14}}<span>Downloading 0.13.0… 62 %</span><span class="bar"><i></i></span><span class="tiny muted">keep working</span></div>
+      <div class="k">3 · Ready</div>
+      <div class="unote">{{i:check:s14}}<span><b>0.13.0 is ready.</b> It goes in when you next close MicroLab, or now:</span><span class="spacer"></span><button class="btn sm">Later</button><button class="btn sm primary">Restart and update</button></div>
+      <div class="k">4 · After, once</div>
+      <div class="unote">{{i:check:s14}}<span><b>Updated to 0.13.0.</b> New: the servo's pulse shown while it runs; …</span><span class="spacer"></span><button class="btn sm">OK</button></div>
+      <div class="k">On a Mac that can't update itself</div>
+      <div class="unote">{{i:info:s14}}<span><b>MicroLab 0.13.0 is in Downloads.</b> Open it and drag MicroLab into Applications.</span><span class="spacer"></span><button class="btn sm">Show in Finder</button><button class="btn sm primary">Open it</button></div>
+    </div>
+  </div>
+  <div class="unote">{{i:check:s14}}<span><b>0.13.0 is ready.</b> It goes in when you next close MicroLab, or now:</span><span class="spacer"></span><button class="btn sm">Later</button><button class="btn sm primary">Restart and update</button></div>
+  <div class="statusbar"><span class="st"><span class="dot" style="background:var(--tx-3)"></span>Ready</span><span>Python 3.13.18 (MicroLab)</span><span class="spacer"></span><span class="zoom"><button class="btn ghost icon">{{i:minus:s12}}</button><b>100 %</b><button class="btn ghost icon">{{i:plus:s12}}</button></span></div>
+</div>
+</body></html>

@@ -40,6 +40,10 @@ describe('M2.8 the worker\'s run: output batched to ≤ 60 a second, then the en
     expect(parts.length).toBeLessThan(200 / 4);
     expect(parts.at(-1)!.states['led1']!.brightness).toBeGreaterThan(0.2);   // it ends lit
     expect(posts.at(-1)).toMatchObject({ type: 'end' });
+    // M11.5: the result sent at the end carries no record of the 200 toggles (the window drew them as they came)
+    const end = posts.at(-1) as { result: { trace: unknown[]; parts: unknown[] } };
+    expect(end.result.trace).toEqual([]);
+    expect(end.result.parts).toEqual([]);
   });
 
   it('M4.5: the entry file is run; pin levels and display frames are batched, the latest of each', async () => {
@@ -71,10 +75,12 @@ describe('M2.8 the worker\'s run: output batched to ≤ 60 a second, then the en
   it('M6.2: the micro:bit speaker\'s pitch reaches the window, then its silence', async () => {
     const control = new Control();
     const posts: WorkerMessage[] = [];
+    let t = 0;
     await handleStart({
       type: 'start', board: 'microbit-v2', control: control.buffer, inputs: [],
       files: { 'main.py': 'from microbit import *\nimport music\nmusic.pitch(440, 50)\nsleep(50)\n' },
-    }, (m) => posts.push(m), await nodeLoader());
+    }, (m) => posts.push(m), await nodeLoader(), () => (t += 20));   // a frame (16 ms) at every look: counted, not timed —
+    // a busy computer's late frame once took the note and its silence together, and sent only the silence
     const sounds = posts.flatMap((m) => (m.type === 'board' && m.sound !== undefined ? [m.sound] : []));
     expect(sounds.some((hz) => Math.abs(hz - 440) < 1)).toBe(true);   // 440.14: the nearest whole µs period
     expect(sounds.at(-1)).toBe(0);

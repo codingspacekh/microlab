@@ -1,9 +1,10 @@
+import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { basename, dirname, extname, join, resolve, sep } from 'node:path';
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, protocol, session, shell } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, net, protocol, session, shell } from 'electron';
 import { APP_SCHEME, APP_URL, isolationHeaders, resolveAppPath, responseHeaders } from './app-protocol';
-import { existsSync, mkdirSync, watch, type FSWatcher } from 'node:fs';
+import { existsSync, mkdirSync, watch, writeFileSync, type FSWatcher } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { SerialPort } from 'serialport';
@@ -16,10 +17,14 @@ import { openSerial, type SerialLink } from './serial-link';
 import { openProjectFile, saveProjectFile } from './project-files';
 import { openPyFile, saveTextFile } from './python3/files';
 import { insideProject, newBoardProjectPath, newEntry, newPythonProject, projectOf, projectTree, renameEntry, textFile } from './projects';
-import { findPython, startPython, type PythonSession } from './python3/session';
-import { Assistant, findTools, type Place } from './python3/assist';
+import { findPython, findRunner, startPython, type PythonSession } from './python3/session';
+import { Assistant, findAssist, findTools, type Place } from './python3/assist';
 import { installLibrary, listLibraries, lookUp, removeLibrary } from './python3/libraries';
 import { Recent, Recovery } from './recent';
+import { menuTemplate, WEBSITE, type MenuAction } from './menu';
+import { selfCheck } from './self-check';
+import { autoUpdaterOf, setUpUpdates } from './update-setup';
+import type { Updates } from './updates';
 import { SettingsStore } from './settings';
 import pkg from '../../package.json';
 import type { ProjectDoc } from '@lib/project';
@@ -48,6 +53,11 @@ const HIDDEN = process.env.MICROLAB_HIDDEN === '1';
 if (HIDDEN) {
   app.dock?.hide();
   app.commandLine.appendSwitch('mute-audio');
+  // Windows: a window never shown gets no mouse (the tests' drags hung), and one beyond the screens' edge comes out a
+  // wrong size (its borders reckoned for no screen) — measured on the CI runner, 2026-11-09. There it is shown on the
+  // screen but unseen: fully transparent, clicks passing through it, never focused, not on the taskbar — and not taken
+  // for one hidden behind other windows
+  if (process.platform === 'win32') app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 }
 
 protocol.registerSchemesAsPrivileged([
@@ -78,6 +88,10 @@ function createWindow(): void {
     minWidth: 1280,
     minHeight: 720,
     show: false,
+    // (a shown window is kept no bigger than its screen, so the CI runner is given a 1920 × 1080 one)
+    ...(HIDDEN && process.platform === 'win32' ? { x: 0, y: 0, skipTaskbar: true, focusable: false } : {}),
+    // the app icon while developing (M11, F-107); the installed app has its own in its bundle
+    ...(!app.isPackaged && process.platform !== 'darwin' ? { icon: DEV_ICON } : {}),
     backgroundColor: '#f4f6f8',
     webPreferences: {
       preload: join(here, '../preload/index.cjs'),
@@ -90,6 +104,13 @@ function createWindow(): void {
     },
   });
   if (!HIDDEN) win.once('ready-to-show', () => win.show());
+  else if (process.platform === 'win32') {
+    win.once('ready-to-show', () => {
+      win.setOpacity(0);
+      win.setIgnoreMouseEvents(true);
+      win.showInactive();
+    });
+  }
   // unsaved changes: the window asks the student first (M4.6), then closes itself through app:close
   win.on('close', (e) => {
     if (!dirty.get(win.webContents.id) || closing.has(win.webContents.id)) return;
@@ -100,7 +121,34 @@ function createWindow(): void {
   void win.loadURL(devUrl ?? APP_URL);
 }
 
+/** The MicroPython firmware Install MicroPython copies to a board (F-52): in the installed app's resources, else the source tree's. */
+const firmwareFolder = () => (app.isPackaged ? join(process.resourcesPath, 'firmware') : join(here, '../../library/firmware'));
+
+/** About ▸ Licences (N-11): in the installed app's resources; while developing, what `npm run licences` last wrote. */
+const licencesFile = () => (app.isPackaged ? join(process.resourcesPath, 'THIRD_PARTY_LICENSES.txt') : join(here, '../../build-info/THIRD_PARTY_LICENSES.txt'));
+
+/** M11: the packaged app checks itself (MICROLAB_SELF_CHECK, from scripts/package.ts): what it found, then it quits. */
+async function runSelfCheck(report: string): Promise<void> {
+  const r = await selfCheck({
+    python: findPython(), runner: findRunner(), assist: findAssist(), tools: findTools(), renderer: rendererDir, firmware: firmwareFolder(), licences: licencesFile(),
+    updatesFile: join(process.resourcesPath ?? '', 'updates.json'),
+    runPython: (exe) => new Promise((done, fail) => {
+      execFile(exe, ['-I', '-c', 'import sys; print(sys.version.split()[0])'], { timeout: 30_000, windowsHide: true }, (err, out) => (err ? fail(err) : done(out)));
+    }),
+    loadUpdater: async () => autoUpdaterOf(await import('electron-updater')),
+  });
+  writeFileSync(report, `${JSON.stringify(r, null, 2)}\n`);
+  app.exit(r.ok ? 0 : 1);
+}
+
+/** The app icon while developing (build/icon.png, made by `npm run icon`). */
+const DEV_ICON = join(app.getAppPath(), 'build', 'icon.png');
+
 app.whenReady().then(() => {
+  // the app menu (M11, Rev 13): About MicroLab and Check for Updates… for the window in front; the View menu's zoom
+  const toFront = (action: MenuAction) => (BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0])?.webContents.send('app:menu', action);
+  Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate({ mac: process.platform === 'darwin', dev: !app.isPackaged, send: toFront, website: () => void shell.openExternal(WEBSITE) })));
+  if (!app.isPackaged && process.platform === 'darwin' && existsSync(DEV_ICON)) app.dock?.setIcon(DEV_ICON);
   serveAppFiles();
   const settings = new SettingsStore(join(app.getPath('userData'), 'settings.json'));
   // recent projects (F-05) and the recovery copy (F-03, M5.7)
@@ -402,7 +450,8 @@ app.whenReady().then(() => {
   ipcMain.handle('boards:get', () => boardsNow());
 
   // Installing MicroPython (F-52, screen 14b): the firmware shipped in library/firmware, copied to the board's drive
-  const firmwareDir = process.env.MICROLAB_FIRMWARE_DIR ?? join(here, '../../library/firmware');
+  // the installed app's copy is in its resources (M11: library/ isn't packaged — the M10 gate's open item)
+  const firmwareDir = process.env.MICROLAB_FIRMWARE_DIR ?? firmwareFolder();
   const firmwareOf = async (kind: 'pico' | 'microbit'): Promise<Firmware> => {
     const all = JSON.parse(await readFile(join(firmwareDir, 'firmware.json'), 'utf8')) as Record<string, { file: string; size: number; drive: string; version: string }>;
     const f = all[kind === 'pico' ? 'pico-w' : 'microbit-v2']!;
@@ -447,6 +496,14 @@ app.whenReady().then(() => {
   ipcMain.handle('app:show-firmware', async (_e, kind: 'pico' | 'microbit') => shell.showItemInFolder((await firmwareOf(kind)).file));
   // the helper (F-56): its report to the clipboard; a USB chip's official driver page — no other page can be opened
   ipcMain.handle('app:copy', (_e, text: string) => clipboard.writeText(String(text)));
+  // About MicroLab (F-108): the website, only that address; the bundled Python's version, asked once
+  ipcMain.handle('app:website', () => shell.openExternal(WEBSITE));
+  // About ▸ Licences (N-11): the list, read without the internet; null while developing before `npm run licences`
+  ipcMain.handle('app:licences', async () => { try { return await readFile(licencesFile(), 'utf8'); } catch { return null; } });
+  let pyVersion: Promise<string | null> | undefined;
+  ipcMain.handle('py:version', () => (pyVersion ??= new Promise((done) => {
+    execFile(findPython(), ['-I', '-c', 'import sys; print(sys.version.split()[0])'], { timeout: 10_000, windowsHide: true }, (err, out) => done(err ? null : out.trim() || null));
+  })));
   ipcMain.handle('app:open-driver-page', async (_e, chip: string) => {
     const url = (DRIVER_PAGES as Record<string, string>)[chip];
     if (url) await shell.openExternal(url);
@@ -477,7 +534,28 @@ app.whenReady().then(() => {
   app.on('before-quit', () => watcher.stop());
   // Nothing in the window may open other sites (N-04, N-08).
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, done) => done(false));
+  // M11: the packaged app checks itself (scripts/package.ts), then quits — no window
+  if (process.env.MICROLAB_SELF_CHECK) { void runSelfCheck(process.env.MICROLAB_SELF_CHECK); return; }
+  // M11 (Rev 13, F-109): updates, as the gradebook and OneEditor — only the installed app with an update address looks;
+  // a little after the window is up, then every 6 hours; every window is told what there is
+  const updatesReady = setUpUpdates({
+    packaged: app.isPackaged, platform: process.platform, arch: process.arch, version: app.getVersion(),
+    configFile: join(process.resourcesPath ?? '', 'updates.json'), userData: app.getPath('userData'), downloads: app.getPath('downloads'),
+    send: (state) => { for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('updates:state', state); },
+    fetch: (url) => net.fetch(url), showItem: (path) => shell.showItemInFolder(path), openPath: (path) => shell.openPath(path), quit: () => app.quit(),
+    loadUpdater: async () => autoUpdaterOf(await import('electron-updater')),
+  });
+  const upd = <T>(f: (u: Updates) => T) => updatesReady.then(f);
+  ipcMain.handle('updates:get', () => upd((u) => u.get()));
+  ipcMain.handle('updates:check', () => upd((u) => u.check()));
+  ipcMain.handle('updates:download', () => upd((u) => u.download()));
+  ipcMain.handle('updates:install', () => upd((u) => u.install()));
+  ipcMain.handle('updates:auto', (_e, on: boolean) => upd((u) => u.setAuto(Boolean(on))));
+  ipcMain.handle('updates:seen', () => upd((u) => u.seen()));
+  ipcMain.handle('updates:show-dmg', () => upd((u) => u.showDmg()));
+  ipcMain.handle('updates:open-dmg', () => upd((u) => u.openDmg()));
   createWindow();
+  void updatesReady.then((u) => u.start());
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

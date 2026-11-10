@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>32 The app icon</title>
+{{include:head}}
+<style>
+.icons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; padding: 24px; }
+.opt { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.opt h2 { font-size: 15px; margin: 0; align-self: flex-start; }
+.opt p { margin: 0; font-size: 12.5px; color: var(--tx-2); align-self: flex-start; }
+.sizes { display: flex; align-items: flex-end; gap: 14px; }
+.dock { display: flex; gap: 10px; align-items: flex-end; padding: 8px 14px; border-radius: 16px; background: rgba(255,255,255,.55); border: 1px solid rgba(255,255,255,.7); backdrop-filter: blur(8px); }
+.dockbg { background: linear-gradient(135deg, #8ec5fc, #e0c3fc); border-radius: 12px; padding: 14px; align-self: stretch; display: flex; justify-content: center; }
+.taskbar { display: flex; gap: 6px; align-items: center; background: #202020; border-radius: 8px; padding: 6px 10px; align-self: stretch; justify-content: center; }
+.taskbar .t { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 6px; }
+.taskbar .t.on { background: #3a3a3a; }
+.dot { width: 22px; height: 22px; border-radius: 6px; background: #d0d4da; }
+</style>
+</head>
+<body>
+<!--@MODE_WS: -->
+<p class="frame-label"><b>32 · The app icon</b> (M11 design, Rev 13) — <b>chosen by the teacher: "should be the same one as our in app logo"</b> — the top bar's logo exactly (its blue, the white chip and pins, the green LED), in the macOS layout: a rounded square with its margin and soft shadow; Windows uses the same picture. Shown at full size and as small as the Dock, the taskbar and a file list show it. Exported by <code>npm run icon</code> to <code>build/icon.png</code> (1024 px); the build makes the <code>.icns</code> and <code>.ico</code>. The three first ideas (A Chip, B Breadboard, C Circuit) are kept below for the record</p>
+<div class="frame" style="background:var(--bg)">
+  <div class="icons" style="grid-template-columns:1fr">
+    <div class="opt" style="flex-direction:row;justify-content:center;gap:40px;flex-wrap:wrap"><div class="col" style="gap:10px;align-items:center"><h2 style="align-self:center">Chosen · the logo</h2>{{appicon:logo:300}}</div>
+      <div class="col" style="gap:16px;justify-content:center"><div class="sizes">{{appicon:logo:128}}{{appicon:logo:64}}{{appicon:logo:32}}{{appicon:logo:16}}</div>
+      <div class="dockbg"><div class="dock"><span class="dot"></span><span class="dot"></span>{{appicon:logo:56}}<span class="dot"></span></div></div>
+      <div class="taskbar"><span class="t"><span class="dot" style="width:20px;height:20px"></span></span><span class="t on">{{appicon:logo:24}}</span><span class="t"><span class="dot" style="width:20px;height:20px"></span></span></div></div>
+    </div>
+  </div>
+  <div class="icons" style="opacity:.6">
+    <div class="opt"><h2>A · Chip</h2><p>The logo itself, given depth: the chip, its pins, the LED glowing at its heart. Simplest; the same as the app's own top bar.</p>
+      {{appicon:chip:300}}
+      <div class="sizes">{{appicon:chip:128}}{{appicon:chip:64}}{{appicon:chip:32}}{{appicon:chip:16}}</div>
+      <div class="dockbg"><div class="dock"><span class="dot"></span><span class="dot"></span>{{appicon:chip:56}}<span class="dot"></span></div></div>
+      <div class="taskbar"><span class="t"><span class="dot" style="width:20px;height:20px"></span></span><span class="t on">{{appicon:chip:24}}</span><span class="t"><span class="dot" style="width:20px;height:20px"></span></span></div>
+    </div>
+    <div class="opt"><h2>B · Breadboard</h2><p>The chip set into a breadboard: rows of holes, its red and blue rails. Says "electronics" before "chip"; busier when small.</p>
+      {{appicon:breadboard:300}}
+      <div class="sizes">{{appicon:breadboard:128}}{{appicon:breadboard:64}}{{appicon:breadboard:32}}{{appicon:breadboard:16}}</div>
+      <div class="dockbg"><div class="dock"><span class="dot"></span><span class="dot"></span>{{appicon:breadboard:56}}<span class="dot"></span></div></div>
+      <div class="taskbar"><span class="t"><span class="dot" style="width:20px;height:20px"></span></span><span class="t on">{{appicon:breadboard:24}}</span><span class="t"><span class="dot" style="width:20px;height:20px"></span></span></div>
+    </div>
+    <div class="opt"><h2>C · Circuit</h2><p>A little circuit: the chip wired to an LED that lights — what students do in MicroLab, in one picture.</p>
+      {{appicon:circuit:300}}
+      <div class="sizes">{{appicon:circuit:128}}{{appicon:circuit:64}}{{appicon:circuit:32}}{{appicon:circuit:16}}</div>
+      <div class="dockbg"><div class="dock"><span class="dot"></span><span class="dot"></span>{{appicon:circuit:56}}<span class="dot"></span></div></div>
+      <div class="taskbar"><span class="t"><span class="dot" style="width:20px;height:20px"></span></span><span class="t on">{{appicon:circuit:24}}</span><span class="t"><span class="dot" style="width:20px;height:20px"></span></span></div>
+    </div>
+  </div>
+</div>
+</body></html>

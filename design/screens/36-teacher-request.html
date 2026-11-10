@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>36 I'm a teacher</title>
+<meta name="viewport" content="width=device-width">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="fit.js" defer></script>
+
+</head>
+<body>
+<p class="frame-label"><b>36 · I'm a teacher — asking for teacher mode</b> (M13 design, <b>Rev 16</b>, F-118, F-119; the teacher: <i>"anyone can be but I need their verification"</i>, <i>"it should be send from the microlab itself to an assigned email"</i>) — every copy starts in <b>student mode</b>, MicroLab as it is now. <i>Help ▸ I'm a teacher…</i> asks who the teacher is, for the author to check: name, school, school email, a page to check them on, a note. The <b>teacher passcode</b> locks the key MicroLab makes on this computer (it is asked again to make an exam); only the key's public half goes in the request. <b>Send request</b> sends it to the author's address through the form on codingspacekh.dev (36b). The warning matters: a teacher's key on a computer students use is within their reach</p>
+<div class="frame" style="position:relative">
+  <div class="topbar">
+  <div class="brand"><svg class="logo" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="#2563d9"/><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M11 8V4.5M17 8V4.5M11 23.5V20M17 23.5V20M8 11H4.5M8 17H4.5M20 11h3.5M20 17h3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="14" r="2.2" fill="#7fe0a8"/></svg>
+<b>Micro<span>Lab</span></b></div>
+  <div class="seg modes"><span class="on"><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg> Workspace</span><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M8 7h7"/></svg> Learn</span><span class=""><svg class="ico s14" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3"/></svg> Examples</span></div>
+  <span class="spacer"></span>
+  
+</div>
+
+  <div class="start" style="opacity:.45"><div class="col" style="flex:1"><h1>Start something new</h1></div></div>
+  <div class="overlay"></div>
+  <div class="dialog" style="left:50%;top:44px;transform:translateX(-50%);width:min(600px,calc(100% - 40px))">
+    <div class="dh"><svg class="ico " viewBox="0 0 24 24"><path d="M12 4a4 4 0 1 0 0 8a4 4 0 0 0 0-8M4.5 20a7.5 7.5 0 0 1 15 0"/></svg><h2 style="font-size:16px">Ask for teacher mode</h2><span class="spacer"></span><button class="btn ghost icon sm"><svg class="ico s14" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="db">
+      <p class="small muted" style="margin:0 0 4px">Teacher mode lets you make exams for your students. CodingSpaceKH checks every teacher, then emails you a licence file — usually within a few days.</p>
+      <div class="row" style="gap:12px">
+        <div style="flex:1;min-width:0"><label class="lbl">Your name</label><div class="field" style="height:34px"><span>Srey Leak</span></div></div>
+        <div style="flex:1;min-width:0"><label class="lbl">School</label><div class="field" style="height:34px"><span>Riverside High School</span></div></div>
+      </div>
+      <label class="lbl">School email</label>
+      <div class="field" style="height:34px"><span>sreyleak@riverside-high.edu.kh</span></div>
+      <label class="lbl">Where we can check you're a teacher <span class="muted" style="font-weight:400">(your school's staff page, say)</span></label>
+      <div class="field mono" style="height:34px"><span>riverside-high.edu.kh/staff</span></div>
+      <label class="lbl">Note <span class="muted" style="font-weight:400">(optional)</span></label>
+      <div class="field" style="height:34px"><span class="ph">What you teach, and to whom</span></div>
+      <div class="row" style="gap:12px">
+        <div style="flex:1;min-width:0"><label class="lbl">Teacher passcode</label><div class="field focus" style="height:34px"><svg class="ico s14" viewBox="0 0 24 24"><path d="M8 10a4 4 0 1 0 0 8a4 4 0 0 0 0-8M11.5 12.5L20 4M17 7l2 2M15 9l1.5 1.5"/></svg><span>••••••••••</span></div></div>
+        <div style="flex:1;min-width:0"><label class="lbl">Passcode again</label><div class="field" style="height:34px"><svg class="ico s14" viewBox="0 0 24 24"><path d="M8 10a4 4 0 1 0 0 8a4 4 0 0 0 0-8M11.5 12.5L20 4M17 7l2 2M15 9l1.5 1.5"/></svg><span>••••••••••</span></div></div>
+      </div>
+      <p class="tiny muted" style="margin:5px 0 0">At least 8 characters. It locks your teacher key on this computer — you'll type it each time you make an exam. It is never sent.</p>
+      <div class="note warn"><span class="ico"><svg class="ico s14" viewBox="0 0 24 24"><path d="M12 3.5l9 16H3zM12 10v4M12 17h.01"/></svg></span><span><b>Use your own computer</b> — not one students use. Your teacher key stays on this computer.</span></div>
+    </div>
+    <div class="df"><span class="spacer"></span><button class="btn">Cancel</button><button class="btn primary"><svg class="ico s14" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg> Send request</button></div>
+  </div>
+</div>
+</body></html>

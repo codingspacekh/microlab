@@ -1,0 +1,31 @@
+# M11.5 (N-05, N-06): a test installer for Windows — to try MicroLab on a real school computer (Windows 10, Core i5,
+# 4 GB) without a release. It is the Release workflow's build, kept with the run for 14 days (Actions ▸ installer ▸
+# the run ▸ Artifacts), never published. Start it with `git push origin dev:installer` (any branch to the `installer`
+# branch), or by hand from the Actions page once this file is on main.
+name: installer
+on:
+  push:
+    branches: [installer]
+  workflow_dispatch:
+jobs:
+  windows:
+    name: Windows x64 test installer
+    runs-on: windows-latest
+    env:
+      MICROLAB_UPDATE_URL: https://github.com/codingspacekh/microlab-releases/releases/latest/download
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Download the Electron binary, up to 3 tries (the download sometimes fails)
+        shell: bash
+        run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
+      - name: Build the app and the installer (with the Python for Windows x64); the packaged app checks itself
+        run: npm run dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MicroLab-test-installer-windows-x64
+          path: release/*.exe
+          retention-days: 14
+          if-no-files-found: error

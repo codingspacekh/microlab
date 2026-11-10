@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { access, open, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { posix } from 'node:path';
 import { parseVolumes } from '@lib/usb';
 
 /**
@@ -33,7 +33,7 @@ export async function drivePath(
   exists: (p: string) => Promise<boolean> = there,
 ): Promise<string | undefined> {
   if (platform === 'win32') return (await windows()).find((v) => v.name === name)?.path;
-  const places = platform === 'darwin' ? [join('/Volumes', name)] : [join('/media', user, name), join('/run/media', user, name)];
+  const places = platform === 'darwin' ? [posix.join('/Volumes', name)] : [posix.join('/media', user, name), posix.join('/run/media', user, name)];
   for (const p of places) if (await exists(p)) return p;
   return undefined;
 }

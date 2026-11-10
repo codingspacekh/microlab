@@ -123,6 +123,8 @@ const hexOf = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0
 export class FakeBoard implements Link {
   state: 'program' | 'friendly' | 'raw' | 'paste' | 'pasting';
   softReboots = 0;
+  /** Soft restarts asked at an empty raw prompt (M11.8): boot.py runs, main.py doesn't; the raw prompt again. */
+  rawResets = 0;
   /** Commands taken in raw-paste mode. */
   pastes = 0;
   /** Asked to restart into its bootloader (a Pico's BOOTSEL: machine.bootloader()). */
@@ -271,6 +273,10 @@ export class FakeBoard implements Link {
           this.hung = false;
           this.say('\x04Traceback (most recent call last):\r\n  File "<stdin>", line 1, in <module>\r\nKeyboardInterrupt: \r\n\x04>');
         }
+      } else if (b === 4 && this.raw.length === 0) {
+        // Ctrl-D with nothing typed: a soft restart, as pyexec.c's raw REPL does — "OK", the reboot, the raw prompt
+        this.rawResets++;
+        this.say('OK\r\nMPY: soft reboot\r\nraw REPL; CTRL-B to exit\r\n>');
       } else if (b === 4) {
         this.runRaw(true);
       } else {

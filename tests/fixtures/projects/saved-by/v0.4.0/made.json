@@ -1,0 +1,21 @@
+{
+  "tag": "v0.4.0",
+  "commit": "a08fb59b5ba855371f31b5779b1299d2c3cadce4",
+  "boards": {
+    "pico-w": {
+      "parts": 4,
+      "wires": 4,
+      "skipped": []
+    },
+    "microbit-v2": {
+      "parts": 4,
+      "wires": 4,
+      "skipped": []
+    },
+    "esp32-devkit-v1": {
+      "parts": 4,
+      "wires": 4,
+      "skipped": []
+    }
+  }
+}

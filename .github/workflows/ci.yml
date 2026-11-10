@@ -1,16 +1,59 @@
-# Dormant until the repository is pushed (MILESTONES §4.3); `npm run check` is the gate locally.
+# The check on GitHub (MILESTONES §4.3): `npm run check` and the e2e tests on macOS (Apple chip and Intel) and Windows, for every push to
+# main or dev and every pull request — the same gate as on the teacher's Mac, and the first run on Windows (N-06).
+# Releases are the Release workflow's (a version tag), not this one's.
 name: check
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  # by hand (Actions ▸ check ▸ Run workflow, or `gh workflow run check --ref dev -f all_failures=true`): every e2e test
+  # runs to the end, to see all that fails at once
+  workflow_dispatch:
+    inputs:
+      all_failures:
+        description: Run every e2e test (no stop after 5 failures)
+        type: boolean
+        default: false
 jobs:
   check:
     strategy:
+      fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        # N-06: an Apple-chip Mac, an Intel Mac (its own installer, its own Python) and Windows
+        os: [macos-latest, macos-15-intel, windows-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      MICROLAB_HIDDEN: '1'
+      # (by hand once this file is on main — GitHub offers Run workflow only from there; until then, and for any push,
+      # "[e2e all]" in the commit message does the same)
+      E2E_ALL_FAILURES: ${{ (inputs.all_failures || contains(github.event.head_commit.message, '[e2e all]')) && '1' || '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      # Electron's binary before the tests (as the Release workflow): its Info.plist is what the oldest-macOS test reads
+      - name: Download the Electron binary, up to 3 tries
+        shell: bash
+        run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
+      - name: The Python 3.13 and Jedi MicroLab ships (checked by hash)
+        id: deps
+        run: npm run fetch:python
       - run: npm run check
-      - run: npx playwright test
+        if: runner.os != 'Windows'
+      # Windows: the same check without coverage — its runner is several times slower, and the coverage gate is the
+      # Mac's (the same code)
+      - run: npm run check:no-coverage
+        if: runner.os == 'Windows'
+      # Windows: a 1920 × 1080 screen for the e2e window — the runner's is smaller than MicroLab's (1280 × 720 at least,
+      # the tests' 1440 × 900), and Windows keeps a shown window no bigger than its screen. This step and the e2e tests
+      # run even when the check failed: one run shows everything that fails
+      - name: A 1920 × 1080 screen (Windows)
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_VideoController | Format-Table Name, CurrentHorizontalResolution, CurrentVerticalResolution
+          Set-DisplayResolution -Width 1920 -Height 1080 -Force
+          Get-CimInstance Win32_VideoController | Format-Table Name, CurrentHorizontalResolution, CurrentVerticalResolution
+      - run: npm run e2e   # builds first (the check's build is skipped when a test before it failed)
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}

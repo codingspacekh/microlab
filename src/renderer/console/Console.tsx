@@ -68,12 +68,15 @@ export interface ConsoleProps {
   onGoTo?: (file: string, line: number) => void;
   /** Tab: the names the line could go on with, as the editor offers them. */
   complete?: (line: string, pos: number) => Completed | Promise<Completed>;
+  /** Run on both at once (M11.8, F-125, screen 37b): the simulator's console and the board's side by side, one tab. */
+  split?: boolean;
 }
 
-export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete, problems, plot, name = 'Console', idleText, headExtra, headEnd }: ConsoleProps) {
-  const showBoard = !!board && tab === 'board';
+export function Console({ chunks, running, entry, onClear, board, tab = 'sim', onTab, repl, onType, onSoftReset, onGoTo, complete, problems, plot, name = 'Console', idleText, headExtra, headEnd, split }: ConsoleProps) {
   const showProblems = !!problems && tab === 'problems';
   const showPlot = !!plot && tab === 'plot';
+  const sideBySide = !!split && !!board && !showProblems && !showPlot;
+  const showBoard = !!board && tab === 'board' && !split;
   const count = problems?.cards.length ?? 0;
   const damaged = !!problems?.cards.some((c) => c.severity === 'damage');
   // while the board takes typing (M9), what it printed last without a newline — >>>, input()'s prompt — is where to type
@@ -83,31 +86,36 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
   const prompt = cut >= 0 ? lastChunk!.text.slice(cut) : '';
   const simChunks = cut >= 0 ? [...chunks.slice(0, -1), ...(cut ? [{ ...lastChunk!, text: lastChunk!.text.slice(0, cut) }] : [])] : chunks;
   const shown: BoardChunk[] = showBoard ? board.chunks : simChunks;
-  const body = useRef<HTMLDivElement>(null);
-  const atEnd = useRef(true);
-  useLayoutEffect(() => {
-    const el = body.current;
-    if (el && atEnd.current) el.scrollTop = el.scrollHeight;
-  }, [shown]);
 
   const live = board?.state && !board.state.prompt;
   const onKeyDown = (e: KeyboardEvent) => {
     // Ctrl+C in the board's console stops the board, as in a terminal (when no text is selected to copy)
-    if (showBoard && board.state && e.ctrlKey && e.key === 'c' && !window.getSelection()?.toString()) {
+    const inBoard = showBoard || (sideBySide && !!(e.target as HTMLElement).closest?.('.cpane.board'));
+    if (inBoard && board?.state && e.ctrlKey && e.key === 'c' && !window.getSelection()?.toString()) {
       e.preventDefault();
       board.onStop();
     }
   };
+  const simEmpty = idleText ?? 'Press Run to start the simulation. print() output and errors appear here.';
+  const simPrompt = typing ? <SimPrompt prompt={prompt} atRepl={!!repl} running={running} entry={entry} onType={onType!} onSoftReset={repl ? onSoftReset : undefined} complete={complete} />
+    : (
+      <div className="prompt">
+        {running
+          ? <><b className="live"><Icon name="play" size={12} /></b><span>Running {entry} — Stop ends it at once</span></>
+          : <><b>&gt;&gt;&gt;</b><span>Press Run to run {entry}; when it ends, its REPL is here</span></>}
+      </div>
+    );
 
   return (
     <div className="console" onKeyDown={onKeyDown}>
       <div className="chead">
         {board || problems || plot ? (
           <div role="tablist" aria-label="Consoles" className="ctabs">
-            <button type="button" role="tab" aria-selected={!showBoard && !showProblems && !showPlot} className={`ctab${showBoard || showProblems || showPlot ? '' : ' on'}`} onClick={() => onTab?.('sim')}>
-              <Icon name="term" size={14} /> {board ? 'Simulator' : name}
+            <button type="button" role="tab" aria-selected={!showBoard && !showProblems && !showPlot} className={`ctab${showBoard || showProblems || showPlot ? '' : ' on'}${split && board ? ' joint' : ''}`} onClick={() => onTab?.('sim')}
+              title={split && board ? `Simulator + ${board.name}` : undefined}>
+              <Icon name="term" size={14} /> {board ? (split ? <span className="tl">Simulator + {board.name}</span> : 'Simulator') : name}
             </button>
-            {board && (
+            {board && !split && (
               <button type="button" role="tab" aria-selected={showBoard} className={`ctab board${showBoard ? ' on' : ''}${board.state ? ' live' : ''}`} onClick={() => onTab?.('board')}>
                 <span className="dot" /> {board.label}
               </button>
@@ -128,13 +136,14 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
         )}
         <span className="spacer" />
         {headExtra}
-        {showBoard && board.state && (
+        {(showBoard || sideBySide) && board?.state && (
           <>
-            <button type="button" className="btn ghost sm" onClick={board.onRestart} aria-label="Restart the board" title="Restart the board: it runs main.py again, as when it is switched on">
-              <Icon name="restart" size={14} /> Restart
+            {/* side by side, the bar is shared: the board's two buttons are icons, named by their tooltips */}
+            <button type="button" className={`btn ghost sm${sideBySide ? ' icon' : ''}`} onClick={board.onRestart} aria-label="Restart the board" title="Restart the board: it runs main.py again, as when it is switched on">
+              <Icon name="restart" size={14} />{!sideBySide && ' Restart'}
             </button>
-            <button type="button" className="btn ghost sm" onClick={board.onClose} aria-label="Let go of the board" title="Let go of the board: Thonny and other programs can use it">
-              <Icon name="x" size={14} /> Let go
+            <button type="button" className={`btn ghost sm${sideBySide ? ' icon' : ''}`} onClick={board.onClose} aria-label="Let go of the board" title="Let go of the board: Thonny and other programs can use it">
+              <Icon name="x" size={14} />{!sideBySide && ' Let go'}
             </button>
           </>
         )}
@@ -142,6 +151,8 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
           ? <button type="button" className="btn ghost sm" onClick={plot.onClear} disabled={plot.data.times.length === 0}>Clear</button>
           : showProblems
           ? <button type="button" className="btn ghost sm" onClick={problems.onClear} disabled={count === 0}>Clear</button>
+          : sideBySide
+          ? <button type="button" className="btn ghost sm" onClick={() => { onClear(); board!.onClear(); }} disabled={simChunks.length === 0 && board!.chunks.length === 0}>Clear</button>
           : <button type="button" className="btn ghost sm" onClick={showBoard ? board.onClear : onClear} disabled={shown.length === 0}>Clear</button>}
         {headEnd}
       </div>
@@ -153,25 +164,44 @@ export function Console({ chunks, running, entry, onClear, board, tab = 'sim', o
         <div className="cbody problems-body" role="region" aria-label="Problems in the circuit">
           <ProblemsList cards={problems.cards} onShow={problems.onShow} onReplace={problems.onReplace} />
         </div>
-      ) : (<>
-      <div className="cbody" ref={body} role="log" aria-label={showBoard ? `Console of the ${board.name}` : name} aria-live="polite" tabIndex={showBoard ? 0 : undefined}
-        onScroll={(e) => { const el = e.currentTarget; atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24; }}>
-        {shown.length === 0
-          ? <span className="sys">{showBoard ? `What the ${board.name} prints appears here.` : idleText ?? 'Press Run to start the simulation. print() output and errors appear here.'}</span>
-          : shown.map((c, i) => (c.kind === 'why' && 'why' in c && c.why
-            ? <Why key={i} why={c.why as Explanation} onGoTo={onGoTo} />
-            : <span key={i} className={c.kind === 'out' ? undefined : c.kind}>{c.kind === 'sent' ? `✓ ${c.text}` : c.text}</span>))}
-      </div>
-      {showBoard ? <BoardPrompt board={board} live={!!live} />
-        : typing ? <SimPrompt prompt={prompt} atRepl={!!repl} running={running} entry={entry} onType={onType!} onSoftReset={repl ? onSoftReset : undefined} complete={complete} />
-        : (
-          <div className="prompt">
-            {running
-              ? <><b className="live"><Icon name="play" size={12} /></b><span>Running {entry} — Stop ends it at once</span></>
-              : <><b>&gt;&gt;&gt;</b><span>Press Run to run {entry}; when it ends, its REPL is here</span></>}
+      ) : sideBySide ? (
+        <div className="csplit">
+          <div className="cpane sim">
+            <div className="ch"><span className={`dot${running ? ' live' : ''}`} />Simulator</div>
+            <Log chunks={simChunks} label={name} empty={simEmpty} onGoTo={onGoTo} />
+            {simPrompt}
           </div>
-        )}
+          <div className="cpane board">
+            <div className="ch"><span className={`dot${live ? ' live' : ''}`} />{board!.label}</div>
+            <Log chunks={board!.chunks} label={`Console of the ${board!.name}`} empty={`What the ${board!.name} prints appears here.`} focusable onGoTo={onGoTo} />
+            <BoardPrompt board={board!} live={!!live} />
+          </div>
+        </div>
+      ) : (<>
+      <Log key={showBoard ? 'board' : 'sim'} chunks={shown} label={showBoard ? `Console of the ${board.name}` : name}
+        empty={showBoard ? `What the ${board.name} prints appears here.` : simEmpty} focusable={showBoard} onGoTo={onGoTo} />
+      {showBoard ? <BoardPrompt board={board} live={!!live} /> : simPrompt}
       </>)}
+    </div>
+  );
+}
+
+/** A console's text (F-23): it follows the end while new text comes, unless the student has scrolled up to read. */
+function Log({ chunks, label, empty, focusable, onGoTo }: { chunks: BoardChunk[]; label: string; empty: string; focusable?: boolean; onGoTo?: (file: string, line: number) => void }) {
+  const body = useRef<HTMLDivElement>(null);
+  const atEnd = useRef(true);
+  useLayoutEffect(() => {
+    const el = body.current;
+    if (el && atEnd.current) el.scrollTop = el.scrollHeight;
+  }, [chunks]);
+  return (
+    <div className="cbody" ref={body} role="log" aria-label={label} aria-live="polite" tabIndex={focusable ? 0 : undefined}
+      onScroll={(e) => { const el = e.currentTarget; atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24; }}>
+      {chunks.length === 0
+        ? <span className="sys">{empty}</span>
+        : chunks.map((c, i) => (c.kind === 'why' && 'why' in c && c.why
+          ? <Why key={i} why={c.why as Explanation} onGoTo={onGoTo} />
+          : <span key={i} className={c.kind === 'out' ? undefined : c.kind}>{c.kind === 'sent' ? `✓ ${c.text}` : c.text}</span>))}
     </div>
   );
 }

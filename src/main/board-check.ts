@@ -181,7 +181,7 @@ export class Boards {
   async closeConsole(id: string): Promise<void> {
     const s = this.sessions.get(id);
     if (!s) return;
-    if (s.console.runningFile) await s.console.interrupt().catch(() => {});
+    if (s.console.runningFile || s.console.startingFile) await s.console.interrupt().catch(() => {});
     await this.queue(id, async () => {
       const link = this.sessions.get(id)?.link;
       this.endSession(id);
@@ -208,7 +208,7 @@ export class Boards {
   /** A file run on the board holds the port until it ends: whatever comes next stops it first. */
   private async stopFile(id: string): Promise<void> {
     const s = this.sessions.get(id);
-    if (s?.console.runningFile) await s.console.interrupt();
+    if (s?.console.runningFile || s?.console.startingFile) await s.console.interrupt();
   }
 
   /** Runs one thing with a board's port, after whatever is already running with it. */

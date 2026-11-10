@@ -126,6 +126,11 @@ export interface RunOptions {
   /** After the program — unless Stop or a fault ended it — the REPL (F-23, screen 29c): each line typed runs in the
    *  program's names until Stop (or the time limit). */
   repl?: boolean;
+  /** Keep every change in the result — the traces, PWM, analog, parts, display, sound, bus and radio (default: yes; the
+   *  tests and the acceptance suite read them). The app's worker says no (M11.5, N-03, N-05): the window draws each
+   *  change as it comes, and a fast loop left running would fill the memory. Then the display and sound keep only
+   *  their last two entries (what a new one is compared with), and the others nothing. */
+  record?: boolean;
   /** The program has ended and the REPL starts (M9): how it ended. runProject's result comes when the REPL ends. */
   onProgramEnd?: (result: RunResult) => void;
   /** An error in a line typed at the REPL (M9: the window explains it as one in the code). */
@@ -155,6 +160,9 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const stdin = new Stdin(options.control, options.stdin, () => clock.nowUs());
   const stop = stopper(mp, options.control, quiet, () => stdin.interrupted());
   pins.onLevel = options.onPin;
+  const record = options.record !== false;
+  pins.recording = record;
+  if (circuit) circuit.recording = record;
   if (circuit) {
     pins.attach(circuit);
     circuit.onChange = options.onParts;
@@ -293,7 +301,7 @@ function stopper(mp: MicroPython, control: Control | undefined, faulted: () => b
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
   const { console, display, sound, motion, bus, radio, stop, quiet, circuit, stdin, asOf } = mb;
   const random = seeded(options.seed ?? Date.now());
-  const log = (entry: string) => bus.push([clock.nowUs(), entry]);
+  const log = (entry: string) => { if (options.record !== false) bus.push([clock.nowUs(), entry]); };
   // the micro:bit's own inputs from the window (M6.6, screen 06): 'board:…' slots, NaN until the window sets them
   const slot = (name: string): number => {
     const c = options.control;
@@ -407,6 +415,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     display_frame: (pixels: string) => {
       if (display.at(-1)?.[1] !== pixels && !(display.length === 0 && pixels === '0'.repeat(25))) {
         display.push([clock.nowUs(), pixels]);
+        if (options.record === false && display.length > 2) display.splice(0, display.length - 2);
         options.onDisplay?.(pixels);
       }
     },
@@ -427,6 +436,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
         if (same(sound.at(-2), entry) || (sound.length === 1 && !h)) sound.pop();
       } else if (!same(last, entry)) {
         sound.push(entry);
+        if (options.record === false && sound.length > 2) sound.splice(0, sound.length - 2);
       }
       options.onSound?.(h, v, wave);
     },
@@ -444,7 +454,7 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
     radio_on: (on: number) => { hearRadio(); air.on = !!on; if (!on) air.waiting = []; },
     radio_send: (hex: string) => {
       log(`radio channel=${air.channel} group=${air.group} send ${spaced(hex)}`);
-      radio.push([clock.nowUs(), hex]);
+      if (options.record !== false) radio.push([clock.nowUs(), hex]);
       options.onRadio?.(hex);
     },
     /** The oldest message waiting: 'hex rssi µs', or '' when none is. */

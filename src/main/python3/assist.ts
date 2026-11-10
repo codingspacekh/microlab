@@ -94,6 +94,9 @@ export class Assistant {
     };
     child.on('exit', gone);
     child.on('error', gone);
+    // a question written as the helper ends fails with EPIPE: unheard, it would be an uncaught error in the main
+    // process; its exit is what says it is gone (the question gets no answer, as on a timeout)
+    child.stdin?.on('error', () => {});
     this.child = child;
     this.buffer = '';
     return child;

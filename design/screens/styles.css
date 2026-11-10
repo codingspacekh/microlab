@@ -18,19 +18,19 @@
   /* text */
   --tx-1: #151a21;
   --tx-2: #4b5563;
-  --tx-3: #7c8594;
+  --tx-3: #646d7b;
 
   /* accent + states */
   --accent: #2563d9;
   --accent-soft: #e8effc;
   --accent-line: #b9cdf4;
   --accent-ink: #1b4597;
-  --run: #1f9d55;
+  --run: #1a8548;
   --run-ink: #ffffff;
   --success: #198754;
   --success-soft: #e6f4ec;
   --success-line: #b9dfc9;
-  --warn: #b7791f;
+  --warn: #98641a;
   --warn-soft: #fdf3e1;
   --warn-line: #f1d9a8;
   --warn-ink: #7a520f;
@@ -59,7 +59,7 @@
   --code-fn: #1b6ac9;
   --code-str: #1a7f37;
   --code-num: #b2560b;
-  --code-com: #8a94a3;
+  --code-com: #667182;
   --code-cur: #fff8db;
   --code-err: #fdeaea;
 
@@ -611,7 +611,7 @@ textarea.area, .area { min-height: 72px; border: 1px solid var(--line-strong); b
 .statusbar .zoom { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 7px; padding: 0 2px; height: 22px; }
 .statusbar .zoom b { font-weight: 600; font-size: 11.5px; padding: 0 6px; min-width: 44px; text-align: center; }
 .statusbar .zoom .btn { height: 18px; width: 18px; padding: 0; }
-.dark-py { --panel: #1b202a; --bg: #151922; --line: #2b3241; --tx-1: #e3e8f2; --tx-2: #aab4c6; --tx-3: #7c879b; --accent-soft: rgba(130,170,255,.16); --accent-ink: #9fbcff; --code-bg: #1e2430; --code-kw: #c792ea; --code-fn: #82aaff; --code-str: #c3e88d; --code-num: #f78c6c; --code-com: #7d889c; color: var(--tx-1); }
+.dark-py { --panel: #1b202a; --bg: #151922; --line: #2b3241; --tx-1: #e3e8f2; --tx-2: #aab4c6; --tx-3: #8993a5; --accent-soft: rgba(130,170,255,.16); --accent-ink: #9fbcff; --code-bg: #1e2430; --code-kw: #c792ea; --code-fn: #82aaff; --code-str: #c3e88d; --code-num: #f78c6c; --code-com: #838da0; color: var(--tx-1); }
 .pyscreen.dark-py, .pyscreen.dark-py .shell, .pyscreen.dark-py .ptree, .pyscreen.dark-py .rail { background: var(--panel); }
 .pyscreen.dark-py .ed { background: var(--code-bg); color: #d6deeb; }
 .aa-pop { width: 360px; }
@@ -626,3 +626,40 @@ textarea.area, .area { min-height: 72px; border: 1px solid var(--line-strong); b
 .zmenu .zi.on { background: var(--accent-soft); font-weight: 600; }
 .zmenu .zi .k { margin-left: auto; color: var(--tx-3); font-size: 11px; }
 .zmenu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+
+/* exam mode (Rev 15, screens 35–35f) */
+.topbar.exam { background: var(--inverse); color: var(--on-inverse); border-bottom-color: var(--inverse); }
+.topbar.exam .brand b span { color: #8fb4f5; }
+.topbar.exam .btn.ghost { color: #d5dbe3; }
+.topbar.exam .vsep { background: rgba(255,255,255,.18); }
+.topbar.exam .btn:not(.primary):not(.run):not(.ghost) { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.22); color: #fff; }
+.examtag { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 12px; background: #f5b941; color: #3b2a05; font-weight: 700; font-size: 11.5px; letter-spacing: .04em; }
+.examwho { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.examwho b { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.examwho span { font-size: 11.5px; color: #b8c1cc; white-space: nowrap; }
+.examclock { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 13px; color: #e6eaf0; padding: 0 4px; }
+.passcode { display: flex; gap: 8px; }
+.passcode i { flex: 1; height: 40px; border: 1px solid var(--line-strong); border-radius: 8px; display: grid; place-items: center; font-style: normal; font-size: 20px; color: var(--tx-1); }
+.passcode i.f { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.lbl { font-weight: 600; font-size: 12px; display: block; margin: 14px 0 5px; }
+.lbl:first-child { margin-top: 0; }
+.filelist { border: 1px solid var(--line); border-radius: 9px; padding: 6px; font-size: 12.5px; }
+.filelist .r { display: flex; align-items: center; gap: 8px; padding: 5px 8px; }
+.filelist .r.in1 { padding-left: 28px; }
+
+/* Run on (Rev 18, screens 37–37c): the simulator, the real board, or both */
+.runsplit { display: inline-flex; } .runsplit .btn:first-child { border-radius: 8px 0 0 8px; } .runsplit .btn:last-child { border-radius: 0 8px 8px 0; border-left: 1px solid rgba(255,255,255,.35); width: 30px; padding: 0; justify-content: center; }
+.btn.run .where { font-weight: 500; opacity: .85; font-size: 12px; }
+.timer { white-space: nowrap; } .timer .where { color: var(--tx-2); font-weight: 500; font-family: var(--sans, inherit); }
+.runmenu { left: auto; top: 50px; width: 360px; padding: 4px; z-index: 6; }
+.runmenu .mi { height: auto; padding: 8px 10px; align-items: flex-start; }
+.runmenu .mi .radio { margin-top: 1px; }
+.runmenu .mi small { display: block; margin-left: 0; color: var(--tx-3); font-size: 11.5px; line-height: 1.4; }
+.runmenu .mi.dis small { color: var(--tx-3); }
+.runmenu .mnote { padding: 6px 10px 8px; font-size: 11.5px; color: var(--tx-3); line-height: 1.4; }
+.csplit { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+.csplit > div { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.csplit > div + div { border-left: 1px solid var(--line); }
+.csplit .ch { height: 26px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 12px; font-size: 11.5px; font-weight: 600; color: var(--tx-2); border-bottom: 1px solid var(--line); background: var(--bg); }
+.csplit .ch .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--run); }
+.csplit .cbody { font-size: 11.5px; }

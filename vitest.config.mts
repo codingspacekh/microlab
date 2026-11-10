@@ -16,7 +16,8 @@ export default defineConfig({
     passWithNoTests: true,
     projects: [
       { extends: true, test: { name: 'unit', include: ['tests/unit/**/*.test.ts'], environment: 'node' } },
-      { extends: true, test: { name: 'python', include: ['tests/python/**/*.test.ts'], environment: 'node' } },
+      // the real MicroPython (WebAssembly): under the full run's load (with M12's real CPython processes) a test can pass 5 s
+      { extends: true, test: { name: 'python', include: ['tests/python/**/*.test.ts'], environment: 'node', testTimeout: 15_000 } },
       { extends: true, test: { name: 'integration', include: ['tests/integration/**/*.test.ts'], environment: 'node' } },
       // M12: MicroLab's Python 3 runner in a real CPython (the bundled one, MICROLAB_PYTHON, or the computer's python3)
       // Every Python they start runs hidden (the teacher's rule): a tkinter or turtle window is never shown

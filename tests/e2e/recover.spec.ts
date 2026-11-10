@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,13 +19,29 @@ const launch = async () => {
   return win;
 };
 
+/** The app killed, as a crash would: on Windows its whole process tree — killing only the main process there leaves
+ *  its helpers running, holding the test's folder (it could not be removed, and the worker never ended). */
+const crash = async (a: ElectronApplication) => {
+  if (process.platform !== 'win32') { a.process().kill('SIGKILL'); return; }
+  const main = a.process();
+  const gone = new Promise<void>((done) => { if (main.exitCode !== null) done(); else main.once('exit', () => done()); });
+  try {
+    execFileSync('taskkill', ['/pid', String(main.pid), '/T', '/F'], { stdio: 'ignore' });
+  } catch (e) {
+    // taskkill fails if any process of the tree couldn't be ended — a helper that ended by itself meanwhile, say (the
+    // CI's Windows, 2026-11-10). What counts is that MicroLab is gone: it fails only if it is still running.
+    const ended = await Promise.race([gone.then(() => true), new Promise<boolean>((r) => setTimeout(() => r(false), 3000))]);
+    if (!ended) throw e;
+  }
+};
+
 test.beforeEach(() => { home = mkdtempSync(join(tmpdir(), 'microlab-e2e-')); });
 
 test.afterEach(async () => {
   await app?.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach((w) => w.destroy())).catch(() => {});
   await app?.close().catch(() => {});
   app = undefined;
-  rmSync(home, { recursive: true, force: true });
+  rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
 test('F-03: the app is killed while editing; on restart the project is offered back, its changes in it', async () => {
@@ -35,7 +52,7 @@ test('F-03: the app is killed while editing; on restart the project is offered b
   await win.keyboard.insertText('\n# kept after a crash\n');
   // the copy is written a few seconds after the change
   await expect.poll(() => existsSync(join(home, 'recovery', 'project.mlab')), { timeout: 10_000 }).toBe(true);
-  app!.process().kill('SIGKILL');
+  await crash(app!);
   await new Promise((r) => setTimeout(r, 300));
 
   win = await launch();

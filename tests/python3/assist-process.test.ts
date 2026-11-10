@@ -12,7 +12,7 @@ import { findPython } from '../../src/main/python3/session';
  */
 const python = findPython();
 const dir = mkdtempSync(join(tmpdir(), 'ml-assist-proc-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }));
 const tools = join(dir, 'tools');
 mkdirSync(join(tools, 'jedi'), { recursive: true });
 const helper = join(dir, 'helper.py');

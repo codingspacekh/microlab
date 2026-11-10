@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   await win.evaluate(() => { window.location.hash = '#controls'; });
   await win.getByRole('main', { name: 'Form controls' }).waitFor();
 });
-test.afterAll(async () => { await app?.close(); rmSync(home, { recursive: true, force: true }); });
+test.afterAll(async () => { await app?.close(); rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); });
 
 test('there is no native select, colour, range or number input on the page', async () => {
   expect(await win.locator('select, input[type=color], input[type=range], input[type=number], input[type=date], input[type=time]').count()).toBe(0);

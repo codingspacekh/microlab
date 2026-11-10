@@ -79,7 +79,11 @@ describe('the runner', () => {
       const s = session();
       const r = await runToEnd(s, 'import helpers, os\nprint(open("data.txt").read().strip(), helpers.twice(21), os.path.basename(__file__))\n', [], join(dir, 'main.py'), dir);
       expect(r.out).toBe('apples 42 main.py\n');
-    } finally { rmSync(dir, { recursive: true, force: true }); }
+    } finally {
+      // Windows won't remove a folder that is a running Python's own: the Python first, then the folder
+      for (const x of sessions.splice(0)) x.kill();
+      rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+    }
   });
 
   it('libraries in MicroLab\'s own folder are importable; the computer\'s user site is not used', async () => {
@@ -89,7 +93,7 @@ describe('the runner', () => {
       const s = session({ libs });
       const r = await runToEnd(s, 'import mylib, sys, site\nprint(mylib.NAME, sys.flags.no_user_site)\n');
       expect(r.out).toBe("from MicroLab's folder 1\n");
-    } finally { rmSync(libs, { recursive: true, force: true }); }
+    } finally { rmSync(libs, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); }
   });
 
   it('exit() and sys.exit() end the program quietly', async () => {
@@ -104,9 +108,11 @@ describe('Stop and Ctrl+C', () => {
   it('Ctrl+C stops a busy loop within 0.5 s (N-03): a KeyboardInterrupt, as CPython prints it', async () => {
     const s = session();
     let err = '';
-    s.on((e) => { if ('err' in e) err += e.err; });
-    s.run({ code: 'i = 0\nwhile True:\n    i += 1\n', file: 'loop.py', cwd: tmpdir() });
-    await new Promise((r) => setTimeout(r, 200));
+    let out = '';
+    s.on((e) => { if ('err' in e) err += e.err; if ('out' in e) out += e.out; });
+    // in the loop before Ctrl+C: it says so (a fixed wait was too short for a busy CI runner's Python to start)
+    s.run({ code: 'i = 0\nprint("looping", flush=True)\nwhile True:\n    i += 1\n', file: 'loop.py', cwd: tmpdir() });
+    await expect.poll(() => out, { timeout: 10_000 }).toContain('looping');
     const t = Date.now();
     s.interrupt();
     expect(await s.ended()).toEqual({ ended: 'stopped' });
@@ -202,11 +208,23 @@ describe('the shell after the program (>>>, as IDLE\'s Run Module)', () => {
   it('Tab while the program runs: its names so far; a session gone: nothing', async () => {
     const s = session();
     s.run({ code: 'counter = 0\nwhile True:\n    counter += 1\n', file: 'main.py', cwd: tmpdir() });
-    await new Promise((r) => setTimeout(r, 200));
-    expect(await s.complete('coun')).toEqual(['counter']);
+    // asked again until the program has made counter (a Python can take longer than 200 ms to start: Windows CI)
+    await expect.poll(() => s.complete('coun'), { timeout: 10_000 }).toEqual(['counter']);
     s.kill();
-    await new Promise((r) => setTimeout(r, 100));
-    expect(await s.complete('coun')).toEqual([]);
+    await expect.poll(() => s.complete('coun'), { timeout: 5000 }).toEqual([]);
+  });
+
+  it('Tab just as the program is killed: nothing, and no error in the main process (a write into a pipe that closed)', async () => {
+    const s = session();
+    s.run({ code: 'counter = 0\nwhile True:\n    counter += 1\n', file: 'main.py', cwd: tmpdir() });
+    await expect.poll(() => s.complete('coun'), { timeout: 10_000 }).toEqual(['counter']);
+    s.kill();
+    // Python is gone before Node hears its exit: the event loop is held while it dies, so Tab still writes to it
+    const until = Date.now() + 100;
+    while (Date.now() < until) { /* held */ }
+    const answers = await Promise.all(Array.from({ length: 20 }, () => s.complete('coun')));
+    expect(answers.every((a) => Array.isArray(a))).toBe(true);
+    await new Promise((r) => setTimeout(r, 300));   // an EPIPE comes a moment later, as an unhandled error
   });
 });
 
@@ -229,7 +247,7 @@ describe('finding Python and the runner', () => {
       mkdirSync(join(shipped, '..'), { recursive: true });
       writeFileSync(shipped, '');
       expect(findPython({}, join(root, 'res'), root)).toBe(shipped);
-    } finally { rmSync(root, { recursive: true, force: true }); }
+    } finally { rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); }
   });
 
   it('the runner shipped in the app\'s resources, else the source tree\'s', () => {
@@ -239,7 +257,7 @@ describe('finding Python and the runner', () => {
       mkdirSync(join(root, 'res', 'python3'), { recursive: true });
       writeFileSync(join(root, 'res', 'python3', 'runner.py'), '');
       expect(findRunner(join(root, 'res'), root)).toBe(join(root, 'res', 'python3', 'runner.py'));
-    } finally { rmSync(root, { recursive: true, force: true }); }
+    } finally { rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); }
   });
 
   it('a Python that can\'t start says so; the session is over', async () => {

@@ -5,7 +5,7 @@ import { boardData, EMPTY_HISTORY, redo, undo, type History } from '@lib/editor'
 import { faultCards, faultSummary, stoppedBy } from '@lib/circuit';
 import { Icon, Logo } from '../ui/Icon';
 import { Dialog } from '../ui/Dialog';
-import { MenuButton } from '../ui/Menu';
+import { MenuButton, type MenuItem } from '../ui/Menu';
 import type { MicrolabApi, PyProjectOpen, RecentItem, Recovered, TreeEntry } from './api';
 import { BOARD_CARDS, BOARD_NAMES, boardName } from './boards';
 import { ControlsPage } from './ControlsPage';
@@ -14,6 +14,8 @@ import { fileName, PythonScreen, type PyTab } from '../python3/PythonScreen';
 import { ProjectTree } from '../python3/ProjectTree';
 import { NewProject, shortPath, type NewKind } from './NewProject';
 import { ZoomControl } from './Zoom';
+import { About } from './About';
+import { UpdateNote, UpdatesWindow, useUpdates } from './Updates';
 import { usePython, type PyRunState } from '../python3/usePython';
 import { Libraries } from '../python3/Libraries';
 import '../python3/python3.css';
@@ -22,11 +24,12 @@ import { BoardChip, plugMessage } from '../board/BoardChip';
 import { BoardFiles } from '../board/BoardFiles';
 import { ConnectionHelper } from '../board/ConnectionHelper';
 import { InstallMicroPython } from '../board/InstallMicroPython';
-import { SendToBoard, sendMessage } from '../board/SendToBoard';
+import { SendToBoard, copyMessage, sendMessage } from '../board/SendToBoard';
+import { WANT } from '../board/BoardChip';
 import { boardShort, useBoardConsole } from '../board/useBoardConsole';
 import type { BoardId } from '@lib/boards';
 import type { ConsoleAction, SendRequest } from '@lib/repl';
-import { kindOf, type Detection, type FoundBoard } from '@lib/usb';
+import { RUN_ON_KEY, boardCopy, kindOf, runOnOf, runPlace, runWhere, type Detection, type FoundBoard, type RunOn } from '@lib/usb';
 import { useRun, type RunState, type StartRun } from './useRun';
 import { useSound } from './useSound';
 import { neopixelCount } from '@lib/circuit/neopixel';
@@ -82,6 +85,11 @@ export function App({ api, width, startRun, audio }: AppProps) {
   const controls = useHash() === '#controls';
   const sim = useRun(startRun);
   const sound = useSound(api, sim.state, audio);
+  // real boards on USB (F-55): what the main process sees, the one chosen last
+  const [boards, setBoards] = useState<Detection>({ boards: [], drives: [] });
+  const [chosen, setChosen] = useState<string | undefined>();
+  // M11.8 (F-125, screens 37–37c): a run on the real board started by Run — until it ends, Stop and Restart reach it
+  const [boardRun, setBoardRun] = useState<{ id: string; entry: string; startedAt: number } | null>(null);
   const latest = useRef(open);
   latest.current = open;
   const boardOf = (o: OpenProject) => BOARD_NAMES[o.doc.project.board as keyof typeof BOARD_NAMES] ?? o.doc.project.board;
@@ -105,6 +113,19 @@ export function App({ api, width, startRun, audio }: AppProps) {
     return () => { live = false; };
   }, [api]);
   const turnCheck = (on: boolean) => { setCheckOn(on); void api.settings.set('check.beforeRun', on); };
+  // M11.8 (F-125, screen 37): where Run runs — the simulator, the real board, or both — kept until changed
+  const [runOn, setRunOn] = useState<RunOn>('sim');
+  useEffect(() => {
+    let live = true;
+    void api.settings.get(RUN_ON_KEY).then((v) => { if (live) setRunOn(runOnOf(v)); });
+    return () => { live = false; };
+  }, [api]);
+  const chooseRunOn = (v: RunOn) => { setRunOn(v); void api.settings.set(RUN_ON_KEY, v); };
+  const projectBoard = (open?.doc.project.board ?? 'pico-w') as BoardId;
+  const place = runPlace(runOn, boards, projectBoard, chosen);
+  const fitting = runPlace('board', boards, projectBoard, chosen).board;
+  const fittingName = fitting ? boardShort(fitting, boards) : undefined;
+  const where = runWhere(runOn, place, place.board ? boardShort(place.board, boards) : undefined);
   /** The check's card is open before running this file; `checked`: it found something, listed until it is fixed. */
   const [checking, setChecking] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
@@ -121,7 +142,15 @@ export function App({ api, width, startRun, audio }: AppProps) {
     setChecking(null);
     setOpen((cur) => (cur ? { ...cur, lastRun: entry } : cur));
     if (open.doc !== open.saved) keepCopy(open);   // a run is a moment worth keeping (F-03)
-    sim.run(open.doc, entry, boardOf(open));
+    // M11.8: the simulator, the real board, or both (F-125)
+    if (place.sim) sim.run(open.doc, entry, boardOf(open));
+    else if (running) sim.stop();
+    if (place.board) void runOnBoard(place.board.id, entry, place.sim);
+  };
+  /** Stop (Shift+F5): everything Run started — the simulator and the board (M11.8). */
+  const stopAll = () => {
+    if (running) sim.stop();
+    if (boardRun) void api.boards.console.do(boardRun.id, { do: 'interrupt' });
   };
   const runFile = (entry: string) => {
     if (!open) return;
@@ -133,14 +162,20 @@ export function App({ api, width, startRun, audio }: AppProps) {
     runNow(entry);
   };
   const runControls: RunControls = {
-    state: sim.state,
+    // running on the board alone (M11.8): the top bar shows it running as the simulator's run does
+    state: running || !boardRun ? sim.state : { status: 'running', startedAt: boardRun.startedAt },
     target,
+    where,
+    runOn: { value: runOn, onChange: chooseRunOn, want: WANT[projectBoard] ?? 'board', ...(fittingName ? { board: fittingName } : {}) },
     onRun: () => runFile(target),
     onRunMain: () => runFile('main.py'),
     checkOn,
     onCheckOn: turnCheck,
-    onStop: sim.stop,
-    onRestart: () => sim.restart(() => latest.current!.doc),
+    onStop: stopAll,
+    onRestart: () => {
+      if (running) sim.restart(() => latest.current!.doc);
+      if (boardRun) void runOnBoard(boardRun.id, boardRun.entry, running);
+    },
   };
 
   const dirty = !!open && open.doc !== open.saved;
@@ -352,6 +387,16 @@ export function App({ api, width, startRun, audio }: AppProps) {
     if (!t || (!again && pyRun.state.status !== 'idle')) return;
     pyRun.run(t.text, t.path, fileName(t));
   };
+  // About MicroLab (M11, F-108): the logo, and the app menu's About; Check for Updates… (F-109) from the menu or About
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [updatesOpen, setUpdatesOpen] = useState(false);
+  useEffect(() => api.app.onMenu((action) => {
+    if (action === 'about') setAboutOpen(true);
+    else if (action === 'updates') { setAboutOpen(false); setUpdatesOpen(true); }
+  }), [api]);
+  const updates = useUpdates(api);
+  /** Restart and update: never with unsaved work — the project's, then each Python file's, are asked about first. */
+  const restartAndUpdate = () => guardAll(() => updates.update(api.updates.install()));
   // Libraries (screen 31d): the window, and how many are installed (the status bar)
   const [libsOpen, setLibsOpen] = useState(false);
   const [libCount, setLibCount] = useState<number | null>(null);
@@ -392,20 +437,25 @@ export function App({ api, width, startRun, audio }: AppProps) {
     return r ? { ...cur!, history: r.history, doc: { ...cur!.doc, project: r.project }, savedNote: undefined } : cur;
   });
 
-  // ⌘S / Ctrl+S save, ⇧ for Save as; ⌘O / Ctrl+O open
+  // ⌘S / Ctrl+S save, ⇧ for Save as; ⌘O / Ctrl+O open; F5 runs and Shift+F5 stops (M11.6), on a board and in Python 3
   const modeRef = useRef(mode);
   modeRef.current = mode;
   const keysRef = useRef<(e: KeyboardEvent) => void>(() => {});
   keysRef.current = (e: KeyboardEvent) => {
+    const f5 = e.key === 'F5' && !e.metaKey && !e.ctrlKey && !e.altKey;
     // Python 3 (M12): F5 runs the file shown, as in IDLE; ⌘S / ⌘O are for .py files there
     if (modeRef.current === 'python') {
-      if (e.key === 'F5' && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); runPy(); return; }
+      if (f5 && e.shiftKey) { e.preventDefault(); if (pyRun.state.status !== 'idle') pyRun.stop(); return; }
+      if (f5) { e.preventDefault(); runPy(); return; }
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === 's') { e.preventDefault(); void savePy(e.shiftKey); }
       else if (k === 'o') { e.preventDefault(); guardPy(() => void openAny()); }
       return;
     }
+    // a board's run (M11.6): F5 runs the file Run names (the check first, as the button does); Shift+F5 stops it
+    if (f5 && e.shiftKey) { e.preventDefault(); stopAll(); return; }
+    if (f5) { e.preventDefault(); if (open && !running && !boardRun) runFile(target); return; }
     if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
     const k = e.key.toLowerCase();
     if (k === 's' && latest.current) { e.preventDefault(); void save(e.shiftKey); }
@@ -417,9 +467,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
     return () => window.removeEventListener('keydown', on);
   }, []);
 
-  // real boards on USB (F-55): what the main process sees, the one chosen last, a short message on plug and unplug
-  const [boards, setBoards] = useState<Detection>({ boards: [], drives: [] });
-  const [chosen, setChosen] = useState<string | undefined>();
+  // a short message on plug and unplug
   // the last plug or unplug; its message is worked out again as the board answers ("checking…", then its version)
   const [plugged, setPlugged] = useState<{ plugged: FoundBoard[]; unplugged: FoundBoard[] } | null>(null);
   useEffect(() => {
@@ -474,14 +522,32 @@ export function App({ api, width, startRun, audio }: AppProps) {
     if (!r.ok) setNotice(r.message);
     return r.ok;
   };
-  /** Run this file on the board (F-50 Rev 7): it runs there now, not saved as main.py — as Thonny does. */
-  const runOnBoard = async (id: string) => {
-    if (!open) return;
-    if (running) sim.stop();
+  /**
+   * Run this file on the board (F-50 Rev 7): it runs there now, not saved as main.py — as Thonny does. M11.8 (F-125):
+   * the project's files that changed go first, but never main.py — the board's own start-up program stays as it was.
+   * `withSim`: the simulator runs it too (Both at once), so it isn't stopped.
+   */
+  const runOnBoard = async (id: string, entry = target, withSim = false) => {
+    const o = latest.current;
+    if (!o) return;
+    if (!withSim && running) sim.stop();
     if (!await openConsole(id)) return;
-    const code = open.doc.files[target];
-    bc.note(id, [{ kind: 'sys', text: `Running ${target} from the editor on the board — its own main.py is unchanged.\n` }]);
-    await api.boards.console.do(id, { do: 'run', name: target, code: typeof code === 'string' ? code : new TextDecoder().decode(code ?? new Uint8Array()) });
+    const startedAt = Date.now();
+    setBoardRun({ id, entry, startedAt });
+    try {
+      const copy = boardCopy(o.doc.files);
+      if (Object.keys(copy).length) {
+        const r = await api.boards.send(id, copy, { run: false, keep: false });
+        if (!r.ok) { setNotice(r.message); return; }
+        bc.note(id, [{ kind: 'sent', text: `${copyMessage(r)}\n` }]);
+      }
+      const code = o.doc.files[entry];
+      bc.note(id, [{ kind: 'sys', text: `Running ${entry} from the editor on the board. Its own main.py, the one it starts by itself, is unchanged.\n` }]);
+      await api.boards.console.do(id, { do: 'run', name: entry, code: typeof code === 'string' ? code : new TextDecoder().decode(code ?? new Uint8Array()) });
+    } finally {
+      // the run has ended (its program finished, was stopped, or the board went): unless another took its place
+      setBoardRun((cur) => (cur?.startedAt === startedAt ? null : cur));
+    }
   };
   // the connection helper (F-56), installing MicroPython (F-52): while open
   const [helping, setHelping] = useState(false);
@@ -505,6 +571,8 @@ export function App({ api, width, startRun, audio }: AppProps) {
 
   const actions = {
     onNewProject: () => guard(() => { sim.reset(); setOpen(null); setMode('workspace'); }),
+    // the teacher (2026-11-09): back to the Start page — its changes asked about first, as for any project closed
+    onCloseProject: () => guard(() => { sim.reset(); setOpen(null); setMode('workspace'); void refreshRecent(); }),
     onOpen: () => guard(() => void openFile()),
     onSave: () => void save(),
     onSaveAs: () => void save(true),
@@ -530,7 +598,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
         onReplace={sim.replace} onClearFaults={sim.clearFaults} onClearPlot={sim.clearPlot}
         check={{ items: checkItems, open: !!checking && !running, enabled: checkOn, onEnabled: turnCheck,
           onRunAnyway: () => runNow(checking ?? target), onCancel: () => setChecking(null) }}
-        consoleTab={bc.tab} onConsoleTab={bc.setTab}
+        consoleTab={bc.tab} onConsoleTab={bc.setTab} consoleSplit={runOn === 'both' && !!bc.shown}
         board={bc.shown ? {
           label: `${bc.shown.name} (USB)`, name: bc.shown.name, chunks: bc.chunks, ...(bc.state ? { state: bc.state } : {}),
           onType: (text) => consoleDo({ do: 'type', text }),
@@ -540,10 +608,14 @@ export function App({ api, width, startRun, audio }: AppProps) {
           onClose: () => void api.boards.console.close(bc.shown!.id),
           onClear: bc.clear,
         } : undefined}
-        banner={boardRuns ? (
+        banner={(boardRuns || boardRun) && bc.shown ? (
           <>
             <Icon name="usb" size={14} />
-            <span><b>Running on the real {bc.shown!.name}.</b> The simulator is stopped — the real board must be wired like this picture.</span>
+            <span>{boardRun && running
+              ? <><b>Running here and on the real {bc.shown!.name}.</b> Each reads its own buttons: click this picture's, press the real board's. The real board must be wired like this picture.</>
+              : boardRun
+              ? <><b>Running on the real {bc.shown!.name}.</b> This picture stays still — choose <i>Both at once</i> in Run's menu to see it run here too.</>
+              : <><b>Running on the real {bc.shown!.name}.</b> The simulator is stopped — the real board must be wired like this picture.</>}</span>
             <span className="spacer" />
             <button type="button" className="btn sm" onClick={() => consoleDo({ do: 'interrupt' })}><Icon name="stop" size={14} /> Stop the board</button>
           </>
@@ -557,9 +629,19 @@ export function App({ api, width, startRun, audio }: AppProps) {
     <div className="app">
       <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} dirty={dirty} run={runControls} chip={chip} {...actions}
         onOpenAny={() => guard(() => void openAny())}
+        onAbout={() => setAboutOpen(true)}
         py={pyProject ? {
           project: pyProject, ...(pyTab ? { tab: pyTab } : {}),
           onNew: () => guardPy(newPython), onOpen: () => guardPy(() => void openAny()), onSave: () => void savePy(), onSaveAs: () => void savePy(true),
+          onClose: () => guardPy(() => {
+            if (pyRunning) void pyRun.stop();
+            projectRef.current = null;
+            setPyProject(null);
+            setPy({ tabs: [], at: 0 });
+            setPyTree([]);
+            setMode('workspace');
+            void refreshRecent();
+          }),
           onShow: () => void api.projects.reveal(pyProject.root, ''), onLibraries: () => setLibsOpen(true),
           ...(pyTab ? { run: { state: pyRun.state, target: fileName(pyTab), keys: 'F5', onRun: () => runPy(), onStop: pyRun.stop, onRestart: () => runPy(true) } } : {}),
         } : undefined}
@@ -569,6 +651,7 @@ export function App({ api, width, startRun, audio }: AppProps) {
         } : undefined} />
       {notice && <Notice text={notice} onDismiss={() => setNotice(null)} />}
       {page}
+      <UpdateNote api={api} {...updates} onRestart={restartAndUpdate} />
       {mode === 'python' ? <PyStatusBar api={api} run={pyRun.state} libraries={libCount} /> : <StatusBar api={api} project={open && mode === 'workspace' ? open : null} run={sim.state} board={boardRuns} sound={sound}
         check={{ count: checkItems.length, asking: !!checking && !running }} />}
       <div className="toasts">
@@ -600,6 +683,9 @@ export function App({ api, width, startRun, audio }: AppProps) {
           onClose={() => { void api.boards.files.done(filesOf.id); setFilesOf(null); }} />
       )}
       {libsOpen && <Libraries api={api} onClose={() => setLibsOpen(false)} onChanged={(l) => setLibCount(l.length)} />}
+      {aboutOpen && <About api={api} onClose={() => setAboutOpen(false)}
+        actions={[{ label: 'Check for updates', icon: 'restart', onClick: () => { setAboutOpen(false); setUpdatesOpen(true); } }]} />}
+      {updatesOpen && <UpdatesWindow api={api} state={updates.state} update={updates.update} onRestart={restartAndUpdate} onClose={() => setUpdatesOpen(false)} />}
       {newKind && (
         <NewProject api={api} kind={newKind} onCancel={() => setNewKind(null)}
           onPython={(r) => { setNewKind(null); pyProjectOpened(r); }}
@@ -649,14 +735,18 @@ interface TopBarProps {
   onOpen: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  /** Close the project, back to the Start page (the teacher, 2026-11-09). */
+  onCloseProject: () => void;
   /** The real board's chip (F-55) and Send to board (F-50). */
   chip: React.ReactNode;
   /** Undo / redo of the circuit (screen 02b), in the workspace. */
   edit?: { canUndo: boolean; canRedo: boolean; onUndo: () => void; onRedo: () => void };
   /** Open… with nothing open (screen 31): a project or a .py file. */
   onOpenAny: () => void;
+  /** About MicroLab (M11, F-108): the logo opens it. */
+  onAbout: () => void;
   /** The Python 3 mode (M12, screen 31b): the file shown, its menu, its Run. */
-  py?: { project: { root: string; name: string }; tab?: PyTab; run?: RunControls; onNew: () => void; onOpen: () => void; onSave: () => void; onSaveAs: () => void; onShow: () => void; onLibraries: () => void };
+  py?: { project: { root: string; name: string }; tab?: PyTab; run?: RunControls; onNew: () => void; onOpen: () => void; onClose: () => void; onSave: () => void; onSaveAs: () => void; onShow: () => void; onLibraries: () => void };
 }
 
 interface RunControls {
@@ -674,14 +764,18 @@ interface RunControls {
   onCheckOn?: (on: boolean) => void;
   /** Shown on Run's button beside the file's name (Python 3: F5). */
   keys?: string;
+  /** Where Run runs, after the file's name (M11.8): '' for the simulator alone; "sim + Pico W"; "sim — no board". */
+  where?: string;
+  /** Run on (M11.8, F-125, screen 37): the choice in Run's ⌄ menu; `board`: the fitting board plugged in, by name. */
+  runOn?: { value: RunOn; onChange: (v: RunOn) => void; board?: string; want: string };
 }
 
 const MOD = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
-function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, onOpen, onSave, onSaveAs, onOpenAny, py }: TopBarProps) {
+function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, onOpen, onSave, onSaveAs, onCloseProject, onOpenAny, py, onAbout }: TopBarProps) {
   return (
     <header className="topbar">
-      <div className="brand"><Logo /><b>Micro<span>Lab</span></b></div>
+      <button type="button" className="brand about-link" aria-label="About MicroLab" title="About MicroLab" onClick={onAbout}><Logo /><b>Micro<span>Lab</span></b></button>
       <div className="seg modes" role="tablist" aria-label="Mode">
         {MODES.map((m) => (
           <button key={m.id} type="button" role="tab" aria-selected={mode === m.id} className={mode === m.id ? 'on' : ''} onClick={() => onMode(m.id)}>
@@ -702,6 +796,7 @@ function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, o
             { label: 'Save', icon: 'file', hint: `${MOD}S`, keys: 'Meta+S Control+S', disabled: !py.tab, onSelect: py.onSave },
             { label: 'Save as…', icon: 'copy', hint: MOD === '⌘' ? '⇧⌘S' : 'Ctrl+Shift+S', keys: 'Shift+Meta+S Shift+Control+S', disabled: !py.tab, onSelect: py.onSaveAs },
             { label: MOD === '⌘' ? 'Show the project in Finder' : 'Show the project in Explorer', icon: 'folder', onSelect: py.onShow },
+            { label: 'Close project', icon: 'x', onSelect: py.onClose },
           ]} />
           <span className="spacer" />
           {py.run && <RunBox run={py.run} />}
@@ -719,6 +814,7 @@ function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, o
             { label: 'Open a project…', icon: 'folder', hint: `${MOD}O`, keys: 'Meta+O Control+O', onSelect: onOpen },
             { label: 'Save', icon: 'file', hint: `${MOD}S`, keys: 'Meta+S Control+S', onSelect: onSave },
             { label: 'Save as…', icon: 'copy', hint: MOD === '⌘' ? '⇧⌘S' : 'Ctrl+Shift+S', keys: 'Shift+Meta+S Shift+Control+S', onSelect: onSaveAs },
+            { label: 'Close project', icon: 'x', onSelect: onCloseProject },
           ]} />
           <span className="spacer" />
           {edit && (
@@ -750,28 +846,42 @@ function RunBox({ run }: { run: RunControls }) {
     return (
       <div className="runbox">
         <span className={run.onRunMain ? 'runsplit' : 'runsplit single'}>
-          <button type="button" className="btn run" onClick={run.onRun} title={run.onRunMain ? `Run ${run.target} on the simulated board` : `Run ${run.target} with Python 3${run.keys ? ` (${run.keys})` : ''}`}>
-            <Icon name="play" size={14} /> Run <span className="runfile">{run.target.split('/').pop()}</span>{run.keys && <span className="runkeys">{run.keys}</span>}
+          <button type="button" className="btn run" onClick={run.onRun} aria-keyshortcuts="F5" title={`${!run.onRunMain ? `Run ${run.target} with Python 3` : run.where ? `Run ${run.target} — ${run.where}` : `Run ${run.target} on the simulated board`} (F5)`}>
+            <Icon name="play" size={14} /> Run <span className="runfile">{run.target.split('/').pop()}</span>{run.where && <span className="where"> · {run.where}</span>}{run.keys && <span className="runkeys">{run.keys}</span>}
           </button>
           {run.onRunMain && (
             <MenuButton label="More ways to run" className="split" items={[
-              { label: 'Run main.py', icon: 'play', description: 'As when the board is switched on: main.py is the file a board runs by itself.', onSelect: run.onRunMain },
+              ...(run.runOn ? runOnItems(run.runOn) : []),
+              { label: 'Run main.py', icon: 'play', separated: !!run.runOn, description: 'As when the board is switched on: main.py is the file a board runs by itself.', onSelect: run.onRunMain },
               { label: 'Check before running', checked: !!run.checkOn, onSelect: () => run.onCheckOn?.(!run.checkOn),
                 description: 'Run first looks for a leg alone in its column, a wire that ends where nothing is, a pin the code uses with nothing on it.' },
             ]} />
           )}
         </span>
-        <button type="button" className="btn icon" disabled title="Stop" aria-label="Stop"><Icon name="stop" size={14} /></button>
+        <button type="button" className="btn icon" disabled title="Stop (Shift+F5)" aria-label="Stop" aria-keyshortcuts="Shift+F5"><Icon name="stop" size={14} /></button>
       </div>
     );
   }
   return (
     <div className="runbox">
-      <span className="timer" role="timer" aria-label="Running for"><span className="dot" />Running {clock(seconds)}</span>
-      <button type="button" className="btn stop" onClick={run.onStop} disabled={status === 'stopping'}><Icon name="stop" size={14} /> Stop</button>
+      <span className="timer" role="timer" aria-label="Running for"><span className="dot" />Running {clock(seconds)}{run.where && <span className="where"> · {run.where}</span>}</span>
+      <button type="button" className="btn stop" onClick={run.onStop} disabled={status === 'stopping'} title="Stop (Shift+F5)" aria-keyshortcuts="Shift+F5"><Icon name="stop" size={14} /> Stop</button>
       <button type="button" className="btn icon" onClick={run.onRestart} disabled={status === 'stopping'} title="Restart" aria-label="Restart"><Icon name="restart" /></button>
     </div>
   );
+}
+
+/** Run's ⌄ menu, its first group (M11.8, F-125, screen 37): where Run runs. The board choices need the project's board. */
+function runOnItems(r: NonNullable<RunControls['runOn']>): MenuItem[] {
+  const plug = `Plug in a ${r.want} to run on it.`;
+  return [
+    { group: 'Run on', label: 'The simulator', radio: true, checked: r.value === 'sim', onSelect: () => r.onChange('sim'),
+      description: 'On the screen only. Nothing is sent to the board.' },
+    { label: r.board ? `The real board · ${r.board}` : 'The real board', radio: true, checked: r.value === 'board', disabled: !r.board, onSelect: () => r.onChange('board'),
+      description: r.board ? "Copies the project's changed files first (never its main.py), then runs the file in the editor there. The picture stays still." : plug },
+    { label: 'Both at once', radio: true, checked: r.value === 'both', disabled: !r.board, onSelect: () => r.onChange('both'),
+      description: r.board ? `The same program on the screen and on the ${r.board}, to compare. Each reads its own buttons and sensors: the picture's, and the real ones.` : plug },
+  ];
 }
 
 /** Whole seconds since `from`, ticking. */
@@ -814,7 +924,7 @@ function StatusBar({ api, project, run, board, sound, check }: { api: MicrolabAp
   const hurt = cards.some((c) => c.severity === 'damage');
   const things = (n: number) => `${n} thing${n === 1 ? '' : 's'} to look at`;
   const left = check?.asking && check.count ? <span className="st warn">Checked before running: {things(check.count)}</span>
-    : run.status === 'running' ? <span className="st running"><span className="dot" />Running at real speed</span>
+    : run.status === 'running' ? <span className="st running"><span className="dot" />Running at real speed{board ? ` · ${board}` : ''}</span>
     : run.status === 'stopping' ? <span className="st">Stopping…</span>
     : e?.ended === 'error' ? <span className="st bad">Stopped: an error{e.error?.line ? ` on line ${e.error.line}` : ''}</span>
     : e?.ended === 'fault' ? <span className="st bad">{damage ? stoppedBy(damage) : 'Stopped: the circuit was damaged'}</span>

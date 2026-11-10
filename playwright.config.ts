@@ -9,5 +9,8 @@ export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 30_000,
   workers: 1,
+  // On GitHub a broken run stops after 5 failures — each waits out its 30 s, and Windows once had 22 (11 minutes);
+  // a run by hand with all_failures (E2E_ALL_FAILURES) goes to the end
+  maxFailures: process.env.CI && !process.env.E2E_ALL_FAILURES ? 5 : 0,
   reporter: 'list',
 });
