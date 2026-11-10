@@ -230,6 +230,18 @@ h3 { font-size: 13px; font-weight: 650; }
 /* Run names its file; its ⌄ runs main.py (M5.6, F-22, Q19) */
 .runsplit { display: inline-flex; align-items: stretch; }
 .runsplit > .btn.run { border-radius: 8px 0 0 8px; max-width: 240px; }
+/* M11.8 (screen 37): where Run runs, after the file's name */
+.runsplit > .btn.run { max-width: 320px; }
+.btn.run .where, .timer .where { font-weight: 500; font-size: 12px; white-space: nowrap; }
+.btn.run .where { opacity: .88; }
+.timer { white-space: nowrap; }
+.timer .where { color: var(--tx-2); font-family: var(--sans, inherit); }
+/* a narrower window: while running, the banner and the status bar say where — the top bar keeps its room */
+@media (max-width: 1439px) {
+  .timer .where { display: none; }
+  .runsplit > .btn.run { max-width: 230px; overflow: hidden; }
+  .btn.run .where { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+}
 .runsplit .runfile { font-family: var(--mono); font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .runsplit .menuwrap { display: inline-flex; }
 .runsplit .menuwrap > .split { height: auto; width: 28px; padding: 0; justify-content: center; border: 1px solid var(--run); border-left: 1px solid rgba(255, 255, 255, .35); border-radius: 0 8px 8px 0; background: var(--run); color: var(--run-ink); }

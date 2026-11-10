@@ -53,6 +53,7 @@ Try each with students — what they do without being shown is the real test.
 2. `"version": "1.0.0"` in `package.json`, and what's new in `src/main/whats-new.json` — a draft, for your words:
    - *MicroLab 1.0 — ready for class, on Windows 10 and 11 and on Macs*
    - *F5 runs your program and Shift+F5 stops it, on a board as in Python 3*
+   - *Run on the simulator, your real board, or both at once — choose in Run's menu; no Send to board needed* (11.8)
    - *The console under your code hides (Ctrl+J) and grows or shrinks — drag its edge*
    - *Close project, in the project menu, goes back to the Start page*
    - *A program left running no longer fills the computer's memory; clearer colours for hints, comments and line numbers*

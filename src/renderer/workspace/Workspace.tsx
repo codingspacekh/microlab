@@ -57,6 +57,8 @@ export interface WorkspaceProps {
   /** The real board's console (M10.4, screen 16), its tab chosen or not. */
   board?: BoardConsoleView;
   consoleTab?: 'sim' | 'board';
+  /** Run on both at once (M11.8, screen 37b): the simulator's console and the board's side by side. */
+  consoleSplit?: boolean;
   onConsoleTab?: (tab: 'sim' | 'board') => void;
   /** "Replace the LED" (M9, screen 04): the burnt LED lights again in the next run. */
   onReplace?: (led: string) => void;
@@ -93,7 +95,7 @@ const MOD_KEY = typeof navigator !== 'undefined' && /Mac/.test(navigator.platfor
 const IDLE_RUN: Pick<RunState, 'parts' | 'board'> = { parts: {}, board: { pins: {} } };
 
 export function Workspace({
-  api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, onConsoleTab, banner, onType, onSoftReset,
+  api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, consoleSplit, onConsoleTab, banner, onType, onSoftReset,
   onReplace, onClearFaults, onClearPlot, check, history = EMPTY_HISTORY, onHistory, onUndo, onRedo, file = 'main.py', onFile, runFile = file,
 }: WorkspaceProps) {
   const { ref, width } = useWidth(fixed);
@@ -470,7 +472,7 @@ export function Workspace({
         )}
         {con.shown && (
         <div className="sideconsole" style={{ flexBasis: `${Math.round(con.size * 100)}%` }}>
-        <Console chunks={run.console} running={running} entry={runFile} onClear={onClearConsole} board={realBoard}
+        <Console chunks={run.console} running={running} entry={runFile} onClear={onClearConsole} board={realBoard} split={consoleSplit}
           tab={sideTab ?? consoleTab} onTab={(t: ConsoleTab) => { setSideTab(t === 'plot' || t === 'problems' ? t : null); if (t === 'sim' || t === 'board') onConsoleTab?.(t); }}
           {...(run.plot ? { plot: { data: run.plot, names: plotNames, ...(run.startedAt ? { startedAt: run.startedAt } : {}), onClear: () => onClearPlot?.() } } : {})}
           problems={{ cards: problemItems, onShow: show, ...(onReplace ? { onReplace } : {}), onClear: () => onClearFaults?.() }}

@@ -3,3 +3,4 @@ export type { BoardCheck, BoardDrive, BoardKind, ChipState, Detection, FoundBoar
 export { holderName, openFailure, type OpenFailure } from './holder';
 export { DRIVER_PAGES, HELPED, helperReport, helperView, type HelperAnswers, type HelperAsk, type HelperStep, type HelperView, type ReportInput, type StepId, type StepState } from './helper';
 export { installRoute, type InstallResult, type InstallRoute, type InstallStep, type InstallStepId } from './install';
+export { RUN_ON_KEY, boardCopy, runOnOf, runPlace, runWhere, type RunOn, type RunPlace } from './run-on';

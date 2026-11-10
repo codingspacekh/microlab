@@ -130,6 +130,36 @@ test('M10.4 F-51 the board\'s console: Send and run shows it; Stop gives >>>; ty
   await expect(win.getByRole('button', { name: 'Open the console' })).toBeVisible();
 });
 
+test('M11.8 F-125 Run on both at once: the simulator and the board run the file together, side by side; Stop stops both; the choice is kept', async () => {
+  const win = await app.firstWindow();
+  await newProject(win, 'New Pico W project');
+  plug('mac-pico-w');
+  const chip = win.getByRole('button', { name: /^Board:/ });
+  await expect(chip).toHaveAccessibleName('Board: Pico W, ready, MicroPython 1.29', { timeout: 2000 });
+  await win.getByRole('button', { name: 'More ways to run' }).click();
+  await win.getByRole('menuitemradio', { name: /Both at once/ }).click();
+  const run = win.getByRole('button', { name: /^Run main\.py/ });
+  await expect(run).toContainText('· sim + Pico W');
+  await win.keyboard.press('F5');
+  await expect(win.getByRole('tab', { name: /Simulator \+ Pico W/ })).toHaveAttribute('aria-selected', 'true', { timeout: 3000 });
+  const board = win.getByRole('log', { name: 'Console of the Pico W' });
+  await expect(board).toContainText('Running main.py from the editor on the board', { timeout: 3000 });
+  await expect(win.getByRole('timer', { name: 'Running for' })).toContainText('· sim + Pico W');
+  await expect(win.getByText(/Running here and on the real Pico W\./)).toBeVisible();
+  await expect(win.getByRole('log', { name: 'Console', exact: true })).toBeVisible();
+  await win.getByRole('button', { name: 'Stop', exact: true }).click();
+  // stopped at once — even while the board was still getting ready, the file is called off: its >>> to type at
+  await expect(win.getByRole('textbox', { name: 'Python for the board' })).toBeVisible({ timeout: 3000 });
+  await expect(run).toBeVisible({ timeout: 3000 });
+  // kept: MicroLab started again remembers it
+  await app.close();
+  app = await electron.launch({ args: ['out/main/index.js'], env: { ...process.env, MICROLAB_USER_DATA: home, MICROLAB_FAKE_USB: usb } });
+  const again = await app.firstWindow();
+  await newProject(again, 'New Pico W project');
+  // the board was there before MicroLab started: not interrupted to ask its name (R10), so "Pico" until it is asked
+  await expect(again.getByRole('button', { name: /^Run main\.py/ })).toContainText(/· sim \+ Pico/, { timeout: 3000 });
+});
+
 test('M10.5 F-53 Board files: the board beside the project; a folder made and deleted; done', async () => {
   const win = await app.firstWindow();
   await newProject(win, 'New Pico W project');

@@ -147,3 +147,10 @@ body.dragging { cursor: pointer; user-select: none; }
 /* said, not shown (a dialog whose name is drawn otherwise: About MicroLab) */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .dialog .dh.quiet { padding: 6px 20px 0; }
+
+/* M11.8 (Run on): a group's heading, a line between groups, a radio among a few choices */
+.menu .mg { padding: 8px 10px 3px; font-size: 10.5px; font-weight: 650; color: var(--tx-3); text-transform: uppercase; letter-spacing: .05em; list-style: none; }
+.menu .msep { height: 1px; background: var(--line); margin: 4px 2px; list-style: none; }
+.mi .mradio { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--line-strong); flex: none; box-sizing: border-box; margin-top: 1px; }
+.mi .mradio.on { border: 4.5px solid var(--accent); }
+.mi.dis .mradio { background: var(--bg-2); border-color: var(--line); }

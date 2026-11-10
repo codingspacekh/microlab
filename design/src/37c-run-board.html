@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>37c Running on the board</title>
+{{include:head}}
+</head>
+<body>
+<!--@BOARDCHIP: <button class="boardchip ok"><span class="dot"></span>{{part:pico:bp}}Pico W <span class="sub">· running main.py</span></button>-->
+<!--@RUNBOX: <div class="runbox"><span class="timer"><span class="dot"></span>Running 00:04 <span class="where">· Pico W</span></span><button class="btn stop">{{i:stop:s14}} Stop</button><button class="btn icon" title="Restart">{{i:restart}}</button></div>-->
+<!--@SENDBTN: <span class="sendsplit"><button class="btn">{{i:usb}} Send to board</button><button class="btn" title="More ways to send">{{i:chevd:s14}}</button></span>-->
+<!--@FILES: <a class="on">{{i:file:s14}} main.py</a><a>{{i:file:s14}} lib/ssd1306.py</a>-->
+<!--@CTABS: <a>{{i:term:s14}} Simulator</a><a class="on board"><span class="dot"></span> Pico W (USB)</a><a>{{i:plot:s14}} Plotter</a>-->
+<!--@CONSOLE: <div class="cbody"><span class="sent">✓ Copied to the Pico W: lib/ssd1306.py (2.1 KB, changed). Its main.py was left as it was.</span>
+<span class="sys">Running main.py from the editor. The board's own main.py, the one it starts by itself, is unchanged.</span>
+MicroPython v1.29.0 on 2026-08-24; Raspberry Pi Pico W with RP2040
+Traffic lights ready
+Button pressed: stopping traffic
+</div><div class="prompt"><b style="color:var(--run)">{{i:play:s12}}</b><span>main.py runs on the board — Stop (<span class="kbd">Shift</span>+<span class="kbd">F5</span>), or <span class="kbd">Ctrl</span>+<span class="kbd">C</span> here for its REPL (&gt;&gt;&gt;)</span></div>-->
+<!--@STATUS: <span class="st" style="color:var(--run)"><span class="dot" style="background:var(--run)"></span>Pico W (USB): running main.py</span>-->
+<!--@STATUS_R: <span class="muted">Simulator still</span>-->
+<p class="frame-label"><b>37c · Running on the real board</b> — Run (F5) with <i>The real board</i> (Rev 18, F-125): no Send to board needed. The project's changed files go first — here <span class="mono">lib/ssd1306.py</span>, which the editor changed — never its <span class="mono">main.py</span>; then the open file runs from the editor, as <i>Run this file on the board</i> did (F-50, Q19). The board's console opens; the picture stays still. Send to board stays for making it the board's own program (<span class="mono">main.py</span>, run every time it starts)</p>
+<div class="frame">
+  {{include:topbar}}
+  <div class="ws">
+    {{include:parts-panel}}
+    <div class="canvas"><div class="stage">{{scene:traffic:build}}</div>
+      <div class="cbanner"><div class="row" style="gap:10px;padding:9px 12px;border-radius:9px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-m);font-size:12.5px;flex:1">{{i:usb:s14}}<span><b>Running on the real Pico W.</b> This picture stays still — choose <i>Both at once</i> in Run's menu to see it run here too. <a>Print the wiring list</a></span></div></div>
+      {{include:ctools}}</div>
+    {{include:side}}
+  </div>
+  {{include:statusbar}}
+</div>
+</body></html>

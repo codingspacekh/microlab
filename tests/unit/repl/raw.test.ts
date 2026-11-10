@@ -53,6 +53,19 @@ describe('M10.2 FakeBoard answers as the real board does', () => {
   });
 });
 
+describe('M11.8 a soft restart in the raw REPL', () => {
+  it('Ctrl-D at an empty raw prompt: the board restarts (boot.py, never main.py) and is back at the raw prompt', async () => {
+    const board = new FakeBoard({ preset: 'pico-w', program: {} });
+    const repl = new RawRepl(board, quick);
+    await repl.enter();
+    await repl.reset();
+    expect(board.rawResets).toBe(1);
+    expect(board.softReboots).toBe(0);
+    expect(board.state).toBe('raw');
+    repl.dispose();
+  });
+});
+
 describe('M10.2 R10 checking a board', () => {
   it('a running program is stopped, the board answers, and its program runs again', async () => {
     const board = new FakeBoard({ preset: 'pico-w', program: {} });

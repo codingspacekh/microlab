@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { cls } from './field';
 import { Icon } from './Icon';
 
@@ -20,6 +20,12 @@ export interface MenuItem {
   description?: string;
   /** A setting it turns on and off (M9: Check before running): ticked when on. */
   checked?: boolean;
+  /** One of a few choices (M11.8: Run on): a radio, `checked` the one chosen. */
+  radio?: boolean;
+  /** A heading over this item, starting a group (M11.8: "Run on"). */
+  group?: string;
+  /** A line above this item, ending the group before it. */
+  separated?: boolean;
   onSelect: () => void;
 }
 
@@ -122,10 +128,12 @@ export function MenuButton({ label, icon = 'chevd', items, className, alignRight
       {open && (
         <ul ref={list} className={cls('menu', right && 'right', up && 'up', items.some((x) => x.description) && 'described')} role="menu" aria-label={label} onKeyDown={onMenuKey}>
           {items.map((it, i) => (
+            <Fragment key={it.label}>
+            {it.separated && <li role="separator" className="msep" />}
+            {it.group && <li role="presentation" className="mg">{it.group}</li>}
             <li
-              key={it.label}
               ref={(el) => { refs.current[i] = el; }}
-              role={it.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+              role={it.radio ? 'menuitemradio' : it.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
               aria-checked={it.checked}
               tabIndex={-1}
               aria-disabled={it.disabled || undefined}
@@ -134,11 +142,13 @@ export function MenuButton({ label, icon = 'chevd', items, className, alignRight
               onMouseMove={() => enabled(i) && i !== hl && setHl(i)}
               onClick={() => choose(i)}
             >
-              {it.checked !== undefined ? (it.checked ? <Icon name="check" size={14} /> : <span className="ico-gap" aria-hidden="true" />)
+              {it.radio ? <span className={cls('mradio', it.checked && 'on')} aria-hidden="true" />
+                : it.checked !== undefined ? (it.checked ? <Icon name="check" size={14} /> : <span className="ico-gap" aria-hidden="true" />)
                 : it.icon && <Icon name={it.icon} size={14} />}
               {it.description ? <span className="tx"><b>{it.label}</b><span className="dsc">{it.description}</span></span> : it.label}
               {it.hint && <small aria-hidden="true">{it.hint}</small>}
             </li>
+            </Fragment>
           ))}
         </ul>
       )}

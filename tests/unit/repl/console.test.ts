@@ -103,6 +103,29 @@ describe('M10.4 F-50 run the open file on the board', () => {
     expect(s.board.softReboots).toBe(0);   // its own main.py is not run, nor changed
   });
 
+  it('M11.8 a fresh board first, as Thonny and the simulator do (Q19): a soft restart in the raw REPL — boot.py, not main.py', async () => {
+    let seen = '';
+    const s = setup({ exec: (code) => { seen += code; return { out: '' }; } });
+    await s.c.runFile('main.py', 'import lights');
+    await s.settle();
+    expect(s.board.rawResets).toBe(1);      // modules imported by the last run are gone: a helper copied anew is the one imported
+    expect(s.board.softReboots).toBe(0);    // main.py did not run
+    expect(seen).toContain('import lights');
+    expect(s.shown()).not.toMatch(/soft reboot|raw REPL/);
+  });
+
+  it('M11.8 Stop while the board is still getting ready (Stop at once after Run): the file never starts', async () => {
+    let ran = false;
+    const s = setup({ exec: () => { ran = true; return undefined; } });   // it would run for ever
+    const run = s.c.runFile('main.py', 'while True: pass');
+    await s.c.interrupt();          // before the raw prompt, the restart, the file
+    await run;
+    await s.settle();
+    expect(ran).toBe(false);
+    expect(s.last()).toEqual({ prompt: true, running: null });
+    expect(s.shown()).toMatch(/>>> $/);
+  });
+
   it('its error in red', async () => {
     const s = setup({ exec: () => ({ err: 'Traceback (most recent call last):\r\n  File "<stdin>", line 3, in <module>\r\nZeroDivisionError: divide by zero\r\n' }) });
     await s.c.runFile('main.py', 'x = 1 / 0');

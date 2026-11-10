@@ -74,3 +74,19 @@
 .plotter .ptip { position: absolute; pointer-events: none; display: flex; flex-direction: column; gap: 2px; padding: 6px 9px; border-radius: 7px;
   background: var(--tx-1); color: var(--panel); font-size: 11.5px; line-height: 1.4; box-shadow: var(--shadow-m); }
 .plotter .ptip span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Run on both at once (M11.8, F-125, screen 37b): the simulator's console and the board's side by side */
+.csplit { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.cpane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.cpane + .cpane { border-left: 1px solid var(--line); }
+.cpane .ch { height: 26px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 12px; font-size: 11.5px; font-weight: 600; color: var(--tx-2); border-bottom: 1px solid var(--line); background: var(--bg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cpane .ch .dot { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--tx-3); flex: none; }
+.cpane .ch .dot.live { background: var(--run); border-color: var(--run); }
+.cpane .cbody { font-size: 11.5px; }
+.chead .ctab { white-space: nowrap; }
+.chead .ctabs { min-width: 0; overflow: hidden; }
+.chead .ctabs > .ctab { flex: none; }
+.chead .ctabs > .ctab.joint { flex: 0 1 auto; min-width: 0; }
+.chead .ctab.joint .tl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cpane .prompt { min-width: 0; }
+.cpane .prompt > span:not(.spacer) { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
