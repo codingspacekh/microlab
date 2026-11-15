@@ -33,6 +33,10 @@ export interface ReplOptions {
   /** Long commands go in pieces of this many bytes, with a pause between (an ESP32's serial input is small). */
   chunkBytes?: number;
   chunkPauseMs?: number;
+  /** After Stop, how long a file run on the board has to end before Ctrl-C is sent again (the trial's fix). */
+  stopMs?: number;
+  /** …and how many more times, before the board is taken as one that doesn't stop. */
+  stopTries?: number;
 }
 
 const RAW_PROMPT = 'raw REPL; CTRL-B to exit\r\n>';
@@ -53,6 +57,7 @@ class Reader {
   private buf = '';
   private wake: (() => void) | undefined;
   private closed = false;
+  private given = false;
   private heard = 0;
   private readonly offs: (() => void)[] = [];
 
@@ -74,6 +79,12 @@ class Reader {
     for (const off of this.offs.splice(0)) off();
   }
 
+  /** Gives up a wait that has no time limit (pipe): it ends as a timeout. */
+  giveUp(): void {
+    this.given = true;
+    this.wake?.();
+  }
+
   /** Passes everything up to the marker on as it comes, with no time limit — a program's output (it ends when the
    *  program does, or is stopped). A possible start of the marker is held back until it is sure. */
   async pipe(marker: string, on: (text: string) => void): Promise<void> {
@@ -93,6 +104,7 @@ class Reader {
         this.buf = this.buf.slice(this.buf.length - keep);
       }
       if (this.closed) throw new ReplError('lost', 'The board was unplugged', this.buf);
+      if (this.given) throw new ReplError('timeout', 'The program on the board did not stop', this.buf);
       await new Promise<void>((r) => { this.wake = r; });
       this.wake = undefined;
     }
@@ -220,8 +232,10 @@ export class RawRepl {
    * Runs code and passes its output and its error on as they come, for as long as it runs (a student's file on the
    * board, F-50); Ctrl-C (interrupt) ends it with a KeyboardInterrupt in its error.
    */
-  async execStream(code: string, onOut: (text: string) => void, onErr: (text: string) => void): Promise<void> {
+  async execStream(code: string, onOut: (text: string) => void, onErr: (text: string) => void, onStarted?: () => void): Promise<void> {
     await this.sendCode(code, this.replyMs);
+    // the board has all of it: only now can a Ctrl-C be sent without breaking the command in two
+    onStarted?.();
     const utf8 = (on: (t: string) => void) => {
       const d = new TextDecoder();
       return { on: (t: string) => { const x = d.decode(latin1(t), { stream: true }); if (x) on(x); }, end: () => { const x = d.decode(); if (x) on(x); } };
@@ -237,6 +251,11 @@ export class RawRepl {
   /** Stop at once (Ctrl-C): a running command ends with a KeyboardInterrupt. */
   interrupt(): Promise<void> {
     return this.send('\x03');
+  }
+
+  /** A program that doesn't stop (execStream): its output is no longer waited for — it ends as a timeout. */
+  abandon(): void {
+    this.reader.giveUp();
   }
 
   dispose(): void {

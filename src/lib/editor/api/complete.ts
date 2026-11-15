@@ -14,7 +14,7 @@ export interface Suggestion {
   /** The full signature (if any) on the first line, then the explanation. */
   info: string;
   /** A call: taken with its brackets, the cursor inside them when it takes arguments ('args'), after when not
-   *  ('empty'). Not for a name being imported. */
+   *  ('empty'). Not for a name being imported, nor for a class that keeps constants (Image, Pin). */
   call?: 'args' | 'empty';
 }
 
@@ -78,14 +78,19 @@ function shortSig(sig: string): string {
   return `(${params.slice(0, 3).join(', ')}${params.length > 3 ? ', …' : ''})`;
 }
 
+/** A class that is also where constants are kept — Image.HEART, Pin.OUT — is followed by a dot as often as by a
+ *  bracket: it is taken as a name alone (the class, after v1.0: "Image … but () is added"). */
+const keepsConstants = (item: ApiItem) => item.kind === 'class' && [...item.members.values()].filter((m) => m.kind === 'constant').length > 1;
+
 function suggestion(item: ApiItem, label = item.name, importing = false): Suggestion {
   const call = item.sig !== undefined;
+  const brackets = call && !importing && !keepsConstants(item);
   return {
     label,
     kind: item.kind,
     ...(call ? { detail: shortSig(item.sig!) } : {}),
     info: call ? `${item.name}(${item.sig})\n${item.doc}` : item.doc,
-    ...(call && !importing ? { call: item.sig!.trim() ? 'args' as const : 'empty' as const } : {}),
+    ...(brackets ? { call: item.sig!.trim() ? 'args' as const : 'empty' as const } : {}),
   };
 }
 

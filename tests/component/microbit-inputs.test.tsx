@@ -121,3 +121,30 @@ describe('M7 the micro:bit card\'s gestures and radio (the teacher\'s requests)'
     expect(s.input()).toHaveBeenLastCalledWith('radio:seq', 1);
   });
 });
+
+describe('1.0.1 the cards can be moved (the class: the micro:bit\'s card "was hiding behind" the Stop the board note)', () => {
+  it('dragged by its heading it goes with the mouse, and its controls work where it is put; a press on Close does not drag', async () => {
+    const s = await setup();
+    const card = screen.getByRole('group', { name: 'micro:bit inputs' });
+    const heading = within(card).getByText('micro:bit inputs').parentElement!;
+    expect(heading).toHaveAttribute('title', 'Drag to move');
+    fireEvent.mouseDown(heading, { button: 0, clientX: 900, clientY: 40 });
+    fireEvent.mouseMove(window, { clientX: 700, clientY: 240 });
+    fireEvent.mouseUp(window);
+    expect(card.style.transform).toBe('translate(-200px, 200px)');
+    fireEvent.mouseMove(window, { clientX: 100, clientY: 100 });       // let go: it stays
+    expect(card.style.transform).toBe('translate(-200px, 200px)');
+    // a second drag goes on from where it is
+    fireEvent.mouseDown(heading, { button: 0, clientX: 700, clientY: 240 });
+    fireEvent.mouseMove(window, { clientX: 710, clientY: 230 });
+    fireEvent.mouseUp(window);
+    expect(card.style.transform).toBe('translate(-190px, 190px)');
+    fireEvent.mouseDown(within(card).getByRole('button', { name: 'A' }));
+    expect(s.input()).toHaveBeenLastCalledWith('pressed:board.A', 1);
+    fireEvent.mouseUp(window);
+    fireEvent.mouseDown(within(card).getByRole('button', { name: /Close/ }), { button: 0, clientX: 0, clientY: 0 });
+    fireEvent.mouseMove(window, { clientX: 50, clientY: 50 });
+    fireEvent.mouseUp(window);
+    expect(card.style.transform).toBe('translate(-190px, 190px)');
+  });
+});

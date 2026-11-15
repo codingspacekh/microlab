@@ -1,5 +1,5 @@
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentLess, indentMore, indentWithTab } from '@codemirror/commands';
 import { python } from '@codemirror/lang-python';
 import { bracketMatching, HighlightStyle, indentOnInput, indentUnit, syntaxHighlighting } from '@codemirror/language';
 import { Annotation, Compartment, EditorSelection, EditorState, StateEffect, StateField, type Extension, type Range } from '@codemirror/state';
@@ -7,13 +7,15 @@ import { Decoration, drawSelection, EditorView, highlightActiveLine, highlightAc
 import { tags as t } from '@lezer/highlight';
 import { useEffect, useRef } from 'react';
 import { boardAssist } from './assist';
+import { indentationGuides } from './guides';
 import './editor.css';
 
 /**
  * The code editor (F-20, M4.4 basic): CodeMirror 6 with Python, line numbers, undo, bracket matching and four-space
  * indents (MicroPython's own style), coloured as the prototype (screens 02, 03). Tab indents; Esc then Tab leaves the
  * editor, so the keyboard is never trapped. M5.5 (F-20, screen 02b): the board's modules offered as you type, with a
- * short explanation, and a call's arguments shown while it is typed.
+ * short explanation, and a call's arguments shown while it is typed. 1.0.1 (the class, after v1.0): a guide down
+ * the left of every block, the cursor's block's stronger (guides.ts), and Indent / Dedent as buttons too (`shift`).
  */
 export interface CodeEditorProps {
   /** Said to screen readers: the file's name. */
@@ -25,15 +27,19 @@ export interface CodeEditorProps {
   /** The text size (px, M6.8): when it changes the editor measures its lines again — or the line numbers keep the
    *  old height until it is next focused (the teacher, M7). */
   size?: number;
-  /** The line the last run's error is on (M9, screen 05): highlighted, its code underlined. */
+  /** The line the last run's error is on (M9, screen 05): highlighted, its code underlined — until the file is
+   *  changed (whoever shows the editor stops giving it then). */
   errorLine?: number;
   /** Put the cursor on this line and show it (M9: "Go to line 5"); a new object each time it is asked. */
   goTo?: { line: number };
+  /** Indent or dedent the cursor's line — or every line of the selection — by four spaces, as Tab and Shift+Tab do
+   *  (1.0.1); a new object each time it is asked. */
+  shift?: { by: 'indent' | 'dedent' };
   /** Help while typing from elsewhere (M12: Python 3's, from Jedi) — instead of a board's. */
   assist?: Extension;
 }
 
-/** The error's line (M9): a line decoration and its code underlined; it moves with edits, until the next run. */
+/** The error's line (M9): a line decoration and its code underlined, until the file is changed or run again. */
 const setErrorLine = StateEffect.define<number | null>();
 const errorLine = StateField.define<DecorationSet>({
   create: () => Decoration.none,
@@ -74,7 +80,7 @@ const colours = HighlightStyle.define([
   { tag: t.comment, color: 'var(--code-com)', fontStyle: 'italic' },
 ]);
 
-export function CodeEditor({ label, value, onChange, board, size, errorLine: errorAt, goTo, assist }: CodeEditorProps) {
+export function CodeEditor({ label, value, onChange, board, size, errorLine: errorAt, goTo, shift, assist }: CodeEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const changed = useRef(onChange);
@@ -101,6 +107,7 @@ export function CodeEditor({ label, value, onChange, board, size, errorLine: err
           closeBrackets(),
           python(),
           errorLine,
+          indentationGuides(),
           ...(board ? [boardAssist(board)] : assist ? [assist] : []),
           syntaxHighlighting(colours),
           indentUnit.of('    '),
@@ -152,6 +159,17 @@ export function CodeEditor({ label, value, onChange, board, size, errorLine: err
     v.dispatch({ selection: EditorSelection.cursor(at), effects: EditorView.scrollIntoView(at, { y: 'center' }) });
     v.focus();
   }, [goTo, label, board]);
+
+  // Indent / Dedent from the buttons: the lines moved, the editor focused again so typing goes on
+  const shifted = useRef(shift);
+  useEffect(() => {
+    const v = view.current;
+    // asked once: an editor made anew (another tab) does not do the last one again
+    if (!v || !shift || shift === shifted.current) return;
+    shifted.current = shift;
+    (shift.by === 'indent' ? indentMore : indentLess)(v);
+    v.focus();
+  }, [shift]);
 
   return <div className="code-editor" ref={host} />;
 }

@@ -71,7 +71,11 @@ export function PythonScreen({ api, side, tabs, at, onAt, onText, onClose, run, 
   const names = shown && run.plot.width ? printNames(shown.text, run.plot.width) : null;
   // the error's line, in the file it was in (the runner names it by its path)
   const error = !running && run.ended?.ended === 'error' && run.ended.error ? run.ended.error : undefined;
-  const errorHere = shown && error && error.file === shown.path ? error.line ?? undefined : undefined;
+  // …until that file is changed (the class, after v1.0: the mark stayed on a line already put right)
+  const [mended, setMended] = useState<unknown>(null);
+  // Indent / Dedent beside the tabs (1.0.1): what Tab and Shift+Tab do
+  const [shift, setShift] = useState<{ by: 'indent' | 'dedent' }>();
+  const errorHere = shown && error && error.file === shown.path && mended !== run.ended ? error.line ?? undefined : undefined;
   return (
     <main className="pyscreen" aria-label="Python 3" {...lookAttrs(look)}>
       <div className="pybody">
@@ -96,6 +100,12 @@ export function PythonScreen({ api, side, tabs, at, onAt, onText, onClose, run, 
           </span>
         ))}
       </div>
+        {shown && <span className="shift" role="group" aria-label="Indentation">
+          <button type="button" className="btn ghost sm icon" aria-label="Dedent" title="Dedent: the line — or every selected line — four spaces to the left (Shift+Tab)"
+            onClick={() => setShift({ by: 'dedent' })}><Icon name="dedent" size={14} /></button>
+          <button type="button" className="btn ghost sm icon" aria-label="Indent" title="Indent: the line — or every selected line — four spaces to the right (Tab)"
+            onClick={() => setShift({ by: 'indent' })}><Icon name="indent" size={14} /></button>
+        </span>}
         <span className="lay" role="group" aria-label="Panels">
           <button type="button" className={`btn ghost sm icon${panels.tree ? ' on' : ''}`} aria-pressed={panels.tree} aria-label="The project's files"
             title={`${panels.tree ? 'Hide' : 'Show'} the project's files (Ctrl+B)`} onClick={() => setPanels({ ...panels, tree: !panels.tree })}><Icon name="sidebar" size={14} /></button>
@@ -109,8 +119,8 @@ export function PythonScreen({ api, side, tabs, at, onAt, onText, onClose, run, 
       </div>
       <div className="pyed">
         {shown
-          ? <CodeEditor key={shown.key} label={label} size={look.size} value={shown.text} onChange={onText}
-              errorLine={errorHere} goTo={goTo?.file === shown.path ? goTo : undefined} assist={assist} />
+          ? <CodeEditor key={shown.key} label={label} size={look.size} value={shown.text} onChange={(t) => { if (error && error.file === shown.path) setMended(run.ended); onText(t); }}
+              errorLine={errorHere} goTo={goTo?.file === shown.path ? goTo : undefined} shift={shift} assist={assist} />
           : <p className="pyempty small muted">Open a file from the project on the left — a double-click — or make one with <b>New file</b>.</p>}
       </div>
       </div>

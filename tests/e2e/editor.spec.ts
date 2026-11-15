@@ -55,7 +55,7 @@ test('the editor and the console below it fill the code side', async () => {
   expect(ed.height).toBeGreaterThan(con.height);   // the code gets the most room
 });
 
-test('M5.5 typing on the Pico W: machine. offers Pin with its arguments, Enter takes it with its brackets, inside them it shows what it needs', async () => {
+test('M5.5 typing on the Pico W: machine. offers Pin with its arguments, Enter takes it, inside its brackets it shows what it needs', async () => {
   const win = await app.firstWindow();
   await newProject(win, 'New Pico W project');
   const editor = win.getByRole('textbox', { name: 'main.py' });
@@ -77,7 +77,12 @@ test('M5.5 typing on the Pico W: machine. offers Pin with its arguments, Enter t
   await expect(list.locator('li[aria-selected]')).toContainText('Pin(id, mode=-1, pull=-1, …)');
   await expect(win.locator('.cm-completionInfo')).toContainText('GPIO pin');
   await pick();
-  await expect(editor).toContainText('button = machine.Pin()');   // the teacher (2026-11-08): the brackets come with it, the cursor inside
+  // 1.0.1 (the class: "Image … but () is added"): Pin keeps constants (Pin.IN), so it is taken as a name alone —
+  // the bracket typed brings its pair (a method or a function still comes with its brackets: PULL_UP's test above)
+  await expect(editor).toContainText('button = machine.Pin');
+  await expect(editor).not.toContainText('machine.Pin()');
+  await win.keyboard.type('(');
+  await expect(editor).toContainText('button = machine.Pin()');
   await win.keyboard.type('14, ');
   await expect(win.locator('.ml-signature b')).toHaveText('mode=-1');
   await win.keyboard.type('machine.Pin.IN, machine.Pin.PULL_U');
@@ -106,4 +111,31 @@ test('M7 (the teacher\'s report): a saved text size — the line numbers stand b
     return { lines: lines.slice(0, 9), numbers };
   });
   for (let i = 0; i < tops.lines.length; i++) expect(Math.abs(tops.numbers[i]! - tops.lines[i]!), `line ${i + 1}`).toBeLessThan(2);
+});
+
+// 1.0.1 — the class after v1.0: indentation guides (like python.microbit.org's) and Indent / Dedent as buttons
+test('1.0.1 a guide runs down every block, and Indent / Dedent move the selected lines with the real mouse', async () => {
+  const win = await app.firstWindow();
+  await newProject(win, 'New micro:bit project');
+  const editor = win.getByRole('textbox', { name: 'main.py' });
+  await editor.click();
+  await win.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
+  await win.keyboard.type('from microbit import *\nwhile True:\nif button_a.is_pressed():\ndisplay.show(Image.HEART)\n');
+  await win.keyboard.press('Backspace');   // out of the if's body, still in the while's
+  await win.keyboard.type('sleep(100)');
+  // the body of the if, two blocks deep: two guides, one for the while (column 0) and one for the if (column 4)
+  const heart = win.locator('.cm-line', { hasText: 'display.show(Image.HEART)' });
+  await expect(heart).toHaveCSS('background-image', /gradient.*gradient/);
+  const x = await heart.evaluate((el) => getComputedStyle(el).backgroundPositionX);
+  expect(x).toMatch(/^0(ch|px), 4ch|^0px, \d+(\.\d+)?px$/);
+  // the last line, pushed in by the button — then back
+  await win.getByRole('button', { name: 'Indent', exact: true }).click();
+  expect((await win.locator('.cm-line').allTextContents()).at(-1)).toBe('        sleep(100)');
+  await win.getByRole('button', { name: 'Dedent', exact: true }).click();
+  await win.getByRole('button', { name: 'Dedent', exact: true }).click();
+  expect((await win.locator('.cm-line').allTextContents()).at(-1)).toBe('sleep(100)');
+  // typing goes on in the editor: the button gave the keyboard back
+  await win.keyboard.type('  # ok');
+  expect((await win.locator('.cm-line').allTextContents()).at(-1)).toBe('sleep(100)  # ok');
+  if (process.env.MICROLAB_SHOT) await win.screenshot({ path: process.env.MICROLAB_SHOT });
 });

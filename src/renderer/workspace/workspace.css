@@ -127,6 +127,10 @@ button.pitem[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 /* ---------- M6.1: the inputs while running (screen 17), the GPIO board's micro-USB (screen 17b) ---------- */
 .inputs { padding: 10px 12px; width: 252px; z-index: 3; max-height: calc(100% - 28px); overflow: auto; }
 .inputs .ih { display: flex; align-items: center; gap: 6px; font-size: 12.5px; margin-bottom: 8px; }
+/* 1.0.1: the cards are moved by their heading, and stand over the note across the canvas's top (z-index 5) */
+.inputs { z-index: 6; }
+.inputs .ih { cursor: move; user-select: none; }
+.inputs .ih .btn { cursor: pointer; }
 .inputs .ih .spacer { flex: 1; }
 .inputs p { margin: 8px 0 0; }
 .inputs .slider { grid-template-columns: minmax(0, 1fr) 76px; position: relative; }

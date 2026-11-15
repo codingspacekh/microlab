@@ -111,13 +111,13 @@ describe('M5.5 F-20 help while typing (screen 02b)', () => {
 
   it('Tab takes the chosen completion (as Enter does); with no list open, Tab indents', async () => {
     const view = setup('pico-w', 'import machine\n');
-    type(view, 'machine.Pi');
+    type(view, 'machine.PW');
     act(() => { startCompletion(view); });
     await waitFor(() => expect(offered(view).length).toBeGreaterThan(0));
     await act(() => new Promise((r) => setTimeout(r, 100)));   // CodeMirror takes no key for 75 ms after the list opens
     fireEvent.keyDown(view.contentDOM, { key: 'Tab', code: 'Tab', keyCode: 9 });
-    expect(view.state.doc.toString()).toMatch(/machine\.Pin\(\)$/);
-    expect(view.state.selection.main.head).toBe(view.state.doc.length - 1);   // inside the brackets: Pin takes arguments
+    expect(view.state.doc.toString()).toMatch(/machine\.PWM\(\)$/);
+    expect(view.state.selection.main.head).toBe(view.state.doc.length - 1);   // inside the brackets: PWM takes arguments
     const before = view.state.doc.length;
     act(() => { view.dispatch({ changes: { from: before, insert: '\nx' }, selection: { anchor: before + 2 } }); });
     fireEvent.keyDown(view.contentDOM, { key: 'Tab', code: 'Tab', keyCode: 9 });
@@ -139,6 +139,10 @@ describe('M5.5 F-20 help while typing (screen 02b)', () => {
     act(() => { view.dispatch({ changes: { from: view.state.doc.length, insert: '\ndisplay.sc(1)' }, selection: { anchor: view.state.doc.length + '\ndisplay.sc'.length } }); });
     await take();
     expect(view.state.doc.toString()).toMatch(/display\.scroll\(1\)$/);
+    // 1.0.1: Image is where HEART and the other pictures are kept — taken as a name, no brackets
+    act(() => { view.dispatch({ changes: { from: view.state.doc.length, insert: '\ndisplay.show(Ima' }, selection: { anchor: view.state.doc.length + '\ndisplay.show(Ima'.length } }); });
+    await take();
+    expect(view.state.doc.toString()).toMatch(/display\.show\(Image$/);
   });
 
   it('on the micro:bit, pin offers pin0, pin1, …; inside a string nothing is offered', async () => {
@@ -168,5 +172,56 @@ describe('M5.5 F-20 help while typing (screen 02b)', () => {
     type(view, 'p.d');
     act(() => { startCompletion(view); });
     await waitFor(() => expect(offered(view).map((l) => l.replace(/\(.*$/, ''))).toContain('duty'));
+  });
+});
+
+/**
+ * 1.0.1 — the class after v1.0: "the code editor should add option to indent or dedent the lines … indentation
+ * preview, like python.microbit.org, to help students write the code in the correct way".
+ */
+describe('1.0.1 indentation: guides down every block, Indent and Dedent', () => {
+  const code = 'while True:\n    if x:\n        go()\n    stop()\nprint(1)\n';
+  const lineEl = (text: string) => [...document.querySelectorAll('.cm-line')].find((l) => l.textContent === text) as HTMLElement;
+
+  it('a line of a block has a guide at the column of the line that opens it; the cursor\'s block\'s is the strong one', async () => {
+    render(<CodeEditor label="main.py" value={code} onChange={() => {}} />);
+    const view = viewOf(screen.getByRole('textbox', { name: 'main.py' }));
+    expect(lineEl('while True:').getAttribute('style') ?? '').not.toContain('background-image');
+    expect(lineEl('    if x:').style.backgroundPosition).toBe('0ch 0px');
+    expect(lineEl('        go()').style.backgroundPosition).toBe('0ch 0px, 4ch 0px');
+    // the cursor in the if's body: its guide (column 4) is the 2 px one
+    act(() => { view.dispatch({ selection: { anchor: view.state.doc.line(3).to } }); });
+    expect(lineEl('        go()').style.backgroundSize).toBe('1px 100%, 2px 100%');
+    expect(lineEl('        go()').style.backgroundImage).toContain('var(--guide-on)');
+    expect(lineEl('    stop()').style.backgroundImage).not.toContain('var(--guide-on)');
+    // typed out of line: the guides follow at once
+    type(view, '    late()');
+    expect(lineEl('    late()').style.backgroundPosition).toBe('0ch 0px');
+  });
+
+  it('Indent and Dedent ask the editor to move the cursor\'s line — or every selected line — four spaces', async () => {
+    const { rerender } = render(<CodeEditor label="main.py" value={code} onChange={() => {}} />);
+    const view = viewOf(screen.getByRole('textbox', { name: 'main.py' }));
+    act(() => { view.dispatch({ selection: { anchor: view.state.doc.line(4).from, head: view.state.doc.line(5).to } }); });
+    rerender(<CodeEditor label="main.py" value={code} onChange={() => {}} shift={{ by: 'indent' }} />);
+    expect(view.state.doc.toString()).toBe('while True:\n    if x:\n        go()\n        stop()\n    print(1)\n');
+    rerender(<CodeEditor label="main.py" value={code} onChange={() => {}} shift={{ by: 'dedent' }} />);
+    rerender(<CodeEditor label="main.py" value={code} onChange={() => {}} shift={{ by: 'dedent' }} />);
+    expect(view.state.doc.toString()).toBe('while True:\n    if x:\n        go()\nstop()\nprint(1)\n');
+  });
+
+  it('in the workspace: Indent and Dedent beside the file tabs, each saying its key', async () => {
+    const api: MicrolabApi = fakeApi();
+    render(<App api={api} width={1440} />);
+    await newProjectFromStart('New micro:bit project');
+    const view = viewOf(await screen.findByRole('textbox', { name: 'main.py' }));
+    const first = view.state.doc.line(1).text;
+    act(() => { view.dispatch({ selection: { anchor: 0 } }); });
+    const group = screen.getByRole('group', { name: 'Indentation' });
+    expect(within(group).getByRole('button', { name: 'Dedent' })).toHaveAttribute('title', expect.stringContaining('Shift+Tab'));
+    fireEvent.click(within(group).getByRole('button', { name: 'Indent' }));
+    expect(view.state.doc.line(1).text).toBe(`    ${first}`);
+    fireEvent.click(within(group).getByRole('button', { name: 'Dedent' }));
+    expect(view.state.doc.line(1).text).toBe(first);
   });
 });

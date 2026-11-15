@@ -9,7 +9,7 @@ const option = (board: string, code: string, label: string) => at(board, code)?.
 describe('M5.5 the catalogue', () => {
   it('each board has its own modules', () => {
     expect([...apiFor('pico-w').keys()].sort()).toEqual(['gc', 'machine', 'math', 'micropython', 'neopixel', 'os', 'random', 'sys', 'time']);   // M7: neopixel
-    expect([...apiFor('microbit-v2').keys()].sort()).toEqual(['audio', 'gc', 'machine', 'math', 'microbit', 'micropython', 'music', 'neopixel', 'os', 'radio', 'random', 'time', 'utime']);   // M7: radio, neopixel, audio
+    expect([...apiFor('microbit-v2').keys()].sort()).toEqual(['audio', 'gc', 'machine', 'math', 'microbit', 'micropython', 'music', 'neopixel', 'os', 'radio', 'random', 'speech', 'time', 'utime']);   // M7: radio, neopixel, audio
     expect(apiFor('esp32-devkit-v1-ext')).toBe(apiFor('esp32-devkit-v1'));
   });
 
@@ -96,9 +96,17 @@ describe('the teacher (2026-11-08): a call is taken with its brackets', () => {
   it('a method, function or class says whether its call takes arguments; a constant or a module isn\'t called', () => {
     expect(option('microbit-v2', 'from microbit import *\ndisplay.', 'scroll')!.call).toBe('args');
     expect(option('microbit-v2', 'from microbit import *\nbutton_a.', 'is_pressed')!.call).toBe('empty');
-    expect(option('pico-w', 'import machine\nmachine.P', 'Pin')!.call).toBe('args');
+    expect(option('pico-w', 'import machine\nmachine.P', 'PWM')!.call).toBe('args');
     expect(option('pico-w', 'from machine import Pin\nPin.', 'OUT')!.call).toBeUndefined();
     expect(option('pico-w', 'import ', 'machine')!.call).toBeUndefined();
+  });
+
+  it('1.0.1 (the class: "Image … but () is added") a class that keeps constants — Image.HEART, Pin.OUT — is taken as a name alone', () => {
+    expect(option('microbit-v2', 'from microbit import *\nIm', 'Image')!.call).toBeUndefined();
+    expect(option('pico-w', 'import machine\nmachine.P', 'Pin')!.call).toBeUndefined();
+    expect(option('pico-w', 'from machine import Pin\nled = Pin(15, Pi', 'Pin')!.call).toBeUndefined();
+    // one that is only ever made keeps its brackets
+    expect(option('microbit-v2', 'import neopixel\nneopixel.N', 'NeoPixel')!.call).toBe('args');
   });
 
   it('a name being imported gets no brackets', () => {

@@ -42,6 +42,9 @@ ICONS = {
     "dotfill": '<circle cx="12" cy="12" r="5"/>',
     "restart": '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/>',
     "undo": '<path d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+    # 1.0.1: the editor's Indent / Dedent (lines of code, the first ones pushed right or pulled left by an arrow)
+    "indent": '<path d="M4 5h16M11 10h9M11 14h9M4 19h16M4 9.5l3.5 2.5L4 14.5"/>',
+    "dedent": '<path d="M4 5h16M11 10h9M11 14h9M4 19h16M7.5 9.5L4 12l3.5 2.5"/>',
     "redo": '<path d="M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
     "plug": '<path d="M9 2v5M15 2v5M6 7h12v4a6 6 0 0 1-12 0zM12 17v5"/>',
     "book": '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M8 7h7"/>',

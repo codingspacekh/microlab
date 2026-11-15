@@ -339,6 +339,30 @@ describe('M10.4 a file run on the board holds the port', () => {
   });
 });
 
+describe('1.0.1 Stop and a file run on the board (the class\'s report: "the board sometimes cannot be stopped")', () => {
+  it('Stop while the file still waits its turn for the port: it is called off, and never runs', async () => {
+    let ran = false;
+    const b = new FakeBoard({ preset: 'pico-w', exec: () => { ran = true; return undefined; } } as FakeBoardOptions);
+    const c = new Boards(deps(b).d, () => {}, { output: () => {}, sessions: () => {} });
+    await c.openConsole(PICO);
+    const run = c.console('e661', { do: 'run', name: 'main.py', code: 'while True: pass' });
+    await Promise.resolve();
+    await c.console('e661', { do: 'interrupt' });
+    await run;
+    expect(ran).toBe(false);
+    expect(c.consoles.e661).toEqual({ prompt: true, running: null });
+  });
+
+  it('a file that could not be started says why in the board\'s console — not a run that silently never began', async () => {
+    const b = new FakeBoard({ preset: 'pico-w', program: { stubborn: Infinity } } as FakeBoardOptions);
+    const said: string[] = [];
+    const c = new Boards(deps(b).d, () => {}, { output: (_id, text, kind) => { if (kind === 'err') said.push(text); }, sessions: () => {} });
+    await c.openConsole(PICO);
+    await c.console('e661', { do: 'run', name: 'main.py', code: 'print(1)' });
+    expect(said.join('')).toMatch(/didn't stop when asked, so nothing was run/);
+  });
+});
+
 describe('M10.4 the console\'s rarer ways', () => {
   const rig = (b: FakeBoard) => {
     const { d, closed } = deps(b);

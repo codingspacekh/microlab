@@ -90,6 +90,8 @@ export function App({ api, width, startRun, audio }: AppProps) {
   const [chosen, setChosen] = useState<string | undefined>();
   // M11.8 (F-125, screens 37–37c): a run on the real board started by Run — until it ends, Stop and Restart reach it
   const [boardRun, setBoardRun] = useState<{ id: string; entry: string; startedAt: number } | null>(null);
+  /** The board run Stop was pressed for (its start time): one still copying its files then never starts. */
+  const boardOff = useRef<number | null>(null);
   const latest = useRef(open);
   latest.current = open;
   const boardOf = (o: OpenProject) => BOARD_NAMES[o.doc.project.board as keyof typeof BOARD_NAMES] ?? o.doc.project.board;
@@ -150,7 +152,12 @@ export function App({ api, width, startRun, audio }: AppProps) {
   /** Stop (Shift+F5): everything Run started — the simulator and the board (M11.8). */
   const stopAll = () => {
     if (running) sim.stop();
-    if (boardRun) void api.boards.console.do(boardRun.id, { do: 'interrupt' });
+    if (boardRun) stopBoard(boardRun.id);
+  };
+  /** Stop for a board: its program — and a run of Run's that is still copying its files is called off. */
+  const stopBoard = (id: string) => {
+    if (boardRun?.id === id) boardOff.current = boardRun.startedAt;
+    void api.boards.console.do(id, { do: 'interrupt' });
   };
   const runFile = (entry: string) => {
     if (!open) return;
@@ -541,6 +548,11 @@ export function App({ api, width, startRun, audio }: AppProps) {
         if (!r.ok) { setNotice(r.message); return; }
         bc.note(id, [{ kind: 'sent', text: `${copyMessage(r)}\n` }]);
       }
+      // Stop was pressed while the files were copied: it never starts
+      if (boardOff.current === startedAt) {
+        bc.note(id, [{ kind: 'sys', text: `Stopped before ${entry} started.\n` }]);
+        return;
+      }
       const code = o.doc.files[entry];
       bc.note(id, [{ kind: 'sys', text: `Running ${entry} from the editor on the board. Its own main.py, the one it starts by itself, is unchanged.\n` }]);
       await api.boards.console.do(id, { do: 'run', name: entry, code: typeof code === 'string' ? code : new TextDecoder().decode(code ?? new Uint8Array()) });
@@ -554,7 +566,11 @@ export function App({ api, width, startRun, audio }: AppProps) {
   const [installing, setInstalling] = useState<'pico' | 'microbit' | null>(null);
   // Board files (F-53): the board whose files are shown, while the panel is open
   const [filesOf, setFilesOf] = useState<{ id: string; name: string } | null>(null);
-  const consoleDo = (a: ConsoleAction) => { if (bc.shown) void api.boards.console.do(bc.shown.id, a); };
+  const consoleDo = (a: ConsoleAction) => {
+    if (!bc.shown) return;
+    if (a.do === 'interrupt') stopBoard(bc.shown.id);
+    else void api.boards.console.do(bc.shown.id, a);
+  };
   const boardRuns = bc.shown && bc.state && !bc.state.prompt ? `${bc.shown.name} (USB): running ${bc.state.running ?? 'main.py'}` : undefined;
   const chip = open ? (
     <>

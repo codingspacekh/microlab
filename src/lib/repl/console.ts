@@ -1,5 +1,5 @@
 import { parseUname, type Uname } from './greeting';
-import { RawRepl, UNAME_CODE, bytesText, latin1, type Link, type ReplOptions } from './raw';
+import { RawRepl, ReplError, UNAME_CODE, bytesText, latin1, type Link, type ReplOptions } from './raw';
 
 /**
  * The real board's console (F-51, screen 16) over a port kept open: what the board prints as it comes — its
@@ -33,6 +33,8 @@ export interface ConsoleSink {
   answered?(u: Uname): void;
 }
 
+/** Said when a file run on the board ignores every Ctrl-C. */
+export const WONT_STOP = "The program on the board doesn't stop when asked — it may catch every error with a bare \"except:\". Unplug the board and plug it back in to stop it.";
 const PASTE_BANNER = '\npaste mode; Ctrl-C to cancel, Ctrl-D to finish\n=== ';
 const TRACEBACK = 'Traceback (most recent call last):';
 /** The last line of a traceback: "KeyboardInterrupt: ", "NameError: name 'x' isn't defined". */
@@ -62,6 +64,11 @@ export class BoardConsole {
   /** A file is being started (runFile, before it runs); Stop meanwhile calls it off (M11.8). */
   startingFile = false;
   private calledOff = false;
+  /** Stop was asked of the file that runs: Ctrl-C is sent until it ends, and the board is made quiet after. */
+  private stopAsked = false;
+  /** Counts the files run: a Stop's repeats are for the run they were asked of. */
+  private runNo = 0;
+  private current: RawRepl | undefined;
 
   constructor(private readonly link: Link, private readonly sink: ConsoleSink, private readonly opts: ReplOptions = {}) {
     this.off = link.onData((d) => { if (!this.muted) this.show(this.clean(bytesText(d))); });
@@ -98,11 +105,41 @@ export class BoardConsole {
     await this.write('\x04');
   }
 
-  /** Stop (Ctrl-C): the program — or the file run here — stops; the board gives its >>> prompt. A file still being
-   *  started (the raw prompt, the restart: M11.8) is called off — a Ctrl-C then would be lost, and it would run on. */
-  interrupt(): Promise<void> {
-    if (this.startingFile) this.calledOff = true;
-    return this.write('\x03');
+  /**
+   * Stop (Ctrl-C): the program — or the file run here — stops; the board gives its >>> prompt.
+   * The class's report after v1.0 ("the board sometimes cannot be stopped"): a file still being started — the raw
+   * prompt, the restart (M11.8), the file going to the board — is called off and nothing is written, for a Ctrl-C
+   * then is not heard by the board, or breaks the file in two; one that runs gets Ctrl-C again and again until it
+   * ends (the board hears none while it still compiles the file); and while another job has the port (a send) nothing
+   * is written into its talk.
+   */
+  async interrupt(): Promise<void> {
+    if (this.startingFile) { this.calledOff = true; return; }
+    if (this.runningFile) {
+      const first = !this.stopAsked;
+      this.stopAsked = true;
+      await this.write('\x03');
+      if (first) this.insist(this.runNo, this.opts.stopTries ?? 6);
+      return;
+    }
+    if (this.muted) return;
+    await this.write('\x03');
+  }
+
+  /** A file is about to be run (it waits for the port): a Stop from now on calls it off. */
+  willRun(): void {
+    this.startingFile = true;
+    this.calledOff = false;
+  }
+
+  /** Until the stopped file ends: Ctrl-C again; after the last try its output is no longer waited for. */
+  private insist(run: number, left: number): void {
+    setTimeout(() => {
+      if (!this.runningFile || this.runNo !== run || !this.stopAsked) return;
+      if (left <= 0) { this.current?.abandon(); return; }
+      void this.write('\x03').catch(() => {});
+      this.insist(run, left - 1);
+    }, this.opts.stopMs ?? 500);
   }
 
   /** Restart: the program stopped quietly (its traceback not shown), then a soft reset — the board runs main.py
@@ -131,29 +168,51 @@ export class BoardConsole {
   /** Runs a file on the board without saving it there (F-50 Rev 7): its output as it comes, Stop ends it. */
   async runFile(name: string, code: string): Promise<void> {
     this.mute();
-    const repl = new RawRepl(this.link, this.opts);
+    let repl = new RawRepl(this.link, this.opts);
+    let prompt = true;
     try {
-      this.startingFile = true;
-      this.calledOff = false;
+      if (!this.startingFile) this.willRun();
       await repl.enter();
       await this.ask(repl);
       // a fresh board, as Thonny and the simulator give (Q19, M11.8): a helper copied anew is the one imported
       await repl.reset();
       this.reset();
-      this.startingFile = false;
       if (!this.calledOff) {
-        this.runningFile = true;
+        const run = ++this.runNo;
+        this.stopAsked = false;
+        this.current = repl;
         this.setState({ prompt: false, running: name });
-        await repl.execStream(code, (t) => this.emit(strip(t), 'out'), (t) => this.emit(strip(t), 'err'));
+        try {
+          await repl.execStream(code, (t) => this.emit(strip(t), 'out'), (t) => this.emit(strip(t), 'err'), () => {
+            // the board has the whole file: from here Stop is a Ctrl-C — and a Stop asked meanwhile is sent now
+            this.startingFile = false;
+            this.runningFile = true;
+            if (this.calledOff) void this.interrupt().catch(() => {});
+          });
+        } catch (e) {
+          if (!(e instanceof ReplError) || e.reason !== 'timeout' || !this.stopAsked) throw e;
+          // it did not stop: asked once more as a send asks (Ctrl-C twice, then the raw prompt)
+          repl.dispose();
+          repl = new RawRepl(this.link, this.opts);
+          prompt = await repl.enter().then(() => true, (x: unknown) => { if (x instanceof ReplError && x.reason === 'lost') throw x; return false; });
+        } finally {
+          this.runNo = run + 1;
+          this.runningFile = false;
+        }
+        // stopped by the student: the board goes quiet, as the simulator's does — a soft restart ends its timers,
+        // its sounds, its PWM and the micro:bit's display (boot.py runs, main.py doesn't)
+        if (prompt && this.stopAsked) await repl.reset().catch((x: unknown) => { if (x instanceof ReplError && x.reason === 'lost') throw x; });
       }
-      await repl.leave();
+      if (prompt) await repl.leave();
     } finally {
       this.startingFile = false;
       this.runningFile = false;
+      this.current = undefined;
       repl.dispose();
       this.unmute();
     }
-    this.emit('>>> ', 'out');
+    if (prompt) this.emit('>>> ', 'out');
+    else this.emit(`\n${WONT_STOP}\n`, 'err');
   }
 
   /** At the raw prompt: which board (its os.uname()); nothing said if it can't be read. */

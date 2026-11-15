@@ -252,3 +252,46 @@ test('M10.7 F-52 installing MicroPython on a Pico W in BOOTSEL: the .uf2 copied 
   await expect(chip).toHaveAccessibleName('Board: Pico W, ready, MicroPython 1.29');
   await dialog.getByRole('button', { name: 'Close' }).click();
 });
+
+// 1.0.1 — the class after v1.0: the micro:bit's card "was hiding behind" the Stop the board note, out of reach
+test('1.0.1 running on the real micro:bit too: the micro:bit inputs card stands under the note, not behind it, and is dragged by its heading', async () => {
+  const win = await app.firstWindow();
+  await newProject(win, 'New micro:bit project');
+  plug('mac-microbit');
+  await expect(win.getByRole('button', { name: /^Board:/ })).toHaveAccessibleName(/micro:bit, ready/, { timeout: 3000 });
+  await win.getByRole('button', { name: 'More ways to run' }).click();
+  await win.getByRole('menuitemradio', { name: /Both at once/ }).click();
+  await win.keyboard.press('F5');
+  const note = win.getByText(/Running here and on the real micro:bit\./);
+  await expect(note).toBeVisible({ timeout: 5000 });
+  const card = win.getByRole('group', { name: 'micro:bit inputs' });
+  await expect(card).toBeVisible();
+  const banner = (await win.locator('.cbanner').boundingBox())!;
+  await expect.poll(async () => (await card.boundingBox())!.y).toBeGreaterThanOrEqual(banner.y + banner.height);
+  // every control on it can be reached: button A is the topmost thing where it is
+  const a = card.getByRole('button', { name: 'A', exact: true });
+  const ab = (await a.boundingBox())!;
+  expect(await win.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('[role="group"]')?.getAttribute('aria-label'), [ab.x + ab.width / 2, ab.y + ab.height / 2])).toBe('micro:bit inputs');
+  // dragged by its heading, down and to the left; then far past the canvas's edge — it stays on the canvas
+  const before = (await card.boundingBox())!;
+  const head = (await card.getByText('micro:bit inputs', { exact: true }).boundingBox())!;
+  await win.mouse.move(head.x + 20, head.y + 6);
+  await win.mouse.down();
+  await win.mouse.move(head.x - 180, head.y + 126, { steps: 5 });
+  await win.mouse.up();
+  const after = (await card.boundingBox())!;
+  expect(Math.round(after.x - before.x)).toBe(-200);
+  expect(Math.round(after.y - before.y)).toBe(120);
+  const head2 = (await card.getByText('micro:bit inputs', { exact: true }).boundingBox())!;
+  await win.mouse.move(head2.x + 20, head2.y + 6);
+  await win.mouse.down();
+  await win.mouse.move(-500, -500, { steps: 5 });
+  await win.mouse.up();
+  const canvas = (await win.locator('.canvas').boundingBox())!;
+  const edge = (await card.boundingBox())!;
+  expect(edge.x).toBeGreaterThanOrEqual(canvas.x);
+  expect(edge.y).toBeGreaterThanOrEqual(canvas.y);
+  if (process.env.MICROLAB_SHOT) await win.screenshot({ path: process.env.MICROLAB_SHOT });
+  await win.getByRole('button', { name: 'Stop', exact: true }).click();
+  await expect(win.getByRole('button', { name: /^Run main\.py/ })).toBeVisible({ timeout: 5000 });
+});
