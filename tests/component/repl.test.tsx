@@ -85,6 +85,19 @@ describe('M9 an error explained (screen 05)', () => {
     expect(document.querySelector('.cbanner.error')).toBeNull();
   });
 
+  it('1.0.1 the mark goes as soon as the file is changed — not only at the next run; the note on the canvas stays', async () => {
+    const s = await setup();
+    s.run();
+    s.sim.end('error', { error: { type: 'NameError', message: "name 'pin' isn't defined", file: 'main.py', line: 5 } });
+    expect(document.querySelector('.cm-error-line')).toHaveTextContent('pin.on()');
+    const view = EditorView.findFromDOM(document.querySelector('.cm-editor') as HTMLElement)!;
+    const line = view.state.doc.line(5);
+    act(() => { view.dispatch({ changes: { from: line.from, to: line.from + 1, insert: 'P' }, userEvent: 'input.type' }); });
+    expect(document.querySelector('.cm-error-line')).toBeNull();
+    expect(document.querySelector('.cm-error-code')).toBeNull();
+    expect(document.querySelector('.cbanner.error')).toHaveTextContent('an error in main.py, line 5');
+  });
+
   it('a fault in the run too: the note doesn\'t say the circuit is fine', async () => {
     const s = await setup();
     s.run();

@@ -6,7 +6,7 @@ import { BoardConsole, FakeBoard, type ConsoleState, type FakeBoardOptions } fro
  * to type at (a block pasted whole, as the board's auto-indent would double it), Stop (Ctrl-C), Restart (soft
  * reset: main.py again), and running the open file there without making it main.py (F-50 Rev 7, as Thonny does).
  */
-const quick = { pauseMs: 0, replyMs: 300, chunkPauseMs: 0 };
+const quick = { pauseMs: 0, replyMs: 300, chunkPauseMs: 0, stopMs: 15, stopTries: 4 };
 
 function setup(opts: Partial<FakeBoardOptions> = {}) {
   const board = new FakeBoard({ preset: 'microbit-v2', program: {}, ...opts } as FakeBoardOptions);
@@ -155,5 +155,98 @@ describe('M10.4 F-50 run the open file on the board', () => {
     const file = `# a long file\n${'x = 1\n'.repeat(300)}print("ok")`;
     await s.c.runFile('main.py', file);
     expect(got).toBe(file);
+  });
+});
+
+/**
+ * The class's report after v1.0 (2026-11-15): "the board sometimes cannot be stopped". A Ctrl-C that comes while the
+ * board is still taking the file or compiling it is not heard (pyexec.c listens for it only while the program runs),
+ * and one written into the middle of another job's talk breaks that job.
+ */
+describe('1.0.1 Stop always stops the file run on the board', () => {
+  it('a Ctrl-C the board did not hear (it was still compiling the file) is sent again until the program stops', async () => {
+    const s = setup({ exec: () => undefined, deaf: 2 });
+    const run = s.c.runFile('main.py', 'while True: pass');
+    await vi.waitFor(() => expect(s.last()).toEqual({ prompt: false, running: 'main.py' }));
+    await s.c.interrupt();
+    await run;
+    await s.settle();
+    expect(s.red()).toMatch(/KeyboardInterrupt/);
+    expect(s.last()).toEqual({ prompt: true, running: null });
+  });
+
+  it('Stop while the file is still going to the board: nothing is written into the middle of it — it goes whole, then stops', async () => {
+    let got = '';
+    const board = new FakeBoard({ preset: 'microbit-v2', exec: (code) => { got = code; return undefined; } });
+    const states: ConsoleState[] = [];
+    let asked = false;
+    // Stop is pressed as a piece of the file is on its way
+    const link = {
+      write: async (d: Uint8Array) => { if (board.state === 'paste' && !asked) { asked = true; await c.interrupt(); } await board.write(d); },
+      onData: board.onData.bind(board), onClose: board.onClose.bind(board),
+    };
+    const c: BoardConsole = new BoardConsole(link, { output: () => {}, state: (st) => states.push(st) }, quick);
+    const file = `# a long file\n${'x = 1\n'.repeat(300)}while True: pass`;
+    await c.runFile('main.py', file);
+    expect(asked).toBe(true);
+    expect(got).toBe(file);
+    expect(states.at(-1)).toEqual({ prompt: true, running: null });
+  });
+
+  it('stopped, the board is quiet: a soft restart in the raw REPL ends its timers, sounds and display — main.py not run', async () => {
+    const s = setup({ exec: () => undefined });
+    const run = s.c.runFile('main.py', 'while True: pass');
+    await vi.waitFor(() => expect(s.last()).toEqual({ prompt: false, running: 'main.py' }));
+    await s.c.interrupt();
+    await run;
+    await s.settle();
+    expect(s.board.rawResets).toBe(2);     // one before the run, one after the Stop
+    expect(s.board.softReboots).toBe(0);
+    expect(s.shown()).not.toMatch(/soft reboot|raw REPL/);
+  });
+
+  it('a program that ends by itself is left as it is: its names — and a Timer it started — stay', async () => {
+    const s = setup({ exec: () => ({ out: 'done\r\n' }) });
+    await s.c.runFile('main.py', 'print("done")');
+    expect(s.board.rawResets).toBe(1);
+  });
+
+  it('a program that never stops (it catches every Ctrl-C): the run ends anyway, and the console says what to do', async () => {
+    const s = setup({ exec: () => undefined, deaf: Infinity });
+    const run = s.c.runFile('main.py', 'while True:\n    try:\n        pass\n    except:\n        pass');
+    await vi.waitFor(() => expect(s.last()).toEqual({ prompt: false, running: 'main.py' }));
+    await s.c.interrupt();
+    await run;
+    expect(s.red()).toMatch(/doesn't stop when asked.*Unplug the board and plug it back in/s);
+    expect(s.c.runningFile).toBe(false);
+    // it still runs there, and what it prints is still shown
+    expect(s.last()).toEqual({ prompt: false, running: 'main.py' });
+    s.board.emit('still here\r\n');
+    await s.settle();
+    expect(s.shown()).toMatch(/still here\n$/);
+  });
+
+  it('Stop while another job has the port (files being copied): no Ctrl-C is written into its talk', async () => {
+    const board = new FakeBoard({ preset: 'microbit-v2' });
+    const wrote: number[] = [];
+    const link = { write: async (d: Uint8Array) => { wrote.push(...d); await board.write(d); }, onData: board.onData.bind(board), onClose: board.onClose.bind(board) };
+    const c = new BoardConsole(link, { output: () => {} }, quick);
+    c.mute();
+    await c.interrupt();
+    expect(wrote).toEqual([]);
+    c.unmute();
+    await c.interrupt();
+    expect(wrote).toEqual([3]);
+  });
+
+  it('a file about to be run (waiting for the port) is called off by Stop', async () => {
+    let ran = false;
+    const s = setup({ exec: () => { ran = true; return undefined; } });
+    s.c.willRun();
+    await s.c.interrupt();
+    await s.c.runFile('main.py', 'while True: pass');
+    await s.settle();
+    expect(ran).toBe(false);
+    expect(s.last()).toEqual({ prompt: true, running: null });
   });
 });

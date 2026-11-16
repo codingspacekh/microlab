@@ -506,6 +506,13 @@ AudioFrame() — 32 samples of sound, 0–255 (128 is silence): play a list of t
 AudioFrame.copyfrom(other) — Copies the samples from another frame or from bytes.
 `;
 
+const SPEECH = `
+say(words, *, pitch=64, speed=72, mouth=128, throat=128, pin=pin0) — Says the words (up to 80 characters) in a robot's voice, on the speaker and pin 0, and waits until it has: speech.say("Hello"). pitch: lower is a higher voice; speed: lower is faster.
+pronounce(phonemes, *, pitch=64, speed=72, mouth=128, throat=128, pin=pin0) — Says phonemes — the sounds of speech, in capitals — exactly as you write them: speech.pronounce("/HEHLOW WERLD").
+sing(phonemes, *, pitch=64, speed=72, mouth=128, throat=128, pin=pin0) — Sings phonemes: #115 before a sound sets its note (115 is a C, 103 D, 94 E, 88 F, 78 G, 70 A, 62 B, 58 the next C).
+translate(words) — The phonemes say() would use for the words, to change and pronounce(). Only on the real micro:bit — not in the simulator.
+`;
+
 const TUNES = `DADADADUM ENTERTAINER PRELUDE ODE NYAN RINGTONE FUNK BLUES BIRTHDAY WEDDING FUNERAL PUNCHLINE PYTHON BADDY
 CHASE BA_DING WAWAWAWAA JUMP_UP JUMP_DOWN POWER_UP POWER_DOWN`;
 
@@ -534,6 +541,7 @@ export const MODULES: Record<string, { boards: ApiBoard[]; doc: string; text: st
   neopixel: { boards: ['pico', 'esp32'], doc: 'NeoPixels (WS2812B): sticks and rings of LEDs in any colour, on one pin.', text: NEOPIXEL },
   microbitNeopixel: { boards: ['microbit'], doc: 'NeoPixels (WS2812B): sticks and rings of LEDs in any colour, on one pin.', text: MICROBIT_NEOPIXEL },
   audio: { boards: ['microbit'], doc: 'The micro:bit\'s sounds: the built-in Sounds and your own sound effects.', text: AUDIO },
+  speech: { boards: ['microbit'], doc: 'The micro:bit talks and sings in a robot\'s voice.', text: SPEECH },
   radio: { boards: ['microbit'], doc: 'The micro:bit\'s own radio, between micro:bits: send and receive messages.', text: RADIO },
   music: {
     boards: ['microbit'],

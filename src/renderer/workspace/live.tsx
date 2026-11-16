@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import { echoUs, ldrOhms, NEOPIXEL, neopixelCount, SENSOR_START } from '@lib/circuit';
 import type { Point } from '@lib/editor';
 import type { PartView } from '../../sim/circuit';
@@ -159,13 +159,56 @@ const LEVELS: Record<string, { icon: string; kind: string; label: string; ticks:
  * slider while the program runs — the light on a light sensor (and its resistance), the moisture round a soil sensor,
  * a temperature sensor's °C (and the volts of their outputs).
  */
+/**
+ * A card over the canvas that can be moved (the class, after v1.0: the micro:bit's card "was hiding behind" the
+ * Stop the board note, "which makes it uncontrollable"): dragged by its heading, kept inside the canvas; and one at
+ * the top starts under the note across the canvas's top, never behind it.
+ */
+export function useMovable(atTop: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [by, setBy] = useState({ x: 0, y: 0 });
+  const [under, setUnder] = useState(0);
+  // the note's height changes with the window's width and with what it says: measured as the card is drawn
+  useLayoutEffect(() => {
+    const canvas = ref.current?.closest('.canvas');
+    const note = atTop ? canvas?.querySelector('.cbanner') : null;
+    const next = note && canvas ? Math.max(0, Math.round(note.getBoundingClientRect().bottom - canvas.getBoundingClientRect().top)) : 0;
+    if (next !== under) setUnder(next);
+  });
+  const onMouseDown = (e: ReactMouseEvent) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button, input, select, a')) return;
+    e.preventDefault();
+    const from = { x: e.clientX - by.x, y: e.clientY - by.y };
+    const card = ref.current?.getBoundingClientRect();
+    const room = ref.current?.closest('.canvas')?.getBoundingClientRect();
+    // how far it can go each way from where it is now, so all of it stays on the canvas
+    const lim = card && room && room.width ? { x0: by.x + room.left - card.left, x1: by.x + room.right - card.right, y0: by.y + room.top - card.top, y1: by.y + room.bottom - card.bottom } : null;
+    const clamp = (v: number, lo: number, hi: number) => Math.max(Math.min(lo, hi), Math.min(Math.max(lo, hi), v));
+    const move = (m: MouseEvent) => {
+      const x = m.clientX - from.x;
+      const y = m.clientY - from.y;
+      setBy(lim ? { x: clamp(x, lim.x0, lim.x1), y: clamp(y, lim.y0, lim.y1) } : { x, y });
+    };
+    const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+  const style = (base: CSSProperties): CSSProperties => ({
+    ...base,
+    ...(under ? { top: under + 8, maxHeight: `calc(100% - ${under + 22}px)` } : {}),
+    ...(by.x || by.y ? { transform: `translate(${by.x}px, ${by.y}px)` } : {}),
+  });
+  return { ref, style, handle: { onMouseDown, title: 'Drag to move' } };
+}
+
 export function InputsCard({ parts, live, views, onClose, style }: {
   parts: { id: string; type: string; props?: Record<string, unknown> }[];
   live: Live; views: Record<string, PartView>; onClose: () => void; style: CSSProperties;
 }) {
+  const movable = useMovable(false);
   return (
-    <div className="float inputs" role="group" aria-label="Inputs" style={style}>
-      <div className="ih">
+    <div className="float inputs" role="group" aria-label="Inputs" ref={movable.ref} style={movable.style(style)}>
+      <div className="ih" {...movable.handle}>
         <Icon name="sliders" size={14} /> <b>Inputs</b>
         <span className="spacer" />
         <span className="tiny muted">while it runs</span>
@@ -316,6 +359,7 @@ export function radioText(hex: string): string {
 }
 
 export function MicrobitCard({ live, onClose, style, radio = [] }: { live: Live; onClose: () => void; style: CSSProperties; radio?: string[] }) {
+  const movable = useMovable(true);
   const [message, setMessage] = useState('');
   // the accelerometer's gesture from the dropdown (the teacher's request): a posture stays; a moment (freefall, 3g …)
   // lasts a second, then it is back as it was
@@ -392,8 +436,8 @@ export function MicrobitCard({ live, onClose, style, radio = [] }: { live: Live;
   );
   const mg = (v: number) => String(v).replace('-', '−');
   return (
-    <div className="float inputs mbit" role="group" aria-label="micro:bit inputs" style={style}>
-      <div className="ih">
+    <div className="float inputs mbit" role="group" aria-label="micro:bit inputs" ref={movable.ref} style={movable.style(style)}>
+      <div className="ih" {...movable.handle}>
         <Icon name="cpu" size={14} /> <b>micro:bit inputs</b>
         <span className="spacer" />
         <button type="button" className="btn ghost sm icon" aria-label="Close the micro:bit inputs card" title="Close" onClick={onClose}><Icon name="x" size={14} /></button>

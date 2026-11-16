@@ -21,3 +21,4 @@ export { apiFor, boardApi, parseModule } from './api/model';
 export type { ApiItem, ApiKind } from './api/model';
 export { completeAt, signatureAt } from './api/complete';
 export type { Suggestion } from './api/complete';
+export { indentGuides, type LineGuides } from './indent';

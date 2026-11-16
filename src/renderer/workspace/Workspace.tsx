@@ -157,6 +157,11 @@ export function Workspace({
   const failed = !running && run.ended?.ended === 'error' ? run.ended.error : undefined;
   const [goTo, setGoTo] = useState<{ file: string; line: number }>();
   const [dismissed, setDismissed] = useState<unknown>(null);
+  // the mark goes as soon as the file it is in is changed (the class, after v1.0: it stayed until the next run,
+  // on a line already put right) — the run it was of is remembered, so it does not come back with the file's tab
+  const [mended, setMended] = useState<unknown>(null);
+  // Indent / Dedent beside the tabs (1.0.1): what Tab and Shift+Tab do, for a student who doesn't know them
+  const [shift, setShift] = useState<{ by: 'indent' | 'dedent' }>();
   const goToLine = (f: string, line: number) => {
     if (f in doc.files) openFile(f);
     setGoTo({ file: f, line });
@@ -416,6 +421,12 @@ export function Workspace({
             ))}
           </div>
           <span className="r">
+            <span className="shift" role="group" aria-label="Indentation">
+              <button type="button" className="btn ghost sm icon" aria-label="Dedent" title="Dedent: the line — or every selected line — four spaces to the left (Shift+Tab)"
+                onClick={() => setShift({ by: 'dedent' })}><Icon name="dedent" size={14} /></button>
+              <button type="button" className="btn ghost sm icon" aria-label="Indent" title="Indent: the line — or every selected line — four spaces to the right (Tab)"
+                onClick={() => setShift({ by: 'indent' })}><Icon name="indent" size={14} /></button>
+            </span>
             <button type="button" className={`btn ghost sm icon${board.shown ? ' on' : ''}`} aria-pressed={board.shown} aria-label="The board"
               title={`${board.shown ? 'Fold away' : 'Show'} the board and the circuit (${MOD_KEY}B)`} onClick={() => board.choose(!board.shown)}><Icon name="sidebar" size={14} /></button>
             <button type="button" className={`btn ghost sm icon${con.shown ? ' on' : ''}`} aria-pressed={con.shown} aria-label="The console"
@@ -434,8 +445,8 @@ export function Workspace({
           return space && space.level !== 'ok' ? <p className={`space-warn ${space.level}`} role="alert"><Icon name="warn" size={14} /> {space.text}</p> : null;
         })()}
         {typeof doc.files[editing] === 'string' || !(editing in doc.files)
-          ? <CodeEditor label={editing} board={project.board} size={look.size} value={text(doc.files[editing])} onChange={(code) => onChange({ ...doc, files: { ...doc.files, [editing]: code } })}
-              errorLine={failed?.file === editing ? failed.line : undefined} goTo={goTo?.file === editing ? goTo : undefined} />
+          ? <CodeEditor label={editing} board={project.board} size={look.size} value={text(doc.files[editing])} onChange={(code) => { if (failed?.file === editing) setMended(run.ended); onChange({ ...doc, files: { ...doc.files, [editing]: code } }); }}
+              errorLine={failed?.file === editing && mended !== run.ended ? failed.line : undefined} goTo={goTo?.file === editing ? goTo : undefined} shift={shift} />
           : <p className="small muted not-text">{editing} isn't a text file, so it can't be shown here.</p>}
         {files && (
           <FilesPanel key={files.ask ? 'ask' : 'list'} doc={doc} ask={files.ask} onDoc={onChange} onOpen={openFile} onClose={() => setFiles(null)}

@@ -73,6 +73,9 @@ export interface FakeBoardOptions {
   /** A slow serial input (the micro:bit's, found 2026-11-06): what comes faster than it is asked for is lost — in
    *  the plain raw REPL, all but the first 64 bytes of each write; in raw-paste mode, what goes past the window. */
   lossy?: boolean;
+  /** A command that runs for ever doesn't hear this many Ctrl-Cs (it was still being compiled when they came, or it
+   *  catches them with a bare `except:`); Infinity: it never stops. */
+  deaf?: number;
   /** Answers other code sent at the raw prompt, a line typed at >>> or a block pasted (Ctrl-E); undefined: it never
    *  finishes (Ctrl-C stops it). */
   exec?: (code: string) => Answer;
@@ -132,6 +135,7 @@ export class FakeBoard implements Link {
   private asked = '';
   private line = '';
   private hung = false;
+  private deaf = 0;
   private windowLeft = 0;
   private taken = 0;
   readonly files = new Map<string, Uint8Array>();
@@ -244,6 +248,9 @@ export class FakeBoard implements Link {
       return;
     }
     if (this.state === 'raw') {
+      // a command that runs hears nothing but Ctrl-C — and not every one
+      if (this.hung && b !== 3) return;
+      if (this.hung && this.deaf > 0) { this.deaf--; return; }
       // raw-paste asked for: Ctrl-E A Ctrl-A at the start of a command
       const paste = this.opts.paste ?? 'yes';
       if (paste !== 'unknown' && this.raw.length === 0 && (this.asked + String.fromCharCode(b)) === '\x05A\x01'.slice(0, this.asked.length + 1)) {
@@ -351,7 +358,7 @@ export class FakeBoard implements Link {
     const OK = ok ? 'OK' : '';
     this.later(async () => {
       const r = await this.run(code);
-      if (!r) { this.hung = true; return OK ? [OK] : []; }
+      if (!r) { this.hung = true; this.deaf = this.opts.deaf ?? 0; return OK ? [OK] : []; }
       if (!this.opts.pace || !call) return [`${OK}${r.out ?? ''}\x04${r.err ?? ''}\x04>`];
       const parts = [OK, ...(r.out ?? '').split(/(?<=\n)/)].filter(Boolean);
       if (this.opts.stallAfter !== undefined && parts.length > this.opts.stallAfter) return parts.slice(0, this.opts.stallAfter);

@@ -1,4 +1,12 @@
 {
+  "1.0.1": [
+    "Stop always stops a program run on your real board — even pressed right after Run — and the board goes quiet",
+    "The red line under an error goes as soon as you change the code",
+    "Lines down the left of your code show which block each line is in; Indent and Dedent buttons beside your files (Tab and Shift+Tab)",
+    "Image, Pin and other names that hold constants are completed without brackets: Image.HEART",
+    "The micro:bit inputs card can be moved: drag it by its heading; it no longer hides behind the note about the real board",
+    "The micro:bit's speech module in the simulator: speech.say(\"Hello\") — the real voice is on the real micro:bit"
+  ],
   "1.0.0": [
     "MicroLab 1.0 — ready for class, on Windows 10 and 11 and on Macs",
     "F5 runs your program and Shift+F5 stops it, on a board as in Python 3",

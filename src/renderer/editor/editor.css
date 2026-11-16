@@ -64,3 +64,10 @@
 /* M9 (screen 05): the line the error is on */
 .code-editor .cm-error-line { background: var(--danger-soft); }
 .code-editor .cm-error-code { text-decoration: underline wavy var(--danger); text-decoration-skip-ink: none; text-underline-offset: 3px; }
+
+/* 1.0.1: the indentation guides (guides.ts) — a line down every block, the cursor's block's stronger */
+.code-editor { --guide: rgba(101, 113, 130, .3); --guide-on: rgba(37, 99, 217, .7); }
+:is(.side, .pyscreen)[data-theme="dark"] .code-editor { --guide: rgba(214, 222, 235, .2); --guide-on: rgba(130, 170, 255, .85); }
+:is(.side, .pyscreen)[data-theme="contrast"] .code-editor { --guide: rgba(255, 255, 255, .45); --guide-on: #ffd700; }
+/* Indent / Dedent beside the file tabs */
+.ftabs .shift, .pytabs .shift { display: inline-flex; gap: 2px; flex: none; }

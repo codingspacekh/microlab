@@ -197,12 +197,19 @@ export class Boards {
     if (a.do === 'interrupt') return s.console.interrupt();
     if (a.do === 'type') return s.console.type(a.text);
     await this.stopFile(id);
+    // a Stop that comes while the file still waits for the port calls it off (the trial's fix)
+    if (a.do === 'run') this.sessions.get(id)?.console.willRun();
     await this.queue(id, async () => {
       const now = this.sessions.get(id);
       if (!now) return;
       if (a.do === 'restart') await now.console.restart();
       else await now.console.runFile(a.name, a.code);
-    }).catch(() => {});
+      // what went wrong is said in the board's console — never a run that silently did not start
+    }).catch((e: unknown) => {
+      if (!this.sessions.has(id)) return;
+      const refused = e instanceof ReplError && e.reason === 'refused';
+      this.events?.output(id, `\n${refused ? "The board's program didn't stop when asked, so nothing was run. Unplug the board, plug it back in, and try again." : failure(e)}\n`, 'err');
+    });
   }
 
   /** A file run on the board holds the port until it ends: whatever comes next stops it first. */

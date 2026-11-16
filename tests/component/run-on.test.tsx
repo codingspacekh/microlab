@@ -134,6 +134,20 @@ describe('M11.8 Run on the real board (screen 37c)', () => {
     expect(runButton()).toBeInTheDocument();
   });
 
+  it('1.0.1 Stop while its files are still being copied: the file never starts on the board, and the run ends', async () => {
+    const s = await setup({ runOn: 'board' });
+    let copied: (r: SendResult) => void = () => {};
+    s.api.boards.send = vi.fn(() => new Promise<SendResult>((r) => { copied = r; }));
+    await waitFor(() => expect(runButton()).toHaveTextContent('· Pico W'));
+    fireEvent.click(runButton());
+    await waitFor(() => expect(s.api.boards.send).toHaveBeenCalled());
+    fireEvent.keyDown(window, { key: 'F5', shiftKey: true });
+    await act(async () => { copied({ ok: true, board: 'Pico W', sent: [{ path: 'lights.py', size: 2150 }], same: [], kept: [] }); });
+    await waitFor(() => expect(runButton()).toBeInTheDocument());
+    expect(s.api.boards.console.do).not.toHaveBeenCalledWith('e661', expect.objectContaining({ do: 'run' }));
+    expect(screen.getByRole('log', { name: 'Console of the Pico W' })).toHaveTextContent('Stopped before main.py started.');
+  });
+
   it('nothing changed: nothing copied, and it says so', async () => {
     const s = await setup({ runOn: 'board', send: { ok: true, board: 'Pico W', sent: [], same: ['lights.py'], kept: [] } });
     await waitFor(() => expect(runButton()).toHaveTextContent('· Pico W'));
