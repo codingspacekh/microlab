@@ -17,7 +17,7 @@ figure: pir-inside
 
 ## Its numbers
 | Its answer | on or off | OUT goes to {pir.high} V when it sees movement: a [digital] [signal] |
-| It stays on | about {pir.hold} seconds | after the last movement, so a light does not flicker |
+| It stays on | about {pir.hold} seconds | after the last movement, so a light does not flicker; a small knob on the real board makes it longer |
 | How far | a few metres | wider with the dome on: the dome is many little lenses |
 | Power | 5 V | at least {pir.volts} V |
 

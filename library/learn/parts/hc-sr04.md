@@ -32,3 +32,4 @@ figure: sonar-inside
 - **Something soft or slanted** A curtain or a tilted board sends no echo back: it looks as if nothing is there.
 - **Too near** Closer than {sonar.min} cm the echo comes back before it is ready to listen.
 - **Trig and Echo swapped** It never hears "go", so it never answers.
+- ! **Echo straight to a 3.3 V board** Echo gives the full 5 V, too much for a board that works at 3.3 V: its pin is damaged. Two resistors — a [voltage divider] — bring Echo down first. MicroLab stops and says so.

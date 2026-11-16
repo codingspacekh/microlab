@@ -40,7 +40,7 @@ function slideTo(thumb: HTMLElement, percent: number) {
 }
 
 describe('PWM: on and off too fast to see', () => {
-  it('starts on for 50 %, fast: half as bright, adding up to 1.65 V', () => {
+  it('starts on for 50 %, fast: half the light, adding up to 1.65 V', () => {
     const { thumb, speed, picture, says, drawn, part, blocks, bright } = setup();
     expect(SUPPLY).toBe(3.3);
     expect(thumb).toHaveAttribute('aria-valuemin', '0');
@@ -50,14 +50,14 @@ describe('PWM: on and off too fast to see', () => {
     expect(screen.getByRole('radiogroup', { name: 'Speed' })).toBeInTheDocument();
     expect(speed(FAST)).toBeChecked();
     expect(adds(50)).toBe('1.65 V');
-    expect(says()).toBe(`On for 50 % of each blink, 1000 blinks a second: too fast to see, so the LED looks half as bright. It adds up to 1.65 V of 3.3 V. ${NAME}`);
+    expect(says()).toBe(`On for 50 % of each blink, 1000 blinks a second: too fast to see, so the LED looks steady and gives out half the light. It adds up to 1.65 V of 3.3 V. ${NAME}`);
     expect(picture()).toHaveAccessibleName(
       'A voltage switched on and off 1000 times a second, between 0 V and 3.3 V, on for 50 % of each blink: it adds up to 1.65 V. '
-      + 'Too fast to see: the LED looks steady, half as bright.',
+      + 'Too fast to see: the LED looks steady and gives out half the light.',
     );
     expect(picture()).toHaveAttribute('data-look', 'dimmer');
     expect(drawn()).toEqual(expect.arrayContaining([
-      'what it adds up to: 1.65 V', '3.3 V', '0 V', 'Slowed right down', 'on', 'off', 'half as bright', 'a steady, dimmer light',
+      'what it adds up to: 1.65 V', '3.3 V', '0 V', 'Slowed right down', 'on', 'off', 'half the light', 'a steady, dimmer light',
       'one blink: a thousandth of a second',
     ]));
     expect(part('average')).toHaveAttribute('data-volts', '1.65');
@@ -66,12 +66,12 @@ describe('PWM: on and off too fast to see', () => {
     expect(bright()).toBe(0.5);
   });
 
-  it('on for 25 %, fast: a quarter as bright, 0.83 V', () => {
+  it('on for 25 %, fast: a quarter of the light, 0.83 V', () => {
     const { thumb, says, drawn, bright, blocks } = setup();
     slideTo(thumb, 25);
     expect(adds(25)).toBe('0.83 V');
-    expect(says()).toBe(`On for 25 % of each blink, 1000 blinks a second: too fast to see, so the LED looks a quarter as bright. It adds up to 0.83 V of 3.3 V. ${NAME}`);
-    expect(drawn()).toEqual(expect.arrayContaining(['what it adds up to: 0.83 V', 'a quarter as bright']));
+    expect(says()).toBe(`On for 25 % of each blink, 1000 blinks a second: too fast to see, so the LED looks steady and gives out a quarter of the light. It adds up to 0.83 V of 3.3 V. ${NAME}`);
+    expect(drawn()).toEqual(expect.arrayContaining(['what it adds up to: 0.83 V', 'a quarter of the light']));
     expect(bright()).toBe(0.25);
     // the on-block is a quarter of a blink, the off-block the rest
     const on = Number(blocks('on')[0]!.getAttribute('width')), off = Number(blocks('off')[0]!.getAttribute('width'));
@@ -141,7 +141,7 @@ describe('PWM: on and off too fast to see', () => {
     expect(mid.y).toBeLessThan(low.y);                      // higher on the page
     expect(high.y).toBeLessThan(mid.y);
     expect([low.bright, mid.bright, high.bright]).toEqual([0.1, 0.37, 0.9]);
-    expect(says()).toContain('the LED looks 90 % as bright');
+    expect(says()).toContain('gives out 90 % of the light');
     // four blinks are drawn: four rises
     expect(part('wave').getAttribute('d')!.match(/V84/g)).toHaveLength(4);
   });

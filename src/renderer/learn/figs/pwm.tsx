@@ -30,9 +30,11 @@ const v2 = (volts: number) => `${num(volts + 1e-9, 2)} V`;
 /** What the on and off add up to: the on-share of the supply. */
 const average = (percent: number) => (percent / 100) * SUPPLY;
 
-/** How bright it looks, in words: a quarter, half, three quarters — else the percent. */
+/** How much light it gives out, in words: half the light, a quarter of the light — else the percent. (To the eye it
+ *  looks a little brighter than that: the eye is not a light meter.) */
 function share(percent: number): string {
-  return { 25: 'a quarter', 50: 'half', 75: 'three quarters' }[percent] ?? `${percent} %`;
+  if (percent === 50) return 'half the light';
+  return `${{ 25: 'a quarter', 75: 'three quarters' }[percent] ?? `${percent} %`} of the light`;
 }
 
 /** What the LED does: off, on, blinking (slow) or steadily dimmer (fast). */
@@ -63,7 +65,7 @@ function says(percent: number, speed: Speed): ReactNode {
     default:
       return (
         <>
-          On for <b>{percent} %</b> of each blink, {blinks} blinks a second: too fast to see, so the LED looks <b>{share(percent)} as bright</b>.
+          On for <b>{percent} %</b> of each blink, {blinks} blinks a second: too fast to see, so the LED looks steady and gives out <b>{share(percent)}</b>.
           {' '}{adds} {NAME}
         </>
       );
@@ -76,7 +78,7 @@ function pictureLabel(percent: number, speed: Speed): string {
     off: 'It is never on: the LED is off.',
     on: 'It is never off: the LED is simply on.',
     blinks: 'Slow enough to see: the LED blinks on and off.',
-    dimmer: `Too fast to see: the LED looks steady, ${share(percent)} as bright.`,
+    dimmer: `Too fast to see: the LED looks steady and gives out ${share(percent)}.`,
   }[look(percent, speed)];
   return `${start} ${led}`;
 }
@@ -120,7 +122,7 @@ function Drawing({ percent, speed }: { percent: number; speed: Speed }) {
     off: ['off', 'it is never switched on'],
     on: ['simply on', 'it is never switched off'],
     blinks: ['you see it blink', 'on, off, on, off'],
-    dimmer: [`${share(percent)} as bright`, 'a steady, dimmer light'],
+    dimmer: [share(percent), 'a steady, dimmer light'],
   }[now];
   return (
     <svg

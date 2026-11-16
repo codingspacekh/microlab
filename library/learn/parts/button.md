@@ -24,7 +24,7 @@ A circuit is a loop, and [current] only flows round a loop with no gap. A button
 ## Connect it
 In the loop, anywhere: battery + → button → resistor → LED → battery −.
 
-Use one leg from each pair — two legs that are on opposite sides of the gap in the breadboard.
+Use one leg from each pair: two legs side by side, on the same side of the gap — or two legs on a diagonal. The two legs facing each other across the gap are one pair: they are always joined.
 
 ## Mistakes
 - **Two legs of the same pair** They are already joined, so the LED is on all the time and pressing changes nothing.

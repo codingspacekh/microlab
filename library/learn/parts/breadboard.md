@@ -28,5 +28,5 @@ A part goes **across** columns: one leg in one column, the other leg in another.
 
 ## Mistakes
 - **Both legs in one column** The strip joins the two legs, so the [current] goes round the part, not through it. MicroLab says the part is skipped.
-- ! **A part across the rails** Its legs join + straight to −: a [short circuit]. Check which way the strips run.
+- ! **A wire from the + rail to the − rail** Nothing holds the current back: a [short circuit]. Every path from + to − must go through a part.
 - **Forgetting the gap** A wire in the top half does not reach the bottom half of the same column.

@@ -1,7 +1,7 @@
 # The glossary
 
 One or two lines a word, for students of 10–13 (F-42). A page underlines a word by writing it in square brackets.
-The first words: those the first pages use. The full list comes with the ideas pages (M8 slice 8.3).
+Every word a page underlines must be here; the checker says which are missing.
 
 ## current
 How much electricity flows past a point each second. Measured in amps (A); small currents in milliamps (mA): 1000 mA = 1 A.
@@ -40,7 +40,7 @@ An RGB LED whose shared leg is the + side of all three chips: it goes to the bat
 A loop the [current] can go round, from the battery's + back to its −. Break the loop and it stops.
 
 ## volt
-The unit of [voltage], written V. A AA cell pushes with 1.5 V.
+The unit of [voltage], written V. An AA cell pushes with 1.5 V.
 
 ## amp
 The unit of [current], written A. One amp is a lot for a small circuit: an LED takes about 0.02 A.
@@ -121,4 +121,4 @@ Sound too high for people to hear. Bats find their way with it; so does a distan
 Light a little too red for the eye to see. Warm things glow with it, and remote controls flash it.
 
 ## humidity
-How damp the air is: how much water is in it, as a part of the most it could hold. 100 % is fog.
+How damp the air is: how much water is in it, as a part of the most it could hold. At 100 % it can hold no more, and mist forms.

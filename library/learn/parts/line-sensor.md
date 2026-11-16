@@ -31,3 +31,4 @@ figure: line-inside
 - **Expecting high over white** It is the other way round: white is low.
 - **A shiny black floor** Shine throws light back like white does. A dull black line works best.
 - **Bright sunlight** The sun is full of infrared: it blinds the eye.
+- ! **On 5 V with a 3.3 V board** Over black its OUT rises to the power's volts — 5 V, too much for a board that works at 3.3 V: its pin is damaged. Power it from 3.3 V. MicroLab stops and says so.

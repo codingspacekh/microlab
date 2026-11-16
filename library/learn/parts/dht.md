@@ -13,7 +13,7 @@ uses: a weather station | a greenhouse | a room's thermostat
 figure: dht-inside
 
 ## The idea
-**A chip measures, then sends numbers.** The other sensors give a [voltage] you have to read. This one does the reading itself and sends the answer as a row of pulses: a short [pulse] for a 0, a long one for a 1 — forty of them, a [digital] message. At the end comes a number to check the others by.
+**A chip measures, then sends numbers.** The other sensors give a [voltage] you have to read. This one does the reading itself and sends the answer as a row of pulses: a short [pulse] for a 0, a long one for a 1 — forty of them, a [digital] message. The last eight make a number to check the others by.
 
 ## Its numbers
 | DHT11 (blue) | {dht.tmin:DHT11} to {dht.tmax:DHT11} °C | dampness {dht.hmin:DHT11} to {dht.hmax:DHT11} %; whole numbers only |
@@ -30,3 +30,4 @@ figure: dht-inside
 - **Asking too often** Ask again within a second and it has nothing new: the reading fails.
 - **VCC and GND swapped** It gets hot and may break: check before the power goes on.
 - **A long, loose DATA wire** The pulses get muddled and the check number does not fit: the reading is thrown away.
+- **On 5 V with a 3.3 V board** DATA is pulled up to the power's volts, so it reaches 5 V — more than a 3.3 V board's pin should take. Power it from 3.3 V.

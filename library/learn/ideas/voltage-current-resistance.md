@@ -12,7 +12,7 @@ Three words you'll meet on every part page. They're easiest to picture as **wate
 figure: water-loop
 
 ## The rule
-**Current = push ÷ holding back.** Scientists write it **I = V ÷ R** and call it **[Ohm's law]**. 3 V ÷ 150 Ω = 0.02 A, which is 20 mA — just right for an LED.
+**Current = push ÷ holding back.** Scientists write it **I = V ÷ R** and call it **[Ohm's law]**. 3 V ÷ 150 Ω = 0.02 A, which is 20 mA.
 
 ## The three words
 | Voltage | the push | how hard the battery pushes; in [volts = volt] (V) |
