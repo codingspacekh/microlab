@@ -8,8 +8,10 @@ import { boardName, boardPicture } from '../app/boards';
 import { formatValue } from '@lib/units';
 import { Chips, Icon, Segmented, Stepper, Swatches } from '../ui';
 import { GPIO_BOARD_TYPE, MESSAGES, wireColour, type Selection } from './Canvas';
+import { learnPageFor } from '@lib/learn';
+import { LEARN } from '../learn/content';
 import { LibraryLine } from './AddLibrary';
-import { bands, KIT, LED_SWATCHES, PartIcon, WIRE_COLOURS } from './drawings';
+import { bands, inText, KIT, LED_SWATCHES, PartIcon, WIRE_COLOURS } from './drawings';
 
 /**
  * The inspector (screen 02b, F-14): what the selected part, wire or breadboard is, and what can be set — a resistor's
@@ -134,11 +136,13 @@ export interface InspectorProps {
   onDoc?: (doc: ProjectDoc) => void;
   /** Said on the canvas: what an edit here did there (M6.9: the wires that went with the GPIO board). */
   onNotice?: (text: string) => void;
+  /** A way into Learn (M8, F-44): the part's page, by its id. */
+  onLearn?: ((page: string) => void) | undefined;
 }
 
 const USB = [{ value: 'in', label: 'Plugged in · 5V' }, { value: 'out', label: 'Out' }];
 
-export function Inspector({ project, selection, onChange, onClose, onSelect, doc, onDoc, onNotice }: InspectorProps) {
+export function Inspector({ project, selection, onChange, onClose, onSelect, doc, onDoc, onNotice, onLearn }: InspectorProps) {
   const [error, setError] = useState<string | null>(null);
   const board = project.board as BoardId;
   const label = (ref: string) => {
@@ -348,6 +352,10 @@ export function Inspector({ project, selection, onChange, onClose, onSelect, doc
           const tip = TIPS[part.type === 'buzzer' ? `buzzer-${part.props?.kind === 'passive' ? 'passive' : 'active'}`
             : part.type === 'temp-sensor' ? `temp-${part.props?.kind === 'LM35' ? 'LM35' : 'TMP36'}` : part.type];
           return tip ? <p className="tiny muted led-tip">{tip}</p> : null;
+        })()}
+        {(() => {
+          const page = onLearn && learnPageFor(LEARN, part.type);
+          return page ? <button type="button" className="learn-link" onClick={() => onLearn(page.id)}><Icon name="book" size={14} /> Learn about the {inText(page.title)}</button> : null;
         })()}
       </>
     );

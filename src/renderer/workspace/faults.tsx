@@ -5,10 +5,13 @@ import { Icon } from '../ui/Icon';
 /**
  * A fault on the workspace (M9 slice 2, F-37; screens 04, 25c, 26c, 27c): beside what it is on. A damage is a card —
  * what happened, why, its numbers, the fix, and Replace the LED or Undo; a warning a short note. "Show me how"
- * (screen 04) opens the part's Learn page, which comes with M8.
+ * (screen 04) opens the part's Learn page (M8), where one is written.
  */
-export function FaultCardView({ card, style, onReplace, onUndo, onClose }: {
-  card: FaultCard; style?: CSSProperties; onReplace?: () => void; onUndo?: () => void; onClose: () => void;
+export function FaultCardView({ card, style, onReplace, onUndo, onLearn, onClose }: {
+  card: FaultCard; style?: CSSProperties; onReplace?: () => void; onUndo?: () => void;
+  /** Show me how: the part's Learn page. */
+  onLearn?: (() => void) | undefined;
+  onClose: () => void;
 }) {
   return (
     <div className="float fault-card" role="group" aria-label={card.title} style={style}>
@@ -27,8 +30,9 @@ export function FaultCardView({ card, style, onReplace, onUndo, onClose }: {
         </div>
       )}
       <p><b>Fix:</b> {card.fix}</p>
-      {(onReplace || onUndo) && (
+      {(onReplace || onUndo || onLearn) && (
         <div className="row">
+          {onLearn && <button type="button" className="btn sm primary" onClick={onLearn}><Icon name="book" size={14} /> Show me how</button>}
           {onReplace && <button type="button" className="btn sm" onClick={onReplace}>Replace the LED</button>}
           {onUndo && <button type="button" className="btn ghost sm" onClick={onUndo}><Icon name="undo" size={14} /> Undo</button>}
         </div>

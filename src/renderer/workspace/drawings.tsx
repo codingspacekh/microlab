@@ -1072,6 +1072,11 @@ export function BreadboardIcon({ size }: { size: 'mini' | 'half' | 'full' }) {
   );
 }
 
+/** A part's name inside a sentence: 'push button', but 'LED', 'RGB LED'. */
+export function inText(name: string): string {
+  return /^[A-Z]{2}/.test(name) ? name : name[0]!.toLowerCase() + name.slice(1);
+}
+
 export function PartIcon({ type }: { type: string }) {
   const markup = KIT_ICONS[type] ?? M7_ICONS[type];
   if (markup) return <svg viewBox="0 0 32 32" aria-hidden="true" dangerouslySetInnerHTML={{ __html: markup }} />;

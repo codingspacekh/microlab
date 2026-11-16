@@ -1,0 +1,21 @@
+/* Learn's pictures (src/renderer/learn/figures.tsx): only what the drawings need — the page's own classes
+   (.play, .ctl, .says …) are the page's. A picture fills its box up to its drawn size, and keeps its shape. */
+svg.lfig { display: block; width: 100%; height: auto; margin: 0 auto; }
+svg.lfig text { font-family: inherit; }
+svg.lfig .lf-ink { fill: var(--tx-1); }
+svg.lfig .lf-muted { fill: var(--tx-2); }
+svg.lfig .lf-accent { fill: var(--accent); }
+svg.lfig .lf-plus { fill: var(--danger); }
+svg.lfig .lf-dot { fill: var(--accent); }
+svg.lfig .lf-lead { stroke: var(--accent); stroke-width: 1.1; fill: none; }
+/* the current's way through the LED; too much of it is drawn as a warning */
+svg.lfig .lf-flow { stroke: var(--accent); fill: none; stroke-dasharray: 7 6; }
+svg.lfig .lf-flow.over { stroke: var(--danger); }
+/* the state that applies now, in the row of three */
+svg.lfig .lf-now { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.2; }
+svg.lfig .lf-holes text { font-family: var(--mono); }
+/* the knob is turned by dragging; the leads drawn over it don't take the pointer */
+svg.lfig .lf-knob { cursor: grab; touch-action: none; }
+svg.lfig .lf-knob:active { cursor: grabbing; }
+svg.lfig .lf-still { pointer-events: none; }
+.play .lf-row { margin-top: 6px; }
