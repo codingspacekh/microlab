@@ -173,8 +173,11 @@ describe('the potentiometer, its cover off (screen 30c)', () => {
 });
 
 describe('every picture', () => {
-  it('has the pages\' three', () => {
-    expect(Object.keys(FIGURES).sort()).toEqual(['led-connect', 'led-inside', 'pot-inside']);
+  it('is known by its name: the first pages\' three, and one for each of the other basic parts (M8.2)', () => {
+    expect(Object.keys(FIGURES).sort()).toEqual([
+      'battery-inside', 'breadboard-inside', 'button-inside', 'buzzer-inside', 'ldr-inside', 'led-connect', 'led-inside', 'pot-inside',
+      'resistor-inside', 'rgb-inside', 'switch-inside',
+    ]);
   });
 
   it.each(Object.keys(FIGURES))('%s draws, and says what it shows', (name) => {

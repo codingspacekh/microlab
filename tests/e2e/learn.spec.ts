@@ -50,7 +50,7 @@ test('Learn\'s home leads to the LED: its two columns side by side, its numbers,
 
 test('a glossary word opens its lines under itself, inside the page', async () => {
   await win.getByRole('tab', { name: 'Learn' }).click();
-  await win.getByRole('navigation', { name: 'Learn' }).getByRole('button', { name: 'LED' }).click();
+  await win.getByRole('navigation', { name: 'Learn' }).getByRole('button', { name: 'LED', exact: true }).click();
   const word = win.getByRole('main', { name: 'LED' }).getByRole('button', { name: 'current' });
   await word.click();
   const note = win.getByRole('note', { name: 'current: what it means' });

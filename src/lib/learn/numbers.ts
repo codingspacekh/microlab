@@ -1,4 +1,4 @@
-import { BATTERIES, LED, LED_COLORS, MODELS, POWER_SUPPLY } from '../circuit';
+import { BATTERIES, BUZZER, LED, LED_COLORS, ldrOhms, MODELS, POWER_SUPPLY, RGB_DIES, strips } from '../circuit';
 import { stepE12 } from '../units';
 
 /**
@@ -33,6 +33,39 @@ function potTrack(): number {
     .reduce((ohms, d) => (d.kind === 'pot' ? d.ohms : ohms), 0);
 }
 
+/** What the simulator has no number for, kept here so a page and its picture say the same (M8.2). An AA cell holds
+ *  about 2000 mAh and a 9 V battery about 500 mAh; cells in a row add their volts, not how long they last. The
+ *  resistor an LDR is read with: 10 kΩ suits room light. */
+export const BATTERY_MAH: Record<string, number> = { '2xAA': 2000, '4xAA': 2000, '9V': 500 };
+export const LDR_PARTNER_OHMS = 10_000;
+/** The battery the LDR's page reads it on. */
+const LDR_VOLTS = BATTERIES['2xAA']!.volts;
+
+/** Two figures that matter: 2992.9 → "3", 133.3 → "130", 0.352 → "0.35". */
+const about = (value: number) => String(Number(value.toPrecision(2)));
+
+/** One of the RGB LED's three chips, by its leg. */
+const die = (leg: string) => RGB_DIES.find((d) => d[0] === leg);
+
+/** "5,g" → the resistor for the RGB LED's green chip on 5 V, at the best current. */
+function rgbResistor(arg: string): string | undefined {
+  const [volts, leg] = arg.split(',');
+  const chip = die(leg ?? '');
+  const left = Number(volts) - (chip?.[2] ?? NaN);
+  return left > 0 ? plain(stepE12(left / ledBestA, 1)) : undefined;
+}
+
+/** The volts between an LDR and its partner resistor, on the page's battery, at `lux`. */
+const ldrVolts = (lux: number) => (LDR_VOLTS * LDR_PARTNER_OHMS) / (ldrOhms(lux) + LDR_PARTNER_OHMS);
+const lux = (arg: string) => (arg !== '' && Number(arg) >= 0 ? Number(arg) : undefined);
+
+/** "2xAA,15" → how many hours a pack of AA cells feeds 15 mA. */
+function batteryHours(arg: string): string | undefined {
+  const [kind, ma] = arg.split(',');
+  const mah = BATTERY_MAH[kind ?? ''];
+  return mah && Number(ma) > 0 ? about(mah / Number(ma)) : undefined;
+}
+
 const NUMBERS: Record<string, (arg: string) => string | undefined> = {
   'led.vf': (colour) => ledVolts(colour || 'red'),
   'led.dim': () => mA(ledDimA),
@@ -45,6 +78,20 @@ const NUMBERS: Record<string, (arg: string) => string | undefined> = {
   'supply.low': () => plain(Math.min(...POWER_SUPPLY.choices)),
   'supply.high': () => plain(Math.max(...POWER_SUPPLY.choices)),
   'battery.volts': (kind) => (BATTERIES[kind] ? plain(BATTERIES[kind].volts) : undefined),
+  'battery.cell.volts': () => plain(BATTERIES['2xAA']!.volts / 2),
+  'battery.mah': (kind) => (BATTERY_MAH[kind] ? plain(BATTERY_MAH[kind]) : undefined),
+  'battery.hours': batteryHours,
+  'rgb.vf': (leg) => (die(leg) ? plain(Math.round(die(leg)![2])) : undefined),
+  'rgb.resistor': rgbResistor,
+  'ldr.dark.M': () => plain(ldrOhms(0) / 1e6),
+  'ldr.k': (arg) => (lux(arg) === undefined ? undefined : about(ldrOhms(lux(arg)!) / 1000)),
+  'ldr.partner.k': () => plain(LDR_PARTNER_OHMS / 1000),
+  'ldr.battery': () => plain(LDR_VOLTS),
+  'ldr.volts': (arg) => (lux(arg) === undefined ? undefined : String(Number(ldrVolts(lux(arg)!).toFixed(1)))),
+  'buzzer.hz': () => plain(BUZZER.active.hz),
+  'buzzer.volts': () => plain(BUZZER.active.minVolts),
+  'buzzer.swing': () => plain(BUZZER.passive.minSwing),
+  'breadboard.strip': () => plain(strips('half').find((strip) => strip.includes('a1'))!.length),
 };
 
 /** A token's number as text — `led.max` → "30", `led.resistor:9` → "470" — or undefined if there is no such number. */

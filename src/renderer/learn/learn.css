@@ -58,8 +58,9 @@
 
 /* the picture to play with */
 .play { background: var(--canvas); border-radius: 12px; padding: 10px 14px 14px; }
-.play .ctl { display: flex; align-items: center; gap: 12px; margin-top: 6px; font-size: 13px; }
-.play .ctl .slider { flex: 1; grid-template-columns: 150px 1fr 70px; margin: 0; font-size: 13px; }
+.play .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 6px; font-size: 13px; }
+/* a slider keeps room to be slid: beside a choice it goes to its own line */
+.play .ctl .slider { flex: 1 1 420px; grid-template-columns: 150px 1fr 70px; margin: 0; font-size: 13px; }
 .play .says { margin-top: 10px; padding: 9px 12px; border-radius: 9px; background: var(--panel); border: 1px solid var(--line); font-size: 13px; line-height: 1.5; color: var(--tx-1); display: flex; gap: 8px; align-items: flex-start; }
 .play .says .ico { color: var(--accent); margin-top: 2px; flex: none; }
 

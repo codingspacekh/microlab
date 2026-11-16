@@ -20,3 +20,18 @@ A path from + straight to − with nothing to hold the current back. Far too muc
 
 ## voltage divider
 Two resistances one after the other, sharing the [voltage] between them. The point in the middle gets a part of the push — a bigger part the bigger the resistance below it.
+
+## Ohm's law
+The rule that ties the three together: [current] = [voltage] ÷ [resistance]. More push, more current; more resistance, less.
+
+## frequency
+How many times a second something happens again — a shake, a blink, a wave. Measured in [hertz].
+
+## hertz
+The unit of [frequency], written Hz: 1 Hz is once a second, 440 Hz is 440 times a second.
+
+## common cathode
+An RGB LED whose shared leg is the − side of all three chips: it goes to the battery's −.
+
+## common anode
+An RGB LED whose shared leg is the + side of all three chips: it goes to the battery's +.

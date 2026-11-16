@@ -75,13 +75,18 @@ for (const [width, height] of SIZES) {
       await look('Learn');
       // M8.1: a part's page with its pictures, a glossary word open, the page you play with, the glossary, a search
       const learn = win.getByRole('navigation', { name: 'Learn' });
-      await learn.getByRole('button', { name: 'LED' }).click();
+      await learn.getByRole('button', { name: 'LED', exact: true }).click();
       await look('Learn ▸ LED');
       await win.getByRole('main', { name: 'LED' }).getByRole('button', { name: 'current' }).click();
       await look('Learn ▸ LED, a word open');
       await away();
       await learn.getByRole('button', { name: 'Potentiometer' }).click();
       await look('Learn ▸ Potentiometer');
+      // M8.2: the other basic parts, each with its picture and its controls
+      for (const part of ['Breadboard', 'Resistor', 'RGB LED', 'Push button', 'Slide switch', 'Light sensor (LDR)', 'Buzzer', 'Battery pack']) {
+        await learn.getByRole('button', { name: part, exact: true }).click();
+        await look(`Learn ▸ ${part}`);
+      }
       await learn.getByRole('button', { name: 'Glossary' }).click();
       await look('Learn ▸ Glossary');
       await learn.getByRole('textbox', { name: 'Search Learn' }).fill('current');

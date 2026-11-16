@@ -19,3 +19,7 @@ svg.lfig .lf-knob { cursor: grab; touch-action: none; }
 svg.lfig .lf-knob:active { cursor: grabbing; }
 svg.lfig .lf-still { pointer-events: none; }
 .play .lf-row { margin-top: 6px; }
+/* a slider whose value is words too (the LDR's light: "10 000 lux · sunlight") */
+.play .ctl.lf-wide .slider { grid-template-columns: 60px 1fr 170px; }
+/* several sliders, one under the other */
+.play .ctl + .ctl { margin-top: 2px; }

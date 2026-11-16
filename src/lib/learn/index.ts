@@ -2,7 +2,7 @@ import { checkGlossary, checkPage, type CheckContext } from './check';
 import { parseGlossary, parsePage, plainText, type GlossaryWord, type LearnPage } from './parse';
 
 export { checkGlossary, checkPage, type CheckContext } from './check';
-export { LEARN_NUMBERS, learnNumber } from './numbers';
+export { BATTERY_MAH, LDR_PARTNER_OHMS, LEARN_NUMBERS, learnNumber } from './numbers';
 export { inline, parseGlossary, parsePage, plainText, type Block, type GlossaryWord, type Inline, type LearnPage, type Section } from './parse';
 
 /**

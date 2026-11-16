@@ -43,10 +43,14 @@ describe('M8.1 Learn\'s home (screen 30)', () => {
     expect(basics).toHaveTextContent(`${BASICS.length} parts`);
     for (const b of BASICS) expect(basics).toHaveTextContent(b.title);
     expect(within(basics).getByRole('button', { name: /^LED/ })).toHaveTextContent('A tiny light that lets current go one way only.');
-    expect(within(basics).queryByRole('button', { name: /^Resistor/ })).toBeNull();
-    expect(within(basics).getByLabelText('Resistor: its page comes soon')).toHaveTextContent('soon');
+    // slice 8.2: every basic part's page is written
+    expect(within(basics).getAllByRole('button').map((b) => b.querySelector('b')!.textContent)).toEqual(BASICS.map((b) => b.title));
     for (const i of IDEAS) expect(within(home).getByRole('region', { name: 'Big ideas' })).toHaveTextContent(i.title);
-    for (const s of SENSORS) expect(within(home).getByRole('region', { name: 'Sensors' })).toHaveTextContent(s.title);
+    const sensors = within(home).getByRole('region', { name: 'Sensors' });
+    for (const s of SENSORS) expect(sensors).toHaveTextContent(s.title);
+    // a page not written yet is listed, quieter, and opens nothing
+    expect(within(sensors).queryByRole('button', { name: /^Ultrasonic/ })).toBeNull();
+    expect(within(sensors).getByLabelText('Ultrasonic HC-SR04: its page comes soon')).toHaveTextContent('soon');
 
     fireEvent.click(within(basics).getByRole('button', { name: /^LED/ }));
     expect(main('LED')).toBeInTheDocument();
@@ -56,8 +60,8 @@ describe('M8.1 Learn\'s home (screen 30)', () => {
     render(<Alone />);
     expect(within(nav()).getByRole('button', { name: 'Learn home' })).toHaveAttribute('aria-current', 'page');
     const basics = within(nav()).getByRole('group', { name: 'Basics' });
-    expect(within(basics).getAllByRole('button').map((b) => b.textContent)).toEqual(['LED', 'Potentiometer']);
-    expect(basics).toHaveTextContent('Resistorsoon');
+    expect(within(basics).getAllByRole('button').map((b) => b.lastChild!.textContent)).toEqual(BASICS.map((b) => b.title));   // after its small picture
+    expect(within(nav()).getByRole('group', { name: 'Sensors' })).toHaveTextContent('Ultrasonic HC-SR04soon');
     fireEvent.click(within(basics).getByRole('button', { name: 'Potentiometer' }));
     expect(within(basics).getByRole('button', { name: 'Potentiometer' })).toHaveAttribute('aria-current', 'page');
     expect(within(nav()).getByRole('button', { name: 'Learn home' })).not.toHaveAttribute('aria-current');
@@ -162,6 +166,29 @@ describe('M8.1 a page you play with: the potentiometer (screen 30c)', () => {
   });
 });
 
+describe('M8.2 every basic part\'s page', () => {
+  it.each(BASICS.map((b) => [b.title, b.id] as const))('%s: its five sections, its picture to play with, its numbers and its mistakes', (title, id) => {
+    render(<Alone start={id} />);
+    const page = main(title);
+    expect(within(page).getByRole('heading', { level: 1, name: title })).toBeInTheDocument();
+    expect(within(page).getAllByRole('heading', { level: 2 })).toHaveLength(5);
+    expect(within(section('Look inside')).getAllByRole('img').length).toBeGreaterThan(0);
+    expect(section('Look inside').querySelector('.says')).not.toBeNull();
+    expect(within(section('Its numbers')).getAllByRole('row').length).toBeGreaterThanOrEqual(3);
+    expect(section('Mistakes').querySelectorAll('.mistake').length).toBeGreaterThanOrEqual(2);
+    // no number was left as a token
+    expect(page.textContent).not.toMatch(/[{}]/);
+  });
+
+  it('the RGB LED\'s and the LDR\'s numbers are the simulator\'s', () => {
+    render(<Alone start="rgb-led" />);
+    expect(section('Connect it')).toHaveTextContent('5 V, red220 Ω5 V, green150 Ω5 V, blue150 Ω');
+    fireEvent.click(within(nav()).getByRole('button', { name: 'Light sensor (LDR)' }));
+    expect(section('Its numbers')).toHaveTextContent('In dim lightabout 15 kΩ');
+    expect(section('Connect it')).toHaveTextContent('3 V battery, nearly dark0.4 V3 V battery, a bright room2.3 V');
+  });
+});
+
 describe('M8.1 the search (F-44)', () => {
   it('finds pages and glossary words as it is typed; a page found opens, and the search is over', () => {
     render(<Alone />);
@@ -180,8 +207,8 @@ describe('M8.1 the search (F-44)', () => {
     expect(main('Search')).toHaveTextContent('A path from + straight to − with nothing to hold the current back.');
     fireEvent.change(box, { target: { value: 'zebra' } });
     expect(main('Search')).toHaveTextContent('Nothing in Learn matches “zebra”.');
-    fireEvent.change(box, { target: { value: 'resistor' } });
-    expect(main('Search')).toHaveTextContent('Coming soon: Resistor.');
+    fireEvent.change(box, { target: { value: 'ultrasonic' } });
+    expect(main('Search')).toHaveTextContent('Coming soon: Ultrasonic HC-SR04.');
     fireEvent.change(box, { target: { value: '' } });
     expect(main('Learn home')).toBeInTheDocument();
   });
@@ -246,7 +273,7 @@ describe('M8.1 the ways in from the workspace (F-44)', () => {
   it('the parts panel: a part with a page has Learn about it beside it; one without has not', async () => {
     await workspace();
     const panel = partsPanel();
-    expect(within(panel).queryByRole('button', { name: 'Learn about the resistor' })).toBeNull();
+    expect(within(within(panel).getByRole('button', { name: /^Servo SG90/ }).parentElement!).getAllByRole('button')).toHaveLength(1);
     // the potentiometer's own row (the potentiometer module, further down, opens the same page)
     const row = within(panel).getByRole('button', { name: /^Potentiometer10 kΩ/ }).parentElement!;
     fireEvent.click(within(row).getByRole('button', { name: 'Learn about the potentiometer' }));
@@ -274,8 +301,8 @@ describe('M8.1 the ways in from the workspace (F-44)', () => {
   it('a part on the canvas: right-click → Learn about this; a part with no page has no menu; Esc puts it away', async () => {
     const s = await workspace();
     s.place(/^LED/, 'led', 'bb1.e20');
-    s.place(/^Resistor/, 'resistor', 'bb1.c5');
-    fireEvent.contextMenu(s.svg.querySelector('[data-part="r1"]')!);
+    s.place(/^Servo SG90/, 'servo', 'bb1.c5');
+    fireEvent.contextMenu(s.svg.querySelector('[data-part="servo1"]')!);
     expect(screen.queryByRole('menu')).toBeNull();
     fireEvent.contextMenu(s.svg.querySelector('[data-part="led1"]')!);
     expect(screen.getByRole('menu', { name: 'LED' })).toBeInTheDocument();

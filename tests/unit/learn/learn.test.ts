@@ -1,10 +1,10 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BATTERIES, LED, LED_COLORS, POWER_SUPPLY } from '../../../src/lib/circuit';
+import { BATTERIES, BUZZER, LED, LED_COLORS, ldrOhms, POWER_SUPPLY, RGB_DIES } from '../../../src/lib/circuit';
 import { PART_KINDS } from '../../../src/lib/editor';
 import {
-  BASICS, checkGlossary, checkLearn, checkPage, IDEAS, inline, LEARN_NUMBERS, learnNumber, learnPageFor, loadLearn, parseGlossary, parsePage,
+  BASICS, BATTERY_MAH, checkGlossary, checkLearn, checkPage, IDEAS, inline, LDR_PARTNER_OHMS, LEARN_NUMBERS, learnNumber, learnPageFor, loadLearn, parseGlossary, parsePage,
   plainText, searchLearn, SENSORS, type CheckContext, type LearnPage,
 } from '../../../src/lib/learn';
 
@@ -180,6 +180,46 @@ describe('M8.1 the numbers are the simulator\'s', () => {
   });
 });
 
+describe('M8.2 the basic parts\' numbers are the simulator\'s too', () => {
+  it('the RGB LED\'s three chips and their resistors on 5 V (15 mA each)', () => {
+    expect(['r', 'g', 'b'].map((leg) => learnNumber(`rgb.vf:${leg}`))).toEqual(RGB_DIES.map((d) => String(Math.round(d[2]))));
+    expect(['r', 'g', 'b'].map((leg) => learnNumber(`rgb.resistor:5,${leg}`))).toEqual(['220', '150', '150']);
+    expect(learnNumber('rgb.vf:x')).toBeUndefined();
+    expect(learnNumber('rgb.resistor:5,x')).toBeUndefined();
+    expect(learnNumber('rgb.resistor:2,g')).toBeUndefined();   // 2 V does not open a 3 V chip
+    expect(learnNumber('rgb.resistor')).toBeUndefined();
+  });
+
+  it('the LDR: its resistance by the light, and the volts it gives with its 10 kΩ partner on 3 V', () => {
+    expect(learnNumber('ldr.dark.M')).toBe(String(ldrOhms(0) / 1e6));
+    expect(learnNumber('ldr.k:10')).toBe(String(ldrOhms(10) / 1000));
+    expect(learnNumber('ldr.k:100')).toBe('3');
+    expect(learnNumber('ldr.partner.k')).toBe(String(LDR_PARTNER_OHMS / 1000));
+    expect(learnNumber('ldr.battery')).toBe(String(BATTERIES['2xAA']!.volts));
+    const volts = (lux: number) => (BATTERIES['2xAA']!.volts * LDR_PARTNER_OHMS) / (ldrOhms(lux) + LDR_PARTNER_OHMS);
+    expect(learnNumber('ldr.volts:1')).toBe(volts(1).toFixed(1));
+    expect(learnNumber('ldr.volts:100')).toBe(volts(100).toFixed(1));
+    expect(learnNumber('ldr.volts')).toBeUndefined();
+    expect(learnNumber('ldr.k:-5')).toBeUndefined();
+    expect(learnNumber('ldr.k')).toBeUndefined();
+  });
+
+  it('the buzzer, a strip of the breadboard, the battery\'s cells and how long they last', () => {
+    expect(learnNumber('buzzer.hz')).toBe(String(BUZZER.active.hz));
+    expect(learnNumber('buzzer.volts')).toBe(String(BUZZER.active.minVolts));
+    expect(learnNumber('buzzer.swing')).toBe(String(BUZZER.passive.minSwing));
+    expect(learnNumber('breadboard.strip')).toBe('5');
+    expect(learnNumber('battery.cell.volts')).toBe('1.5');
+    expect(learnNumber('battery.mah:2xAA')).toBe(String(BATTERY_MAH['2xAA']));
+    expect(learnNumber('battery.mah:9V')).toBe('500');
+    expect(learnNumber('battery.mah:car')).toBeUndefined();
+    expect(learnNumber('battery.hours:2xAA,15')).toBe('130');   // 2000 mAh ÷ 15 mA = 133 h, said as about 130
+    expect(learnNumber('battery.hours:car,15')).toBeUndefined();
+    expect(learnNumber('battery.hours:2xAA,0')).toBeUndefined();
+    expect(learnNumber('battery.hours')).toBeUndefined();
+  });
+});
+
 describe('M8.1 the checker: every section, a picture, no code, no board, every word in the glossary', () => {
   const said = (source: string, more?: Partial<CheckContext>) => checkPage(parsePage(source), ctx(more));
 
@@ -239,6 +279,11 @@ describe('M8.1 Learn as it is: library/learn', () => {
 
   it('the checker finds nothing (the pictures\' names are checked beside the pictures, in the component tests)', () => {
     expect(checkLearn(learn, { parts: PARTS })).toEqual([]);
+  });
+
+  it('slice 8.2: every basic part has its page', () => {
+    expect(BASICS.filter((b) => !learn.pages[b.id]).map((b) => b.id)).toEqual([]);
+    for (const b of BASICS) expect(learn.pages[b.id]).toMatchObject({ kind: 'part', part: b.id });
   });
 
   it('slice 8.1 has the LED and the potentiometer, each about its part', () => {
