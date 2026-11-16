@@ -175,9 +175,10 @@ describe('the potentiometer, its cover off (screen 30c)', () => {
 describe('every picture', () => {
   it('is known by its name: the first pages\' three, and one for each of the other basic parts (M8.2)', () => {
     expect(Object.keys(FIGURES).sort()).toEqual([
-      'battery-inside', 'breadboard-circuit', 'breadboard-inside', 'button-inside', 'buzzer-inside', 'circuit-loop', 'digital-analog', 'ldr-inside',
-      'led-connect', 'led-inside', 'pot-inside', 'pwm-dimming', 'resistor-inside', 'rgb-inside', 'series-parallel', 'switch-inside', 'water-loop',
-    ]);   // M8.3: and the six big ideas'
+      'battery-inside', 'breadboard-circuit', 'breadboard-inside', 'button-inside', 'buzzer-inside', 'circuit-loop', 'dht-inside', 'digital-analog',
+      'ldr-inside', 'led-connect', 'led-inside', 'line-inside', 'pir-inside', 'pot-inside', 'pwm-dimming', 'resistor-inside', 'rgb-inside',
+      'series-parallel', 'soil-inside', 'sonar-inside', 'switch-inside', 'temp-inside', 'water-loop',
+    ]);   // M8.3: and the six big ideas'; M8.4: and the six sensors'
   });
 
   it.each(Object.keys(FIGURES))('%s draws, and says what it shows', (name) => {

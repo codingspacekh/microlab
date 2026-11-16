@@ -114,3 +114,11 @@ A leg of a board or a chip that a wire goes to.
 ## bit
 One [digital] answer: a 1 or a 0. Ten bits together can count 1024 steps.
 
+## ultrasound
+Sound too high for people to hear. Bats find their way with it; so does a distance sensor.
+
+## infrared
+Light a little too red for the eye to see. Warm things glow with it, and remote controls flash it.
+
+## humidity
+How damp the air is: how much water is in it, as a part of the most it could hold. 100 % is fog.

@@ -17,6 +17,12 @@ import { LdrInside } from './figs/ldr';
 import { ResistorInside } from './figs/resistor';
 import { RgbInside } from './figs/rgb-led';
 import { SwitchInside } from './figs/slide-switch';
+import { DhtInside } from './figs/dht';
+import { LineInside } from './figs/line-sensor';
+import { PirInside } from './figs/pir';
+import { SoilInside } from './figs/soil';
+import { SonarInside } from './figs/sonar';
+import { TempInside } from './figs/temp';
 import './figures.css';
 
 /**
@@ -402,4 +408,11 @@ export const FIGURES: Record<string, () => React.JSX.Element> = {
   'series-parallel': SeriesParallel,
   'digital-analog': DigitalAnalog,
   'pwm-dimming': PwmDimming,
+  // M8.4: the sensors
+  'sonar-inside': SonarInside,
+  'dht-inside': DhtInside,
+  'pir-inside': PirInside,
+  'temp-inside': TempInside,
+  'soil-inside': SoilInside,
+  'line-inside': LineInside,
 };

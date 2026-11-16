@@ -1,4 +1,4 @@
-import { BATTERIES, BUZZER, LED, LED_COLORS, ldrOhms, MODELS, POWER_SUPPLY, RGB_DIES, strips } from '../circuit';
+import { BATTERIES, BUZZER, echoUs, LED, LED_COLORS, ldrOhms, MODELS, POWER_SUPPLY, RGB_DIES, sensorDrive, SENSORS, strips } from '../circuit';
 import { stepE12 } from '../units';
 
 /**
@@ -66,6 +66,22 @@ function batteryHours(arg: string): string | undefined {
   return mah && Number(ma) > 0 ? about(mah / Number(ma)) : undefined;
 }
 
+// ------------------------------------------------------------------ the sensors (M8.4)
+const SONAR = SENSORS['hc-sr04'];
+const DHT_KINDS = { DHT11: SENSORS.dht.DHT11, DHT22: SENSORS.dht.DHT22 } as const;
+const TEMP_KINDS = { TMP36: SENSORS['temp-sensor'].TMP36, LM35: SENSORS['temp-sensor'].LM35 } as const;
+const dht = (kind: string) => DHT_KINDS[kind as keyof typeof DHT_KINDS] as (typeof DHT_KINDS)[keyof typeof DHT_KINDS] | undefined;
+const temp = (kind: string) => TEMP_KINDS[kind as keyof typeof TEMP_KINDS] as (typeof TEMP_KINDS)[keyof typeof TEMP_KINDS] | undefined;
+/** A sensor's OUT, in volts, on a supply high enough for any of them. */
+const HIGH_SUPPLY = Math.max(...POWER_SUPPLY.choices);
+const tempVolts = (kind: string, celsius: number) => sensorDrive('temp-sensor', { kind }, { celsius }, HIGH_SUPPLY).volts;
+/** "TMP36,22" → what a TMP36 gives at 22 °C, to a hundredth of a volt. */
+function tempOut(arg: string): string | undefined {
+  const [kind, celsius] = arg.split(',');
+  return temp(kind ?? '') && celsius !== undefined && Number.isFinite(Number(celsius)) ? String(Number(tempVolts(kind!, Number(celsius)).toFixed(2))) : undefined;
+}
+const cm = (arg: string) => (arg !== '' && Number(arg) > 0 ? Number(arg) : undefined);
+
 const NUMBERS: Record<string, (arg: string) => string | undefined> = {
   'led.vf': (colour) => ledVolts(colour || 'red'),
   'led.dim': () => mA(ledDimA),
@@ -91,6 +107,29 @@ const NUMBERS: Record<string, (arg: string) => string | undefined> = {
   'buzzer.hz': () => plain(BUZZER.active.hz),
   'buzzer.volts': () => plain(BUZZER.active.minVolts),
   'buzzer.swing': () => plain(BUZZER.passive.minSwing),
+  'sonar.us': () => plain(SONAR.usPerCm),
+  'sonar.min': () => plain(SONAR.minCm),
+  'sonar.max': () => plain(SONAR.maxCm),
+  'sonar.volts': () => plain(SONAR.minVolts),
+  'sonar.ms': (arg) => (cm(arg) === undefined ? undefined : plain(echoUs(cm(arg)!) / 1000)),
+  'dht.volts': () => plain(SENSORS.dht.minVolts),
+  'dht.tmin': (kind) => (dht(kind) ? plain(dht(kind)!.min) : undefined),
+  'dht.tmax': (kind) => (dht(kind) ? plain(dht(kind)!.max) : undefined),
+  'dht.hmin': (kind) => (dht(kind) ? plain(dht(kind)!.hMin) : undefined),
+  'dht.hmax': (kind) => (dht(kind) ? plain(dht(kind)!.hMax) : undefined),
+  'pir.hold': () => plain(SENSORS.pir.holdS),
+  'pir.volts': () => plain(SENSORS.pir.minVolts),
+  'pir.high': () => plain(sensorDrive('pir', {}, { motion: true }, HIGH_SUPPLY).volts),
+  'line.volts': () => plain(SENSORS['line-sensor'].minVolts),
+  'soil.dry': () => plain(sensorDrive('soil-moisture', {}, { position: 0 }, HIGH_SUPPLY).volts),
+  'soil.wet': () => plain(sensorDrive('soil-moisture', {}, { position: 1 }, HIGH_SUPPLY).volts),
+  'soil.volts': () => plain(SENSORS['soil-moisture'].minVolts),
+  'temp.mv': () => plain((tempVolts('TMP36', 1) - tempVolts('TMP36', 0)) * 1000),
+  'temp.offset': (kind) => (temp(kind) ? plain(temp(kind)!.offset) : undefined),
+  'temp.min': (kind) => (temp(kind) ? plain(temp(kind)!.min) : undefined),
+  'temp.max': (kind) => (temp(kind) ? plain(temp(kind)!.max) : undefined),
+  'temp.supply': (kind) => (temp(kind) ? plain(temp(kind)!.minVolts) : undefined),
+  'temp.out': tempOut,
   'breadboard.strip': () => plain(strips('half').find((strip) => strip.includes('a1'))!.length),
 };
 

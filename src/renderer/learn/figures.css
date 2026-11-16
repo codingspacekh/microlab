@@ -25,3 +25,5 @@ svg.lfig .lf-still { pointer-events: none; }
 .play .ctl + .ctl { margin-top: 2px; }
 /* a slider that steps through named stages (following the current through a breadboard) */
 .play .ctl.lf-steps .slider { grid-template-columns: 150px 1fr 150px; }
+/* a long name and a value in words (where the person is in front of the motion sensor) */
+.play .ctl.lf-long .slider { grid-template-columns: 150px 1fr 170px; }

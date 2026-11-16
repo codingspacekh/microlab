@@ -92,6 +92,11 @@ for (const [width, height] of SIZES) {
         await learn.getByRole('button', { name: idea, exact: true }).click();
         await look(`Learn ▸ ${idea}`);
       }
+      // M8.4: the six sensors
+      for (const sensor of ['Ultrasonic HC-SR04', 'DHT11 / DHT22', 'PIR motion', 'Temperature', 'Soil moisture', 'Line sensor (IR)']) {
+        await learn.getByRole('button', { name: sensor, exact: true }).click();
+        await look(`Learn ▸ ${sensor}`);
+      }
       await learn.getByRole('button', { name: 'Glossary' }).click();
       await look('Learn ▸ Glossary');
       await learn.getByRole('textbox', { name: 'Search Learn' }).fill('current');

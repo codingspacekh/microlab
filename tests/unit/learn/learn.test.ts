@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BATTERIES, BUZZER, LED, LED_COLORS, ldrOhms, POWER_SUPPLY, RGB_DIES } from '../../../src/lib/circuit';
+import { BATTERIES, BUZZER, echoUs, LED, LED_COLORS, ldrOhms, POWER_SUPPLY, RGB_DIES, SENSORS as SIM_SENSORS } from '../../../src/lib/circuit';
 import { PART_KINDS } from '../../../src/lib/editor';
 import {
   BASICS, BATTERY_MAH, checkGlossary, checkLearn, checkPage, IDEAS, inline, LDR_PARTNER_OHMS, LEARN_NUMBERS, learnNumber, learnPageFor, loadLearn, parseGlossary, parsePage,
@@ -220,6 +220,39 @@ describe('M8.2 the basic parts\' numbers are the simulator\'s too', () => {
   });
 });
 
+describe('M8.4 the sensors\' numbers are the simulator\'s', () => {
+  it('the ultrasonic sensor: its reach, the echo\'s time for each cm, and for 100 cm', () => {
+    const s = SIM_SENSORS['hc-sr04'];
+    expect([learnNumber('sonar.us'), learnNumber('sonar.min'), learnNumber('sonar.max'), learnNumber('sonar.volts')]).toEqual([s.usPerCm, s.minCm, s.maxCm, s.minVolts].map(String));
+    expect(learnNumber('sonar.ms:100')).toBe(String(echoUs(100) / 1000));
+    expect(learnNumber('sonar.ms')).toBeUndefined();
+    expect(learnNumber('sonar.ms:-3')).toBeUndefined();
+  });
+
+  it('the DHT\'s two kinds, the PIR, the line sensor, the soil sensor', () => {
+    expect(['tmin', 'tmax', 'hmin', 'hmax'].map((n) => learnNumber(`dht.${n}:DHT11`))).toEqual(['0', '50', '20', '90']);
+    expect(['tmin', 'tmax', 'hmin', 'hmax'].map((n) => learnNumber(`dht.${n}:DHT22`))).toEqual(['-40', '80', '0', '100']);
+    expect(['tmin', 'tmax', 'hmin', 'hmax'].map((n) => learnNumber(`dht.${n}:DHT33`))).toEqual([undefined, undefined, undefined, undefined]);
+    expect(learnNumber('dht.volts')).toBe(String(SIM_SENSORS.dht.minVolts));
+    expect([learnNumber('pir.hold'), learnNumber('pir.volts'), learnNumber('pir.high')]).toEqual([SIM_SENSORS.pir.holdS, SIM_SENSORS.pir.minVolts, SIM_SENSORS.pir.high].map(String));
+    expect(learnNumber('line.volts')).toBe(String(SIM_SENSORS['line-sensor'].minVolts));
+    expect([learnNumber('soil.dry'), learnNumber('soil.wet'), learnNumber('soil.volts')]).toEqual(
+      [SIM_SENSORS['soil-moisture'].dry, SIM_SENSORS['soil-moisture'].wet, SIM_SENSORS['soil-moisture'].minVolts].map(String));
+  });
+
+  it('the temperature chips: 10 mV a degree, the TMP36\'s half volt, what each gives at 22 °C', () => {
+    expect(learnNumber('temp.mv')).toBe('10');
+    expect([learnNumber('temp.offset:TMP36'), learnNumber('temp.min:TMP36'), learnNumber('temp.max:TMP36'), learnNumber('temp.supply:TMP36')]).toEqual(['0.5', '-40', '125', '2.7']);
+    expect([learnNumber('temp.offset:LM35'), learnNumber('temp.min:LM35'), learnNumber('temp.max:LM35'), learnNumber('temp.supply:LM35')]).toEqual(['0', '0', '150', '4']);
+    expect(learnNumber('temp.out:TMP36,22')).toBe('0.72');
+    expect(learnNumber('temp.out:LM35,22')).toBe('0.22');
+    expect(learnNumber('temp.out:TMP36,-10')).toBe('0.4');
+    for (const bad of ['temp.out:TMP36', 'temp.out:PT100,22', 'temp.out:TMP36,warm', 'temp.out', 'temp.offset:PT100', 'temp.min:x', 'temp.max:x', 'temp.supply:x']) {
+      expect(learnNumber(bad), bad).toBeUndefined();
+    }
+  });
+});
+
 describe('M8.1 the checker: every section, a picture, no code, no board, every word in the glossary', () => {
   const said = (source: string, more?: Partial<CheckContext>) => checkPage(parsePage(source), ctx(more));
 
@@ -293,6 +326,11 @@ describe('M8.1 Learn as it is: library/learn', () => {
   it('slice 8.2: every basic part has its page', () => {
     expect(BASICS.filter((b) => !learn.pages[b.id]).map((b) => b.id)).toEqual([]);
     for (const b of BASICS) expect(learn.pages[b.id]).toMatchObject({ kind: 'part', part: b.id });
+  });
+
+  it('slice 8.4: every sensor of the first release has its page', () => {
+    expect(SENSORS.filter((x) => learn.pages[x.id]?.part !== x.id).map((x) => x.id)).toEqual([]);
+    for (const word of ['ultrasound', 'infrared', 'humidity']) expect(learn.glossary[word], word).toBeDefined();
   });
 
   it('slice 8.3: every big idea has its page, and the glossary its words', () => {

@@ -55,6 +55,7 @@ describe('M8.1 Learn\'s home (screen 30)', () => {
     for (const i of IDEAS) expect(within(home).getByRole('region', { name: 'Big ideas' })).toHaveTextContent(i.title);
     const sensors = within(home).getByRole('region', { name: 'Sensors' });
     for (const s of SENSORS) expect(sensors).toHaveTextContent(s.title);
+    expect(within(sensors).getAllByRole('button')).toHaveLength(SENSORS.length - 1);
     // a page not written yet is listed, quieter, and opens nothing
     expect(within(sensors).queryByRole('button', { name: /^Ultrasonic/ })).toBeNull();
     expect(within(sensors).getByLabelText('Ultrasonic HC-SR04: its page comes soon')).toHaveTextContent('soon');
@@ -193,6 +194,38 @@ describe('M8.2 every basic part\'s page', () => {
     fireEvent.click(within(nav()).getByRole('button', { name: 'Light sensor (LDR)' }));
     expect(section('Its numbers')).toHaveTextContent('In dim lightabout 15 kΩ');
     expect(section('Connect it')).toHaveTextContent('3 V battery, nearly dark0.4 V3 V battery, a bright room2.3 V');
+  });
+});
+
+describe('M8.4 the sensors\' pages', () => {
+  it.each(SENSORS.map((x) => [x.title, x.id] as const))('%s: its five sections, its picture to play with, its legs and its mistakes', (title, id) => {
+    render(<Alone start={id} />);
+    const page = main(title);
+    expect(page).toHaveTextContent(/Sensors · /);
+    expect(within(page).getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['1Look inside', '2The idea', '3Its numbers', '4Its legs and how to connect it', '5Mistakes']);
+    expect(within(section('Look inside')).getAllByRole('img').length).toBeGreaterThan(0);
+    expect(section('Look inside').querySelector('.says')).not.toBeNull();
+    expect(within(section('Its legs and how to connect it')).getAllByRole('row').length).toBeGreaterThanOrEqual(3);
+    expect(section('Mistakes').querySelectorAll('.mistake').length).toBeGreaterThanOrEqual(3);
+    expect(page.textContent).not.toMatch(/[{}]/);
+  });
+
+  it('their numbers are the simulator\'s: the echo\'s 58 µs a cm, the TMP36\'s 0.72 V at 22 °C, the soil sensor\'s 2.4 V dry', () => {
+    render(<Alone start="hc-sr04" />);
+    expect(section('Its numbers')).toHaveTextContent('How far it sees2 cm to 400 cm');
+    expect(section('Its numbers')).toHaveTextContent('58 µs for each cm');
+    fireEvent.click(within(nav()).getByRole('button', { name: 'Temperature' }));
+    expect(section('Its numbers')).toHaveTextContent('TMP36-40 to 125 °Cstarts 0.5 V up: 0.72 V at 22 °C; power from 2.7 V');
+    fireEvent.click(within(nav()).getByRole('button', { name: 'Soil moisture' }));
+    expect(section('Its numbers')).toHaveTextContent('In dry soilabout 2.4 V');
+    expect(section('Its numbers')).toHaveTextContent('In waterabout 0.9 V');
+  });
+
+  it('from the workspace, the sensor\'s row in the parts panel leads to its page', async () => {
+    await workspace();
+    const row = within(partsPanel()).getByRole('button', { name: /^PIR motion/ }).parentElement!;
+    fireEvent.click(within(row).getByRole('button', { name: 'Learn about the PIR motion' }));
+    expect(main('PIR motion')).toBeInTheDocument();
   });
 });
 
