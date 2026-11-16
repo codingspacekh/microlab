@@ -23,3 +23,5 @@ svg.lfig .lf-still { pointer-events: none; }
 .play .ctl.lf-wide .slider { grid-template-columns: 60px 1fr 170px; }
 /* several sliders, one under the other */
 .play .ctl + .ctl { margin-top: 2px; }
+/* a slider that steps through named stages (following the current through a breadboard) */
+.play .ctl.lf-steps .slider { grid-template-columns: 150px 1fr 150px; }

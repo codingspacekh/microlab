@@ -87,6 +87,11 @@ for (const [width, height] of SIZES) {
         await learn.getByRole('button', { name: part, exact: true }).click();
         await look(`Learn ▸ ${part}`);
       }
+      // M8.3: the big ideas, each with its picture and its own glossary
+      for (const idea of ['Voltage, current, resistance', 'A circuit is a loop', 'Inside a breadboard', 'Series and parallel', 'Digital and analog', 'PWM']) {
+        await learn.getByRole('button', { name: idea, exact: true }).click();
+        await look(`Learn ▸ ${idea}`);
+      }
       await learn.getByRole('button', { name: 'Glossary' }).click();
       await look('Learn ▸ Glossary');
       await learn.getByRole('textbox', { name: 'Search Learn' }).fill('current');

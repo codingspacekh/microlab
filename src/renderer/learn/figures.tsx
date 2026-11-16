@@ -5,6 +5,12 @@ import { Icon, Slider } from '../ui';
 import { bands, Breadboard, Callout, f, kOhms, Label, num, P, RedGlow, ROWS, SmallLed, useDefId, Wire } from './fig-kit';
 import { BatteryInside } from './figs/battery';
 import { BreadboardInside } from './figs/breadboard';
+import { BreadboardCircuit } from './figs/breadboard-circuit';
+import { CircuitLoop } from './figs/circuit-loop';
+import { DigitalAnalog } from './figs/digital-analog';
+import { PwmDimming } from './figs/pwm';
+import { SeriesParallel } from './figs/series-parallel';
+import { WaterLoop } from './figs/water';
 import { ButtonInside } from './figs/button';
 import { BuzzerInside } from './figs/buzzer';
 import { LdrInside } from './figs/ldr';
@@ -389,4 +395,11 @@ export const FIGURES: Record<string, () => React.JSX.Element> = {
   'ldr-inside': LdrInside,
   'buzzer-inside': BuzzerInside,
   'battery-inside': BatteryInside,
+  // M8.3: the big ideas
+  'water-loop': WaterLoop,
+  'circuit-loop': CircuitLoop,
+  'breadboard-circuit': BreadboardCircuit,
+  'series-parallel': SeriesParallel,
+  'digital-analog': DigitalAnalog,
+  'pwm-dimming': PwmDimming,
 };

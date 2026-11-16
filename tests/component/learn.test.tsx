@@ -23,9 +23,16 @@ const main = (name: string) => screen.getByRole('main', { name });
 const section = (name: string) => screen.getByRole('region', { name });
 
 /** Learn alone, going where it is sent. */
-function Alone({ start = 'home' }: { start?: string }) {
+function Alone({ start = 'home', learn }: { start?: string; learn?: typeof LEARN }) {
   const [at, setAt] = useState(start);
-  return <Learn at={at} onAt={setAt} />;
+  return <Learn at={at} onAt={setAt} {...(learn ? { learn } : {})} />;
+}
+
+/** Learn as it was before a page was written: the page is listed, quieter, as coming soon. */
+function without(id: string): typeof LEARN {
+  const pages = { ...LEARN.pages };
+  delete pages[id];
+  return { ...LEARN, pages };
 }
 
 describe('M8.1 the checker, with the app\'s pictures', () => {
@@ -35,8 +42,8 @@ describe('M8.1 the checker, with the app\'s pictures', () => {
 });
 
 describe('M8.1 Learn\'s home (screen 30)', () => {
-  it('the Basics, the big ideas and the sensors; a part whose page is written opens it, the others say soon', () => {
-    render(<Alone />);
+  it('the Basics, the big ideas and the sensors; a part whose page is written opens it, one that is not says soon', () => {
+    render(<Alone learn={without('hc-sr04')} />);
     const home = main('Learn home');
     expect(within(home).getByRole('heading', { name: 'How electronics works' })).toBeInTheDocument();
     const basics = within(home).getByRole('region', { name: 'Basics' });
@@ -57,7 +64,7 @@ describe('M8.1 Learn\'s home (screen 30)', () => {
   });
 
   it('the list at the left: home, the parts by group, the ideas, the glossary — the page shown is marked', () => {
-    render(<Alone />);
+    render(<Alone learn={without('hc-sr04')} />);
     expect(within(nav()).getByRole('button', { name: 'Learn home' })).toHaveAttribute('aria-current', 'page');
     const basics = within(nav()).getByRole('group', { name: 'Basics' });
     expect(within(basics).getAllByRole('button').map((b) => b.lastChild!.textContent)).toEqual(BASICS.map((b) => b.title));   // after its small picture
@@ -189,19 +196,65 @@ describe('M8.2 every basic part\'s page', () => {
   });
 });
 
+describe('M8.3 the big ideas (screen 30d; F-45) and the glossary (F-42)', () => {
+  it.each(IDEAS.map((i) => [i.title, i.id] as const))('%s: something to play with, the rule in its box, its own glossary beside it', (_title, id) => {
+    render(<Alone start={id} />);
+    const page = screen.getByRole('main');
+    expect(within(page).getByRole('heading', { level: 1 })).toBeInTheDocument();
+    expect(page).toHaveTextContent('Big idea');
+    expect(within(section('Play with it')).getAllByRole('img').length).toBeGreaterThan(0);
+    expect(section('Play with it').querySelector('.says')).not.toBeNull();
+    expect(section('The rule').querySelector('.idea')).not.toBeNull();
+    // its glossary has no number: it stands beside the sections
+    const glossary = section('Glossary');
+    expect(glossary.querySelectorAll('dt').length).toBeGreaterThanOrEqual(3);
+    expect(glossary.querySelector('h2 .num')).toBeNull();
+    expect(within(page).getAllByRole('heading', { level: 2 }).slice(0, 2).map((h) => h.textContent)).toEqual(['1Play with it', '2The rule']);
+    expect(page.textContent).not.toMatch(/[{}]/);
+  });
+
+  it('voltage, current and resistance, as approved: the rule in words, then I = V ÷ R; the glossary\'s lines for its six words', () => {
+    render(<Alone />);
+    fireEvent.click(within(main('Learn home')).getByRole('region', { name: 'Big ideas' }).querySelector('button')!);
+    const page = main('Voltage, current and resistance');
+    expect(page).toHaveTextContent('They\'re easiest to picture as water going round a loop of pipe.');
+    expect(section('The rule')).toHaveTextContent('Current = push ÷ holding back. Scientists write it I = V ÷ R and call it Ohm\'s law. 3 V ÷ 150 Ω = 0.02 A, which is 20 mA');
+    expect([...section('Glossary').querySelectorAll('dt')].map((d) => d.textContent)).toEqual(['voltage', 'current', 'resistance', 'circuit', 'ground', 'short circuit']);
+    expect(section('Glossary')).toHaveTextContent('A loop the current can go round, from the battery\'s + back to its −.');
+    // a unit underlined in the table opens its own word
+    fireEvent.click(within(section('The three words')).getByRole('button', { name: 'ohms' }));
+    expect(screen.getByRole('note', { name: 'ohm: what it means' })).toBeInTheDocument();
+  });
+
+  it('the potentiometer\'s page leads to the idea it leans on (screen 30c), and the list marks it', () => {
+    render(<Alone start="potentiometer" />);
+    fireEvent.click(within(section('The idea')).getByRole('button', { name: 'Voltage, current, resistance →' }));
+    expect(main('Voltage, current and resistance')).toBeInTheDocument();
+    expect(within(nav()).getByRole('button', { name: 'Voltage, current, resistance' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('the glossary\'s page has every word, in the order of the alphabet', () => {
+    render(<Alone start="glossary" />);
+    const words = [...main('Glossary').querySelectorAll('dt')].map((d) => d.textContent!);
+    expect(words.length).toBeGreaterThanOrEqual(35);
+    expect(words).toEqual([...words].sort((a, b) => a.localeCompare(b)));
+    expect(words).toEqual(expect.arrayContaining(['amp', 'bit', 'PWM', 'pull-up', 'watt']));
+  });
+});
+
 describe('M8.1 the search (F-44)', () => {
   it('finds pages and glossary words as it is typed; a page found opens, and the search is over', () => {
     render(<Alone />);
-    fireEvent.change(within(nav()).getByRole('textbox', { name: 'Search Learn' }), { target: { value: 'knob' } });
+    fireEvent.change(within(nav()).getByRole('textbox', { name: 'Search Learn' }), { target: { value: 'wiper' } });
     const found = main('Search');
-    expect(found).toHaveTextContent('1 page and 0 words for “knob”.');
+    expect(found).toHaveTextContent('1 page and 0 words for “wiper”.');
     fireEvent.click(within(found).getByRole('button', { name: /^Potentiometer/ }));
     expect(main('Potentiometer')).toBeInTheDocument();
     expect(within(nav()).getByRole('textbox', { name: 'Search Learn' })).toHaveValue('');
   });
 
   it('a glossary word found shows its lines; nothing found says so; a page not written yet is named as coming', () => {
-    render(<Alone />);
+    render(<Alone learn={without('hc-sr04')} />);
     const box = within(nav()).getByRole('textbox', { name: 'Search Learn' });
     fireEvent.change(box, { target: { value: 'short circuit' } });
     expect(main('Search')).toHaveTextContent('A path from + straight to − with nothing to hold the current back.');

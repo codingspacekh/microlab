@@ -268,8 +268,17 @@ describe('M8.1 the checker: every section, a picture, no code, no board, every w
     ]);
   });
 
-  it('an ideas page has its own shape: only what every page must have is asked', () => {
-    expect(said('---\nid: loop\nkind: idea\ntitle: A circuit is a loop\ntag: Big idea\ncard: A loop.\n---\nCurrent goes round.\n\n## Try it\nfigure: lamp-inside\n')).toEqual([]);
+  it('an ideas page has its own shape (F-45): a picture to play with and the rule; its own glossary\'s words are the glossary\'s', () => {
+    const idea = '---\nid: loop\nkind: idea\ntitle: A circuit is a loop\ntag: Big idea\ncard: A loop.\nleft: 2\n---\nCurrent goes round.\n\n'
+      + '## Play with it\nfigure: lamp-inside\n\n## The rule\nNo loop, no current.\n\n## Glossary\nwords: Current | circuit\n';
+    expect(parsePage(idea).sections[2]!.blocks).toEqual([{ t: 'words', words: ['current', 'circuit'] }]);
+    expect(said(idea)).toEqual(['“circuit” is not in the glossary']);
+    expect(said(idea.replace(' | circuit', ''))).toEqual([]);
+    expect(said(idea.replace('figure: lamp-inside', 'Look.').replace(' | circuit', ''))).toEqual(['it has no picture to play with']);
+    expect(said(idea.replace('## The rule', '## Rules').replace(' | circuit', '').replace('left: 2', 'left: 7'))).toEqual([
+      'it has no “The rule” section', 'more sections are put on the left than it has',
+    ]);
+    expect(said(idea.replace('No loop, no current.', 'As on the ESP32.').replace(' | circuit', ''))).toEqual(['it names a board (“ESP32”): an ideas page is about no particular board']);
   });
 });
 
@@ -284,6 +293,19 @@ describe('M8.1 Learn as it is: library/learn', () => {
   it('slice 8.2: every basic part has its page', () => {
     expect(BASICS.filter((b) => !learn.pages[b.id]).map((b) => b.id)).toEqual([]);
     for (const b of BASICS) expect(learn.pages[b.id]).toMatchObject({ kind: 'part', part: b.id });
+  });
+
+  it('slice 8.3: every big idea has its page, and the glossary its words', () => {
+    expect(IDEAS.filter((i) => learn.pages[i.id]?.kind !== 'idea').map((i) => i.id)).toEqual([]);
+    for (const word of ['voltage', 'current', 'resistance', 'circuit', 'short circuit', 'ground', 'volt', 'amp', 'milliamp', 'ohm', 'ohm\'s law', 'power', 'watt',
+      'series', 'parallel', 'conductor', 'insulator', 'polarity', 'anode', 'cathode', 'forward voltage', 'voltage divider', 'digital', 'analog', 'signal', 'pulse',
+      'frequency', 'hertz', 'pwm', 'duty', 'sensor', 'actuator', 'pull-up', 'pin', 'bit']) expect(learn.glossary[word], word).toBeDefined();
+    // one or two lines each (F-42)
+    for (const entry of Object.values(learn.glossary)) expect(entry.text.length, entry.word).toBeLessThan(220);
+  });
+
+  it('the potentiometer leads to the idea it leans on (screen 30c)', () => {
+    expect(page('potentiometer').text).toContain('(voltage-current-resistance)');
   });
 
   it('slice 8.1 has the LED and the potentiometer, each about its part', () => {
@@ -315,7 +337,8 @@ describe('M8.1 Learn as it is: library/learn', () => {
     for (const p of Object.values(learn.pages)) {
       const entry = listed.find((l) => l.id === p.id);
       expect(entry, p.id).toBeDefined();
-      expect(entry).toMatchObject({ title: p.title, card: p.card });
+      // an ideas page's heading may say more than its line in the list ("Voltage, current and resistance")
+      expect(entry).toMatchObject(p.kind === 'part' ? { title: p.title, card: p.card } : { card: p.card });
     }
     // each basic part and sensor listed is a part of the parts panel (the breadboard is its own thing there)
     for (const l of [...BASICS, ...SENSORS]) expect(PARTS, l.id).toContain(l.id);
@@ -330,7 +353,8 @@ describe('M8.1 Learn as it is: library/learn', () => {
 
   it('the search: a page by its title first, then by its words; glossary words; every word asked must be there', () => {
     expect(searchLearn(learn, 'led').pages[0]!.id).toBe('led');
-    expect(searchLearn(learn, 'KNOB').pages.map((p) => p.id)).toEqual(['potentiometer']);
+    expect(searchLearn(learn, 'WIPER').pages.map((p) => p.id)).toEqual(['potentiometer']);
+    expect(searchLearn(learn, 'knob').pages.map((p) => p.id)).toContain('potentiometer');
     expect(searchLearn(learn, 'wiper track').pages.map((p) => p.id)).toEqual(['potentiometer']);
     expect(searchLearn(learn, 'wiper zebra')).toEqual({ pages: [], words: [] });
     expect(searchLearn(learn, '   ')).toEqual({ pages: [], words: [] });

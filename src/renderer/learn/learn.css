@@ -85,6 +85,13 @@
 .mistake b { display: block; font-size: 12.5px; }
 .mistake span { color: var(--tx-2); font-size: 12.5px; line-height: 1.5; }
 
+/* an ideas page's own glossary (screen 30d) */
+.lwords > div { display: grid; grid-template-columns: minmax(90px, 28%) 1fr; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 1.45; }
+.lwords > div:last-child { border-bottom: 0; }
+.lwords dt { font-weight: 700; }
+.lwords dd { color: var(--tx-2); }
+.lsec h2 > .ico { color: var(--accent-ink); }
+
 /* ---------- home, the glossary, what a search found ---------- */
 .lgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
 .lcard { padding: 12px; display: flex; flex-direction: column; gap: 6px; text-align: left; align-items: stretch; position: relative; }

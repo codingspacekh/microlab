@@ -33,6 +33,7 @@ interface Words {
   onWord: (word: string, from: HTMLElement) => void;
   open: string | null;
   onPage: (id: string) => void;
+  glossary: LearnData['glossary'];
 }
 
 function Text({ kids, words }: { kids: Inline[]; words: Words }): ReactNode {
@@ -80,16 +81,28 @@ function BlockView({ block, idea, words }: { block: Block; idea: boolean; words:
           ))}
         </div>
       );
+    case 'words':
+      return (
+        <dl className="lwords">
+          {block.words.map((w) => {
+            const entry = words.glossary[w];
+            return entry ? <div key={w}><dt>{entry.word}</dt><dd><Text kids={entry.kids} words={words} /></dd></div> : null;
+          })}
+        </dl>
+      );
     case 'code': return null;
   }
 }
 
+/** A page's own glossary (screen 30d) is beside its sections, not one of them: it has no number. */
+const numbered = (section: Section) => section.title !== 'Glossary';
+
 function SectionCard({ section, n, words }: { section: Section; n: number; words: Words }) {
-  // the idea itself stands in its own box (screens 30b, 30c): the section's first paragraph
-  const ideaAt = section.title === 'The idea' ? section.blocks.findIndex((b) => b.t === 'p') : -1;
+  // the idea itself stands in its own box (screens 30b, 30c, 30d): the section's first paragraph
+  const ideaAt = section.title === 'The idea' || section.title === 'The rule' ? section.blocks.findIndex((b) => b.t === 'p') : -1;
   return (
     <section className="card lsec" aria-label={section.title}>
-      <h2><span className="num" aria-hidden="true">{n}</span>{section.title}</h2>
+      <h2>{numbered(section) ? <span className="num" aria-hidden="true">{n}</span> : <Icon name="list" size={16} />}{section.title}</h2>
       {section.blocks.map((b, i) => <BlockView key={i} block={b} idea={i === ideaAt} words={words} />)}
     </section>
   );
@@ -98,6 +111,8 @@ function SectionCard({ section, n, words }: { section: Section; n: number; words
 function PageView({ page, words }: { page: LearnPage; words: Words }) {
   const left = page.sections.slice(0, page.left);
   const right = page.sections.slice(page.left);
+  const numbers = page.sections.filter(numbered);
+  const numberOf = (s: Section) => numbers.indexOf(s) + 1;
   return (
     <>
       <div className="lcol wide">
@@ -110,11 +125,11 @@ function PageView({ page, words }: { page: LearnPage; words: Words }) {
             {page.uses.length > 0 && <div className="uses" aria-label="Where you meet it">{page.uses.map((u) => <span key={u}>{u}</span>)}</div>}
           </div>
         </div>
-        {left.map((s, i) => <SectionCard key={s.title} section={s} n={i + 1} words={words} />)}
+        {left.map((s) => <SectionCard key={s.title} section={s} n={numberOf(s)} words={words} />)}
       </div>
       {right.length > 0 && (
         <div className="lcol">
-          {right.map((s, i) => <SectionCard key={s.title} section={s} n={left.length + i + 1} words={words} />)}
+          {right.map((s) => <SectionCard key={s.title} section={s} n={numberOf(s)} words={words} />)}
         </div>
       )}
     </>
@@ -253,6 +268,7 @@ export function Learn({ at, onAt, learn = LEARN }: LearnProps) {
 
   const words: Words = {
     open: word?.word ?? null,
+    glossary: learn.glossary,
     onPage: go,
     onWord: (w, from) => {
       if (word?.word === w) { setWord(null); return; }

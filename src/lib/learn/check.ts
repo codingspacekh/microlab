@@ -66,8 +66,18 @@ export function checkPage(page: LearnPage, ctx: CheckContext): string[] {
     if (order[2]! >= 0 && !has(2, 'table')) said.push('“Its numbers” has no table');
     if (order[4]! >= 0 && !has(4, 'mistakes')) said.push('“Mistakes” lists none');
     if (page.left > page.sections.length) said.push('more sections are put on the left than it has');
+  }
+
+  // an ideas page (F-45) has its own shape: something to play with, and the idea said
+  if (page.kind === 'idea') {
+    if (!blocks.some((b) => b.t === 'figure')) said.push('it has no picture to play with');
+    if (!page.sections.some((s) => s.title === 'The rule')) said.push('it has no “The rule” section');
+    if (page.left > page.sections.length) said.push('more sections are put on the left than it has');
+  }
+
+  if (page.kind !== 'board') {
     const board = BOARD_NAME.exec(page.text);
-    if (board) said.push(`it names a board (“${board[0]}”): a part's page is about no particular board`);
+    if (board) said.push(`it names a board (“${board[0]}”): ${page.kind === 'part' ? 'a part\'s page' : 'an ideas page'} is about no particular board`);
   }
 
   if (blocks.some((b) => b.t === 'code') || page.text.includes('`')) said.push('it has code: Learn has none');
@@ -82,6 +92,7 @@ export function checkPage(page: LearnPage, ctx: CheckContext): string[] {
   };
   walk(page.lede, see);
   for (const b of blocks) for (const kids of inlines(b)) walk(kids, see);
+  for (const b of blocks) if (b.t === 'words') for (const w of b.words) if (!ctx.glossary[w]) said.push(`“${w}” is not in the glossary`);
 
   return [...new Set(said)];
 }

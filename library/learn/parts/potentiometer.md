@@ -15,6 +15,8 @@ figure: pot-inside
 ## The idea
 The track is one long resistor. The wiper splits it into two parts, and the push ([voltage]) splits the same way: the closer the wiper is to leg 3, the more volts it picks up. This is called a **[voltage divider]**.
 
+[Voltage, current, resistance →](voltage-current-resistance)
+
 ## Its numbers
 | Whole track | {pot.track.k} kΩ | between legs 1 and 3, whatever the knob says |
 | Turns | about 300° | not quite a full circle; it stops at each end |

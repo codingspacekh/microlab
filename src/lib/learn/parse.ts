@@ -13,6 +13,7 @@ import { learnNumber } from './numbers';
  *   = 9 V battery: 470 Ω   a box of worked values, side by side
  *   - **Title** what …     a mistake; `- ! **Title** …` one that breaks something
  *   > a quieter line       a small note
+ *   words: current | pin   the glossary's lines for these words, in the page (an ideas page's own glossary)
  *
  * No code: a page with a code fence or a backtick is refused by the checker.
  */
@@ -30,6 +31,8 @@ export type Block =
   | { t: 'table'; rows: Inline[][][] }
   | { t: 'calc'; cells: { label: string; value: string }[] }
   | { t: 'mistakes'; items: { bad: boolean; title: string; kids: Inline[] }[] }
+  /** Glossary words shown with their lines. */
+  | { t: 'words'; words: string[] }
   | { t: 'code' };
 
 export interface Section { title: string; blocks: Block[] }
@@ -159,9 +162,13 @@ function blocks(lines: string[]): Block[] {
     if (!line) { flush(); continue; }
     const figure = /^figure:\s*(\S+)$/.exec(line);
     const mistake = MISTAKE.exec(line);
+    const words = /^words:\s*(.+)$/.exec(line);
     if (figure) {
       flush();
       out.push({ t: 'figure', name: figure[1]! });
+    } else if (words) {
+      flush();
+      out.push({ t: 'words', words: words[1]!.split('|').map((w) => w.trim().toLowerCase()).filter(Boolean) });
     } else if (line.startsWith('|') && line.endsWith('|') && line.length > 1) {
       flush();
       const row = line.slice(1, -1).split('|').map((cell) => inline(cell.trim()));
