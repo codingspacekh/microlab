@@ -1,4 +1,15 @@
 {
+  "1.1.0": [
+    "Learn: a new tab that shows how electronics works — the basic parts and six sensors, each with a picture you can play with",
+    "The big ideas — voltage and current, circuits as loops, inside a breadboard, series and parallel, digital and analog, PWM — and a glossary of the words",
+    "Right-click a part on your circuit, or use the button beside it in the parts panel, to open its page in Learn",
+    "The micro:bit talks in its real robot voice in the simulator: speech.say(\"Hello\") sounds as it does on the board",
+    "speech.translate() shows the sounds (phonemes) of your words, and speech.sing() sings its notes"
+  ],
+  "1.0.2": [
+    "The micro:bit talks in its real robot voice in the simulator: speech.say(\"Hello\") sounds as it does on the board",
+    "speech.translate() shows the sounds (phonemes) of your words, and speech.sing() sings its notes"
+  ],
   "1.0.1": [
     "Stop always stops a program run on your real board — even pressed right after Run — and the board goes quiet",
     "The red line under an error goes as soon as you change the code",

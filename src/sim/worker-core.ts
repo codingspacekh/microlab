@@ -31,6 +31,8 @@ export type WorkerMessage =
   /** The board's own outputs that changed (M4.5): pin levels ('LED' is the Pico W's own LED), the display, the
    *  micro:bit speaker's pitch (Hz, 0: silence; M6.2), its volume (0–1) and waveform (M7 slice 4). */
   | { type: 'board'; pins: Record<string, number>; display?: string; sound?: number; tone?: Tone; radio?: string[]; state?: SimState }
+  /** The micro:bit speaks (1.0.2): SAM's samples for the window to play; null: cut short. */
+  | { type: 'speech'; said: { samples: Uint8Array; rate: number; volume: number } | null }
   /** A fault first seen (M9 slice 2), warnings too, with its time: after what came before it. */
   | { type: 'fault'; fault: Fault }
   /** The program has ended and the REPL is ready (M9, F-23): the worker goes on until Stop. */
@@ -136,6 +138,11 @@ export async function handleStart(
     onRadio: (hex) => {
       radio.push(hex);
       maybeFlush();
+    },
+    // said at once, after what came before it
+    onSpeech: (said) => {
+      flush();
+      post({ type: 'speech', said });
     },
   });
   flush();

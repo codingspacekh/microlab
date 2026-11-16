@@ -11,6 +11,7 @@ Jedi and parso, Electron and the library pack carry their own; the build reads t
 | `pico-w-firmware/` | In the Pico W firmware: Infineon's **cyw43-driver** (Wi-Fi/Bluetooth) and the **pico-sdk** | cyw43: Raspberry Pi's licence — redistribution only with RP2040 and its notice reproduced (`LICENSE.RP`); pico-sdk: BSD-3-Clause | the submodules of MicroPython v1.29.0 (cyw43-driver `055d642`, pico-sdk `98a542c`) |
 | `micropython-microbit/` | micro:bit MicroPython v2.1.2 (the micro:bit firmware) | MIT | microbit-foundation/micropython-microbit-v2 |
 | `micropython-microbit/codal/` | **CODAL**, which the micro:bit firmware is built on, and Nordic's nRF5 SDK in it | CODAL: MIT (Lancaster University); nRF5 SDK: Nordic's 5-clause licence — binaries only with a Nordic chip, notice reproduced | lancaster-university/codal-microbit-v2, codal-core, codal-nrf52; microbit-foundation/codal-microbit-nrf5sdk (`LICENCE.txt`) — 2026-11-09 |
+| `micropython-microbit/sam/` | **SAM** (Software Automatic Mouth, 1982), the micro:bit's speech synthesizer: in the firmware, and ported to TypeScript in the simulator (`src/sim/sam`, 1.0.2) | **No licence** — `NOTICE.txt` says where it comes from and that it has none (the teacher's decision, 2026-11-16: "port SAM for the real speech voice") | `lib/sam` of microbit-foundation/micropython-microbit-v2 v2.1.2, from s-macke/SAM |
 
 **A new firmware, Python or library**: its licence texts here first; `scripts/licences.ts` names the folders of each
 firmware (`FIRMWARE_LICENCES`) and refuses one it doesn't know.

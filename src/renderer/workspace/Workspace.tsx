@@ -21,7 +21,9 @@ import { FilesPanel, type FilesAsk } from './FilesPanel';
 import { CheckCard, checkProblem } from './check';
 import type { ProblemItem } from './faults';
 import { Inspector } from './Inspector';
-import { BreadboardIcon, PartIcon } from './drawings';
+import { BreadboardIcon, inText, PartIcon } from './drawings';
+import { learnPageFor } from '@lib/learn';
+import { LEARN } from '../learn/content';
 import { CONSOLE_MAX, CONSOLE_MIN, useBoardConsole } from './useBoardConsole';
 import { useBoardPanel } from './useBoardPanel';
 import './workspace.css';
@@ -84,6 +86,9 @@ export interface WorkspaceProps {
   onType?: (text: string) => void;
   /** Ctrl+D at the REPL: the program runs again. */
   onSoftReset?: () => void;
+  /** A way into Learn (M8, F-44): a part's page, by its id — from the parts panel, a part on the canvas (right-click),
+   *  the inspector, a fault's card. */
+  onLearn?: (page: string) => void;
 }
 
 /** Edits of one value of one thing within this long are one undo step (a stepper held, a value typed). */
@@ -96,7 +101,7 @@ const IDLE_RUN: Pick<RunState, 'parts' | 'board'> = { parts: {}, board: { pins: 
 
 export function Workspace({
   api, width: fixed, doc, onChange, run, running, onInput, onClearConsole, board: realBoard, consoleTab, consoleSplit, onConsoleTab, banner, onType, onSoftReset,
-  onReplace, onClearFaults, onClearPlot, check, history = EMPTY_HISTORY, onHistory, onUndo, onRedo, file = 'main.py', onFile, runFile = file,
+  onReplace, onClearFaults, onClearPlot, check, history = EMPTY_HISTORY, onHistory, onUndo, onRedo, file = 'main.py', onFile, runFile = file, onLearn,
 }: WorkspaceProps) {
   const { ref, width } = useWidth(fixed);
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
@@ -326,7 +331,7 @@ export function Workspace({
         <Canvas project={project} onChange={(p) => setProject(p)} placing={placing} onPlacing={setPlacing} selection={selection} onSelect={setSelection}
           running={running} outputs={running || run.ended ? run : IDLE_RUN} onInput={onInput}
           onUndo={onUndo} onRedo={onRedo} onOpenParts={() => setPartsOpen(true)} inset={partsOpen ? partsPx : 0} notice={notice}
-          faults={cards} burnt={run.burnt} onReplace={onReplace} canUndo={history.past.length > 0} focus={focus} />
+          faults={cards} burnt={run.burnt} onReplace={onReplace} canUndo={history.past.length > 0} focus={focus} onLearn={onLearn} />
         {partsOpen && (
         <div className="drawer-wrap">
       <section className="parts" aria-label="Parts" style={{ width: partsPx }} onKeyDown={(e) => { if (e.key === 'Escape' && !placing) { e.stopPropagation(); setPartsOpen(false); } }}>
@@ -369,15 +374,25 @@ export function Workspace({
                     </button>
                   );
                 })}
-                {kinds.map((k) => (
-                  <button key={k.type} type="button" className={placing?.type === k.type ? 'pitem drag' : 'pitem'}
+                {kinds.map((k) => {
+                  // M8 (F-44): a part with a Learn page has its way in beside it, shown as the mouse comes over
+                  const page = onLearn && learnPageFor(LEARN, k.type);
+                  return (
+                  <div key={k.type} className="prow">
+                  <button type="button" className={placing?.type === k.type ? 'pitem drag' : 'pitem'}
                     title={k.free ? `Drag the ${inText(k.name)} onto the canvas beside the breadboard, or click it and then click where it goes`
                       : `Drag the ${inText(k.name)} onto the breadboard, or click it and then click where it goes`}
                     aria-disabled={running || undefined} {...pick(k.type)}>
                     <span className="pic"><PartIcon type={k.type} /></span>
                     <span className="nm">{k.name}<small>{k.detail}</small></span>
                   </button>
-                ))}
+                  {page && (
+                    <button type="button" className="btn ghost sm icon lrn" aria-label={`Learn about the ${inText(page.title)}`} title={`Learn about the ${inText(page.title)}: how it works inside`}
+                      onClick={() => onLearn(page.id)}><Icon name="book" size={14} /></button>
+                  )}
+                  </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -399,7 +414,7 @@ export function Workspace({
         {(banner ?? errorBanner) && <div className={`cbanner${banner ? '' : ' error'}`} role={banner ? undefined : 'note'}>{banner ?? errorBanner}</div>}
         {selection.length === 1 && (
           <Inspector key={`${selection[0]!.kind}:${selection[0]!.id}`} project={project} selection={selection[0]!} onChange={setProject} onClose={() => setSelection([])} onSelect={setSelection}
-            doc={doc} onDoc={onChange} onNotice={(text) => setNotice({ text })} />
+            doc={doc} onDoc={onChange} onNotice={(text) => setNotice({ text })} onLearn={onLearn} />
         )}
       </section>
       <Divider label="Code panel width" value={sidePx} min={LIMITS.side[0]} max={sideMax} edge="right"
@@ -503,11 +518,6 @@ export function Workspace({
       </section>
     </div>
   );
-}
-
-/** A part's name inside a sentence: 'push button', but 'LED', 'RGB LED'. */
-function inText(name: string): string {
-  return /^[A-Z]{2}/.test(name) ? name : name[0]!.toLowerCase() + name.slice(1);
 }
 
 /** A file's text; a file that isn't text (bytes) is shown empty until the file tree can say so (M5). */

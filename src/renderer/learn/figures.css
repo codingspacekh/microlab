@@ -1,0 +1,29 @@
+/* Learn's pictures (src/renderer/learn/figures.tsx): only what the drawings need — the page's own classes
+   (.play, .ctl, .says …) are the page's. A picture fills its box up to its drawn size, and keeps its shape. */
+svg.lfig { display: block; width: 100%; height: auto; margin: 0 auto; }
+svg.lfig text { font-family: inherit; }
+svg.lfig .lf-ink { fill: var(--tx-1); }
+svg.lfig .lf-muted { fill: var(--tx-2); }
+svg.lfig .lf-accent { fill: var(--accent); }
+svg.lfig .lf-plus { fill: var(--danger); }
+svg.lfig .lf-dot { fill: var(--accent); }
+svg.lfig .lf-lead { stroke: var(--accent); stroke-width: 1.1; fill: none; }
+/* the current's way through the LED; too much of it is drawn as a warning */
+svg.lfig .lf-flow { stroke: var(--accent); fill: none; stroke-dasharray: 7 6; }
+svg.lfig .lf-flow.over { stroke: var(--danger); }
+/* the state that applies now, in the row of three */
+svg.lfig .lf-now { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.2; }
+svg.lfig .lf-holes text { font-family: var(--mono); }
+/* the knob is turned by dragging; the leads drawn over it don't take the pointer */
+svg.lfig .lf-knob { cursor: grab; touch-action: none; }
+svg.lfig .lf-knob:active { cursor: grabbing; }
+svg.lfig .lf-still { pointer-events: none; }
+.play .lf-row { margin-top: 6px; }
+/* a slider whose value is words too (the LDR's light: "10 000 lux · sunlight") */
+.play .ctl.lf-wide .slider { grid-template-columns: 60px 1fr 170px; }
+/* several sliders, one under the other */
+.play .ctl + .ctl { margin-top: 2px; }
+/* a slider that steps through named stages (following the current through a breadboard) */
+.play .ctl.lf-steps .slider { grid-template-columns: 150px 1fr 150px; }
+/* a long name and a value in words (where the person is in front of the motion sensor) */
+.play .ctl.lf-long .slider { grid-template-columns: 150px 1fr 170px; }

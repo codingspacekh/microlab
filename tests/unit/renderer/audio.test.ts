@@ -128,3 +128,58 @@ describe('M7 slice 4: the micro:bit speaker\'s volume and waveform', () => {
     expect(a.ctx.oscillators[0]!.type).toBe('square');
   });
 });
+
+/** 1.0.2: the micro:bit's voice (speech) — SAM's samples played once, not a tone at the voice's pitch. */
+describe('1.0.2 the micro:bit says something', () => {
+  function withBuffers() {
+    const a = fakeAudio();
+    const sources: { data: Float32Array<ArrayBufferLike>; rate: number; started: boolean; stopped: boolean }[] = [];
+    Object.assign(a.ctx, {
+      createBuffer(_channels: number, length: number, rate: number) { const data = new Float32Array(length); return { rate, data, getChannelData: () => data }; },
+      createBufferSource() {
+        const s = { buffer: null as { data: Float32Array<ArrayBufferLike>; rate: number } | null, connect() {}, start() { rec.started = true; rec.data = s.buffer!.data; rec.rate = s.buffer!.rate; }, stop() { rec.stopped = true; } };
+        const rec: (typeof sources)[number] = { data: new Float32Array(0), rate: 0, started: false, stopped: false };
+        sources.push(rec);
+        return s;
+      },
+    });
+    return { ...a, sources };
+  }
+
+  it('the speaker\'s sound while it speaks is no voice of its own: the samples are what is heard', () => {
+    expect(voicesOf({}, 239, { volume: 1, wave: 'speech' })).toEqual([]);
+  });
+
+  it('its samples (0–255, 128 the middle) are played once, at their own rate, as loud as set_volume says', () => {
+    const a = withBuffers();
+    const p = new SoundPlayer(a.make);
+    p.say({ samples: Uint8Array.from([128, 255, 0, 192]), rate: 19000, volume: 0.5 }, false);
+    expect(a.sources).toHaveLength(1);
+    expect(a.sources[0]!.started).toBe(true);
+    expect(a.sources[0]!.rate).toBe(19000);
+    expect([...a.sources[0]!.data]).toEqual([0, 127 / 128, -1, 0.5]);
+    expect(a.ctx.gains.at(-1)!.gain.value).toBeCloseTo(0.3);
+  });
+
+  it('saying something new, Stop (null) or closing cuts short what it was saying; muted, or the speaker off, nothing plays', () => {
+    const a = withBuffers();
+    const p = new SoundPlayer(a.make);
+    const said = { samples: Uint8Array.from([128, 200]), rate: 19000, volume: 1 };
+    p.say(said, false);
+    p.say(said, false);
+    expect(a.sources[0]!.stopped).toBe(true);
+    p.say(null, false);
+    expect(a.sources[1]!.stopped).toBe(true);
+    p.say(said, true);
+    p.say({ ...said, volume: 0 }, false);
+    expect(a.sources).toHaveLength(2);
+    p.say(said, false);
+    p.close();
+    expect(a.sources[2]!.stopped).toBe(true);
+  });
+
+  it('a sound device without buffers (a test\'s fake) plays none, and nothing breaks', () => {
+    const a = fakeAudio();
+    expect(() => new SoundPlayer(a.make).say({ samples: Uint8Array.from([1]), rate: 19000, volume: 1 }, false)).not.toThrow();
+  });
+});

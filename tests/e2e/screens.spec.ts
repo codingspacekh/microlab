@@ -10,7 +10,7 @@ import { newProject } from './new-project';
  *  screen's problems are collected, then all are shown at once. */
 const SIZES = [[1280, 720], [1440, 900], [1920, 1080]] as const;
 const NATIVE = 'select, input[type=checkbox], input[type=radio], input[type=color], input[type=range], input[type=number], input[type=date], input[type=time], input[type=file]';
-const FLOATING = '[role=dialog], [role=alertdialog], [role=menu], [role=listbox], .float, .cm-tooltip';
+const FLOATING = '[role=dialog], [role=alertdialog], [role=menu], [role=listbox], .float, .cm-tooltip, .gloss';
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
 
 async function problemsOn(win: Page): Promise<string[]> {
@@ -73,6 +73,35 @@ for (const [width, height] of SIZES) {
       await away();
       await win.getByRole('tab', { name: 'Learn' }).click();
       await look('Learn');
+      // M8.1: a part's page with its pictures, a glossary word open, the page you play with, the glossary, a search
+      const learn = win.getByRole('navigation', { name: 'Learn' });
+      await learn.getByRole('button', { name: 'LED', exact: true }).click();
+      await look('Learn ▸ LED');
+      await win.getByRole('main', { name: 'LED' }).getByRole('button', { name: 'current' }).click();
+      await look('Learn ▸ LED, a word open');
+      await away();
+      await learn.getByRole('button', { name: 'Potentiometer' }).click();
+      await look('Learn ▸ Potentiometer');
+      // M8.2: the other basic parts, each with its picture and its controls
+      for (const part of ['Breadboard', 'Resistor', 'RGB LED', 'Push button', 'Slide switch', 'Light sensor (LDR)', 'Buzzer', 'Battery pack']) {
+        await learn.getByRole('button', { name: part, exact: true }).click();
+        await look(`Learn ▸ ${part}`);
+      }
+      // M8.3: the big ideas, each with its picture and its own glossary
+      for (const idea of ['Voltage, current, resistance', 'A circuit is a loop', 'Inside a breadboard', 'Series and parallel', 'Digital and analog', 'PWM']) {
+        await learn.getByRole('button', { name: idea, exact: true }).click();
+        await look(`Learn ▸ ${idea}`);
+      }
+      // M8.4: the six sensors
+      for (const sensor of ['Ultrasonic HC-SR04', 'DHT11 / DHT22', 'PIR motion', 'Temperature', 'Soil moisture', 'Line sensor (IR)']) {
+        await learn.getByRole('button', { name: sensor, exact: true }).click();
+        await look(`Learn ▸ ${sensor}`);
+      }
+      await learn.getByRole('button', { name: 'Glossary' }).click();
+      await look('Learn ▸ Glossary');
+      await learn.getByRole('textbox', { name: 'Search Learn' }).fill('current');
+      await look('Learn ▸ Search');
+      await learn.getByRole('textbox', { name: 'Search Learn' }).fill('');
       await win.getByRole('tab', { name: 'Python 3' }).click();
       await look('Python 3 (no project)');
       await win.getByRole('tab', { name: 'Workspace' }).click();

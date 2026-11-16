@@ -20,6 +20,8 @@ import { noteName } from '../audio';
 import { InputsCard, MicrobitCard, PartTip, SLIDER_PARTS, UsbSocket, UsbTip, useLive } from './live';
 import { psuJumpers, type ActLook } from './actuators';
 import { FaultCardView, FaultNote } from './faults';
+import { learnPageFor } from '@lib/learn';
+import { LEARN } from '../learn/content';
 import { MeterCard, Probe, type MeterState } from './meter';
 
 /**
@@ -140,6 +142,8 @@ export interface CanvasProps {
   canUndo?: boolean;
   /** Show (Problems): a part or pin brought into view and ringed; `n` makes each Show a new one. */
   focus?: { part?: string; pin?: string; point?: string; n: number };
+  /** A way into Learn (M8, F-44): right-click a part → Learn about this; a fault card's Show me how. */
+  onLearn?: ((page: string) => void) | undefined;
 }
 
 /** `box` fitted into the part of a `w` × `h` canvas right of `inset` px, as a viewBox for the whole canvas; just
@@ -159,7 +163,7 @@ const NO_OUTPUTS = { parts: {}, board: { pins: {} } };
 
 export function Canvas({
   project, onChange, placing, onPlacing, selection, onSelect, running = false, outputs = NO_OUTPUTS, onInput,
-  onUndo, onRedo, onOpenParts, inset = 0, notice, faults = [], burnt = [], onReplace, canUndo = false, focus,
+  onUndo, onRedo, onOpenParts, inset = 0, notice, faults = [], burnt = [], onReplace, canUndo = false, focus, onLearn,
 }: CanvasProps) {
   const svg = useRef<SVGSVGElement>(null);
   const [pressed, setPressed] = useState<string | null>(null);
@@ -270,8 +274,29 @@ export function Canvas({
   };
   // the cards closed with their ×: they stay in Problems; a new run shows its own
   const [closed, setClosed] = useState<string[]>([]);
+  // M8 (F-44): right-click a part that has a Learn page → a menu of one thing, where the mouse is
+  const [partMenu, setPartMenu] = useState<{ page: string; title: string; left: number; top: number } | null>(null);
+  useEffect(() => {
+    if (!partMenu) return;
+    const away = (e: Event) => { if (!(e.target as Element | null)?.closest?.('.part-menu')) setPartMenu(null); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setPartMenu(null); };
+    window.addEventListener('mousedown', away);
+    window.addEventListener('wheel', away);
+    window.addEventListener('keydown', key, true);
+    return () => {
+      window.removeEventListener('mousedown', away);
+      window.removeEventListener('wheel', away);
+      window.removeEventListener('keydown', key, true);
+    };
+  }, [partMenu]);
   useEffect(() => { if (running) setClosed([]); }, [running]);
   const damage = faults.find((c) => c.severity === 'damage' && !closed.includes(c.key));
+  /** A fault card's Show me how (screen 04): its part's Learn page, where one is written. */
+  const learnOf = (partId: string | undefined) => {
+    const type = project.parts.find((p) => p.id === partId)?.type;
+    const page = type ? learnPageFor(LEARN, type) : undefined;
+    return page && onLearn ? () => onLearn(page.id) : undefined;
+  };
   const notes = faults.filter((c) => c.severity === 'warning' && !closed.includes(c.key)
     && !faults.some((d) => d.severity === 'damage' && c.show.pin && (d.via === c.show.pin || d.show.pin === c.show.pin))).slice(0, 2);
   const hurtPins = running ? [] : faults.flatMap((c) => (c.hurt?.pin ? [c.hurt.pin] : []));
@@ -898,6 +923,12 @@ export function Canvas({
           const hz = tone?.kind === 'buzzer' && tone.volume > 0 ? tone.hz : p.type === 'buzzer' ? 0 : undefined;
           return (
             <g key={p.id} data-part={p.id} data-legs={Object.values(p.legs).join(' ')} data-props={JSON.stringify(p.props ?? {})} role="img"
+              onContextMenu={(e) => {
+                const page = onLearn && learnPageFor(LEARN, p.type);
+                if (!page) return;
+                const box = svg.current!.getBoundingClientRect();
+                setPartMenu({ page: page.id, title: page.title, left: e.clientX - box.left, top: e.clientY - box.top });
+              }}
               {...(lying ? { 'data-at': `${lying.x},${lying.y}` } : {})}
               {...(lit !== undefined ? { 'data-lit': lit > 0.01 ? '1' : '0' } : {})}
               {...(position !== undefined ? { 'data-position': String(position) } : {})}
@@ -1036,10 +1067,18 @@ export function Canvas({
                 style={{ right: running && boardOpen && project.board === 'microbit-v2' ? 300 : 14, top: 14 }} />
             )}
             {/* M9 slice 2 (screens 04, 25c): the damage's card and the warnings' notes, beside what they are on */}
+            {partMenu && onLearn && (
+              <div className="float part-menu" role="menu" aria-label={partMenu.title} style={{ left: partMenu.left, top: partMenu.top }}>
+                <button type="button" role="menuitem" autoFocus onClick={() => { setPartMenu(null); onLearn(partMenu.page); }}>
+                  <Icon name="book" size={14} /> Learn about this
+                </button>
+              </div>
+            )}
             {damage && !running && (() => {
               const led = damage.hurt?.led;
               return (
                 <FaultCardView card={damage} style={{ ...near(damage.show.pin ? [] : refsOf(damage.show.part ?? ''), 40), ...pinNear(damage.show.pin) }}
+                  onLearn={learnOf(damage.show.part)}
                   onClose={() => setClosed((c) => [...c, damage.key])}
                   {...(led && onReplace ? { onReplace: () => onReplace(led) } : {})}
                   {...(!led && canUndo && onUndo ? { onUndo } : {})} />

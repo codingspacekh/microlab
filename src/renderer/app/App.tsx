@@ -20,6 +20,7 @@ import { usePython, type PyRunState } from '../python3/usePython';
 import { Libraries } from '../python3/Libraries';
 import '../python3/python3.css';
 import { Workspace } from '../workspace/Workspace';
+import { Learn, LEARN_HOME } from '../learn/Learn';
 import { BoardChip, plugMessage } from '../board/BoardChip';
 import { BoardFiles } from '../board/BoardFiles';
 import { ConnectionHelper } from '../board/ConnectionHelper';
@@ -80,6 +81,18 @@ export interface AppProps {
 
 export function App({ api, width, startRun, audio }: AppProps) {
   const [mode, setMode] = useState<Mode>('workspace');
+  // Learn (M8): the page shown, kept while the student is elsewhere; and where Learn was opened from, to go back
+  const [learnAt, setLearnAt] = useState(LEARN_HOME);
+  const [learnFrom, setLearnFrom] = useState<Mode>('workspace');
+  const toMode = (m: Mode) => {
+    if (m === 'learn' && mode !== 'learn') setLearnFrom(mode);
+    setMode(m);
+  };
+  /** A way in (F-44): a part's page from the workspace. */
+  const openLearn = (page: string) => {
+    setLearnAt(page);
+    toMode('learn');
+  };
   const [open, setOpen] = useState<OpenProject | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const controls = useHash() === '#controls';
@@ -603,14 +616,14 @@ export function App({ api, width, startRun, audio }: AppProps) {
         onClose={closePy} run={pyRun.state} running={pyRunning} onType={pyRun.type}
         onRerun={() => runPy(true)} onClear={pyRun.clear} onClearPlot={pyRun.clearPlot} />
     ) : <NoPythonProject onNew={newPython} onOpen={() => void openAny()} />)
-    : mode !== 'workspace' ? <Later />
+    : mode !== 'workspace' ? <Learn at={learnAt} onAt={setLearnAt} />
     : open ? <Workspace key={open.key} api={api} width={width} doc={open.doc} onChange={(doc) => setOpen((cur) => (cur ? { ...cur, doc, savedNote: undefined } : cur))}
         history={open.history ?? EMPTY_HISTORY} onHistory={(h) => setOpen((cur) => (cur ? { ...cur, history: h } : cur))}
         onUndo={() => step(undo)} onRedo={() => step(redo)}
         file={open.file ?? 'main.py'} onFile={(p) => setOpen((cur) => (cur ? { ...cur, file: p } : cur))}
         runFile={running ? open.lastRun ?? target : target}
         run={sim.state} running={running} onInput={sim.setInput} onClearConsole={sim.clear}
-        onType={sim.type} onSoftReset={() => sim.restart(() => latest.current!.doc)}
+        onType={sim.type} onSoftReset={() => sim.restart(() => latest.current!.doc)} onLearn={openLearn}
         onReplace={sim.replace} onClearFaults={sim.clearFaults} onClearPlot={sim.clearPlot}
         check={{ items: checkItems, open: !!checking && !running, enabled: checkOn, onEnabled: turnCheck,
           onRunAnyway: () => runNow(checking ?? target), onCancel: () => setChecking(null) }}
@@ -643,7 +656,8 @@ export function App({ api, width, startRun, audio }: AppProps) {
 
   return (
     <div className="app">
-      <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={setMode} project={open} dirty={dirty} run={runControls} chip={chip} {...actions}
+      <TopBar mode={open || mode !== 'workspace' ? mode : undefined} onMode={toMode} project={open}
+        back={mode === 'learn' && (learnFrom === 'python' ? !!pyProject : !!open) ? () => setMode(learnFrom) : undefined} dirty={dirty} run={runControls} chip={chip} {...actions}
         onOpenAny={() => guard(() => void openAny())}
         onAbout={() => setAboutOpen(true)}
         py={pyProject ? {
@@ -761,6 +775,8 @@ interface TopBarProps {
   onOpenAny: () => void;
   /** About MicroLab (M11, F-108): the logo opens it. */
   onAbout: () => void;
+  /** In Learn (screen 30), with a project open: back to it. */
+  back?: (() => void) | undefined;
   /** The Python 3 mode (M12, screen 31b): the file shown, its menu, its Run. */
   py?: { project: { root: string; name: string }; tab?: PyTab; run?: RunControls; onNew: () => void; onOpen: () => void; onClose: () => void; onSave: () => void; onSaveAs: () => void; onShow: () => void; onLibraries: () => void };
 }
@@ -788,7 +804,7 @@ interface RunControls {
 
 const MOD = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
-function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, onOpen, onSave, onSaveAs, onCloseProject, onOpenAny, py, onAbout }: TopBarProps) {
+function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, onOpen, onSave, onSaveAs, onCloseProject, onOpenAny, py, onAbout, back }: TopBarProps) {
   return (
     <header className="topbar">
       <button type="button" className="brand about-link" aria-label="About MicroLab" title="About MicroLab" onClick={onAbout}><Logo /><b>Micro<span>Lab</span></b></button>
@@ -799,7 +815,13 @@ function TopBar({ mode, onMode, project, dirty, run, chip, edit, onNewProject, o
           </button>
         ))}
       </div>
-      {mode === 'python' && py ? (
+      {mode === 'learn' ? (
+        // Learn's top bar has the modes alone (screen 30): the project waits, as it was
+        <>
+          <span className="spacer" />
+          {back && <button type="button" className="btn" onClick={back}><Icon name="chevl" size={14} /> Back to my project</button>}
+        </>
+      ) : mode === 'python' && py ? (
         <>
           <div className="vsep" />
           <div className="pyfile" role="group" aria-label="Python project">
@@ -988,7 +1010,6 @@ function StatusBar({ api, project, run, board, sound, check }: { api: MicrolabAp
   );
 }
 
-/** Learn, until M8 builds it. */
 /** The status bar in Python 3 (screen 31b): how the run is, and which Python runs it. */
 function PyStatusBar({ api, run, libraries }: { api: MicrolabApi; run: PyRunState; libraries: number | null }) {
   const e = run.ended;
@@ -1027,11 +1048,3 @@ function NoPythonProject({ onNew, onOpen }: { onNew: () => void; onOpen: () => v
   );
 }
 
-function Later() {
-  return (
-    <main className="later">
-      <h1>Learn</h1>
-      <p className="muted">How each part works inside, the idea behind it and how to connect it — coming in M8.</p>
-    </main>
-  );
-}

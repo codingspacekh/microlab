@@ -1,0 +1,16 @@
+SAM — Software Automatic Mouth
+
+The micro:bit's speech module (speech.say, pronounce, sing, translate) is SAM, a speech synthesizer first published
+for home computers in 1982 by Don't Ask Software (later SoftVoice, Inc.). The micro:bit firmware carries a C version
+of it in lib/sam (microbit-foundation/micropython-microbit-v2), which comes from the reverse-engineered C conversion
+of the original program published at github.com/s-macke/SAM.
+
+That source carries no licence. Its publisher states that the original program is long out of print, that the
+company no longer exists, and that the conversion therefore cannot be put under an open-source licence.
+
+MicroLab contains SAM in two places:
+  - compiled inside the micro:bit firmware it can install (micro:bit MicroPython v2.1.2, unchanged);
+  - in the simulator, as a line-by-line TypeScript port of the firmware's lib/sam (src/sim/sam), so that a program
+    that speaks sounds in the simulator as it does on the board. Its tables are copied byte for byte.
+
+It is included for teaching, as the micro:bit itself includes it. All rights in SAM remain with their owners.

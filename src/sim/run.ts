@@ -4,6 +4,7 @@ import { RealClock, type Clock } from './clock';
 import type { Control } from './control';
 import { PinBank, RP2040_RESET, type AnalogEntry, type InputChange, type Level, type PinMode, type PinState, type Pull, type PwmEntry, type TraceEntry } from './pins';
 import { Motion, type MotionChange } from './motion';
+import { SamError, samSpeak, samTranslate } from './sam';
 import { soundSteps, type Wave } from './soundfx';
 import { TimerBank } from './timers';
 import { HELP } from './help-text';
@@ -44,6 +45,8 @@ export interface RunResult {
   /** Every change of the micro:bit's speaker (music, pitch, audio): [µs, Hz], 0 for silence (M2.6c); with its volume
    *  (0–1) and waveform when not full and square (M7 slice 4: set_volume, a sound effect). */
   sound: SoundEntry[];
+  /** Everything the micro:bit said (1.0.2, speech): [µs, the phonemes, how many samples, samples a second]. */
+  speech: [number, string, number, number][];
   /** Bus traffic (I²C, SPI, UART, bitstream) as it reaches the bridge: [µs, 'i2c sda=4 scl=5 write 3c 00 nack'] (M2.7). */
   bus: [number, string][];
   /** Every change of a part in the circuit (M3.4); [] without a circuit. The Pico W's LED is in `trace` ('LED'). */
@@ -114,6 +117,9 @@ export interface RunOptions {
   onDisplay?: (pixels: string) => void;
   /** Each change of the micro:bit speaker's pitch, Hz (0: silence) (M6.2). */
   onSound?: (hz: number, volume: number, wave: Wave) => void;
+  /** The micro:bit speaks (1.0.2): SAM's samples (unsigned 8-bit, 128 the middle), how many a second, and how loud
+   *  (0–1: set_volume, the speaker off); null: it is cut short (Stop, an error). */
+  onSpeech?: (said: { samples: Uint8Array; rate: number; volume: number } | null) => void;
   /** Seeds the sound effects' randomness (M7 slice 4: tests); otherwise each run differs, as on the real one. */
   seed?: number;
   /** Each message the micro:bit's radio sends (M7): its bytes as hex. */
@@ -174,11 +180,12 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const events = new Events(mp, pins, timers);
   const display: [number, string][] = [];
   const sound: SoundEntry[] = [];
+  const speech: [number, string, number, number][] = [];
   const bus: [number, string][] = [];
   const radio: [number, string][] = [];
   const motion = new Motion((options.inputs ?? []).filter((c) => c.pin === 'ACCEL') as MotionChange[], now);
   mp.registerJsModule('_ream', bridge(mp, clock, pins, timers, events, {
-    console, display, sound, motion, bus, radio, stop, quiet, circuit, stdin,
+    console, display, sound, speech, motion, bus, radio, stop, quiet, circuit, stdin,
     asOf: (t, read) => { asOf = t; try { return read(); } finally { asOf = undefined; } },
   }, options));
   mp._module.microlabHook = () => {
@@ -218,7 +225,7 @@ export async function runProject(load: LoadMicroPython, options: RunOptions): Pr
   const withText = (f: Fault) => ({ ...f, message: describeFault(f) });
   const result = (): RunResult => {
     const damage = circuit?.damage;
-    return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, bus, radio, parts: circuit?.partTrace ?? [],
+    return { output: console.output, trace: pins.trace, pwm: pins.pwmTrace, analog: pins.analogTrace, display, sound, speech, bus, radio, parts: circuit?.partTrace ?? [],
       faults: [...(circuit?.seen.values() ?? [])].map(withText), ...(damage ? { fault: withText(damage) } : {}), ended: ended(),
       ...(ended() === 'error' ? { error: parseTraceback(traceback) } : {}), ...(repl ? { repl: true } : {}) };
   };
@@ -264,6 +271,7 @@ interface MicrobitParts {
   display: [number, string][];
   radio: [number, string][];
   sound: SoundEntry[];
+  speech: [number, string, number, number][];
   motion: Motion;
   bus: [number, string][];
   /** True once Stop is asked for (and KeyboardInterrupt is on its way). */
@@ -299,7 +307,7 @@ function stopper(mp: MicroPython, control: Control | undefined, faulted: () => b
 }
 
 function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank, events: Events, mb: MicrobitParts, options: RunOptions) {
-  const { console, display, sound, motion, bus, radio, stop, quiet, circuit, stdin, asOf } = mb;
+  const { console, display, sound, speech, motion, bus, radio, stop, quiet, circuit, stdin, asOf } = mb;
   const random = seeded(options.seed ?? Date.now());
   const log = (entry: string) => { if (options.record !== false) bus.push([clock.nowUs(), entry]); };
   // the micro:bit's own inputs from the window (M6.6, screen 06): 'board:…' slots, NaN until the window sets them
@@ -440,6 +448,22 @@ function bridge(mp: MicroPython, clock: Clock, pins: PinBank, timers: TimerBank,
       }
       options.onSound?.(h, v, wave);
     },
+    /** speech.translate (1.0.2): the phonemes SAM makes of the words — 'ok:…', or 'err:' and the firmware's words. */
+    speech_translate: (words: string): string => {
+      try { return `ok:${samTranslate(words)}`; } catch (e) { if (e instanceof SamError) return `err:${e.message}`; throw e; }
+    },
+    /** speech.say / pronounce / sing (1.0.2): SAM renders the phonemes, the window plays them at `loud` (0–1);
+     *  'ok:' and how long they last (µs), or 'err:' and SAM's own words. */
+    speech: (phonemes: string, pitch: number, speed: number, mouth: number, throat: number, sing: boolean, mode: number, volume: number, loud: number): string => {
+      let said;
+      try { said = samSpeak(phonemes, { pitch, speed, mouth, throat, sing: !!sing, mode, volume }); } catch (e) { if (e instanceof SamError) return `err:${e.message}`; throw e; }
+      speech.push([clock.nowUs(), phonemes, said.samples.length, said.rate]);
+      if (options.record === false && speech.length > 2) speech.splice(0, speech.length - 2);
+      if (said.samples.length) options.onSpeech?.({ ...said, volume: loud });
+      return `ok:${Math.round((said.samples.length / said.rate) * 1e6)}`;
+    },
+    /** What it was saying is cut short (Stop, an error). */
+    speech_stop: (): void => { options.onSpeech?.(null); },
     /** A sound expression's steps (M7 slice 4: audio.play of a Sound or a SoundEffect), as CODAL synthesizes it:
      *  'µs,Hz,volume,wave;…', '' when it isn't one. */
     sound_steps: (expression: string): string =>

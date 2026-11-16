@@ -510,7 +510,7 @@ const SPEECH = `
 say(words, *, pitch=64, speed=72, mouth=128, throat=128, pin=pin0) — Says the words (up to 80 characters) in a robot's voice, on the speaker and pin 0, and waits until it has: speech.say("Hello"). pitch: lower is a higher voice; speed: lower is faster.
 pronounce(phonemes, *, pitch=64, speed=72, mouth=128, throat=128, pin=pin0) — Says phonemes — the sounds of speech, in capitals — exactly as you write them: speech.pronounce("/HEHLOW WERLD").
 sing(phonemes, *, pitch=64, speed=72, mouth=128, throat=128, pin=pin0) — Sings phonemes: #115 before a sound sets its note (115 is a C, 103 D, 94 E, 88 F, 78 G, 70 A, 62 B, 58 the next C).
-translate(words) — The phonemes say() would use for the words, to change and pronounce(). Only on the real micro:bit — not in the simulator.
+translate(words) — The phonemes say() would use for the words, to change and pronounce(): print(speech.translate("hello")) gives /HEHLOW.
 `;
 
 const TUNES = `DADADADUM ENTERTAINER PRELUDE ODE NYAN RINGTONE FUNK BLUES BIRTHDAY WEDDING FUNERAL PUNCHLINE PYTHON BADDY

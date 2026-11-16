@@ -543,6 +543,22 @@ test('M7.4 (screen 06): the micro:bit\'s speaker in the real worker — a built-
   await win.getByRole('button', { name: 'Stop' }).click();
 });
 
+test('1.0.2: the micro:bit speaks in the real worker — speech.translate prints SAM\'s phonemes, speech.say sounds on the speaker for as long as the words last, then the program goes on', async () => {
+  const win = await app.firstWindow();
+  await newProject(win, 'New micro:bit project');
+  await setCode(win, ['from microbit import *', 'import speech', 'print(speech.translate("hello"))', 'speech.say("Hello, I am a micro bit")', 'print("said")', 'sleep(5000)', ''].join('\n'));
+  await win.getByRole('button', { name: 'Run main.py' }).click();
+  const log = win.getByRole('log', { name: 'Console' });
+  await expect(log).toContainText('/HEHLOW', { timeout: 3000 });
+  const speaker = win.locator('.speaker');
+  await expect(speaker).toHaveAttribute('data-wave', 'speech', { timeout: 3000 });
+  await expect(log).not.toContainText('said');                                   // it waits while it speaks
+  await expect(log).toContainText('said', { timeout: 5000 });
+  await expect(speaker).toHaveAttribute('data-hz', '0', { timeout: 2000 });
+  await expect(log).not.toContainText('Error');
+  await win.getByRole('button', { name: 'Stop' }).click();
+});
+
 test('M7.5 (screens 28, 28d): a USB-serial adapter dropped below the Pico W, wired to UART0 — its terminal shows what the board sends and sends it a line; at the wrong baud rate, garbage and why', async () => {
   const win = await app.firstWindow();
   await newProject(win, 'New Pico W project');

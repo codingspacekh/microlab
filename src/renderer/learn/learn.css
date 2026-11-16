@@ -1,0 +1,125 @@
+/* Learn (M8, screens 30, 30b, 30c): the prototype's styles (design/src/styles.css, "learn"), in a window of any
+   size (N-13): the list at the left keeps its share, the page takes the rest and scrolls; its two columns stand
+   side by side while there is room and one under the other when there is not. */
+.learn { flex: 1; display: flex; min-height: 0; }
+
+/* ---------- the list at the left ---------- */
+.lnav { flex: 0 0 clamp(220px, 18%, 300px); background: var(--panel); border-right: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 2px; overflow: auto; }
+.lnav > .field { flex: none; margin-bottom: 6px; }
+.lnav .gh { font-size: 11px; font-weight: 650; color: var(--tx-3); text-transform: uppercase; letter-spacing: .05em; padding: 10px 8px 4px; }
+.lnav .group { display: flex; flex-direction: column; gap: 2px; }
+.lnav button, .lnav span.later, .lnav .glabel { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 7px; color: var(--tx-2); font-size: 12.5px; font-weight: 500; text-align: left; flex: none; }
+.lnav button { width: 100%; }
+.lnav button:hover { background: var(--bg-2); }
+.lnav button.on { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.lnav button.sub, .lnav span.sub { padding-left: 26px; }
+.lnav span.later { color: var(--tx-3); }
+.lnav .bdot { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; flex: none; }
+.lnav .bdot svg { width: 18px; height: 18px; }
+.lnav span.later .bdot { opacity: .55; }
+/* the search field's own clear button is not a row of the list */
+.lnav .field button { width: auto; padding: 0; display: inline-grid; }
+
+/* ---------- the page ---------- */
+.lmain { flex: 1; overflow: auto; padding: 22px 28px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 22px; min-width: 0; position: relative; }
+.lmain.flow { flex-direction: column; flex-wrap: nowrap; }
+.lmain.flow > * { flex: none; }
+.lmain .intro { color: var(--tx-2); font-size: 14px; margin-top: 4px; max-width: 70ch; line-height: 1.5; }
+.lmain.flow h1 { font-size: 24px; }
+.lhead { margin: 6px 0 10px; }
+.lcol { flex: 1 1 380px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.lcol.wide { flex: 1.2 1 440px; }
+
+.lhero { display: flex; gap: 22px; align-items: center; padding: 18px 22px; }
+.lhero .hart { flex: none; width: 96px; height: 96px; border-radius: 14px; background: var(--canvas); display: grid; place-items: center; }
+.lhero .hart svg { width: 72px; height: 72px; }
+.lhero .col { gap: 6px; min-width: 0; }
+.lhero h1 { font-size: 26px; letter-spacing: -.01em; }
+.lhero .lede { color: var(--tx-2); font-size: 14.5px; line-height: 1.55; max-width: 62ch; }
+.lhero .lede b { color: var(--tx-1); }
+.uses { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.uses span { font-size: 12px; padding: 3px 9px; border-radius: 12px; background: var(--bg-2); color: var(--tx-2); }
+
+.lsec { padding: 16px 18px; }
+.lsec h2 { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.lsec h2 .num { width: 22px; height: 22px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-ink); font-size: 12px; display: grid; place-items: center; }
+.lsec p { color: var(--tx-2); line-height: 1.55; font-size: 13px; }
+.lsec p b { color: var(--tx-1); }
+.lsec > * + p, .lsec > p + * { margin-top: 8px; }
+.lsec p.small { font-size: 12px; }
+
+/* a glossary word: a dotted line under it; its lines open beside it */
+.word { border-bottom: 1.5px dotted var(--accent); color: inherit; font: inherit; cursor: help; padding: 0; }
+.word:hover, .word[aria-expanded="true"] { background: var(--accent-soft); }
+.plink { color: var(--accent-ink); font: inherit; font-weight: 600; padding: 0; }
+.gloss { position: absolute; z-index: 5; width: 270px; padding: 11px 13px; font-size: 12.5px; line-height: 1.5; box-shadow: var(--shadow-l); }
+.gloss b { display: block; font-size: 13px; margin-bottom: 3px; }
+.gloss span { color: var(--tx-2); }
+
+/* the picture to play with */
+.play { background: var(--canvas); border-radius: 12px; padding: 10px 14px 14px; }
+.play .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 6px; font-size: 13px; }
+/* a slider keeps room to be slid: beside a choice it goes to its own line */
+.play .ctl .slider { flex: 1 1 420px; grid-template-columns: 150px 1fr 70px; margin: 0; font-size: 13px; }
+.play .says { margin-top: 10px; padding: 9px 12px; border-radius: 9px; background: var(--panel); border: 1px solid var(--line); font-size: 13px; line-height: 1.5; color: var(--tx-1); display: flex; gap: 8px; align-items: flex-start; }
+.play .says .ico { color: var(--accent); margin-top: 2px; flex: none; }
+
+.idea { display: flex; gap: 12px; padding: 12px 14px; border-radius: 10px; background: var(--accent-soft); color: var(--tx-1); font-size: 13.5px; line-height: 1.55; }
+.idea > .ico { color: var(--accent-ink); flex: none; margin-top: 3px; }
+
+.spec { width: 100%; border-collapse: collapse; font-size: 13px; }
+.spec td { padding: 8px 8px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.45; }
+.spec td:first-child { color: var(--tx-2); width: 30%; }
+.spec td:nth-child(2) { font-weight: 700; white-space: nowrap; width: 22%; }
+.spec td:last-child { color: var(--tx-2); }
+.spec tr:last-child td { border-bottom: 0; }
+
+.calc { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-top: 10px; }
+.calc div { background: var(--bg); border-radius: 9px; padding: 9px 11px; font-size: 12px; color: var(--tx-2); }
+.calc b { display: block; font-size: 15px; color: var(--tx-1); margin-top: 2px; }
+
+.mistake { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.mistake:last-child { border-bottom: 0; }
+.mistake .mi { color: var(--warn); margin-top: 2px; flex: none; }
+.mistake .mi.bad { color: var(--danger); }
+.mistake b { display: block; font-size: 12.5px; }
+.mistake span { color: var(--tx-2); font-size: 12.5px; line-height: 1.5; }
+
+/* an ideas page's own glossary (screen 30d) */
+.lwords > div { display: grid; grid-template-columns: minmax(90px, 28%) 1fr; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 1.45; }
+.lwords > div:last-child { border-bottom: 0; }
+.lwords dt { font-weight: 700; }
+.lwords dd { color: var(--tx-2); }
+.lsec h2 > .ico { color: var(--accent-ink); }
+
+/* ---------- home, the glossary, what a search found ---------- */
+.lgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
+.lcard { padding: 12px; display: flex; flex-direction: column; gap: 6px; text-align: left; align-items: stretch; position: relative; }
+button.lcard:hover, button.ideacard:hover { border-color: var(--accent-line); box-shadow: var(--shadow-m); }
+.lcard .art { height: 78px; border-radius: 9px; background: var(--canvas); display: grid; place-items: center; }
+.lcard .art svg { width: 54px; height: 54px; }
+.lcard b { font-size: 13.5px; }
+.lcard > span:not(.art):not(.pill) { font-size: 12px; color: var(--tx-2); line-height: 1.4; }
+.lcard.soon .art, .lcard.soon b, .ideacard.soon .ib, .ideacard.soon b { opacity: .55; }
+.lcard.soon .pill { position: absolute; top: 18px; right: 18px; }
+.ideas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.ideacard { padding: 12px 14px; display: flex; gap: 12px; align-items: center; text-align: left; }
+.ideacard .ib { width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-ink); display: grid; place-items: center; flex: none; }
+.ideacard > span:nth-child(2) { flex: 1; min-width: 0; }
+.ideacard b { font-size: 13.5px; display: block; }
+.ideacard span span { font-size: 12px; color: var(--tx-2); }
+.pills { gap: 8px; flex-wrap: wrap; }
+.gwords { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.gword { padding: 12px 14px; }
+.gword dt { font-weight: 650; font-size: 13.5px; }
+.gword dd { color: var(--tx-2); font-size: 12.5px; line-height: 1.5; margin-top: 3px; }
+
+/* ---------- the ways in from the workspace (F-44) ---------- */
+.prow { position: relative; }
+.prow .lrn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); color: var(--accent); background: var(--panel); opacity: 0; }
+.prow:hover .lrn, .prow .lrn:focus-visible { opacity: 1; }
+.inspector .learn-link { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-ink); font-weight: 600; font-size: 12px; margin-top: 8px; padding: 2px 0; }
+.inspector .learn-link:hover { text-decoration: underline; }
+.canvas .part-menu { z-index: 8; padding: 4px; min-width: 170px; }
+.part-menu button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 10px; border-radius: 6px; font-size: 12.5px; text-align: left; }
+.part-menu button:hover, .part-menu button:focus-visible { background: var(--bg-2); outline: none; }

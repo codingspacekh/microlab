@@ -60,7 +60,7 @@ describe('M7 the parts panel (screens 25, 25b)', () => {
   it('an Actuators group and an Output modules group; the stepper comes with its ULN2003', async () => {
     await setup();
     const panel = screen.getByRole('region', { name: 'Parts' });
-    const names = (group: string) => within(within(panel).getByRole('group', { name: group })).getAllByRole('button').map((b) => b.querySelector('.nm')!.firstChild!.textContent);
+    const names = (group: string) => [...within(panel).getByRole('group', { name: group }).querySelectorAll('button.pitem')].map((b) => b.querySelector('.nm')!.firstChild!.textContent);   // the parts, not their Learn buttons (M8)
     expect(names('Actuators')).toEqual(['Servo SG90', 'TT motor', 'L9110S driver', 'L298N driver', 'Relay module', 'Water pump', 'Stepper 28BYJ-48']);
     expect(names('Output modules')).toEqual(['Traffic light module', 'RGB LED module', 'Passive buzzer module', 'Breadboard power supply']);
   });

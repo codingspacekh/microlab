@@ -7,7 +7,8 @@
  * how much to vary each at random. Each effect plays for its duration; its three effects — the shape moving the
  * frequency, a 36-step volume ramp, the effect — each step at their own sample positions, as CODAL does.
  */
-export type Wave = 'sine' | 'sawtooth' | 'triangle' | 'square' | 'noise';
+/** 'speech' (1.0.2): the speaker says words — its samples come apart (run.ts `onSpeech`); the pitch here is the voice's. */
+export type Wave = 'sine' | 'sawtooth' | 'triangle' | 'square' | 'noise' | 'speech';
 
 /** A change of the speaker's sound: from `us` after the start, `hz` at `volume` (0–1 of full) in `wave`; 0 Hz silent. */
 export interface ToneStep { us: number; hz: number; volume: number; wave: Wave }
