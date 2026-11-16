@@ -4,67 +4,67 @@ import { runProject, type RunResult } from '../../src/sim/run';
 import { nodeLoader } from './vm';
 
 /**
- * 1.0.1 — the class after v1.0: "the speech library should also be added to the micro:bit". The module as
- * micropython-microbit-v2 v2.1.2's modspeech.c has it — say, pronounce, sing, translate; pitch, speed, mouth, throat,
- * pin — so a program that speaks runs in the simulator as on the board: it waits while it speaks, and the speaker
- * and pin 0 sound. The voice itself is a stand-in (a buzz at the voice's pitch, word by word): the firmware's is the
- * SAM synthesizer, which has no licence to copy it under (docs/acceptance/1.0.1.md).
+ * 1.0.1 — the class after v1.0: "the speech library should also be added to the micro:bit"; 1.0.2 — its real voice.
+ * The module as micropython-microbit-v2 v2.1.2's modspeech.c has it — say, pronounce, sing, translate; pitch, speed,
+ * mouth, throat, pin — and the voice the firmware's own: SAM, ported from its lib/sam (src/sim/sam). A program that
+ * speaks runs in the simulator as on the board: it waits while it speaks, and the words are heard.
  */
 const run = async (main: string, seconds = 20): Promise<RunResult> =>
   runProject(await nodeLoader(), { board: 'microbit-v2', files: { 'main.py': `from microbit import *\nimport speech\n${main}` }, clock: new VirtualClock(), maxUs: seconds * 1e6, seed: 1 });
 const out = (r: RunResult) => r.output.split('\n').filter(Boolean);
-const heard = (r: RunResult) => r.sound.filter(([, hz]) => hz).map(([, hz]) => Math.round(hz));
-const pin0 = (r: RunResult) => r.pwm.filter((e) => e[1] === '0' && (e[2] as number) > 0);
+const pin0 = (r: RunResult) => r.pwm.filter((e) => e[1] === '0' && (e[2] as number) > 0 && (e[3] as number) > 0);
 
-describe('1.0.1 speech on the simulated micro:bit', () => {
-  it('say() speaks on the speaker and pin 0, and the program waits until it has', async () => {
+describe('1.0.2 speech on the simulated micro:bit, in SAM\'s voice', () => {
+  it('say() speaks — the words as SAM\'s phonemes, then its samples — and the program waits until it has', async () => {
     const r = await run('t = running_time()\nspeech.say("Hello world")\nprint(running_time() - t)\nprint(pin0.get_mode())\n');
     expect(r.error).toBeUndefined();
-    const ms = Number(out(r)[0]);
-    expect(ms).toBeGreaterThan(500);
-    expect(ms).toBeLessThan(2500);
-    expect(heard(r).length).toBeGreaterThan(4);
-    expect(r.sound.at(-1)![1]).toBe(0);              // silent when it has spoken
-    expect(pin0(r).length).toBeGreaterThan(4);
+    expect(r.speech).toHaveLength(1);
+    const [at, phonemes, samples, rate] = r.speech[0]!;
+    expect(at).toBeLessThan(5000);
+    expect(phonemes).toBe(' /HEHLOW WERLD');
+    expect(rate).toBe(19000);
+    // it waited as long as the samples last
+    expect(Number(out(r)[0])).toBe(Math.round((samples / rate) * 1000));
+    expect(Number(out(r)[0])).toBeGreaterThan(600);
+    expect(Number(out(r)[0])).toBeLessThan(2000);
+    // the speaker speaks (no tone of its own), then is silent; pin 0 carries the voice's pitch for a buzzer
+    expect(r.sound.map((e) => [e[1] > 0, e[3]])).toEqual([[true, 'speech'], [false, undefined]]);
+    expect(pin0(r)).toHaveLength(1);
     expect(out(r)[1]).toBe('audio_play');
   });
 
-  it('two words are two bursts of sound, a silence between them', async () => {
-    const r = await run('speech.say("hi you")\n');
-    const gaps = r.sound.filter(([, hz], i) => !hz && i < r.sound.length - 1);
-    expect(gaps).toHaveLength(1);
+  it('translate(): the phonemes say() uses, to change and pronounce()', async () => {
+    const r = await run('print(repr(speech.translate("hello")))\nprint(repr(speech.translate("Hello, World")))\n');
+    expect(out(r)).toEqual(["' /HEHLOW'", "' /HEHLOW, WERLD'"]);
   });
 
-  it('pitch: a lower number is a higher voice; speed: a higher number is slower', async () => {
-    const low = await run('speech.say("a")\n');
-    const high = await run('speech.say("a", pitch=32)\n');
-    expect(heard(high)[0]! / heard(low)[0]!).toBeCloseTo(2, 1);
-    const r = await run('t = running_time()\nspeech.say("banana")\na = running_time() - t\nt = running_time()\nspeech.say("banana", speed=144)\nprint(a, running_time() - t)\n');
-    const [a, b] = out(r)[0]!.split(' ').map(Number);
-    expect(b! / a!).toBeCloseTo(2, 1);
+  it('speed: a higher number is slower; what is heard is as loud as set_volume says, and nothing with the speaker off', async () => {
+    const r = await run('speech.say("banana")\nspeech.say("banana", speed=144)\n');
+    expect(r.speech[1]![2] / r.speech[0]![2]).toBeGreaterThan(1.7);
+    expect(r.speech[1]![2] / r.speech[0]![2]).toBeLessThan(2.2);
+    const said: (number | null)[] = [];
+    await runProject(await nodeLoader(), {
+      board: 'microbit-v2', clock: new VirtualClock(), maxUs: 20e6,
+      files: { 'main.py': 'from microbit import *\nimport speech\nspeech.say("hi")\nset_volume(51)\nspeech.say("hi")\nspeaker.off()\nspeech.say("hi")\n' },
+      onSpeech: (s) => said.push(s ? s.volume : null),
+    });
+    expect(said).toEqual([1, 0.2, 0]);
   });
 
   it('pin=None: the speaker alone; another pin: that one', async () => {
     const none = await run('speech.say("hi", pin=None)\nprint(pin0.get_mode())\n');
     expect(out(none)[0]).not.toBe('audio_play');      // pin 0 is not speech's
     expect(pin0(none)).toEqual([]);
-    expect(heard(none).length).toBeGreaterThan(0);
+    expect(none.speech).toHaveLength(1);
     const one = await run('speech.say("hi", pin=pin1)\n');
-    expect(one.pwm.some((e) => e[1] === '1' && (e[2] as number) > 0)).toBe(true);
+    expect(one.pwm.some((e) => e[1] === '1' && (e[2] as number) > 0 && (e[3] as number) > 0)).toBe(true);
   });
 
-  it('sing(): #115 … sets the note of what follows — C, then D, then E', async () => {
-    const r = await run('speech.sing("#115DOWWWW#103REYYYY#94MIYYYY")\n');
+  it('sing() and pronounce() take phonemes: #115 sets a note; a sound SAM does not know is its error', async () => {
+    const r = await run('speech.sing("#115DOWWWW#103REYYYY#94MIYYYY")\nspeech.pronounce("/HEHLOW WERLD")\n');
     expect(r.error).toBeUndefined();
-    const notes = [...new Set(heard(r))];
-    expect(notes).toEqual([133, 149, 163]);
-  });
-
-  it('pronounce(): phonemes, in capitals as the firmware wants them; a pause for a space', async () => {
-    const r = await run('speech.pronounce("/HEHLOW WERLD")\n');
-    expect(r.error).toBeUndefined();
-    expect(heard(r).length).toBeGreaterThan(4);
-    expect((await run('speech.pronounce("hello")\n')).error).toMatchObject({ type: 'ValueError', message: 'Phoneme not understood', line: 3 });
+    expect(r.speech.map((e) => e[1])).toEqual(['#115DOWWWW#103REYYYY#94MIYYYY', '/HEHLOW WERLD']);
+    expect((await run('speech.pronounce("X")\n')).error).toMatchObject({ type: 'ValueError', message: 'Phoneme not understood', line: 3 });
   });
 
   it('as the firmware: more than 80 characters is too long to say; what is said must be text; the options are named', async () => {
@@ -74,14 +74,14 @@ describe('1.0.1 speech on the simulated micro:bit', () => {
     expect((await run('speech.say("hi", pin=pin_speaker)\n')).error).toMatchObject({ type: 'ValueError', message: 'pin_speaker not allowed' });
   });
 
-  it('Stop while it speaks leaves the speaker silent', async () => {
-    const r = await run('speech.say("a very long sentence to say out loud")\n', 0.3);
-    expect(r.sound.at(-1)![1]).toBe(0);
-  });
-
-  it('translate() needs the firmware\'s own pronunciation rules: it says so, in words a student can act on', async () => {
-    expect((await run('print(speech.translate("hello"))\n')).error).toMatchObject({
-      type: 'NotImplementedError', message: expect.stringMatching(/only on the real micro:bit/),
+  it('Ctrl+C while it speaks cuts it short: the window is told, the speaker is silent (Stop ends the run, and the sound with it)', async () => {
+    const said: boolean[] = [];
+    const r = await runProject(await nodeLoader(), {
+      board: 'microbit-v2', clock: new VirtualClock(), maxUs: 5e6, stdin: [[300_000, '\x03']],
+      files: { 'main.py': 'import speech\nspeech.say("a very long sentence to say out loud")\n' },
+      onSpeech: (s) => said.push(!!s),
     });
+    expect(said).toEqual([true, false]);
+    expect(r.sound.at(-1)![1]).toBe(0);
   });
 });

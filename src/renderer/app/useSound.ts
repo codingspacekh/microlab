@@ -21,6 +21,9 @@ export function useSound(api: MicrolabApi, state: RunState, audio: () => AudioLi
   const voices = state.status === 'idle' ? [] : voicesOf(state.parts, state.board.sound ?? 0, state.board.tone);
   const key = JSON.stringify(voices);
   useEffect(() => { player.current!.set(JSON.parse(key) as typeof voices, muted); }, [key, muted]);
+  // the micro:bit's voice (1.0.2): each thing it says is played once; the run's end, or Stop, cuts it short
+  const speech = state.status === 'idle' ? null : state.board.speech ?? null;
+  useEffect(() => { player.current!.say(speech, muted); }, [speech, muted]);
   useEffect(() => () => player.current?.close(), []);
 
   const toggle = () => {

@@ -89,7 +89,8 @@ const pythonPackages = [
 // --- the boards' firmware: each with the licences of what it is built from (licences/…) ---
 const FIRMWARE_LICENCES: Record<string, string[]> = {
   'pico-w': ['licences/micropython', 'licences/pico-w-firmware'],
-  'microbit-v2': ['licences/micropython-microbit', 'licences/micropython-microbit/codal'],
+  // sam: the speech synthesizer in the firmware — and, ported, in the simulator (src/sim/sam): it has no licence, and its notice says so
+  'microbit-v2': ['licences/micropython-microbit', 'licences/micropython-microbit/codal', 'licences/micropython-microbit/sam'],
 };
 const firmwareJson = json('library/firmware/firmware.json') as Record<string, { file?: string; version: string; source: string }>;
 const firmware = Object.entries(firmwareJson).filter(([, f]) => typeof f === 'object' && f.file).map(([board, f]) => {

@@ -1,4 +1,8 @@
 {
+  "1.0.2": [
+    "The micro:bit talks in its real robot voice in the simulator: speech.say(\"Hello\") sounds as it does on the board",
+    "speech.translate() shows the sounds (phonemes) of your words, and speech.sing() sings its notes"
+  ],
   "1.0.1": [
     "Stop always stops a program run on your real board — even pressed right after Run — and the board goes quiet",
     "The red line under an error goes as soon as you change the code",

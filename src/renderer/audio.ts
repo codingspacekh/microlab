@@ -20,7 +20,8 @@ export interface Voice {
 export function voicesOf(parts: Record<string, PartView>, speakerHz = 0, tone?: Tone): Voice[] {
   const out: Voice[] = [];
   for (const [id, v] of Object.entries(parts)) if (v.kind === 'buzzer' && v.hz > 0 && v.volume > 0) out.push({ id, hz: v.hz, volume: v.volume });
-  if (speakerHz > 0 && (tone?.volume ?? 1) > 0) out.push({ id: 'speaker', hz: speakerHz, volume: tone?.volume ?? 1, ...(tone && tone.wave !== 'square' ? { wave: tone.wave } : {}) });
+  // speech is heard as its samples (SoundPlayer.say), not as a tone at the voice's pitch
+  if (speakerHz > 0 && (tone?.volume ?? 1) > 0 && tone?.wave !== 'speech') out.push({ id: 'speaker', hz: speakerHz, volume: tone?.volume ?? 1, ...(tone && tone.wave !== 'square' ? { wave: tone.wave } : {}) });
   return out;
 }
 
@@ -40,16 +41,23 @@ interface Param { value: number; setValueAtTime(v: number, t: number): void }
 interface Node_ { connect(to: unknown): void }
 interface Osc extends Node_ { type: string; frequency: Param; start(): void; stop(): void }
 interface Gain extends Node_ { gain: Param }
+interface Buffer_ { getChannelData(channel: number): Float32Array }
+interface Source extends Node_ { buffer: Buffer_ | null; start(): void; stop(): void }
 export interface AudioLike {
   currentTime: number;
   destination: unknown;
   createOscillator(): Osc;
   createGain(): Gain;
+  /** For speech (1.0.2); a fake without them plays none. */
+  createBuffer?(channels: number, length: number, rate: number): Buffer_;
+  createBufferSource?(): Source;
   close(): Promise<void>;
 }
 
 /** Each voice's loudness at full volume: buzzers are piercing, so all of them together stay well below clipping. */
 const LEVEL = 0.12;
+/** The voice's: its samples swing less than a square wave does, so it is given more. */
+const SPEECH_LEVEL = 0.6;
 
 export const webAudio = (): AudioLike | null => {
   const Ctx = (globalThis as { AudioContext?: new () => AudioLike }).AudioContext;
@@ -60,6 +68,7 @@ export class SoundPlayer {
   private ctx: AudioLike | null | undefined;
   private master: Gain | undefined;
   private readonly playing = new Map<string, { osc: Osc; gain: Gain }>();
+  private saying: Source | undefined;
 
   constructor(private readonly make: () => AudioLike | null = webAudio) {}
 
@@ -101,8 +110,40 @@ export class SoundPlayer {
     }
   }
 
+  /**
+   * The micro:bit's voice (1.0.2, speech): SAM's samples — unsigned 8-bit, 128 the middle — played once, as loud as
+   * `volume` says (0–1). What it was saying stops first; null, or muted: silence.
+   */
+  say(said: { samples: Uint8Array; rate: number; volume: number } | null, muted: boolean): void {
+    try { this.saying?.stop(); } catch { /* it had already ended */ }
+    this.saying = undefined;
+    if (!said || muted || !said.samples.length || said.volume <= 0) return;
+    if (this.ctx === undefined) {
+      this.ctx = this.make();
+      if (this.ctx) {
+        this.master = this.ctx.createGain();
+        this.master.connect(this.ctx.destination);
+      }
+    }
+    const ctx = this.ctx;
+    if (!ctx || !this.master || !ctx.createBuffer || !ctx.createBufferSource) return;
+    const buffer = ctx.createBuffer(1, said.samples.length, said.rate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < said.samples.length; i++) data[i] = (said.samples[i]! - 128) / 128;
+    const gain = ctx.createGain();
+    gain.gain.value = SPEECH_LEVEL * said.volume;
+    gain.connect(this.master);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(gain);
+    source.start();
+    this.saying = source;
+  }
+
   /** Stops everything and lets the sound device go. */
   close(): void {
+    try { this.saying?.stop(); } catch { /* it had already ended */ }
+    this.saying = undefined;
     for (const p of this.playing.values()) p.osc.stop();
     this.playing.clear();
     void this.ctx?.close().catch(() => {});

@@ -30,6 +30,8 @@ export interface RunEvents {
   onEnd: (result: RunResult) => void;
   /** An error in a line typed at the REPL (M9). */
   onReplError?: (error: SimError) => void;
+  /** The micro:bit speaks (1.0.2): its samples to play; null: cut short. */
+  onSpeech?: (said: { samples: Uint8Array; rate: number; volume: number } | null) => void;
   /** A fault first seen while running (M9 slice 2): the cards and Problems. */
   onFault?: (fault: Fault) => void;
 }
@@ -111,6 +113,7 @@ export function startRun(req: { doc: ProjectDoc; entry: string; burnt?: string[]
     }
     else if (m.type === 'parts') events.onParts(m.states);
     else if (m.type === 'board') events.onBoard({ pins: m.pins, ...(m.display !== undefined ? { display: m.display } : {}), ...(m.sound !== undefined ? { sound: m.sound, ...(m.tone ? { tone: m.tone } : {}) } : {}), ...(m.radio ? { radio: m.radio } : {}), ...(m.state ? { state: m.state } : {}) });
+    else if (m.type === 'speech') events.onSpeech?.(m.said);
     else if (m.type === 'ended') {
       // M9: the program has ended; the worker goes on with the REPL
       ended = true;
@@ -150,5 +153,5 @@ export function startRun(req: { doc: ProjectDoc; entry: string; burnt?: string[]
 }
 
 function emptyResult(ended: RunResult['ended']): RunResult {
-  return { output: '', trace: [], pwm: [], analog: [], display: [], sound: [], bus: [], radio: [], parts: [], faults: [], ended };
+  return { output: '', trace: [], pwm: [], analog: [], display: [], sound: [], speech: [], bus: [], radio: [], parts: [], faults: [], ended };
 }

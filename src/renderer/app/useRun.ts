@@ -25,6 +25,9 @@ export interface ConsoleChunk { kind: ConsoleKind; text: string; why?: Explanati
 /** The board's own outputs while running: pin levels, the micro:bit's display, its speaker's pitch (Hz; M6.2). */
 export interface BoardOutputs {
   pins: Record<string, number>; display?: string; sound?: number; tone?: Tone; radio?: string[];
+  /** What the micro:bit says now (1.0.2, speech): SAM's samples; `n` counts them, so the same words said twice are
+   *  played twice. */
+  speech?: { samples: Uint8Array; rate: number; volume: number; n: number } | null;
   /** The circuit's pins and parts as the board's run has them (M9 slice 4: the multimeter reads with them). */
   state?: SimState;
 }
@@ -89,6 +92,10 @@ export function useRun(start: StartRun = realStart) {
       // the radio's messages sent (M7): the last six, as hex
       onBoard: (b) => setState((s) => ({ ...s, board: { pins: { ...s.board.pins, ...b.pins }, display: b.display ?? s.board.display, sound: b.sound ?? s.board.sound, tone: b.sound !== undefined ? b.tone : s.board.tone,
         radio: b.radio ? [...(s.board.radio ?? []), ...b.radio].slice(-6) : s.board.radio, state: b.state ?? s.board.state } })),
+      onSpeech: (said) => {
+        if (handle.current !== session) return;
+        setState((s) => ({ ...s, board: { ...s.board, speech: said ? { ...said, n: (s.board.speech?.n ?? 0) + 1 } : null } }));
+      },
       onFault: (f) => {
         if (handle.current !== session) return;
         setState((s) => (s.faults.some((x) => keyOf(x) === keyOf(f)) ? s : { ...s, faults: [...s.faults, f] }));
