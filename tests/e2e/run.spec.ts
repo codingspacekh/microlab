@@ -553,7 +553,7 @@ test('1.0.2: the micro:bit speaks in the real worker — speech.translate prints
   const speaker = win.locator('.speaker');
   await expect(speaker).toHaveAttribute('data-wave', 'speech', { timeout: 3000 });
   await expect(log).not.toContainText('said');                                   // it waits while it speaks
-  await expect(log).toContainText('said', { timeout: 5000 });
+  await expect(log).toContainText('said', { timeout: 10_000 });   // a slow computer takes longer to make the voice
   await expect(speaker).toHaveAttribute('data-hz', '0', { timeout: 2000 });
   await expect(log).not.toContainText('Error');
   await win.getByRole('button', { name: 'Stop' }).click();

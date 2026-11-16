@@ -87,6 +87,7 @@ test('from the workspace to a part\'s page and back: the parts panel, and a righ
   await win.getByRole('button', { name: 'Parts', exact: true }).click();
   const panel = win.getByRole('region', { name: 'Parts' });
   await panel.getByRole('button', { name: /^Half breadboard/ }).press('Enter');
+  await expect(win.locator('[data-point="bb1.a1"]')).toHaveCount(1);
   // the way in shows as the mouse comes over the part's row
   const row = panel.locator('.prow', { has: win.getByRole('button', { name: /^LED/ }) });
   await row.hover();
@@ -98,6 +99,10 @@ test('from the workspace to a part\'s page and back: the parts panel, and a righ
   // an LED put on the breadboard with the keyboard, then right-clicked
   if (!(await panel.isVisible())) await win.getByRole('button', { name: 'Parts', exact: true }).click();
   await panel.getByRole('button', { name: /^LED/ }).press('Enter');
+  // picked up, the part waits on the canvas (its outline drawn), which takes the keyboard a moment later: Enter before
+  // that would go to the panel, or find nothing to put down
+  await expect(win.locator('[data-ghost="ok"]')).toHaveCount(1);
+  await expect(win.getByRole('application', { name: 'Circuit canvas' })).toBeFocused();
   await win.keyboard.press('Enter');
   const led = win.locator('[data-part="led1"]');
   await expect(led).toHaveCount(1);
